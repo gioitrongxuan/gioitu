@@ -1,7 +1,7 @@
 // Word Cloud (SPEC 4.3): flex-wrap tags, equal height, width by word length.
 // Colour = log-normalized lookup_count; badge = RELAPSED; highlight = due.
 
-import { buildCloud, shadeToColor, shadeToTextColor } from "../domain/wordcloud";
+import { buildCloud, CloudSort, shadeToColor, shadeToTextColor } from "../domain/wordcloud";
 import { VocabEntry } from "../domain/types";
 
 interface Props {
@@ -10,11 +10,13 @@ interface Props {
   highlightDue: boolean;
   /** When true, show ONLY due words. */
   onlyDue: boolean;
+  /** Ordering of the cloud (recent-first by default). */
+  sort: CloudSort;
   onSelect: (entry: VocabEntry) => void;
 }
 
-export function WordCloud({ entries, highlightDue, onlyDue, onSelect }: Props) {
-  const tags = buildCloud(entries, { now: Date.now() }).filter((t) => (onlyDue ? t.due : true));
+export function WordCloud({ entries, highlightDue, onlyDue, sort, onSelect }: Props) {
+  const tags = buildCloud(entries, { now: Date.now(), sort }).filter((t) => (onlyDue ? t.due : true));
 
   if (tags.length === 0) {
     return <p className="empty">Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu.</p>;

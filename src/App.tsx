@@ -13,6 +13,7 @@ import { DictionaryImport } from "./ui/DictionaryImport";
 import { Toasts } from "./ui/Toasts";
 import { DictEntry } from "./data/db";
 import { VocabEntry } from "./domain/types";
+import { CloudSort } from "./domain/wordcloud";
 
 const DEFAULT_TERM_LANG = "en";
 const DEFAULT_NATIVE_LANG = "vi";
@@ -28,6 +29,7 @@ export default function App() {
   const [view, setView] = useState<View>(null);
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
+  const [sort, setSort] = useState<CloudSort>("recent");
   const [reviewing, setReviewing] = useState(false);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
@@ -112,8 +114,10 @@ export default function App() {
         dueCount={store.dueEntries.length}
         highlightDue={highlightDue}
         onlyDue={onlyDue}
+        sort={sort}
         onToggleHighlight={() => setHighlightDue((v) => !v)}
         onToggleOnlyDue={() => setOnlyDue((v) => !v)}
+        onSortChange={setSort}
         onStartReview={() => setReviewing(true)}
       />
 
@@ -126,6 +130,7 @@ export default function App() {
               entries={store.entries}
               highlightDue={highlightDue}
               onlyDue={onlyDue}
+              sort={sort}
               onSelect={onSelectTag}
             />
           )}

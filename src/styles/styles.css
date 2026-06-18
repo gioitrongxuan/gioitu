@@ -53,6 +53,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 /* Filter bar */
 .filter-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.sort-select { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+.sort-select select { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; background: #fff; cursor: pointer; }
 .review-btn {
   margin-left: auto; background: var(--accent); color: #fff; border: none;
   padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
