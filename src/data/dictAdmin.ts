@@ -72,6 +72,18 @@ export function importDictionary(
   });
 }
 
+/** Ask the backend to download and import a Yomitan .zip from a URL. */
+export function importDictionaryUrl(
+  url: string,
+  opts: { term_lang?: string; native_lang?: string } = {},
+): Promise<ImportResult> {
+  return request<ImportResult>("/dict/import-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ url, src: opts.term_lang, tgt: opts.native_lang }),
+  });
+}
+
 export function listDictionaries(): Promise<DictionaryMeta[]> {
   return request<DictionaryMeta[]>("/dict/dictionaries", { headers: authHeaders() });
 }

@@ -125,9 +125,58 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .link { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; }
 
 /* Dictionary import */
-.dict-import { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dict-import { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .import-label { border: 1px dashed var(--line); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
 .dict-count, .dict-status { font-size: 12px; color: var(--muted); }
+.dict-import-panel {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 6px;
+  width: min(360px, 90vw); background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 12px;
+  display: grid; gap: 10px;
+}
+.url-row { display: flex; gap: 6px; }
+.url-input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; }
+.url-input:focus { outline: none; border-color: var(--accent); }
+.url-row .primary { margin-top: 0; }
+.local-dict-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.local-dict-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: #f8fafc; }
+.ld-title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-meta { color: var(--muted); font-size: 12px; }
+
+/* Yomitan-style definition view */
+.detail-panel .results { display: grid; gap: 16px; margin: 10px 0; }
+.result { border-top: 1px solid var(--line); padding-top: 12px; }
+.result:first-child { border-top: none; padding-top: 0; }
+.result-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.headword { font-size: 24px; font-weight: 600; line-height: 1.4; }
+.furigana ruby { ruby-align: center; }
+.furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; }
+.dict-name { font-size: 11px; color: var(--muted); background: #f1f5f9; padding: 2px 8px; border-radius: 999px; margin-left: auto; }
+
+.reasons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; font-size: 12px; }
+.reasons-base { font-weight: 600; }
+.reason-chip { background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 999px; }
+.reason-chip::before { content: "↞ "; color: var(--muted); }
+
+.term-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.term-tag { font-size: 11px; background: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 1px 7px; border-radius: 999px; }
+
+.senses { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.sense { line-height: 1.5; }
+.sense-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; margin-right: 6px; vertical-align: baseline; }
+.pos-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; padding: 1px 6px; border-radius: 5px; }
+.sense-body { display: inline; }
+.gloss { margin: 2px 0; }
+
+/* Structured content */
+.sc-ul, .sc-ol { margin: 4px 0; padding-left: 18px; }
+.sc-li { margin: 2px 0; }
+.sc-b, .sc-strong { font-weight: 700; }
+.sc-em, .sc-i { font-style: italic; }
+.sc-table { border-collapse: collapse; margin: 6px 0; }
+.sc-td, .sc-th { border: 1px solid var(--line); padding: 3px 8px; font-size: 13px; }
+.sc-img { color: var(--muted); font-size: 12px; }
+.sc-link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
 
 /* Review session */
 .review-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: grid; place-items: center; z-index: 50; }

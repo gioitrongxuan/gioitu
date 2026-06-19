@@ -1,40 +1,49 @@
-// Detail panel (SPEC 4.1 Case 1): show a definition, or let the user write a
-// Custom Definition when the dictionary has no result. Also surfaces SRS stats.
+// Detail panel — a Yomitan-style definition view. For each matched dictionary
+// entry it shows the headword with furigana, its part-of-speech tags, the chain
+// of inflection reasons that led there (食べた → 食べる: quá khứ), and the
+// structured-content glossary grouped by sense. Falls back to a Custom
+// Definition editor when nothing is found, and surfaces the SRS stats.
 
 import { useState } from "react";
-import { DictEntry } from "../data/db";
+import { TermResult } from "../data/search";
 import { VocabEntry } from "../domain/types";
+import { reasonLabel } from "../domain/deinflect";
+import { Definitions, Furigana } from "./StructuredContent";
 import { formatInterval, formatRelative } from "./format";
 
 interface Props {
+  /** The text the user searched (surface form). */
   term: string;
-  dict: DictEntry | null;
-  /** The user's learning entry for this term, if any. */
+  /** Dictionary results (deinflected + ranked). May be empty. */
+  results: TermResult[];
+  /** The user's learning entry for the primary term, if any. */
   entry?: VocabEntry;
   onSaveCustom: (meaning: string) => void;
   onClose: () => void;
+  /** Navigate to another term (internal `?query=` links). */
+  onLookup?: (term: string) => void;
 }
 
-export function DetailPanel({ term, dict, entry, onSaveCustom, onClose }: Props) {
+export function DetailPanel({ term, results, entry, onSaveCustom, onClose, onLookup }: Props) {
   const [custom, setCustom] = useState("");
 
-  const found = !!dict || (!!entry && !entry.is_custom) || (!!entry && entry.meaning.length > 0);
-  const definitions = dict?.definitions ?? (entry ? safeGlosses(entry.meaning) : []);
+  const savedLines = !results.length && entry ? safeGlosses(entry.meaning) : [];
 
   return (
     <aside className="detail-panel" aria-label="Chi tiết từ">
       <header>
         <h2>{term}</h2>
-        {dict?.reading && <span className="reading">{dict.reading}</span>}
         <button className="link close" onClick={onClose}>✕</button>
       </header>
 
-      {found ? (
-        <ul className="definitions">
-          {definitions.map((d, i) => (
-            <li key={i}>{d}</li>
+      {results.length > 0 ? (
+        <div className="results">
+          {results.map((res, i) => (
+            <ResultView key={i} res={res} onLookup={onLookup} />
           ))}
-        </ul>
+        </div>
+      ) : savedLines.length > 0 ? (
+        <Definitions definitions={savedLines} onLookup={onLookup} />
       ) : (
         <div className="custom-def">
           <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
@@ -68,6 +77,39 @@ export function DetailPanel({ term, dict, entry, onSaveCustom, onClose }: Props)
         </div>
       )}
     </aside>
+  );
+}
+
+function ResultView({ res, onLookup }: { res: TermResult; onLookup?: (term: string) => void }) {
+  const { entry } = res;
+  return (
+    <section className="result">
+      <div className="result-head">
+        <span className="headword">
+          <Furigana term={entry.term} reading={entry.reading} />
+        </span>
+        {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
+      </div>
+
+      {res.reasons.length > 0 && (
+        <div className="reasons" title="Cách chia của từ gốc">
+          <span className="reasons-base">{entry.term}</span>
+          {res.reasons.map((r, i) => (
+            <span key={i} className="reason-chip">{reasonLabel(r)}</span>
+          ))}
+        </div>
+      )}
+
+      {entry.termTags && entry.termTags.length > 0 && (
+        <div className="term-tags">
+          {entry.termTags.map((t) => (
+            <span key={t} className="term-tag">{t}</span>
+          ))}
+        </div>
+      )}
+
+      <Definitions senses={entry.senses} definitions={entry.definitions} onLookup={onLookup} />
+    </section>
   );
 }
 

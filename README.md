@@ -99,16 +99,18 @@ src/
     wordcloud.ts     ← log-normalized shade, visibility, time-decay (SPEC §4.3)
     lookup.ts        ← look-up counting, gating, relapse orchestration (§4.1/4.2)
     languages.ts     ← the 4 language-pair dictionaries (ja↔vi, en↔vi)
+    deinflect.ts     ← Yomitan-style deinflection (JA + light EN), tested
   data/
-    db.ts            ← IndexedDB schema: terms (per pair) / user_data
-    yomitan.ts       ← client-side Yomitan .zip import (forward, per-pair) (§2.A)
+    db.ts            ← IndexedDB schema: terms (rich) / dictionaries / user_data
+    structured-content.ts ← Yomitan glossary model + text flattener + furigana
+    yomitan.ts       ← client Yomitan import (zip + URL) + deinflecting look-up
     search.ts        ← Search Router: IndexedDB first, server fallback (§2.A)
     api.ts           ← backend client (best-effort, offline-tolerant)
     dictAdmin.ts     ← server dictionary-management client (import/list/edit)
     repository.ts    ← user-data cache + last-write-wins sync (§2.C)
   ui/                ← React components (SearchBar, WordCloud, FilterBar,
-                       ReviewSession, DetailPanel, AuthScreen,
-                       DictionaryManager, …)
+                       ReviewSession, DetailPanel, StructuredContent,
+                       DictionaryImport, DictionaryManager, AuthScreen, …)
 server/              ← optional Express + PostgreSQL backend (auth + dict + sync)
   src/yomitan.ts     ← server-side Yomitan .zip parser (pure, unit-tested)
 test/                ← Vitest suites covering the SPEC's logic constraints
@@ -127,6 +129,39 @@ reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
 2. **Server-side fallback** — if IndexedDB has no dictionary for that pair, the
    backend's default dictionary is queried over `/api` (`?src=&tgt=`).
 
+### Yomitan-style import, look-up & display
+
+The client path mirrors how **Yomitan** works:
+
+- **Import from a `.zip` *or* a URL.** `src/data/yomitan.ts` parses the Yomitan
+  v3 archive (`index.json`, `term_bank_*.json`) and **preserves structured
+  content** (rich glossaries) instead of flattening it, keeps part-of-speech
+  **tags** and word-type **rules**, and **merges multiple senses** of a term.
+  `importYomitanUrl(url)` downloads the archive first (CORS permitting). Each
+  import is recorded in a local **dictionary registry** (`dictionaries` store)
+  so installed dictionaries can be listed and removed — open the *Từ điển*
+  menu in the header. The optional backend can also import a URL server-side
+  (`POST /api/dict/import-url`).
+- **Deinflection on look-up.** `src/domain/deinflect.ts` walks an inflected
+  query back to its dictionary form, recording the chain of reasons
+  (`食べさせられました → 食べる`: polite → causative). It ports the classic
+  Yomichan deinflection algorithm with a curated, unit-tested Japanese rule set
+  (て / た / ます / negative / potential / passive / causative / volitional / ば /
+  たい / progressive / …) gated by word-type flags, plus a light English
+  deinflector (plurals, `-ed`, `-ing`, comparatives). `findTerms` returns the
+  ranked, grammatically-valid matches; the tracked SRS term is the **lemma**,
+  not the inflected surface.
+- **Rich definition view.** `DetailPanel` + `StructuredContent.tsx` render the
+  headword with **furigana** ruby, the **inflection-reason** chips, the term /
+  part-of-speech **tags**, and the **structured-content** glossary (lists,
+  emphasis, tables, internal `?query=` links that re-trigger a look-up). Images
+  in dictionaries degrade gracefully to their alt text.
+
+> Architectural split: the **client/IndexedDB** path (primary, offline-first)
+> gets the full Yomitan treatment above. The optional **server** dictionary
+> stays plain-text (its management screen edits glosses as text); client-side
+> deinflection is still applied when falling back to it.
+
 ### Server-side dictionary management (auth)
 
 Signed-in users can manage the **shared server dictionary** from the *Quản lý
@@ -136,6 +171,7 @@ endpoints (`src/data/dictAdmin.ts` → `server/src/index.ts`):
 | Method & path | Purpose |
 |---|---|
 | `POST /api/dict/import` | Upload one Yomitan `.zip` (raw body, `Content-Type: application/zip`); parsed by `server/src/yomitan.ts`, bulk-inserted in chunks. Language pair is read from `index.json` or overridden via `?src=&tgt=`. |
+| `POST /api/dict/import-url` | Download a Yomitan `.zip` from a URL server-side and import it. Body: `{ url, src?, tgt? }`. |
 | `GET /api/dict/dictionaries` | List imported dictionaries with live term counts. |
 | `DELETE /api/dict/dictionaries/:id` | Remove a dictionary and all of its terms. |
 | `GET /api/dict/terms` | Browse / prefix-search terms in a pair (paginated). |
@@ -185,7 +221,9 @@ unit; the UI converts to friendly units.
   to choose relearning vs learning steps faithfully.
 - **Time-decay** colouring (SPEC §4.3, optional) is implemented in
   `effectiveCount` but **off by default** in v1.
-- Every domain rule is covered by tests in `test/` (42 tests).
+- Every domain rule is covered by tests in `test/` (83 tests), including the
+  deinflection rule set, furigana distribution, structured-content flattening,
+  and rich import (zip + mocked URL) + deinflecting look-up.
 
 ## Tech
 
