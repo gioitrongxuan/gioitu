@@ -5,7 +5,7 @@ import {
   parseEntryRules,
   rulesMatchEntry,
   RULE,
-} from "../src/domain/deinflect";
+} from "@/features/dictionary/domain/deinflect";
 
 /** All candidate base forms produced for an inflected word. */
 const bases = (x: string) => deinflect(x).map((d) => d.term);

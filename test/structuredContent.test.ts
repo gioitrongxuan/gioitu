@@ -6,7 +6,7 @@ import {
   distributeFurigana,
   isStructured,
   GlossaryNode,
-} from "../src/data/structured-content";
+} from "@/shared/structured-content";
 
 const structured = (text: string): GlossaryNode => ({
   type: "structured-content",

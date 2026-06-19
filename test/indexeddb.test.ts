@@ -6,14 +6,14 @@ import {
   lookupTerm,
   suggestTerms,
   hasLocalDictionary,
-} from "../src/data/yomitan";
+} from "@/features/dictionary/data/yomitan";
 import {
   putEntry,
   getEntry,
   getAllEntries,
   syncUserData,
   reassignEntries,
-} from "../src/data/repository";
+} from "@/features/review/data/repository";
 import { makeEntry } from "./fixtures";
 
 /** Build an in-memory Yomitan-style .zip for testing. */

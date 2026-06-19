@@ -4,7 +4,7 @@ import {
   computeShade,
   effectiveCount,
   isVisibleOnCloud,
-} from "../src/domain/wordcloud";
+} from "@/features/review/domain/wordcloud";
 import { makeEntry } from "./fixtures";
 
 describe("visibility depends on SRS status (constraint 4)", () => {

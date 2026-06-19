@@ -5,7 +5,7 @@ import {
   signToken,
   verifyToken,
   isValidEmail,
-} from "../server/src/auth";
+} from "@server/features/auth/auth";
 
 describe("password hashing (scrypt)", () => {
   it("verifies a correct password and rejects a wrong one", () => {

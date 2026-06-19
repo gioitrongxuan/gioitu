@@ -1,4 +1,4 @@
-import { VocabEntry } from "../src/domain/types";
+import { VocabEntry } from "@/shared/types";
 
 /** Build a VocabEntry with sensible defaults, overridable per test. */
 export function makeEntry(over: Partial<VocabEntry> = {}): VocabEntry {

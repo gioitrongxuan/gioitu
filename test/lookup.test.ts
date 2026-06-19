@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { registerLookup } from "../src/domain/lookup";
-import { LOOKUP_DEBOUNCE_MS, SRS_GATING_THRESHOLD } from "../src/domain/constants";
+import { registerLookup } from "@/features/review/domain/lookup";
+import { LOOKUP_DEBOUNCE_MS, SRS_GATING_THRESHOLD } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 const NOW = 5_000_000;

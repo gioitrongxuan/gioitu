@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -7,6 +8,14 @@ import react from "@vitejs/plugin-react";
 // which is proxied to the Express server during development.
 export default defineConfig({
   plugins: [react()],
+  // Import aliases (also honoured by Vitest): "@" → src, "@server" → server/src.
+  // Cross-feature / shared imports use these; intra-feature imports stay relative.
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@server": fileURLToPath(new URL("./server/src", import.meta.url)),
+    },
+  },
   server: {
     port: 5173,
     proxy: {
