@@ -9,8 +9,8 @@ import {
   listLocalDictionaries,
   deleteLocalDictionary,
   hasLocalDictionary,
-} from "../src/data/yomitan";
-import { glossaryToLines, isStructured } from "../src/data/structured-content";
+} from "@/features/dictionary/data/yomitan";
+import { glossaryToLines, isStructured } from "@/shared/structured-content";
 
 const sc = (text: string) => ({
   type: "structured-content" as const,

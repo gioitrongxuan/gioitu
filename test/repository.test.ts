@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeByUpdatedAt } from "../src/data/repository";
+import { mergeByUpdatedAt } from "@/features/review/data/repository";
 import { makeEntry } from "./fixtures";
 
 describe("last-write-wins merge (constraint 9)", () => {

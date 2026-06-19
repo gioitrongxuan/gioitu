@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { gradeCard, newCardState, relapse, isDue } from "../src/domain/srs";
-import { DAY, DEFAULT_SRS_CONFIG as CFG } from "../src/domain/constants";
+import { gradeCard, newCardState, relapse, isDue } from "@/features/review/domain/srs";
+import { DAY, DEFAULT_SRS_CONFIG as CFG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 const NOW = 2_000_000;

@@ -1,0 +1,1 @@
+export { DictionaryManager } from "./DictionaryManager";

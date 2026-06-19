@@ -64,24 +64,24 @@ as a *guest*: look-ups, the Word Cloud, and SRS reviews all work and persist
 locally in IndexedDB (keyed under the `__guest__` user id). Signing in is
 **optional** and only adds cross-device cloud sync.
 
-- **Guest** (`GUEST_USER_ID` in `src/data/auth.ts`): no auth token, so sync is a
+- **Guest** (`GUEST_USER_ID` in `src/features/auth/data/auth.ts`): no auth token, so sync is a
   no-op and data never leaves the device. The header shows *Khách* with an
   *Đăng nhập* button that opens the login/register screen as a dismissible modal.
 - **First sign-in migrates guest progress**: `reassignEntries()`
-  (`src/data/repository.ts`) moves any `__guest__` entries onto the new account
+  (`src/features/review/data/repository.ts`) moves any `__guest__` entries onto the new account
   (last-write-wins per term) so nothing learned while trying the app is lost.
 
 Per SPEC §2.C, learning data is tied to an account so it is consistent across
 devices once you sign in:
 
-- **Backend** (`server/src/auth.ts`, zero external deps): passwords hashed with
+- **Backend** (`server/src/features/auth/auth.ts`, zero external deps): passwords hashed with
   `scrypt` + per-user random salt; sessions are **HS256 JWTs** signed with
   `GIOITU_JWT_SECRET`. `POST /api/auth/register`, `POST /api/auth/login`,
   `GET /api/auth/me`.
 - **Sync is protected**: `/api/sync` requires `Authorization: Bearer <token>`
   and derives `user_id` from the token — a client-supplied `user_id` is ignored
   (ownership cannot be spoofed).
-- **Frontend** (`src/data/auth.ts`, `src/ui/AuthScreen.tsx`): the JWT + user are
+- **Frontend** (`src/features/auth/data/auth.ts`, `src/features/auth/ui/AuthScreen.tsx`): the JWT + user are
   cached in `localStorage`; the bearer token is attached to all sync calls.
 
 > Set a strong `GIOITU_JWT_SECRET` in production (see `.env.example`).
@@ -90,37 +90,48 @@ devices once you sign in:
 
 Dual-source dictionary, learning data separated from dictionary data (SPEC §2).
 
+The frontend is organized **by feature** (vertical slices) over a small shared
+kernel; the backend mirrors the same split. Imports use path aliases — `@/*` →
+`src`, `@server/*` → `server/src` — for cross-feature/shared references, while
+imports within a feature stay relative.
+
 ```
 src/
-  domain/            ← pure, fully unit-tested business logic (no I/O)
-    types.ts         ← VocabEntry data model (SPEC §5)
-    constants.ts     ← SM-2 defaults, gating threshold, debounce window
-    srs.ts           ← SM-2 engine: gradeCard / relapse / isDue (SPEC §4.4)
-    wordcloud.ts     ← log-normalized shade, visibility, time-decay (SPEC §4.3)
-    lookup.ts        ← look-up counting, gating, relapse orchestration (§4.1/4.2)
-    languages.ts     ← the 4 language-pair dictionaries (ja↔vi, en↔vi)
-    deinflect.ts     ← Yomitan-style deinflection (JA + light EN), tested
-  data/
-    db.ts            ← IndexedDB schema: terms (rich) / dictionaries / user_data
+  app/                 ← composition root (depends on features + shared)
+    App.tsx            ← wires auth + store + main screen (thin shell)
+    main.tsx           ← React entry
+    useLookup.ts       ← detail-panel view state + look-up handlers (§4.1)
+  shared/              ← cross-cutting kernel, no feature deps
+    types.ts           ← VocabEntry core data model (SPEC §5)
+    db.ts              ← IndexedDB schema: terms / dictionaries / user_data
     structured-content.ts ← Yomitan glossary model + text flattener + furigana
-    yomitan.ts       ← client Yomitan import (zip + URL) + deinflecting look-up
-    search.ts        ← Search Router: IndexedDB first, server fallback (§2.A)
-    api.ts           ← backend client (best-effort, offline-tolerant)
-    dictAdmin.ts     ← server dictionary-management client (import/list/edit)
-    repository.ts    ← user-data cache + last-write-wins sync (§2.C)
-  ui/                ← React components (SearchBar, WordCloud, FilterBar,
-                       ReviewSession, DetailPanel, StructuredContent,
-                       DictionaryImport, DictionaryManager, AuthScreen, …)
-server/              ← optional Express + PostgreSQL backend (auth + dict + sync)
-  src/yomitan.ts     ← server-side Yomitan .zip parser (pure, unit-tested)
-test/                ← Vitest suites covering the SPEC's logic constraints
+    languages.ts       ← the 4 language-pair dictionaries (ja↔vi, en↔vi)
+    ui/                ← shared UI primitives (Toasts, duration format)
+  features/
+    dictionary/        ← look-up, deinflection, import, management
+      domain/deinflect.ts            ← Yomitan-style deinflection (JA + light EN)
+      data/                          ← yomitan, search router, serverDict, dictAdmin
+      ui/                            ← SearchBar, DetailPanel, StructuredContent,
+                                       DictionaryImport, DictionaryManager/ (split)
+    review/            ← the SRS / Word-Cloud learning loop (pure, well-tested)
+      domain/          ← constants, srs, lookup, wordcloud (operate on VocabEntry)
+      data/            ← repository (cache + LWW sync), syncApi (cloud client)
+      state/store.ts   ← React hook tying domain logic to persistence
+      ui/              ← WordCloud, FilterBar, ReviewSession
+    auth/              ← data/auth (session) · ui/AuthScreen · useAuth
+server/                ← optional Express + PostgreSQL backend (auth + dict + sync)
+  src/index.ts         ← bootstrap: init schema, seed, listen
+  src/app.ts           ← express assembly (middleware + feature routers + static)
+  src/core/            ← db, seed, middleware (asyncHandler, requireAuth)
+  src/features/        ← auth/ · dictionary/ · sync/ — each a router + SQL store
+test/                  ← Vitest suites covering the SPEC's logic constraints
 ```
 
 ### Dictionaries & Search Router (SPEC 2.A)
 
 There are **four forward dictionaries**, one per language pair, chosen from the
 search bar: **Nhật → Việt**, **Việt → Nhật**, **Anh → Việt**, **Việt → Anh**
-(`src/domain/languages.ts`). Each look-up is a forward `term → meaning` query
+(`src/shared/languages.ts`). Each look-up is a forward `term → meaning` query
 scoped to the selected pair `(term_lang, native_lang)` — there is no separate
 reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
 
@@ -133,7 +144,7 @@ reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
 
 The client path mirrors how **Yomitan** works:
 
-- **Import from a `.zip` *or* a URL.** `src/data/yomitan.ts` parses the Yomitan
+- **Import from a `.zip` *or* a URL.** `src/features/dictionary/data/yomitan.ts` parses the Yomitan
   v3 archive (`index.json`, `term_bank_*.json`) and **preserves structured
   content** (rich glossaries) instead of flattening it, keeps part-of-speech
   **tags** and word-type **rules**, and **merges multiple senses** of a term.
@@ -142,7 +153,7 @@ The client path mirrors how **Yomitan** works:
   so installed dictionaries can be listed and removed — open the *Từ điển*
   menu in the header. The optional backend can also import a URL server-side
   (`POST /api/dict/import-url`).
-- **Deinflection on look-up.** `src/domain/deinflect.ts` walks an inflected
+- **Deinflection on look-up.** `src/features/dictionary/domain/deinflect.ts` walks an inflected
   query back to its dictionary form, recording the chain of reasons
   (`食べさせられました → 食べる`: polite → causative). It ports the classic
   Yomichan deinflection algorithm with a curated, unit-tested Japanese rule set
@@ -165,12 +176,12 @@ The client path mirrors how **Yomitan** works:
 ### Server-side dictionary management (auth)
 
 Signed-in users can manage the **shared server dictionary** from the *Quản lý
-từ điển* screen (`src/ui/DictionaryManager.tsx`). It talks to auth-protected
-endpoints (`src/data/dictAdmin.ts` → `server/src/index.ts`):
+từ điển* screen (`src/features/dictionary/ui/DictionaryManager/`). It talks to auth-protected
+endpoints (`src/features/dictionary/data/dictAdmin.ts` → `server/src/features/dictionary/dictRoutes.ts`):
 
 | Method & path | Purpose |
 |---|---|
-| `POST /api/dict/import` | Upload one Yomitan `.zip` (raw body, `Content-Type: application/zip`); parsed by `server/src/yomitan.ts`, bulk-inserted in chunks. Language pair is read from `index.json` or overridden via `?src=&tgt=`. |
+| `POST /api/dict/import` | Upload one Yomitan `.zip` (raw body, `Content-Type: application/zip`); parsed by `server/src/features/dictionary/yomitan.ts`, bulk-inserted in chunks. Language pair is read from `index.json` or overridden via `?src=&tgt=`. |
 | `POST /api/dict/import-url` | Download a Yomitan `.zip` from a URL server-side and import it. Body: `{ url, src?, tgt? }`. |
 | `GET /api/dict/dictionaries` | List imported dictionaries with live term counts. |
 | `DELETE /api/dict/dictionaries/:id` | Remove a dictionary and all of its terms. |
@@ -188,15 +199,15 @@ at once, see/delete dictionaries, and add or edit meanings. Read endpoints
 
 | # | Constraint | Where |
 |---|------------|-------|
-| 1 | `lookup_count` increments on confirm only (not per keystroke), with a 2s debounce | `domain/lookup.ts`, `constants.LOOKUP_DEBOUNCE_MS` |
-| 2 | Word Cloud on first look-up; SRS card only at `lookup_count ≥ 2` (the `manualAdd` bypass remains in the domain layer) | `domain/lookup.ts` gating, `constants.SRS_GATING_THRESHOLD` |
-| 3 | Tag colour = log-normalized `lookup_count`, independent of SRS | `domain/wordcloud.computeShade` |
-| 4 | Visibility depends on `status`: `LEARNED` hidden, `LEARNING`/`RELAPSED` shown | `domain/wordcloud.isVisibleOnCloud` |
-| 5 | `RELAPSED` = `LEARNING` logic + warning badge | `domain/srs.ts`, `ui/WordCloud.tsx` |
-| 6 | Relapse triggers when re-looking-up a `LEARNED` word; resets like `Again` | `domain/lookup.ts` + `srs.relapse` |
-| 7 | Graduate `→ LEARNED` by threshold `srs_interval ≥ 21 days`, not by a button | `domain/srs.gradeCard` |
-| 8 | `ease_factor` clamped `≥ 1.3` | `domain/srs.clampEase` |
-| 9 | Cloud DB is source of truth (per authenticated account); IndexedDB caches; last-write-wins by `updated_at` | `data/repository.ts`, `server/src/index.ts` |
+| 1 | `lookup_count` increments on confirm only (not per keystroke), with a 2s debounce | `review/domain/lookup.ts`, `constants.LOOKUP_DEBOUNCE_MS` |
+| 2 | Word Cloud on first look-up; SRS card only at `lookup_count ≥ 2` (the `manualAdd` bypass remains in the domain layer) | `review/domain/lookup.ts` gating, `constants.SRS_GATING_THRESHOLD` |
+| 3 | Tag colour = log-normalized `lookup_count`, independent of SRS | `review/domain/wordcloud.computeShade` |
+| 4 | Visibility depends on `status`: `LEARNED` hidden, `LEARNING`/`RELAPSED` shown | `review/domain/wordcloud.isVisibleOnCloud` |
+| 5 | `RELAPSED` = `LEARNING` logic + warning badge | `review/domain/srs.ts`, `review/ui/WordCloud.tsx` |
+| 6 | Relapse triggers when re-looking-up a `LEARNED` word; resets like `Again` | `review/domain/lookup.ts` + `srs.relapse` |
+| 7 | Graduate `→ LEARNED` by threshold `srs_interval ≥ 21 days`, not by a button | `review/domain/srs.gradeCard` |
+| 8 | `ease_factor` clamped `≥ 1.3` | `review/domain/srs.clampEase` |
+| 9 | Cloud DB is source of truth (per authenticated account); IndexedDB caches; last-write-wins by `updated_at` | `review/data/repository.ts`, `server/src/features/sync/syncStore.ts` |
 
 ### SM-2 grading (SPEC 4.4)
 

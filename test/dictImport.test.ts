@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import JSZip from "jszip";
-import { parseYomitanZip, flattenGloss } from "../server/src/yomitan";
+import { parseYomitanZip, flattenGloss } from "@server/features/dictionary/yomitan";
 
 // Build an in-memory Yomitan-style .zip for the parser to consume.
 async function makeZip(opts: {
