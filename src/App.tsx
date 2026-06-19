@@ -13,15 +13,25 @@ import { DictionaryManager } from "./ui/DictionaryManager";
 import { Toasts } from "./ui/Toasts";
 import { AuthScreen } from "./ui/AuthScreen";
 import { useAuth } from "./ui/useAuth";
-import { DictEntry } from "./data/db";
 import { VocabEntry } from "./domain/types";
 import { CloudSort } from "./domain/wordcloud";
 import { DEFAULT_PAIR, LangPair } from "./domain/languages";
 import { GUEST_USER_ID, getSession } from "./data/auth";
 import { reassignEntries } from "./data/repository";
+import { TermResult, findTermsRouted } from "./data/search";
+import { sensesToLines, glossaryToLines } from "./data/structured-content";
 
 type View =
-  | { kind: "detail"; term: string; term_lang: string; native_lang: string; dict: DictEntry | null }
+  | {
+      kind: "detail";
+      /** Surface form the user searched. */
+      term: string;
+      /** The term we track in the SRS (dictionary form when deinflected). */
+      primaryTerm: string;
+      results: TermResult[];
+      term_lang: string;
+      native_lang: string;
+    }
   | null;
 
 /**
@@ -85,34 +95,38 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
     store.entries.find((e) => e.term === term && e.term_lang === lang);
 
   // --- Forward lookup confirmed (SPEC 4.1) ---
-  async function onResult(dict: DictEntry | null, term: string, p: LangPair) {
-    const term_lang = dict?.term_lang ?? p.source;
-    const native_lang = dict?.native_lang ?? p.target;
-    setView({ kind: "detail", term, term_lang, native_lang, dict });
-    if (dict) {
-      // A result was shown → this confirms a lookup.
-      await store.recordLookup({
-        term,
-        term_lang,
-        native_lang,
-        meaning: JSON.stringify(dict.definitions),
-        is_custom: false,
-      });
+  // Like Yomitan, we track the *dictionary form* of a deinflected match, not the
+  // inflected surface the user typed, so the SRS and word cloud key on the lemma.
+  async function onResult(results: TermResult[], term: string, p: LangPair) {
+    const primary = results[0]?.entry;
+    const term_lang = primary?.term_lang ?? p.source;
+    const native_lang = primary?.native_lang ?? p.target;
+    const primaryTerm = primary?.term ?? term;
+    setView({ kind: "detail", term, primaryTerm, results, term_lang, native_lang });
+    if (primary) {
+      const lines = sensesToLines(primary.senses);
+      const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(primary.definitions));
+      await store.recordLookup({ term: primaryTerm, term_lang, native_lang, meaning, is_custom: false });
     }
     // No result → wait for the user to save a Custom Definition (no count yet).
+  }
+
+  // Navigate to another term from an internal dictionary link.
+  async function lookup(term: string) {
+    const results = await findTermsRouted(term, pair);
+    await onResult(results, term, pair);
   }
 
   async function onSaveCustom(meaning: string) {
     if (view?.kind !== "detail") return;
     await store.recordLookup({
-      term: view.term,
+      term: view.primaryTerm,
       term_lang: view.term_lang,
       native_lang: view.native_lang,
       meaning: JSON.stringify([meaning]),
       is_custom: true,
     });
-    // Re-open detail so the saved definition shows immediately.
-    setView({ ...view, dict: { term: view.term, definitions: [meaning], term_lang: view.term_lang, native_lang: view.native_lang } });
+    // The saved definition shows immediately via the learning entry's meaning.
   }
 
   // Selecting a cloud tag opens a read-only detail (does NOT count as a lookup).
@@ -120,9 +134,10 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
     setView({
       kind: "detail",
       term: entry.term,
+      primaryTerm: entry.term,
+      results: [],
       term_lang: entry.term_lang,
       native_lang: entry.native_lang,
-      dict: null,
     });
   }
 
@@ -179,10 +194,11 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         {view?.kind === "detail" && (
           <DetailPanel
             term={view.term}
-            dict={view.dict}
-            entry={entryFor(view.term, view.term_lang)}
+            results={view.results}
+            entry={entryFor(view.primaryTerm, view.term_lang)}
             onSaveCustom={onSaveCustom}
             onClose={() => setView(null)}
+            onLookup={lookup}
           />
         )}
       </main>

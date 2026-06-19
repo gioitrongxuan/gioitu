@@ -3,14 +3,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DictEntry } from "../data/db";
-import { searchForward, searchSuggest } from "../data/search";
+import { findTermsRouted, searchSuggest, TermResult } from "../data/search";
+import { glossToText } from "../data/structured-content";
 import { LANG_PAIRS, LangPair } from "../domain/languages";
 
 interface Props {
   pair: LangPair;
   onPairChange: (pair: LangPair) => void;
   /** A term's detail is shown/confirmed → counts as a lookup (SPEC 4.1). */
-  onResult: (entry: DictEntry | null, term: string, pair: LangPair) => void;
+  onResult: (results: TermResult[], term: string, pair: LangPair) => void;
 }
 
 export function SearchBar({ pair, onPairChange, onResult }: Props) {
@@ -36,8 +37,8 @@ export function SearchBar({ pair, onPairChange, onResult }: Props) {
   async function confirm(term: string) {
     setOpen(false);
     setQuery(term);
-    const entry = await searchForward(term, pair);
-    onResult(entry, term, pair);
+    const results = await findTermsRouted(term, pair);
+    onResult(results, term, pair);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -78,7 +79,7 @@ export function SearchBar({ pair, onPairChange, onResult }: Props) {
                 <button type="button" onClick={() => confirm(s.term)}>
                   <span className="sug-term">{s.term}</span>
                   {s.reading && <span className="sug-reading">{s.reading}</span>}
-                  <span className="sug-def">{s.definitions[0]}</span>
+                  <span className="sug-def">{glossToText(s.definitions[0])}</span>
                 </button>
               </li>
             ))}

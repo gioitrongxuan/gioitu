@@ -4,10 +4,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LANG_PAIRS, LangPair, DEFAULT_PAIR } from "../domain/languages";
+import { glossToText } from "../data/structured-content";
 import {
   DictionaryMeta,
   TermRow,
   importDictionary,
+  importDictionaryUrl,
   listDictionaries,
   deleteDictionary,
   browseTerms,
@@ -98,6 +100,7 @@ function ImportTab({ pair, onError }: { pair: LangPair; onError: (s: string | nu
   const [busy, setBusy] = useState(false);
   const [autoDetect, setAutoDetect] = useState(true);
   const [progress, setProgress] = useState<Progress[]>([]);
+  const [url, setUrl] = useState("");
 
   const refresh = useCallback(() => {
     listDictionaries().then(setDicts).catch((e) => onError((e as Error).message));
@@ -134,6 +137,24 @@ function ImportTab({ pair, onError }: { pair: LangPair; onError: (s: string | nu
     refresh();
   }
 
+  async function onImportUrl() {
+    const u = url.trim();
+    if (!u) return;
+    onError(null);
+    setBusy(true);
+    setProgress([{ name: u, status: "pending", detail: "Đang tải URL…" }]);
+    try {
+      const opts = autoDetect ? {} : { term_lang: pair.source, native_lang: pair.target };
+      const res = await importDictionaryUrl(u, opts);
+      setProgress([{ name: res.title, status: "done", detail: `${res.termCount} từ · ${res.term_lang}→${res.native_lang}` }]);
+      setUrl("");
+    } catch (err) {
+      setProgress([{ name: u, status: "error", detail: (err as Error).message }]);
+    }
+    setBusy(false);
+    refresh();
+  }
+
   async function onDelete(d: DictionaryMeta) {
     if (!confirm(`Xóa từ điển “${d.title}” (${d.term_count} từ)?`)) return;
     try {
@@ -150,6 +171,20 @@ function ImportTab({ pair, onError }: { pair: LangPair; onError: (s: string | nu
         {busy ? "Đang xử lý…" : "Chọn file .zip Yomitan (có thể chọn nhiều)"}
         <input type="file" accept=".zip" multiple hidden disabled={busy} onChange={onFiles} />
       </label>
+      <div className="url-row">
+        <input
+          className="url-input"
+          type="url"
+          placeholder="…hoặc dán URL .zip Yomitan"
+          value={url}
+          disabled={busy}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onImportUrl()}
+        />
+        <button className="primary" disabled={busy || !url.trim()} onClick={onImportUrl}>
+          Tải từ URL
+        </button>
+      </div>
       <label className="chk">
         <input type="checkbox" checked={autoDetect} onChange={(e) => setAutoDetect(e.target.checked)} />
         Tự nhận ngôn ngữ từ file (index.json). Bỏ chọn để gán theo cặp “{pair.label}”.
@@ -315,7 +350,7 @@ function TermEditor({
   onError: (s: string | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [defs, setDefs] = useState(row.definitions.join("\n"));
+  const [defs, setDefs] = useState(row.definitions.map(glossToText).join("\n"));
   const [reading, setReading] = useState(row.reading ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -384,7 +419,7 @@ function TermEditor({
         </div>
       ) : (
         <ul className="definitions">
-          {row.definitions.map((d, i) => <li key={i}>{d}</li>)}
+          {row.definitions.map((d, i) => <li key={i}>{glossToText(d)}</li>)}
         </ul>
       )}
     </li>

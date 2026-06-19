@@ -137,6 +137,76 @@ app.get(
 // --- Dictionary management (auth) — import / list / browse / edit ---
 // These mutate the shared server dictionary, so they require a signed-in user.
 
+interface ImportSummary {
+  dict_id: string;
+  title: string;
+  termCount: number;
+  term_lang: string;
+  native_lang: string;
+}
+
+// Parse a Yomitan archive buffer and bulk-insert it as a new dictionary.
+async function importBuffer(
+  buf: Buffer,
+  opts: { term_lang?: string; native_lang?: string },
+): Promise<ImportSummary> {
+  const parsed = await parseYomitanZip(buf, opts);
+  if (parsed.entries.length === 0) {
+    throw new Error("Không tìm thấy từ nào trong file");
+  }
+
+  const dictId = randomUUID();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "INSERT INTO dictionaries (id, title, term_lang, native_lang, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [dictId, parsed.title, parsed.term_lang, parsed.native_lang, Date.now()],
+    );
+    // Bulk insert in chunks (one multi-row statement each) for speed.
+    const CHUNK = 1000;
+    for (let i = 0; i < parsed.entries.length; i += CHUNK) {
+      const slice = parsed.entries.slice(i, i + CHUNK);
+      const values: unknown[] = [];
+      const tuples = slice.map((e, j) => {
+        const b = j * 6;
+        values.push(
+          e.term,
+          parsed.term_lang,
+          parsed.native_lang,
+          e.reading ?? null,
+          JSON.stringify(e.definitions),
+          dictId,
+        );
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
+      });
+      await client.query(
+        `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
+         VALUES ${tuples.join(", ")}
+         ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
+           reading = EXCLUDED.reading,
+           definitions = EXCLUDED.definitions,
+           dict_id = EXCLUDED.dict_id`,
+        values,
+      );
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return {
+    dict_id: dictId,
+    title: parsed.title,
+    termCount: parsed.entries.length,
+    term_lang: parsed.term_lang,
+    native_lang: parsed.native_lang,
+  };
+}
+
 // Import a Yomitan .zip. The body is the raw archive (Content-Type
 // application/zip); the language pair is taken from ?src=&tgt= when given,
 // otherwise from the archive's index.json.
@@ -152,66 +222,38 @@ app.post(
     const src = req.query.src ? String(req.query.src) : undefined;
     const tgt = req.query.tgt ? String(req.query.tgt) : undefined;
 
-    let parsed;
     try {
-      parsed = await parseYomitanZip(buf, { term_lang: src, native_lang: tgt });
-    } catch {
-      return res.status(400).json({ error: "File .zip không hợp lệ (không phải Yomitan)" });
-    }
-    if (parsed.entries.length === 0) {
-      return res.status(400).json({ error: "Không tìm thấy từ nào trong file" });
-    }
-
-    const dictId = randomUUID();
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      await client.query(
-        "INSERT INTO dictionaries (id, title, term_lang, native_lang, created_at) VALUES ($1, $2, $3, $4, $5)",
-        [dictId, parsed.title, parsed.term_lang, parsed.native_lang, Date.now()],
-      );
-      // Bulk insert in chunks (one multi-row statement each) for speed.
-      const CHUNK = 1000;
-      for (let i = 0; i < parsed.entries.length; i += CHUNK) {
-        const slice = parsed.entries.slice(i, i + CHUNK);
-        const values: unknown[] = [];
-        const tuples = slice.map((e, j) => {
-          const b = j * 6;
-          values.push(
-            e.term,
-            parsed.term_lang,
-            parsed.native_lang,
-            e.reading ?? null,
-            JSON.stringify(e.definitions),
-            dictId,
-          );
-          return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
-        });
-        await client.query(
-          `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
-           VALUES ${tuples.join(", ")}
-           ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
-             reading = EXCLUDED.reading,
-             definitions = EXCLUDED.definitions,
-             dict_id = EXCLUDED.dict_id`,
-          values,
-        );
-      }
-      await client.query("COMMIT");
+      res.json(await importBuffer(buf, { term_lang: src, native_lang: tgt }));
     } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
+      res.status(400).json({ error: (err as Error).message || "File .zip không hợp lệ (không phải Yomitan)" });
     }
+  }),
+);
 
-    res.json({
-      dict_id: dictId,
-      title: parsed.title,
-      termCount: parsed.entries.length,
-      term_lang: parsed.term_lang,
-      native_lang: parsed.native_lang,
-    });
+// Import a Yomitan .zip from a URL (the server downloads it). Body: { url }.
+app.post(
+  "/api/dict/import-url",
+  requireAuth,
+  wrap(async (req, res) => {
+    const url = String(req.body?.url ?? "").trim();
+    const src = req.body?.src ? String(req.body.src) : undefined;
+    const tgt = req.body?.tgt ? String(req.body.tgt) : undefined;
+    if (!/^https?:\/\//.test(url)) {
+      return res.status(400).json({ error: "URL không hợp lệ" });
+    }
+    let buf: Buffer;
+    try {
+      const resp = await fetch(url, { redirect: "follow" });
+      if (!resp.ok) return res.status(400).json({ error: `Tải URL thất bại (HTTP ${resp.status})` });
+      buf = Buffer.from(await resp.arrayBuffer());
+    } catch {
+      return res.status(400).json({ error: "Không tải được URL từ máy chủ" });
+    }
+    try {
+      res.json(await importBuffer(buf, { term_lang: src, native_lang: tgt }));
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message || "File .zip không hợp lệ" });
+    }
   }),
 );
 
