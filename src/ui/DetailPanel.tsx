@@ -1,7 +1,7 @@
 // Detail panel (SPEC 4.1 Case 1): show a definition, or let the user write a
 // Custom Definition when the dictionary has no result. Also surfaces SRS stats.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DictEntry } from "../data/db";
 import { VocabEntry } from "../domain/types";
 import { formatInterval, formatRelative } from "./format";
@@ -17,12 +17,19 @@ interface Props {
 
 export function DetailPanel({ term, dict, entry, onSaveCustom, onClose }: Props) {
   const [custom, setCustom] = useState("");
+  const ref = useRef<HTMLElement>(null);
+
+  // When opening (or switching word) while scrolled deep into a long cloud,
+  // bring the panel into view so the meaning is always visible.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [term]);
 
   const found = !!dict || (!!entry && !entry.is_custom) || (!!entry && entry.meaning.length > 0);
   const definitions = dict?.definitions ?? (entry ? safeGlosses(entry.meaning) : []);
 
   return (
-    <aside className="detail-panel" aria-label="Chi tiết từ">
+    <aside className="detail-panel" aria-label="Chi tiết từ" ref={ref}>
       <header>
         <h2>{term}</h2>
         {dict?.reading && <span className="reading">{dict.reading}</span>}
