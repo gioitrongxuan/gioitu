@@ -29,6 +29,33 @@ export async function putEntry(entry: VocabEntry): Promise<void> {
 }
 
 /**
+ * Move every entry owned by `from_user_id` to `to_user_id`, merging into any
+ * entry the target already has (last-write-wins). Used to carry a guest's local
+ * progress over to their account on first sign-in. Returns the migrated count.
+ */
+export async function reassignEntries(
+  from_user_id: string,
+  to_user_id: string,
+): Promise<number> {
+  if (from_user_id === to_user_id) return 0;
+  const source = await getAllEntries(from_user_id);
+  if (source.length === 0) return 0;
+
+  const db = await getDb();
+  const tx = db.transaction("user_data", "readwrite");
+  for (const e of source) {
+    const moved: VocabEntry = { ...e, user_id: to_user_id };
+    const existing = await tx.store.get([to_user_id, e.term, e.term_lang]);
+    if (!existing || moved.updated_at >= existing.updated_at) {
+      await tx.store.put(moved);
+    }
+    await tx.store.delete([from_user_id, e.term, e.term_lang]);
+  }
+  await tx.done;
+  return source.length;
+}
+
+/**
  * Last-write-wins merge of two entry lists keyed by (user_id, term, term_lang).
  * Pure function so it can be unit-tested independently of IndexedDB/network.
  */

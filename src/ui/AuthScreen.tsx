@@ -5,9 +5,11 @@ import { useState } from "react";
 interface Props {
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (email: string, password: string) => Promise<void>;
+  /** When provided, the screen renders as a dismissible modal (guest flow). */
+  onClose?: () => void;
 }
 
-export function AuthScreen({ onLogin, onRegister }: Props) {
+export function AuthScreen({ onLogin, onRegister, onClose }: Props) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,9 +30,19 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
     }
   }
 
+  const isModal = onClose != null;
+
   return (
-    <div className="auth-screen">
+    <div
+      className={isModal ? "auth-overlay" : "auth-screen"}
+      onClick={isModal ? (e) => e.target === e.currentTarget && onClose!() : undefined}
+    >
       <div className="auth-card">
+        {isModal && (
+          <button type="button" className="auth-close" aria-label="Đóng" onClick={onClose}>
+            ×
+          </button>
+        )}
         <h1>Gioitu</h1>
         <p className="muted">Từ điển cá nhân hóa + ôn tập lặp lại ngắt quãng</p>
 
@@ -75,7 +87,14 @@ export function AuthScreen({ onLogin, onRegister }: Props) {
 
         <p className="muted small">
           Đăng nhập để đồng bộ tiến trình học của bạn trên mọi thiết bị.
+          {isModal && " Tiến trình bạn đã học khi dùng thử sẽ được giữ lại."}
         </p>
+
+        {isModal && (
+          <button type="button" className="link auth-guest" onClick={onClose}>
+            Tiếp tục với tư cách khách
+          </button>
+        )}
       </div>
     </div>
   );

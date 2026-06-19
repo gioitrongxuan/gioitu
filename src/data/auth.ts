@@ -9,6 +9,13 @@ export interface Session {
 
 const KEY = "gioitu_session";
 
+/**
+ * Local-only user id used when nobody is signed in. Guest learning data lives
+ * in IndexedDB under this id and never syncs to the cloud (no auth token). When
+ * a guest later signs in, the data is migrated to their account (see App.tsx).
+ */
+export const GUEST_USER_ID = "__guest__";
+
 /** localStorage may be absent (Node/SSR/tests) — degrade gracefully. */
 function storage(): Storage | null {
   return typeof localStorage !== "undefined" ? localStorage : null;
