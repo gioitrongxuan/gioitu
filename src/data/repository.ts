@@ -55,7 +55,7 @@ export function mergeByUpdatedAt(a: VocabEntry[], b: VocabEntry[]): VocabEntry[]
 export async function syncUserData(user_id: string): Promise<VocabEntry[]> {
   const local = await getAllEntries(user_id);
 
-  const remote = await pullUserData(user_id);
+  const remote = await pullUserData();
   if (remote == null) {
     // Offline / no backend — local cache stands on its own.
     return local;

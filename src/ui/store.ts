@@ -15,18 +15,8 @@ export interface Toast {
   kind: "info" | "warn" | "success";
 }
 
-function getUserId(): string {
-  const KEY = "gioitu_user_id";
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
-export function useAppStore() {
-  const userId = useMemo(getUserId, []);
+/** Drives the app for an authenticated user (id comes from the session). */
+export function useAppStore(userId: string) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loaded, setLoaded] = useState(false);

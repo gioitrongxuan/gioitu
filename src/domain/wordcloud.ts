@@ -32,6 +32,18 @@ export interface ShadeOptions {
   now?: number;
 }
 
+/**
+ * Cloud ordering:
+ *   - "recent"    : most recently looked-up first (default) — newly looked-up
+ *                   words surface at the top.
+ *   - "frequency" : most looked-up first (by lookup_count).
+ */
+export type CloudSort = "recent" | "frequency";
+
+export interface BuildCloudOptions extends ShadeOptions {
+  sort?: CloudSort;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Effective lookup weight, optionally decayed by time since last lookup. */
@@ -59,13 +71,25 @@ export function computeShade(count: number, maxCount: number): number {
  * Build the renderable cloud from a list of entries: filter to visible words,
  * compute the shared max, then derive each tag's shade/badge/due flags.
  */
-export function buildCloud(entries: VocabEntry[], opts: ShadeOptions = {}): CloudTag[] {
+export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}): CloudTag[] {
   const visible = entries.filter(isVisibleOnCloud);
   const now = opts.now ?? Date.now();
-  const counts = visible.map((e) => effectiveCount(e, opts));
+
+  // Order before computing shade so the max is unaffected by sorting.
+  const sort = opts.sort ?? "recent";
+  const ordered = visible.slice().sort((a, b) => {
+    if (sort === "frequency") {
+      // Higher lookup_count first; tie-break by most recent.
+      return b.lookup_count - a.lookup_count || b.last_lookup_at - a.last_lookup_at;
+    }
+    // "recent": most recently looked-up first.
+    return b.last_lookup_at - a.last_lookup_at;
+  });
+
+  const counts = ordered.map((e) => effectiveCount(e, opts));
   const maxCount = counts.reduce((m, c) => Math.max(m, c), 0);
 
-  return visible.map((entry, i) => ({
+  return ordered.map((entry, i) => ({
     entry,
     shade: computeShade(counts[i], maxCount),
     hasBadge: entry.status === "RELAPSED",

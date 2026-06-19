@@ -1,8 +1,8 @@
-// IndexedDB schema and access (SPEC 2.A / 2.B / 2.C).
-// Three concerns live here:
-//   - `terms`          : imported Yomitan dictionary (term → definition)   [forward]
-//   - `reverse_tokens` : native-language token → list of target terms       [reverse]
-//   - `user_data`      : cached learning data (source of truth is Cloud DB)
+// IndexedDB schema and access (SPEC 2.A / 2.C).
+// Two concerns live here:
+//   - `terms`     : imported Yomitan dictionaries, scoped per language pair
+//                   (forward only: term → meaning)
+//   - `user_data` : cached learning data (source of truth is Cloud DB)
 //
 // IndexedDB is the PRIMARY dictionary source (fastest). The backend is a
 // fallback. For user data, IndexedDB is only a cache.
@@ -19,22 +19,12 @@ export interface DictEntry {
   native_lang: string;
 }
 
-export interface ReverseToken {
-  /** A token extracted from the native-language meaning, lowercased. */
-  token: string;
-  /** Target terms whose meaning contains this token. */
-  terms: string[];
-}
-
 interface GioituDB extends DBSchema {
   terms: {
-    key: string; // term
+    // Composite key scopes each entry to its dictionary (language pair).
+    key: [string, string, string]; // [term_lang, native_lang, term]
     value: DictEntry;
-    indexes: { by_lang: string };
-  };
-  reverse_tokens: {
-    key: string; // token
-    value: ReverseToken;
+    indexes: { by_pair: [string, string] };
   };
   user_data: {
     key: [string, string, string]; // [user_id, term, term_lang]
@@ -44,24 +34,33 @@ interface GioituDB extends DBSchema {
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<GioituDB>> {
   if (!dbPromise) {
     dbPromise = openDB<GioituDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const terms = db.createObjectStore("terms", { keyPath: "term" });
-        terms.createIndex("by_lang", "term_lang");
-
-        db.createObjectStore("reverse_tokens", { keyPath: "token" });
-
-        const user = db.createObjectStore("user_data", {
-          keyPath: ["user_id", "term", "term_lang"],
+      upgrade(db, oldVersion) {
+        // v2 reworks dictionary storage to be per-language-pair and removes the
+        // reverse-token store. Recreate `terms` cleanly; user re-imports dicts.
+        if (db.objectStoreNames.contains("terms")) db.deleteObjectStore("terms");
+        // Drop the legacy reverse-token store from v1 if present.
+        const legacy = "reverse_tokens" as never;
+        if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy);
+        const terms = db.createObjectStore("terms", {
+          keyPath: ["term_lang", "native_lang", "term"],
         });
-        user.createIndex("by_next_review", "next_review");
-        user.createIndex("by_status", "status");
+        terms.createIndex("by_pair", ["term_lang", "native_lang"]);
+
+        if (!db.objectStoreNames.contains("user_data")) {
+          const user = db.createObjectStore("user_data", {
+            keyPath: ["user_id", "term", "term_lang"],
+          });
+          user.createIndex("by_next_review", "next_review");
+          user.createIndex("by_status", "status");
+        }
+        void oldVersion;
       },
     });
   }

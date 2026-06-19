@@ -1,15 +1,29 @@
-// Minimal demo dictionary so the backend fallback returns something out-of-box.
+// Minimal demo dictionaries (one small set per language pair) so every
+// direction returns something out of the box.
 import { db } from "./db.js";
 
-const SAMPLE: Array<{ term: string; reading?: string; definitions: string[] }> = [
-  { term: "ephemeral", definitions: ["phù du, chóng tàn", "tồn tại trong thời gian ngắn"] },
-  { term: "resilient", definitions: ["kiên cường", "có khả năng phục hồi nhanh"] },
-  { term: "serendipity", definitions: ["sự tình cờ may mắn", "khả năng tìm ra điều tốt đẹp ngoài ý muốn"] },
-  { term: "ubiquitous", definitions: ["có mặt khắp nơi", "phổ biến rộng rãi"] },
-  { term: "meticulous", definitions: ["tỉ mỉ, kỹ lưỡng", "cẩn thận đến từng chi tiết"] },
-  { term: "candor", definitions: ["sự thẳng thắn", "tính trung thực, chân thành"] },
-  { term: "pragmatic", definitions: ["thực dụng", "thiên về thực tế hơn lý thuyết"] },
-  { term: "nuance", definitions: ["sắc thái tinh tế", "khác biệt nhỏ về ý nghĩa"] },
+interface SeedEntry {
+  term: string;
+  reading?: string;
+  definitions: string[];
+  term_lang: string;
+  native_lang: string;
+}
+
+const SAMPLE: SeedEntry[] = [
+  // --- Anh → Việt ---
+  { term: "ephemeral", definitions: ["phù du, chóng tàn"], term_lang: "en", native_lang: "vi" },
+  { term: "resilient", definitions: ["kiên cường", "có khả năng phục hồi"], term_lang: "en", native_lang: "vi" },
+  { term: "meticulous", definitions: ["tỉ mỉ, kỹ lưỡng"], term_lang: "en", native_lang: "vi" },
+  // --- Việt → Anh ---
+  { term: "kiên cường", definitions: ["resilient", "steadfast"], term_lang: "vi", native_lang: "en" },
+  { term: "tỉ mỉ", definitions: ["meticulous", "thorough"], term_lang: "vi", native_lang: "en" },
+  // --- Nhật → Việt ---
+  { term: "勉強", reading: "べんきょう", definitions: ["sự học tập", "việc học"], term_lang: "ja", native_lang: "vi" },
+  { term: "猫", reading: "ねこ", definitions: ["con mèo"], term_lang: "ja", native_lang: "vi" },
+  // --- Việt → Nhật ---
+  { term: "học tập", definitions: ["勉強（べんきょう）"], term_lang: "vi", native_lang: "ja" },
+  { term: "con mèo", definitions: ["猫（ねこ）"], term_lang: "vi", native_lang: "ja" },
 ];
 
 export function seedIfEmpty() {
@@ -17,19 +31,20 @@ export function seedIfEmpty() {
   if (count > 0) return;
 
   const insert = db.prepare(
-    `INSERT INTO dict (term, reading, definitions, term_lang, native_lang, meaning)
-     VALUES (?, ?, ?, 'en', 'vi', ?)`,
-  );
-  const insertFts = db.prepare(
-    "INSERT INTO dict_fts (rowid, term, meaning) VALUES (last_insert_rowid(), ?, ?)",
+    `INSERT INTO dict (term, term_lang, native_lang, reading, definitions)
+     VALUES (@term, @term_lang, @native_lang, @reading, @definitions)`,
   );
   const tx = db.transaction(() => {
     for (const e of SAMPLE) {
-      const meaning = e.definitions.join(" ");
-      insert.run(e.term, e.reading ?? null, JSON.stringify(e.definitions), meaning);
-      insertFts.run(e.term, meaning);
+      insert.run({
+        term: e.term,
+        term_lang: e.term_lang,
+        native_lang: e.native_lang,
+        reading: e.reading ?? null,
+        definitions: JSON.stringify(e.definitions),
+      });
     }
   });
   tx();
-  console.log(`Seeded ${SAMPLE.length} demo dictionary entries.`);
+  console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);
 }

@@ -54,6 +54,31 @@ describe("buildCloud", () => {
   });
 });
 
+describe("cloud ordering", () => {
+  const entries = [
+    makeEntry({ term: "old", status: "LEARNING", lookup_count: 9, last_lookup_at: 100 }),
+    makeEntry({ term: "new", status: "LEARNING", lookup_count: 2, last_lookup_at: 300 }),
+    makeEntry({ term: "mid", status: "LEARNING", lookup_count: 5, last_lookup_at: 200 }),
+  ];
+
+  it("defaults to recent-first (newly looked-up words on top)", () => {
+    const cloud = buildCloud(entries, { now: 1000 });
+    expect(cloud.map((t) => t.entry.term)).toEqual(["new", "mid", "old"]);
+  });
+
+  it("sorts by frequency when requested", () => {
+    const cloud = buildCloud(entries, { now: 1000, sort: "frequency" });
+    expect(cloud.map((t) => t.entry.term)).toEqual(["old", "mid", "new"]);
+  });
+
+  it("sort does not change the normalization max (colour stays stable)", () => {
+    const recent = buildCloud(entries, { now: 1000, sort: "recent" });
+    const freq = buildCloud(entries, { now: 1000, sort: "frequency" });
+    const shadeOf = (c: typeof recent, term: string) => c.find((t) => t.entry.term === term)!.shade;
+    expect(shadeOf(recent, "old")).toBeCloseTo(shadeOf(freq, "old"));
+  });
+});
+
 describe("time-decay (optional, default off)", () => {
   it("returns raw count when disabled", () => {
     const e = makeEntry({ lookup_count: 10, last_lookup_at: 0 });
