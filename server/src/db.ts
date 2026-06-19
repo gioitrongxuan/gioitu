@@ -11,6 +11,13 @@ db.pragma("journal_mode = WAL");
 
 export function initSchema() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS dict (
       term TEXT PRIMARY KEY,
       reading TEXT,

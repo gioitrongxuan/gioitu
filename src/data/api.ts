@@ -4,6 +4,7 @@
 
 import { DictEntry } from "./db";
 import { VocabEntry } from "../domain/types";
+import { authToken } from "./auth";
 
 const BASE = "/api";
 
@@ -15,6 +16,11 @@ async function getJson<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = authToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /** Server-side forward lookup (fallback when IndexedDB has no dictionary). */
@@ -31,17 +37,31 @@ export async function serverSuggest(prefix: string): Promise<DictEntry[]> {
   return (await getJson<DictEntry[]>(`/dict/suggest?prefix=${encodeURIComponent(prefix)}`)) ?? [];
 }
 
-/** Pull user entries changed since a timestamp (SPEC 2.C). */
-export async function pullUserData(user_id: string, since = 0): Promise<VocabEntry[] | null> {
-  return getJson<VocabEntry[]>(`/sync?user_id=${encodeURIComponent(user_id)}&since=${since}`);
+/**
+ * Pull user entries changed since a timestamp (SPEC 2.C). The server scopes the
+ * data to the authenticated user, so no user_id is sent. Returns null when not
+ * authenticated or the backend is unreachable (offline → local cache stands).
+ */
+export async function pullUserData(since = 0): Promise<VocabEntry[] | null> {
+  const headers = authHeaders();
+  if (!headers.Authorization) return null;
+  try {
+    const res = await fetch(`${BASE}/sync?since=${since}`, { headers });
+    if (!res.ok) return null;
+    return (await res.json()) as VocabEntry[];
+  } catch {
+    return null;
+  }
 }
 
 /** Push local user entries to the cloud (last-write-wins resolved server-side). */
 export async function pushUserData(entries: VocabEntry[]): Promise<VocabEntry[] | null> {
+  const headers = authHeaders();
+  if (!headers.Authorization) return null;
   try {
     const res = await fetch(`${BASE}/sync`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ entries }),
     });
     if (!res.ok) return null;

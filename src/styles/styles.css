@@ -142,6 +142,21 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .review-card .close { margin-top: 12px; display: block; }
 .review-card.done { text-align: center; }
 
+/* Auth */
+.user-email { font-size: 12px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: #f8fafc; }
+.auth-card { width: min(380px, 92vw); background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+.auth-card h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+.auth-card .muted.small { font-size: 12px; margin-top: 16px; }
+.auth-tabs { display: flex; gap: 4px; margin: 18px 0 14px; }
+.auth-tabs button { flex: 1; padding: 8px; border: 1px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 14px; }
+.auth-tabs button.active { background: var(--fg); color: #fff; border-color: var(--fg); }
+.auth-card form { display: grid; gap: 12px; }
+.auth-card label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.auth-card input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.auth-card input:focus { outline: none; border-color: var(--accent); }
+.auth-error { color: var(--warn); font-size: 13px; margin: 0; }
+
 /* Toasts */
 .toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
 .toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }

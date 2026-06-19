@@ -27,9 +27,27 @@ npm run typecheck
 npm run build
 ```
 
-The frontend works **standalone** (IndexedDB only). The backend is an optional
-fallback; if it is unreachable, look-ups fall back to local data and sync
-becomes a local no-op.
+The backend is required for **accounts + cloud sync** (email/password → JWT).
+Once signed in, the app caches everything in IndexedDB and keeps working if the
+backend goes offline — sync resumes when it is reachable again. Dictionary
+look-ups still fall back to IndexedDB / the server's default dictionary.
+
+## Authentication (email + password)
+
+Per SPEC §2.C, learning data is tied to an account so it is consistent across
+devices. The app gates behind a login/register screen:
+
+- **Backend** (`server/src/auth.ts`, zero external deps): passwords hashed with
+  `scrypt` + per-user random salt; sessions are **HS256 JWTs** signed with
+  `GIOITU_JWT_SECRET`. `POST /api/auth/register`, `POST /api/auth/login`,
+  `GET /api/auth/me`.
+- **Sync is protected**: `/api/sync` requires `Authorization: Bearer <token>`
+  and derives `user_id` from the token — a client-supplied `user_id` is ignored
+  (ownership cannot be spoofed).
+- **Frontend** (`src/data/auth.ts`, `src/ui/AuthScreen.tsx`): the JWT + user are
+  cached in `localStorage`; the bearer token is attached to all sync calls.
+
+> Set a strong `GIOITU_JWT_SECRET` in production (see `.env.example`).
 
 ## Architecture
 
@@ -84,7 +102,7 @@ we build an auxiliary index:
 | 6 | Relapse triggers when re-touching a `LEARNED` word in **both** Case 1 & Case 2; resets like `Again` | `domain/lookup.ts` + `srs.relapse` |
 | 7 | Graduate `→ LEARNED` by threshold `srs_interval ≥ 21 days`, not by a button | `domain/srs.gradeCard` |
 | 8 | `ease_factor` clamped `≥ 1.3` | `domain/srs.clampEase` |
-| 9 | Cloud DB is source of truth; IndexedDB caches; last-write-wins by `updated_at` | `data/repository.ts`, `server/src/index.ts` |
+| 9 | Cloud DB is source of truth (per authenticated account); IndexedDB caches; last-write-wins by `updated_at` | `data/repository.ts`, `server/src/index.ts` |
 
 ### SM-2 grading (SPEC 4.4)
 

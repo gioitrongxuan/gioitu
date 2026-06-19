@@ -11,6 +11,8 @@ import { ReverseResults } from "./ui/ReverseResults";
 import { ReviewSession } from "./ui/ReviewSession";
 import { DictionaryImport } from "./ui/DictionaryImport";
 import { Toasts } from "./ui/Toasts";
+import { AuthScreen } from "./ui/AuthScreen";
+import { useAuth } from "./ui/useAuth";
 import { DictEntry } from "./data/db";
 import { VocabEntry } from "./domain/types";
 import { CloudSort } from "./domain/wordcloud";
@@ -23,8 +25,15 @@ type View =
   | { kind: "reverse"; query: string; results: DictEntry[] }
   | null;
 
+/** Auth gate: render the login screen until the user has a session. */
 export default function App() {
-  const store = useAppStore();
+  const { session, login, register, logout } = useAuth();
+  if (!session) return <AuthScreen onLogin={login} onRegister={register} />;
+  return <MainApp key={session.user_id} userId={session.user_id} email={session.email} onLogout={logout} />;
+}
+
+function MainApp({ userId, email, onLogout }: { userId: string; email: string; onLogout: () => void }) {
+  const store = useAppStore(userId);
   const [direction, setDirection] = useState<SearchDirection>("forward");
   const [view, setView] = useState<View>(null);
   const [highlightDue, setHighlightDue] = useState(true);
@@ -100,6 +109,8 @@ export default function App() {
         <div className="header-actions">
           <DictionaryImport onImported={() => undefined} />
           <button className="link" onClick={store.runSync}>Đồng bộ</button>
+          <span className="user-email" title={email}>{email}</span>
+          <button className="link" onClick={onLogout}>Đăng xuất</button>
         </div>
       </header>
 
