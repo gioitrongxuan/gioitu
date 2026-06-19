@@ -6,14 +6,6 @@ dist/
 .env.*
 !.env.example
 
-# Backend SQLite database files
-server/*.db
-server/*.db-journal
-server/*.db-wal
-server/*.db-shm
-*.sqlite
-*.sqlite3
-
 # Logs
 *.log
 npm-debug.log*

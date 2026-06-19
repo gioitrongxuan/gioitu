@@ -18,8 +18,10 @@ npm install
 # Frontend (Vite dev server on :5173, proxies /api -> :8787)
 npm run dev
 
-# Optional backend (accounts + fallback dictionary + cloud sync)
-npm run server        # http://localhost:8787
+# Optional backend (accounts + fallback dictionary + cloud sync).
+# Needs a PostgreSQL database — set DATABASE_URL (see .env.example).
+# e.g. createdb gioitu && export DATABASE_URL=postgres://localhost:5432/gioitu
+npm run server        # http://localhost:8787 (creates the schema + seeds on boot)
 
 # Tests / typecheck / production build
 npm test
@@ -76,13 +78,16 @@ src/
     languages.ts     ← the 4 language-pair dictionaries (ja↔vi, en↔vi)
   data/
     db.ts            ← IndexedDB schema: terms (per pair) / user_data
-    yomitan.ts       ← Yomitan .zip import (forward, per-pair) (§2.A)
+    yomitan.ts       ← client-side Yomitan .zip import (forward, per-pair) (§2.A)
     search.ts        ← Search Router: IndexedDB first, server fallback (§2.A)
     api.ts           ← backend client (best-effort, offline-tolerant)
+    dictAdmin.ts     ← server dictionary-management client (import/list/edit)
     repository.ts    ← user-data cache + last-write-wins sync (§2.C)
   ui/                ← React components (SearchBar, WordCloud, FilterBar,
-                       ReviewSession, DetailPanel, AuthScreen, …)
-server/              ← optional Express + SQLite backend (auth + dict + sync)
+                       ReviewSession, DetailPanel, AuthScreen,
+                       DictionaryManager, …)
+server/              ← optional Express + PostgreSQL backend (auth + dict + sync)
+  src/yomitan.ts     ← server-side Yomitan .zip parser (pure, unit-tested)
 test/                ← Vitest suites covering the SPEC's logic constraints
 ```
 
@@ -98,6 +103,27 @@ reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
    the selected pair) into the `terms` store, keyed `[term_lang, native_lang, term]`.
 2. **Server-side fallback** — if IndexedDB has no dictionary for that pair, the
    backend's default dictionary is queried over `/api` (`?src=&tgt=`).
+
+### Server-side dictionary management (auth)
+
+Signed-in users can manage the **shared server dictionary** from the *Quản lý
+từ điển* screen (`src/ui/DictionaryManager.tsx`). It talks to auth-protected
+endpoints (`src/data/dictAdmin.ts` → `server/src/index.ts`):
+
+| Method & path | Purpose |
+|---|---|
+| `POST /api/dict/import` | Upload one Yomitan `.zip` (raw body, `Content-Type: application/zip`); parsed by `server/src/yomitan.ts`, bulk-inserted in chunks. Language pair is read from `index.json` or overridden via `?src=&tgt=`. |
+| `GET /api/dict/dictionaries` | List imported dictionaries with live term counts. |
+| `DELETE /api/dict/dictionaries/:id` | Remove a dictionary and all of its terms. |
+| `GET /api/dict/terms` | Browse / prefix-search terms in a pair (paginated). |
+| `PUT /api/dict/term` | Add a new term or edit an existing term's meanings. |
+| `DELETE /api/dict/term` | Delete a single term. |
+
+Imported terms are tagged with a `dict_id` (FK to `dictionaries`, `ON DELETE
+SET NULL`); seed and manually-added terms have `dict_id = NULL` so they survive
+when an imported dictionary is deleted. The screen lets you import several zips
+at once, see/delete dictionaries, and add or edit meanings. Read endpoints
+(`/api/dict/lookup`, `/api/dict/suggest`) stay public.
 
 ## How the SPEC maps to code (§6 constraints)
 
@@ -141,4 +167,4 @@ unit; the UI converts to friendly units.
 ## Tech
 
 TypeScript · React 18 · Vite · Vitest · idb (IndexedDB) · JSZip ·
-Express + better-sqlite3 for the optional backend (auth + dict + sync).
+Express + PostgreSQL (node-postgres / `pg`) for the optional backend (auth + dict + sync).

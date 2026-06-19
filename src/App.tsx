@@ -9,6 +9,7 @@ import { FilterBar } from "./ui/FilterBar";
 import { DetailPanel } from "./ui/DetailPanel";
 import { ReviewSession } from "./ui/ReviewSession";
 import { DictionaryImport } from "./ui/DictionaryImport";
+import { DictionaryManager } from "./ui/DictionaryManager";
 import { Toasts } from "./ui/Toasts";
 import { AuthScreen } from "./ui/AuthScreen";
 import { useAuth } from "./ui/useAuth";
@@ -78,6 +79,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [onlyDue, setOnlyDue] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
   const [reviewing, setReviewing] = useState(false);
+  const [managing, setManaging] = useState(false);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -130,6 +132,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         <h1>Gioitu</h1>
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
+          <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
           {email ? (
             <>
               <button className="link" onClick={store.runSync}>Đồng bộ</button>
@@ -189,6 +192,17 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
           queue={store.dueEntries}
           onGrade={store.gradeReview}
           onClose={() => setReviewing(false)}
+        />
+      )}
+
+      {managing && (
+        <DictionaryManager
+          loggedIn={email != null}
+          onRequestLogin={() => {
+            setManaging(false);
+            onRequestLogin();
+          }}
+          onClose={() => setManaging(false)}
         />
       )}
 
