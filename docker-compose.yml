@@ -1,0 +1,34 @@
+# Run the whole stack with one command:  docker compose up --build
+# Then open http://localhost:8787 (the app serves both the API and the UI).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gioitu
+      POSTGRES_PASSWORD: gioitu
+      POSTGRES_DB: gioitu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"          # exposed for local psql/inspection; optional
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gioitu -d gioitu"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://gioitu:gioitu@db:5432/gioitu
+      # Override in a real deployment, e.g. `GIOITU_JWT_SECRET=... docker compose up`.
+      GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:-dev-insecure-secret-change-me}
+      PORT: "8787"
+    depends_on:
+      db:
+        condition: service_healthy   # wait until Postgres accepts connections
+    ports:
+      - "8787:8787"
+
+volumes:
+  pgdata:                            # named volume so dictionary data persists

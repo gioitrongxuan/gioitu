@@ -1,6 +1,8 @@
 // Optional backend (SPEC 2). The frontend works without it (IndexedDB-only);
 // when present it provides a fallback dictionary and cloud sync.
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { pool, initSchema, rowToDictEntry, DictRow } from "./db.js";
@@ -394,6 +396,18 @@ app.post(
     res.json(rows.map((r) => JSON.parse(r.payload)));
   }),
 );
+
+// --- Serve the built frontend (production / Docker) ---
+// When a `dist/` bundle exists (or GIOITU_STATIC_DIR points at one), the same
+// process serves the SPA so the app is reachable on a single origin and the
+// `/api` calls need no proxy. In dev you instead run Vite, which proxies /api.
+const staticDir = resolve(process.env.GIOITU_STATIC_DIR ?? join(process.cwd(), "dist"));
+if (existsSync(join(staticDir, "index.html"))) {
+  app.use(express.static(staticDir));
+  // SPA fallback for any non-/api GET (client-side routing / refresh).
+  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(join(staticDir, "index.html")));
+  console.log(`Serving frontend from ${staticDir}`);
+}
 
 const PORT = Number(process.env.PORT ?? 8787);
 app.listen(PORT, () => console.log(`gioitu backend on http://localhost:${PORT}`));

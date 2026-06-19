@@ -10,7 +10,23 @@ a word with a **Spaced Repetition System (SRS)** modeled on Anki/SM‑2.
 
 Implements the v2 SPEC (PRD), including all nine logic constraints in §6.
 
-## Quick start
+## Quick start (Docker — everything in one command)
+
+The simplest way to run the full stack (PostgreSQL + backend + built
+frontend). No local Node or Postgres needed — just Docker:
+
+```bash
+docker compose up --build
+# → open http://localhost:8787   (the app serves both the API and the UI)
+```
+
+`docker compose` starts Postgres, waits until it is healthy, then runs the
+backend, which creates the schema, seeds the demo dictionary, and serves the
+built frontend on the same origin (so no dev proxy is involved). Dictionary
+data persists in the `pgdata` named volume. Set a real secret with
+`GIOITU_JWT_SECRET=... docker compose up --build` in any deployment.
+
+## Quick start (local dev, with hot reload)
 
 ```bash
 npm install
@@ -23,11 +39,18 @@ npm run dev
 # e.g. createdb gioitu && export DATABASE_URL=postgres://localhost:5432/gioitu
 npm run server        # http://localhost:8787 (creates the schema + seeds on boot)
 
+# …or start just Postgres in Docker and run Node locally:
+#   docker compose up -d db
+#   DATABASE_URL=postgres://gioitu:gioitu@localhost:5432/gioitu npm run server
+
 # Tests / typecheck / production build
 npm test
 npm run typecheck
 npm run build
 ```
+
+In production the backend also serves the built `dist/` (single origin); in dev
+you run Vite separately and it proxies `/api` to the backend.
 
 The backend is required for **accounts + cloud sync** (email/password → JWT).
 Once signed in, the app caches everything in IndexedDB and keeps working if the
