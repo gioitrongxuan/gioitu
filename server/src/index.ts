@@ -1,9 +1,11 @@
 // Optional backend (SPEC 2). The frontend works without it (IndexedDB-only);
 // when present it provides a fallback dictionary and cloud sync.
+import { randomUUID } from "node:crypto";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { pool, initSchema, rowToDictEntry, DictRow } from "./db.js";
 import { seedIfEmpty } from "./seed.js";
+import { parseYomitanZip } from "./yomitan.js";
 import {
   hashPassword,
   verifyPassword,
@@ -127,6 +129,209 @@ app.get(
       [src, tgt, prefix, prefix + "￿"],
     );
     res.json(rows.map(rowToDictEntry));
+  }),
+);
+
+// --- Dictionary management (auth) — import / list / browse / edit ---
+// These mutate the shared server dictionary, so they require a signed-in user.
+
+// Import a Yomitan .zip. The body is the raw archive (Content-Type
+// application/zip); the language pair is taken from ?src=&tgt= when given,
+// otherwise from the archive's index.json.
+app.post(
+  "/api/dict/import",
+  requireAuth,
+  express.raw({ type: ["application/zip", "application/octet-stream"], limit: "256mb" }),
+  wrap(async (req, res) => {
+    const buf = req.body as Buffer;
+    if (!Buffer.isBuffer(buf) || buf.length === 0) {
+      return res.status(400).json({ error: "Thiếu dữ liệu file .zip" });
+    }
+    const src = req.query.src ? String(req.query.src) : undefined;
+    const tgt = req.query.tgt ? String(req.query.tgt) : undefined;
+
+    let parsed;
+    try {
+      parsed = await parseYomitanZip(buf, { term_lang: src, native_lang: tgt });
+    } catch {
+      return res.status(400).json({ error: "File .zip không hợp lệ (không phải Yomitan)" });
+    }
+    if (parsed.entries.length === 0) {
+      return res.status(400).json({ error: "Không tìm thấy từ nào trong file" });
+    }
+
+    const dictId = randomUUID();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "INSERT INTO dictionaries (id, title, term_lang, native_lang, created_at) VALUES ($1, $2, $3, $4, $5)",
+        [dictId, parsed.title, parsed.term_lang, parsed.native_lang, Date.now()],
+      );
+      // Bulk insert in chunks (one multi-row statement each) for speed.
+      const CHUNK = 1000;
+      for (let i = 0; i < parsed.entries.length; i += CHUNK) {
+        const slice = parsed.entries.slice(i, i + CHUNK);
+        const values: unknown[] = [];
+        const tuples = slice.map((e, j) => {
+          const b = j * 6;
+          values.push(
+            e.term,
+            parsed.term_lang,
+            parsed.native_lang,
+            e.reading ?? null,
+            JSON.stringify(e.definitions),
+            dictId,
+          );
+          return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
+        });
+        await client.query(
+          `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
+           VALUES ${tuples.join(", ")}
+           ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
+             reading = EXCLUDED.reading,
+             definitions = EXCLUDED.definitions,
+             dict_id = EXCLUDED.dict_id`,
+          values,
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({
+      dict_id: dictId,
+      title: parsed.title,
+      termCount: parsed.entries.length,
+      term_lang: parsed.term_lang,
+      native_lang: parsed.native_lang,
+    });
+  }),
+);
+
+// List imported dictionaries with their current term counts.
+app.get(
+  "/api/dict/dictionaries",
+  requireAuth,
+  wrap(async (_req, res) => {
+    const { rows } = await pool.query(
+      `SELECT d.id, d.title, d.term_lang, d.native_lang, d.created_at,
+              COUNT(t.term)::int AS term_count
+         FROM dictionaries d
+         LEFT JOIN dict t ON t.dict_id = d.id
+        GROUP BY d.id
+        ORDER BY d.created_at DESC`,
+    );
+    res.json(rows);
+  }),
+);
+
+// Delete a dictionary and all of its terms.
+app.delete(
+  "/api/dict/dictionaries/:id",
+  requireAuth,
+  wrap(async (req, res) => {
+    const id = req.params.id;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM dict WHERE dict_id = $1", [id]);
+      const del = await client.query("DELETE FROM dictionaries WHERE id = $1", [id]);
+      await client.query("COMMIT");
+      if (!del.rowCount) return res.status(404).json({ error: "Không tìm thấy từ điển" });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+    res.json({ ok: true });
+  }),
+);
+
+// Browse / search terms within a language pair (paginated).
+app.get(
+  "/api/dict/terms",
+  requireAuth,
+  wrap(async (req, res) => {
+    const src = String(req.query.src ?? "");
+    const tgt = String(req.query.tgt ?? "");
+    const q = String(req.query.q ?? "").trim();
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
+    // Escape LIKE wildcards in the user query; match as a prefix.
+    const like = q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
+    const hasQ = q.length > 0;
+
+    const where = `term_lang = $1 AND native_lang = $2${hasQ ? " AND term ILIKE $3" : ""}`;
+    const params = hasQ ? [src, tgt, like] : [src, tgt];
+
+    const total = await pool.query<{ c: string }>(
+      `SELECT COUNT(*) AS c FROM dict WHERE ${where}`,
+      params,
+    );
+    const { rows } = await pool.query<DictRow & { dict_id: string | null }>(
+      `SELECT term, reading, definitions, term_lang, native_lang, dict_id
+         FROM dict WHERE ${where}
+        ORDER BY term LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+    res.json({
+      total: Number(total.rows[0].c),
+      items: rows.map((r) => ({ ...rowToDictEntry(r), dict_id: r.dict_id })),
+    });
+  }),
+);
+
+// Add or edit a term's meanings (upsert). A manually added term has no dict_id;
+// editing an imported term keeps its dict_id.
+app.put(
+  "/api/dict/term",
+  requireAuth,
+  wrap(async (req, res) => {
+    const term = String(req.body?.term ?? "").trim();
+    const term_lang = String(req.body?.term_lang ?? "");
+    const native_lang = String(req.body?.native_lang ?? "");
+    const reading = req.body?.reading ? String(req.body.reading) : null;
+    const definitions = Array.isArray(req.body?.definitions)
+      ? (req.body.definitions as unknown[]).map((d) => String(d).trim()).filter(Boolean)
+      : [];
+    if (!term || !term_lang || !native_lang) {
+      return res.status(400).json({ error: "Thiếu từ hoặc cặp ngôn ngữ" });
+    }
+    if (definitions.length === 0) {
+      return res.status(400).json({ error: "Cần ít nhất một nghĩa" });
+    }
+    await pool.query(
+      `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
+       VALUES ($1, $2, $3, $4, $5, NULL)
+       ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
+         reading = EXCLUDED.reading,
+         definitions = EXCLUDED.definitions`,
+      [term, term_lang, native_lang, reading, JSON.stringify(definitions)],
+    );
+    res.json({ term, reading: reading ?? undefined, definitions, term_lang, native_lang });
+  }),
+);
+
+// Delete a single term.
+app.delete(
+  "/api/dict/term",
+  requireAuth,
+  wrap(async (req, res) => {
+    const term = String(req.body?.term ?? "");
+    const term_lang = String(req.body?.term_lang ?? "");
+    const native_lang = String(req.body?.native_lang ?? "");
+    const del = await pool.query(
+      "DELETE FROM dict WHERE term_lang = $1 AND native_lang = $2 AND term = $3",
+      [term_lang, native_lang, term],
+    );
+    if (!del.rowCount) return res.status(404).json({ error: "Không tìm thấy từ" });
+    res.json({ ok: true });
   }),
 );
 

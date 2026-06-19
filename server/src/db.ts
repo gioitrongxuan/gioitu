@@ -31,6 +31,16 @@ export async function initSchema(): Promise<void> {
       created_at BIGINT NOT NULL
     );
 
+    -- Imported dictionaries (one row per .zip imported). Terms reference this
+    -- via dict.dict_id so a whole dictionary can be listed or deleted.
+    CREATE TABLE IF NOT EXISTS dictionaries (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      term_lang TEXT NOT NULL,
+      native_lang TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+
     -- Fallback dictionaries, scoped per language pair (forward only).
     CREATE TABLE IF NOT EXISTS dict (
       term TEXT NOT NULL,
@@ -38,8 +48,14 @@ export async function initSchema(): Promise<void> {
       native_lang TEXT NOT NULL,
       reading TEXT,
       definitions TEXT NOT NULL,   -- JSON array of glosses
+      -- Source dictionary; NULL for seed/manually-added entries.
+      dict_id TEXT REFERENCES dictionaries(id) ON DELETE SET NULL,
       PRIMARY KEY (term_lang, native_lang, term)
     );
+    -- Older databases predate dict_id; add it if missing.
+    ALTER TABLE dict ADD COLUMN IF NOT EXISTS dict_id TEXT
+      REFERENCES dictionaries(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS idx_dict_source ON dict(dict_id);
 
     -- User learning data: source of truth (SPEC 2.C).
     CREATE TABLE IF NOT EXISTS user_data (
