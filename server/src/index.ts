@@ -77,41 +77,30 @@ app.get("/api/auth/me", requireAuth, (req: AuthedRequest, res) => {
   res.json({ user_id: row.id, email: row.email });
 });
 
-// --- Dictionary: forward lookup (SPEC 2.A) ---
+// --- Dictionary: forward lookup, scoped to a language pair (SPEC 2.A) ---
 app.get("/api/dict/lookup", (req, res) => {
   const term = String(req.query.term ?? "");
-  const row = db.prepare("SELECT * FROM dict WHERE term = ?").get(term) as DictRow | undefined;
+  const src = String(req.query.src ?? "");
+  const tgt = String(req.query.tgt ?? "");
+  const row = db
+    .prepare("SELECT * FROM dict WHERE term_lang = ? AND native_lang = ? AND term = ?")
+    .get(src, tgt, term) as DictRow | undefined;
   res.json(row ? rowToDictEntry(row) : null);
 });
 
-// --- Dictionary: prefix suggestions ---
+// --- Dictionary: prefix suggestions within a language pair ---
 app.get("/api/dict/suggest", (req, res) => {
   const prefix = String(req.query.prefix ?? "");
+  const src = String(req.query.src ?? "");
+  const tgt = String(req.query.tgt ?? "");
   if (!prefix) return res.json([]);
   const rows = db
-    .prepare("SELECT * FROM dict WHERE term >= ? AND term < ? ORDER BY term LIMIT 10")
-    .all(prefix, prefix + "￿") as DictRow[];
+    .prepare(
+      `SELECT * FROM dict WHERE term_lang = ? AND native_lang = ?
+       AND term >= ? AND term < ? ORDER BY term LIMIT 10`,
+    )
+    .all(src, tgt, prefix, prefix + "￿") as DictRow[];
   res.json(rows.map(rowToDictEntry));
-});
-
-// --- Dictionary: reverse lookup via FTS5 (SPEC 2.B) ---
-app.get("/api/dict/reverse", (req, res) => {
-  const q = String(req.query.q ?? "").trim();
-  if (!q) return res.json([]);
-  // Build a tolerant OR query of the tokens.
-  const tokens = q.split(/\s+/).filter(Boolean).map((t) => `"${t.replace(/"/g, "")}"`);
-  const match = tokens.join(" OR ");
-  try {
-    const rows = db
-      .prepare(
-        `SELECT d.* FROM dict_fts f JOIN dict d ON d.rowid = f.rowid
-         WHERE dict_fts MATCH ? ORDER BY rank LIMIT 20`,
-      )
-      .all(match) as DictRow[];
-    res.json(rows.map(rowToDictEntry));
-  } catch {
-    res.json([]);
-  }
 });
 
 // --- Sync: pull (SPEC 2.C) — user scoped by the authenticated token ---

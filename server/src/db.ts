@@ -18,18 +18,14 @@ export function initSchema() {
       created_at INTEGER NOT NULL
     );
 
+    -- Fallback dictionaries, scoped per language pair (forward only).
     CREATE TABLE IF NOT EXISTS dict (
-      term TEXT PRIMARY KEY,
-      reading TEXT,
-      definitions TEXT NOT NULL,   -- JSON array of glosses
+      term TEXT NOT NULL,
       term_lang TEXT NOT NULL,
       native_lang TEXT NOT NULL,
-      meaning TEXT NOT NULL        -- flattened text for FTS
-    );
-
-    -- FTS5 reverse index over the native-language meaning (SPEC 2.B).
-    CREATE VIRTUAL TABLE IF NOT EXISTS dict_fts USING fts5(
-      term UNINDEXED, meaning, content='dict', content_rowid='rowid'
+      reading TEXT,
+      definitions TEXT NOT NULL,   -- JSON array of glosses
+      PRIMARY KEY (term_lang, native_lang, term)
     );
 
     -- User learning data: source of truth (SPEC 2.C).
@@ -51,7 +47,6 @@ export interface DictRow {
   definitions: string;
   term_lang: string;
   native_lang: string;
-  meaning: string;
 }
 
 export function rowToDictEntry(r: DictRow) {

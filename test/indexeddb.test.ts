@@ -4,19 +4,11 @@ import JSZip from "jszip";
 import {
   importYomitanZip,
   lookupTerm,
-  reverseLookup,
   suggestTerms,
-  tokenizeMeaning,
   hasLocalDictionary,
 } from "../src/data/yomitan";
 import { putEntry, getEntry, getAllEntries, syncUserData } from "../src/data/repository";
 import { makeEntry } from "./fixtures";
-
-describe("tokenizeMeaning", () => {
-  it("lowercases, splits on punctuation, de-dupes, keeps Unicode letters", () => {
-    expect(tokenizeMeaning("Kiên cường, phục hồi; kiên!")).toEqual(["kiên", "cường", "phục", "hồi"]);
-  });
-});
 
 /** Build an in-memory Yomitan-style .zip for testing. */
 async function makeYomitanZip(): Promise<ArrayBuffer> {
@@ -35,27 +27,27 @@ async function makeYomitanZip(): Promise<ArrayBuffer> {
   return zip.generateAsync({ type: "arraybuffer" });
 }
 
-describe("Yomitan import + dual index", () => {
+describe("Yomitan import (forward, per-pair)", () => {
   beforeAll(async () => {
     const buf = await makeYomitanZip();
-    await importYomitanZip(buf);
+    await importYomitanZip(buf, { term_lang: "en", native_lang: "vi" });
   });
 
-  it("imports terms into IndexedDB", async () => {
-    expect(await hasLocalDictionary()).toBe(true);
-    const e = await lookupTerm("resilient");
+  it("imports terms into IndexedDB scoped to the pair", async () => {
+    expect(await hasLocalDictionary("en", "vi")).toBe(true);
+    expect(await hasLocalDictionary("ja", "vi")).toBe(false);
+    const e = await lookupTerm("resilient", "en", "vi");
     expect(e?.definitions).toContain("kiên cường");
     expect(e?.term_lang).toBe("en");
   });
 
-  it("supports prefix suggestions", async () => {
-    const s = await suggestTerms("e");
-    expect(s.map((x) => x.term)).toContain("ephemeral");
+  it("does not find a term under the wrong pair", async () => {
+    expect(await lookupTerm("resilient", "vi", "en")).toBeUndefined();
   });
 
-  it("supports reverse lookup via the token index (SPEC 2.B)", async () => {
-    const r = await reverseLookup("kiên cường");
-    expect(r.map((x) => x.term)).toContain("resilient");
+  it("supports prefix suggestions within the pair", async () => {
+    const s = await suggestTerms("e", "en", "vi");
+    expect(s.map((x) => x.term)).toContain("ephemeral");
   });
 });
 

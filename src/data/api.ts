@@ -1,4 +1,4 @@
-// Backend client (SPEC 2.A fallback dictionary, 2.B reverse FTS, 2.C sync).
+// Backend client (SPEC 2.A fallback dictionary, 2.C sync) + auth headers.
 // All endpoints are best-effort: callers must tolerate the backend being absent
 // (offline / static deploy) and fall back to IndexedDB.
 
@@ -24,17 +24,22 @@ function authHeaders(): Record<string, string> {
 }
 
 /** Server-side forward lookup (fallback when IndexedDB has no dictionary). */
-export function serverLookup(term: string): Promise<DictEntry | null> {
-  return getJson<DictEntry>(`/dict/lookup?term=${encodeURIComponent(term)}`);
+export function serverLookup(
+  term: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<DictEntry | null> {
+  const q = `term=${encodeURIComponent(term)}&src=${term_lang}&tgt=${native_lang}`;
+  return getJson<DictEntry>(`/dict/lookup?${q}`);
 }
 
-/** Server-side reverse lookup via Postgres/SQLite FTS (SPEC 2.B). */
-export async function serverReverseLookup(query: string): Promise<DictEntry[]> {
-  return (await getJson<DictEntry[]>(`/dict/reverse?q=${encodeURIComponent(query)}`)) ?? [];
-}
-
-export async function serverSuggest(prefix: string): Promise<DictEntry[]> {
-  return (await getJson<DictEntry[]>(`/dict/suggest?prefix=${encodeURIComponent(prefix)}`)) ?? [];
+export async function serverSuggest(
+  prefix: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<DictEntry[]> {
+  const q = `prefix=${encodeURIComponent(prefix)}&src=${term_lang}&tgt=${native_lang}`;
+  return (await getJson<DictEntry[]>(`/dict/suggest?${q}`)) ?? [];
 }
 
 /**

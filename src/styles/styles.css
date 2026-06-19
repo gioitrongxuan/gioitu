@@ -23,12 +23,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Search bar */
 .searchbar { position: relative; margin-bottom: 12px; }
-.direction-toggle { display: inline-flex; gap: 4px; margin-bottom: 8px; }
-.direction-toggle button {
+.pair-toggle { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.pair-toggle button {
   border: 1px solid var(--line); background: #fff; padding: 6px 12px;
   border-radius: 999px; cursor: pointer; font-size: 13px; color: var(--muted);
 }
-.direction-toggle button.active { background: var(--fg); color: #fff; border-color: var(--fg); }
+.pair-toggle button.active { background: var(--fg); color: #fff; border-color: var(--fg); }
 .search-input {
   width: 100%; padding: 12px 14px; font-size: 16px;
   border: 1px solid var(--line); border-radius: 12px; outline: none;
@@ -87,7 +87,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 .empty, .muted { color: var(--muted); font-size: 14px; }
 
-/* Detail / reverse panel */
+/* Detail panel */
 .detail-panel { border: 1px solid var(--line); border-radius: 12px; padding: 14px; height: fit-content; }
 .detail-panel header { display: flex; align-items: baseline; gap: 8px; }
 .detail-panel header h2 { margin: 0; font-size: 18px; }
@@ -100,18 +100,6 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .srs-stats { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; }
 .srs-stats > div { display: flex; justify-content: space-between; font-size: 13px; }
 .srs-stats span { color: var(--muted); }
-
-.reverse-list { list-style: none; padding: 0; margin: 8px 0 0; }
-.reverse-list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.add-btn {
-  flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--accent);
-  color: var(--accent); background: #fff; cursor: pointer; font-size: 18px; line-height: 1;
-}
-.add-btn:hover { background: var(--accent); color: #fff; }
-.reverse-item { display: flex; flex-direction: column; }
-.r-term { font-weight: 600; }
-.r-reading { color: var(--muted); font-size: 12px; }
-.r-def { color: var(--muted); font-size: 13px; }
 
 /* Buttons */
 .primary { background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin-top: 8px; }

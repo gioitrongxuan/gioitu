@@ -1,38 +1,26 @@
 // Search Router (SPEC 2.A): client-side IndexedDB first, server fallback second.
+// Forward-only, scoped to a language pair (term_lang → native_lang).
 
-import { DictEntry, getDb } from "./db";
-import { lookupTerm, suggestTerms, reverseLookup, hasLocalDictionary } from "./yomitan";
-import { serverLookup, serverReverseLookup, serverSuggest } from "./api";
+import { DictEntry } from "./db";
+import { lookupTerm, suggestTerms, hasLocalDictionary } from "./yomitan";
+import { serverLookup, serverSuggest } from "./api";
+import { LangPair } from "../domain/languages";
 
-/** Case 1 — forward lookup: term → definition. IndexedDB first, then server. */
-export async function searchForward(term: string): Promise<DictEntry | null> {
-  const local = await lookupTerm(term);
+/** Forward lookup: term → definition within the chosen pair. */
+export async function searchForward(term: string, pair: LangPair): Promise<DictEntry | null> {
+  const local = await lookupTerm(term, pair.source, pair.target);
   if (local) return local;
-  return serverLookup(term);
+  return serverLookup(term, pair.source, pair.target);
 }
 
-/** Live suggestions while typing. */
-export async function searchSuggest(prefix: string): Promise<DictEntry[]> {
-  const local = await suggestTerms(prefix);
+/** Live suggestions while typing, scoped to the chosen pair. */
+export async function searchSuggest(prefix: string, pair: LangPair): Promise<DictEntry[]> {
+  const local = await suggestTerms(prefix, pair.source, pair.target);
   if (local.length > 0) return local;
-  return serverSuggest(prefix);
+  return serverSuggest(prefix, pair.source, pair.target);
 }
 
-/**
- * Case 2 — reverse lookup: native query → target terms.
- * Uses the local reverse index when a dictionary has been imported, otherwise
- * defers to the server FTS (SPEC 2.B note: Case 2 may be server-only in v1).
- */
-export async function searchReverse(query: string): Promise<DictEntry[]> {
-  if (await hasLocalDictionary()) {
-    const local = await reverseLookup(query);
-    if (local.length > 0) return local;
-  }
-  return serverReverseLookup(query);
-}
-
-/** Count of locally imported dictionary terms (for UI status). */
-export async function localTermCount(): Promise<number> {
-  const db = await getDb();
-  return db.count("terms");
+/** Whether a local dictionary exists for the pair (UI status). */
+export function hasLocalDict(pair: LangPair): Promise<boolean> {
+  return hasLocalDictionary(pair.source, pair.target);
 }
