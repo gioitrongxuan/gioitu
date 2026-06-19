@@ -1,21 +1,34 @@
-// Backend SQLite store (SPEC 2.A fallback dict, 2.B reverse FTS5, 2.C sync).
-import Database from "better-sqlite3";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+// Backend PostgreSQL store (SPEC 2.A fallback dict, 2.C sync).
+// Uses node-postgres (`pg`); all access is async (the pool is promise-based).
+import pg from "pg";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.GIOITU_DB ?? join(__dirname, "..", "gioitu.db");
+const { Pool } = pg;
 
-export const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
+// Connection is configured via DATABASE_URL (preferred) or the standard
+// PG* environment variables (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE).
+const connectionString = process.env.DATABASE_URL;
 
-export function initSchema() {
-  db.exec(`
+export const pool = new Pool(
+  connectionString
+    ? { connectionString, ssl: sslFromEnv() }
+    : { ssl: sslFromEnv() },
+);
+
+function sslFromEnv() {
+  // Opt-in TLS for managed Postgres (e.g. ?sslmode=require or PGSSL=1).
+  const wantsSsl =
+    process.env.PGSSL === "1" ||
+    /sslmode=require/.test(process.env.DATABASE_URL ?? "");
+  return wantsSsl ? { rejectUnauthorized: false } : undefined;
+}
+
+export async function initSchema(): Promise<void> {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at BIGINT NOT NULL
     );
 
     -- Fallback dictionaries, scoped per language pair (forward only).
@@ -34,7 +47,7 @@ export function initSchema() {
       term TEXT NOT NULL,
       term_lang TEXT NOT NULL,
       payload TEXT NOT NULL,       -- full VocabEntry JSON
-      updated_at INTEGER NOT NULL,
+      updated_at BIGINT NOT NULL,
       PRIMARY KEY (user_id, term, term_lang)
     );
     CREATE INDEX IF NOT EXISTS idx_user_updated ON user_data(user_id, updated_at);

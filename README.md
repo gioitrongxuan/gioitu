@@ -18,8 +18,10 @@ npm install
 # Frontend (Vite dev server on :5173, proxies /api -> :8787)
 npm run dev
 
-# Optional backend (accounts + fallback dictionary + cloud sync)
-npm run server        # http://localhost:8787
+# Optional backend (accounts + fallback dictionary + cloud sync).
+# Needs a PostgreSQL database — set DATABASE_URL (see .env.example).
+# e.g. createdb gioitu && export DATABASE_URL=postgres://localhost:5432/gioitu
+npm run server        # http://localhost:8787 (creates the schema + seeds on boot)
 
 # Tests / typecheck / production build
 npm test
@@ -82,7 +84,7 @@ src/
     repository.ts    ← user-data cache + last-write-wins sync (§2.C)
   ui/                ← React components (SearchBar, WordCloud, FilterBar,
                        ReviewSession, DetailPanel, AuthScreen, …)
-server/              ← optional Express + SQLite backend (auth + dict + sync)
+server/              ← optional Express + PostgreSQL backend (auth + dict + sync)
 test/                ← Vitest suites covering the SPEC's logic constraints
 ```
 
@@ -141,4 +143,4 @@ unit; the UI converts to friendly units.
 ## Tech
 
 TypeScript · React 18 · Vite · Vitest · idb (IndexedDB) · JSZip ·
-Express + better-sqlite3 for the optional backend (auth + dict + sync).
+Express + PostgreSQL (node-postgres / `pg`) for the optional backend (auth + dict + sync).

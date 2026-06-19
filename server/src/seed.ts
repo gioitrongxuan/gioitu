@@ -1,6 +1,6 @@
 // Minimal demo dictionaries (one small set per language pair) so every
 // direction returns something out of the box.
-import { db } from "./db.js";
+import { pool } from "./db.js";
 
 interface SeedEntry {
   term: string;
@@ -26,25 +26,26 @@ const SAMPLE: SeedEntry[] = [
   { term: "con mèo", definitions: ["猫（ねこ）"], term_lang: "vi", native_lang: "ja" },
 ];
 
-export function seedIfEmpty() {
-  const count = (db.prepare("SELECT COUNT(*) AS c FROM dict").get() as { c: number }).c;
-  if (count > 0) return;
+export async function seedIfEmpty(): Promise<void> {
+  const { rows } = await pool.query<{ c: string }>("SELECT COUNT(*) AS c FROM dict");
+  if (Number(rows[0].c) > 0) return;
 
-  const insert = db.prepare(
-    `INSERT INTO dict (term, term_lang, native_lang, reading, definitions)
-     VALUES (@term, @term_lang, @native_lang, @reading, @definitions)`,
-  );
-  const tx = db.transaction(() => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
     for (const e of SAMPLE) {
-      insert.run({
-        term: e.term,
-        term_lang: e.term_lang,
-        native_lang: e.native_lang,
-        reading: e.reading ?? null,
-        definitions: JSON.stringify(e.definitions),
-      });
+      await client.query(
+        `INSERT INTO dict (term, term_lang, native_lang, reading, definitions)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [e.term, e.term_lang, e.native_lang, e.reading ?? null, JSON.stringify(e.definitions)],
+      );
     }
-  });
-  tx();
-  console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);
+    await client.query("COMMIT");
+    console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
