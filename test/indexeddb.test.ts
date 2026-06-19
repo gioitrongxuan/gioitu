@@ -7,7 +7,13 @@ import {
   suggestTerms,
   hasLocalDictionary,
 } from "../src/data/yomitan";
-import { putEntry, getEntry, getAllEntries, syncUserData } from "../src/data/repository";
+import {
+  putEntry,
+  getEntry,
+  getAllEntries,
+  syncUserData,
+  reassignEntries,
+} from "../src/data/repository";
 import { makeEntry } from "./fixtures";
 
 /** Build an in-memory Yomitan-style .zip for testing. */
@@ -63,5 +69,32 @@ describe("user-data repository + offline sync", () => {
   it("syncUserData returns local data when backend is unreachable", async () => {
     const merged = await syncUserData("alice");
     expect(merged.some((x) => x.term === "hello")).toBe(true);
+  });
+});
+
+describe("guest → account migration", () => {
+  it("moves guest entries to the signed-in account", async () => {
+    await putEntry(makeEntry({ user_id: "__guest__", term: "guestword" }));
+
+    const moved = await reassignEntries("__guest__", "bob");
+    expect(moved).toBe(1);
+
+    expect(await getEntry("bob", "guestword", "en")).toBeDefined();
+    expect(await getEntry("__guest__", "guestword", "en")).toBeUndefined();
+  });
+
+  it("keeps the newer copy when both guest and account have the term", async () => {
+    await putEntry(makeEntry({ user_id: "__guest__", term: "dup", lookup_count: 5, updated_at: 200 }));
+    await putEntry(makeEntry({ user_id: "carol", term: "dup", lookup_count: 1, updated_at: 100 }));
+
+    await reassignEntries("__guest__", "carol");
+
+    const back = await getEntry("carol", "dup", "en");
+    expect(back?.lookup_count).toBe(5);
+    expect(await getEntry("__guest__", "dup", "en")).toBeUndefined();
+  });
+
+  it("is a no-op when source and target are the same", async () => {
+    expect(await reassignEntries("bob", "bob")).toBe(0);
   });
 });

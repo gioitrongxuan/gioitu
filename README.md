@@ -32,10 +32,22 @@ Once signed in, the app caches everything in IndexedDB and keeps working if the
 backend goes offline — sync resumes when it is reachable again. Dictionary
 look-ups still fall back to IndexedDB / the server's default dictionary.
 
-## Authentication (email + password)
+## Guest mode + Authentication (email + password)
+
+The app is **fully usable without an account**. If you are not signed in you run
+as a *guest*: look-ups, the Word Cloud, and SRS reviews all work and persist
+locally in IndexedDB (keyed under the `__guest__` user id). Signing in is
+**optional** and only adds cross-device cloud sync.
+
+- **Guest** (`GUEST_USER_ID` in `src/data/auth.ts`): no auth token, so sync is a
+  no-op and data never leaves the device. The header shows *Khách* with an
+  *Đăng nhập* button that opens the login/register screen as a dismissible modal.
+- **First sign-in migrates guest progress**: `reassignEntries()`
+  (`src/data/repository.ts`) moves any `__guest__` entries onto the new account
+  (last-write-wins per term) so nothing learned while trying the app is lost.
 
 Per SPEC §2.C, learning data is tied to an account so it is consistent across
-devices. The app gates behind a login/register screen:
+devices once you sign in:
 
 - **Backend** (`server/src/auth.ts`, zero external deps): passwords hashed with
   `scrypt` + per-user random salt; sessions are **HS256 JWTs** signed with

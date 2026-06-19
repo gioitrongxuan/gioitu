@@ -16,19 +16,61 @@ import { DictEntry } from "./data/db";
 import { VocabEntry } from "./domain/types";
 import { CloudSort } from "./domain/wordcloud";
 import { DEFAULT_PAIR, LangPair } from "./domain/languages";
+import { GUEST_USER_ID, getSession } from "./data/auth";
+import { reassignEntries } from "./data/repository";
 
 type View =
   | { kind: "detail"; term: string; term_lang: string; native_lang: string; dict: DictEntry | null }
   | null;
 
-/** Auth gate: render the login screen until the user has a session. */
+/**
+ * No auth gate: the app is fully usable as a guest. Signing in is optional and
+ * only adds cross-device cloud sync. On the first sign-in, any progress made as
+ * a guest is migrated to the new account so nothing is lost.
+ */
 export default function App() {
   const { session, login, register, logout } = useAuth();
-  if (!session) return <AuthScreen onLogin={login} onRegister={register} />;
-  return <MainApp key={session.user_id} userId={session.user_id} email={session.email} onLogout={logout} />;
+  const [showAuth, setShowAuth] = useState(false);
+
+  const migrateThen =
+    (fn: (email: string, password: string) => Promise<void>) =>
+    async (email: string, password: string) => {
+      await fn(email, password);
+      const s = getSession();
+      if (s) await reassignEntries(GUEST_USER_ID, s.user_id);
+      setShowAuth(false);
+    };
+
+  const userId = session?.user_id ?? GUEST_USER_ID;
+
+  return (
+    <>
+      <MainApp
+        key={userId}
+        userId={userId}
+        email={session?.email ?? null}
+        onLogout={logout}
+        onRequestLogin={() => setShowAuth(true)}
+      />
+      {showAuth && !session && (
+        <AuthScreen
+          onLogin={migrateThen(login)}
+          onRegister={migrateThen(register)}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
+    </>
+  );
 }
 
-function MainApp({ userId, email, onLogout }: { userId: string; email: string; onLogout: () => void }) {
+interface MainAppProps {
+  userId: string;
+  email: string | null;
+  onLogout: () => void;
+  onRequestLogin: () => void;
+}
+
+function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
   const [view, setView] = useState<View>(null);
@@ -88,9 +130,18 @@ function MainApp({ userId, email, onLogout }: { userId: string; email: string; o
         <h1>Gioitu</h1>
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
-          <button className="link" onClick={store.runSync}>Đồng bộ</button>
-          <span className="user-email" title={email}>{email}</span>
-          <button className="link" onClick={onLogout}>Đăng xuất</button>
+          {email ? (
+            <>
+              <button className="link" onClick={store.runSync}>Đồng bộ</button>
+              <span className="user-email" title={email}>{email}</span>
+              <button className="link" onClick={onLogout}>Đăng xuất</button>
+            </>
+          ) : (
+            <>
+              <span className="user-email">Khách</span>
+              <button className="link" onClick={onRequestLogin}>Đăng nhập</button>
+            </>
+          )}
         </div>
       </header>
 
