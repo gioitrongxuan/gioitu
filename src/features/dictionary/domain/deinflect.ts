@@ -115,6 +115,11 @@ function buildRules(): Rule[] {
   rules.push(r("progressive", "でいる", "で", ["v1"], ["te"]));
   rules.push(r("progressive", "でる", "で", ["v1"], ["te"]));
 
+  // --- ～てしまう / ～でしまう (regret / completion): peel しまう back to the
+  //     pseudo て-form, then the て rules finish (食べてしまう → 食べて → 食べる). ---
+  rules.push(r("-teshimau", "てしまう", "て", [], ["te"]));
+  rules.push(r("-teshimau", "でしまう", "で", [], ["te"]));
+
   // --- Negative ない (conjugates like an い-adjective → rulesIn adji). ---
   rules.push(r("negative", "ない", "る", ["adji"], ["v1"])); // 食べない → 食べる
   rules.push(r("negative", "しない", "する", ["adji"], ["vs"]));
@@ -162,6 +167,36 @@ function buildRules(): Rule[] {
   // --- Imperative ろ for ichidan (godan single-kana imperatives omitted to
   //     avoid heavy over-generation). ---
   rules.push(r("imperative", "ろ", "る", [], ["v1"]));
+
+  // --- Derived families (Yomitan covers these too). Each is the same stem as a
+  //     family above with a different tail, so we generate them from the base
+  //     rules instead of re-listing every euphonic column. ---
+
+  // Conditional ～たら / listing ～たり: the past stem + ら / り
+  // (食べたら/食べたり, 飲んだら/飲んだり, 高かったら/高かったり).
+  for (const pr of rules.filter((x) => x.reason === "past")) {
+    rules.push({ ...pr, reason: "-tara", kanaIn: pr.kanaIn + "ら" });
+    rules.push({ ...pr, reason: "-tari", kanaIn: pr.kanaIn + "り" });
+  }
+
+  // Casual ～ちゃう / ～じゃう (= ～てしまう / ～でしまう): the て-stem with the
+  // connective swapped (食べちゃう→食べる, 飲んじゃう→飲む, 行っちゃう→行く).
+  // Skip the adjective て-form (くて → い): ちゃう doesn't attach to adjectives.
+  for (const tr of rules.filter((x) => x.reason === "-te" && (x.rulesOut & RULE.adji) === 0)) {
+    if (tr.kanaIn.endsWith("て")) {
+      rules.push({ ...tr, reason: "-chau", kanaIn: tr.kanaIn.slice(0, -1) + "ちゃう" });
+    } else if (tr.kanaIn.endsWith("で")) {
+      rules.push({ ...tr, reason: "-chau", kanaIn: tr.kanaIn.slice(0, -1) + "じゃう" });
+    }
+  }
+
+  // Obligation ～なきゃ / ～なくちゃ (= ～なければ / ～なくては): the negative stem
+  // with ない swapped (食べなきゃ, 飲まなきゃ, しなきゃ, 高くなきゃ).
+  for (const nr of rules.filter((x) => x.reason === "negative" && x.kanaIn.endsWith("ない"))) {
+    const stem = nr.kanaIn.slice(0, -2);
+    rules.push({ ...nr, reason: "-nakya", kanaIn: stem + "なきゃ" });
+    rules.push({ ...nr, reason: "-nakya", kanaIn: stem + "なくちゃ" });
+  }
 
   return rules;
 }
@@ -289,6 +324,11 @@ export const REASON_LABELS: Record<string, string> = {
   causative: "sai khiến",
   volitional: "ý chí (～よう)",
   "-ba": "điều kiện (～ば)",
+  "-tara": "điều kiện (～たら)",
+  "-tari": "liệt kê (～たり)",
+  "-chau": "lỡ/hoàn tất (～ちゃう)",
+  "-teshimau": "lỡ/hoàn tất (～てしまう)",
+  "-nakya": "bắt buộc (～なきゃ)",
   "-tai": "mong muốn (～たい)",
   progressive: "tiếp diễn (～ている)",
   adv: "trạng từ",

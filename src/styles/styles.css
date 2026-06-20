@@ -163,24 +163,62 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .reason-chip::before { content: "↞ "; color: var(--muted); }
 
 .term-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
-.term-tag { font-size: 11px; background: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 1px 7px; border-radius: 999px; }
 
 .senses { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; }
 .sense { line-height: 1.5; }
 .sense-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; margin-right: 6px; vertical-align: baseline; }
-.pos-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; padding: 1px 6px; border-radius: 5px; }
 .sense-body { display: inline; }
 .gloss { margin: 2px 0; }
+
+/* Tags — coloured by Yomitan category (data-category). Compact code label,
+   full name on hover (title). */
+.pos-tag, .term-tag {
+  --tag-color: #8a8a91;
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #fff;
+  background: var(--tag-color);
+  padding: 0 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: help;
+}
+.pos-tag[data-category=partOfSpeech] { --tag-color: #565656; }
+.pos-tag[data-category=expression], .term-tag[data-category=expression] { --tag-color: #d99b2b; }
+.pos-tag[data-category=popular],    .term-tag[data-category=popular]    { --tag-color: #0275d8; }
+.pos-tag[data-category=frequent],   .term-tag[data-category=frequent]   { --tag-color: #46a4bb; }
+.pos-tag[data-category=frequency],  .term-tag[data-category=frequency]  { --tag-color: #5cb85c; }
+.pos-tag[data-category=archaism],   .term-tag[data-category=archaism]   { --tag-color: #d9534f; }
+.pos-tag[data-category=name],       .term-tag[data-category=name]       { --tag-color: #b6327a; }
+.pos-tag[data-category=dictionary], .term-tag[data-category=dictionary] { --tag-color: #aa66cc; }
 
 /* Structured content */
 .sc-ul, .sc-ol { margin: 4px 0; padding-left: 18px; }
 .sc-li { margin: 2px 0; }
 .sc-b, .sc-strong { font-weight: 700; }
 .sc-em, .sc-i { font-style: italic; }
-.sc-table { border-collapse: collapse; margin: 6px 0; }
+.sc-table-container { overflow-x: auto; margin: 6px 0; max-width: 100%; }
+.sc-table { border-collapse: collapse; }
 .sc-td, .sc-th { border: 1px solid var(--line); padding: 3px 8px; font-size: 13px; }
+.sc-th { background: #f8fafc; font-weight: 600; }
+.sc-details { margin: 4px 0; }
+.sc-summary { cursor: pointer; font-weight: 600; color: var(--muted); font-size: 13px; }
 .sc-img { color: var(--muted); font-size: 12px; }
 .sc-link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+
+/* Wiktionary/Kaikki (wty) section styling, keyed on the dictionary's own
+   data.content labels (rendered as data-sc-content). Keeps the real glosses
+   prominent and pushes etymology / examples / attribution into the background. */
+[data-sc-content="glosses"] { padding-left: 18px; margin: 2px 0; }
+[data-sc-content="preamble"] { font-size: 13px; }
+[data-sc-content="example-sentence"] { margin: 4px 0 4px 2px; padding-left: 10px; border-left: 2px solid var(--line); }
+[data-sc-content="example-sentence-a"] { color: var(--fg); }
+[data-sc-content="example-sentence-b"], [data-sc-content="example-sentence-c"] { color: var(--muted); font-size: 0.95em; }
+[data-sc-content="bold-text"] { font-weight: 600; }
+[data-sc-content="synonyms"], [data-sc-content="synonyms-label"] { font-size: 13px; color: var(--muted); }
+[data-sc-content="backlink"] { margin-top: 8px; font-size: 11px; color: var(--muted); }
+[data-sc-content="backlink"] .sc-link { color: var(--muted); }
 
 /* Review session */
 .review-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: grid; place-items: center; z-index: 50; }

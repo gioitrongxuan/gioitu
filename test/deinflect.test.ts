@@ -89,6 +89,37 @@ describe("Japanese deinflection", () => {
     expect(chain).toHaveLength(3);
   });
 
+  it("handles conditional ～たら and listing ～たり", () => {
+    expect(bases("食べたら")).toContain("食べる");
+    expect(bases("飲んだら")).toContain("飲む"); // euphonic だら
+    expect(bases("書いたら")).toContain("書く");
+    expect(bases("高かったら")).toContain("高い"); // adjective
+    expect(bases("食べたり")).toContain("食べる");
+    expect(bases("飲んだり")).toContain("飲む");
+  });
+
+  it("handles casual ～ちゃう / ～じゃう (てしまう contraction)", () => {
+    expect(bases("食べちゃう")).toContain("食べる");
+    expect(bases("飲んじゃう")).toContain("飲む"); // ん + じゃう
+    expect(bases("行っちゃう")).toContain("行く"); // irregular っちゃう
+    expect(bases("書いちゃう")).toContain("書く");
+    expect(reasonsFor("食べちゃう", "食べる")).toEqual(["-chau"]);
+  });
+
+  it("handles full ～てしまう / ～でしまう", () => {
+    expect(bases("食べてしまう")).toContain("食べる");
+    expect(bases("飲んでしまう")).toContain("飲む");
+    expect(reasonsFor("食べてしまう", "食べる")).toEqual(["-teshimau", "-te"]);
+  });
+
+  it("handles obligation ～なきゃ / ～なくちゃ", () => {
+    expect(bases("食べなきゃ")).toContain("食べる");
+    expect(bases("飲まなきゃ")).toContain("飲む"); // godan a-stem
+    expect(bases("しなきゃ")).toContain("する"); // irregular する
+    expect(bases("食べなくちゃ")).toContain("食べる");
+    expect(bases("高くなきゃ")).toContain("高い"); // adjective
+  });
+
   it("always includes the identity (exact match) first", () => {
     const d = deinflect("猫");
     expect(d[0]).toEqual({ term: "猫", reasons: [], rules: 0 });

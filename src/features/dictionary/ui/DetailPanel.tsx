@@ -8,7 +8,7 @@ import { useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
-import { Definitions, Furigana } from "./StructuredContent";
+import { Definitions, Furigana, TagChip } from "./StructuredContent";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 
 interface Props {
@@ -103,12 +103,17 @@ function ResultView({ res, onLookup }: { res: TermResult; onLookup?: (term: stri
       {entry.termTags && entry.termTags.length > 0 && (
         <div className="term-tags">
           {entry.termTags.map((t) => (
-            <span key={t} className="term-tag">{t}</span>
+            <TagChip key={t} code={t} meta={entry.tagMeta?.[t]} kind="term" />
           ))}
         </div>
       )}
 
-      <Definitions senses={entry.senses} definitions={entry.definitions} onLookup={onLookup} />
+      <Definitions
+        senses={entry.senses}
+        definitions={entry.definitions}
+        tagMeta={entry.tagMeta}
+        onLookup={onLookup}
+      />
     </section>
   );
 }

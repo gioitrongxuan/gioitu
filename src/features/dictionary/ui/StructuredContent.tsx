@@ -1,10 +1,17 @@
 // Renderer for Yomitan glossary / structured content (an HTML-ish subset),
-// plus a furigana headword. Tags are whitelisted; internal `?query=` links call
-// back into the look-up; images degrade to their alt text (we don't store blobs).
+// plus a furigana headword and rich part-of-speech tags. Ported to follow
+// Yomitan's StructuredContentGenerator more closely than before:
+//   • inline `style` objects are applied (font, colour, margins, decoration…),
+//   • `data` objects become `data-sc-*` attributes (theme/CSS hooks),
+//   • tables get colSpan/rowSpan and a horizontal-scroll container,
+//   • <details>/<summary>, list `start`/`listStyleType`, and `lang` are honoured.
+// Tags are whitelisted; internal `?query=` links call back into the look-up;
+// images degrade to their alt text (we don't store blobs).
 
-import { Fragment, ReactNode } from "react";
+import { CSSProperties, Fragment, ReactNode } from "react";
 import {
   GlossaryNode,
+  ResolvedTag,
   SCNode,
   SCElement,
   Sense,
@@ -16,13 +23,62 @@ interface Props {
   onLookup?: (term: string) => void;
 }
 
-// Tags we render as themselves; everything else falls back to <span>/<div>.
+/** Optional code→ResolvedTag map (from the entry) for rich tag display. */
+type TagMeta = Record<string, ResolvedTag> | undefined;
+
+// Tags we render as themselves; everything else falls back to <span>.
 const INLINE_TAGS = new Set(["span", "ruby", "rt", "rp", "b", "strong", "em", "i", "u", "sub", "sup", "code", "a"]);
-const BLOCK_TAGS = new Set(["div", "p", "ol", "ul", "li", "table", "thead", "tbody", "tr", "td", "th", "details", "summary", "br"]);
+const BLOCK_TAGS = new Set(["div", "p", "ol", "ul", "li", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "details", "summary"]);
 
 function tagFor(tag: string): keyof JSX.IntrinsicElements {
   if (INLINE_TAGS.has(tag) || BLOCK_TAGS.has(tag)) return tag as keyof JSX.IntrinsicElements;
-  return BLOCK_TAGS.has(tag) ? "div" : "span";
+  return "span";
+}
+
+// --- inline style ------------------------------------------------------------
+// A whitelist mirroring Yomitan's _setStructuredContentElementStyle. String
+// values pass through; numeric margins become `em` (as Yomitan does).
+const STYLE_STRING_PROPS = [
+  "fontStyle", "fontWeight", "fontSize", "color", "background", "backgroundColor",
+  "verticalAlign", "textAlign", "textEmphasis", "textShadow", "textDecorationStyle",
+  "textDecorationColor", "borderColor", "borderStyle", "borderRadius", "borderWidth",
+  "clipPath", "wordBreak", "whiteSpace", "cursor", "listStyleType",
+  "padding", "paddingTop", "paddingLeft", "paddingRight", "paddingBottom", "margin",
+] as const;
+const MARGIN_EM_PROPS = ["marginTop", "marginLeft", "marginRight", "marginBottom"] as const;
+
+function scStyle(style: Record<string, unknown> | undefined): CSSProperties | undefined {
+  if (!style || typeof style !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const key of STYLE_STRING_PROPS) {
+    const v = style[key];
+    if (typeof v === "string") out[key] = v;
+  }
+  for (const key of MARGIN_EM_PROPS) {
+    const v = style[key];
+    if (typeof v === "number") out[key] = `${v}em`;
+    else if (typeof v === "string") out[key] = v;
+  }
+  // textDecorationLine may be a string or array of lines → CSS `text-decoration`.
+  const tdl = style.textDecorationLine;
+  if (typeof tdl === "string") out.textDecoration = tdl;
+  else if (Array.isArray(tdl)) out.textDecoration = tdl.join(" ");
+  return Object.keys(out).length ? (out as CSSProperties) : undefined;
+}
+
+function camelToKebab(s: string): string {
+  return s.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
+}
+
+/** Yomitan `data` object → `data-sc-*` attributes (string values only). */
+function dataAttrs(data: unknown): Record<string, string> {
+  if (!data || typeof data !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+    if (!k) continue;
+    out[`data-sc-${camelToKebab(k)}`] = String(v);
+  }
+  return out;
 }
 
 /** Render an arbitrary structured-content node tree. */
@@ -44,7 +100,7 @@ export function StructuredNode({ node, onLookup }: { node: SCNode } & Props): Re
 
   if (tag === "br") return <br />;
 
-  // Images aren't bundled with us; show the alt text so meaning isn't lost.
+  // Images aren't bundled with us; show the alt/title text so meaning isn't lost.
   if (tag === "img") {
     const alt = typeof el.alt === "string" ? el.alt : typeof el.title === "string" ? el.title : "hình";
     return <span className="sc-img">[{alt}]</span>;
@@ -52,36 +108,85 @@ export function StructuredNode({ node, onLookup }: { node: SCNode } & Props): Re
 
   const children = <StructuredNode node={el.content} onLookup={onLookup} />;
 
-  // Links: internal `?query=…` → look-up; absolute http(s) → new tab; else inert.
-  if (tag === "a") {
-    const href = typeof el.href === "string" ? el.href : "";
-    const internal = href.match(/[?&]query=([^&]+)/);
-    if (internal && onLookup) {
-      const q = decodeURIComponent(internal[1]);
-      return (
-        <button type="button" className="sc-link" onClick={() => onLookup(q)}>
-          {children}
-        </button>
-      );
-    }
-    if (/^https?:\/\//.test(href)) {
-      return (
-        <a className="sc-link" href={href} target="_blank" rel="noopener noreferrer">
-          {children}
-        </a>
-      );
-    }
-    return <span className="sc-link">{children}</span>;
+  if (tag === "a") return renderLink(el, children, onLookup);
+
+  // Common attributes shared by every rendered element.
+  const common: Record<string, unknown> = {
+    className: `sc-${tag}`,
+    style: scStyle(el.style),
+    title: typeof el.title === "string" ? el.title : undefined,
+    lang: typeof el.lang === "string" ? el.lang : undefined,
+    ...dataAttrs(el.data),
+  };
+
+  // Tables: wrap in a scroll container so wide tables never blow out the panel.
+  if (tag === "table") {
+    const Table = "table" as const;
+    return (
+      <div className="sc-table-container">
+        <Table {...common}>{children}</Table>
+      </div>
+    );
+  }
+
+  if (tag === "td" || tag === "th") {
+    const Cell = tag;
+    return (
+      <Cell
+        {...common}
+        colSpan={typeof el.colSpan === "number" ? el.colSpan : undefined}
+        rowSpan={typeof el.rowSpan === "number" ? el.rowSpan : undefined}
+      >
+        {children}
+      </Cell>
+    );
+  }
+
+  if (tag === "details") {
+    return (
+      <details {...common} open={el.open === true}>
+        {children}
+      </details>
+    );
+  }
+
+  if (tag === "ol") {
+    return (
+      <ol
+        {...common}
+        start={typeof el.start === "number" ? el.start : undefined}
+        type={typeof el.type === "string" ? (el.type as "1" | "a" | "A" | "i" | "I") : undefined}
+      >
+        {children}
+      </ol>
+    );
   }
 
   const Tag = tagFor(tag);
-  const title = typeof el.title === "string" ? el.title : undefined;
-  const lang = typeof el.lang === "string" ? el.lang : undefined;
   return (
-    <Tag className={`sc-${tag}`} title={title} lang={lang}>
-      {children}
-    </Tag>
+    <Tag {...common}>{children}</Tag>
   );
+}
+
+function renderLink(el: SCElement, children: ReactNode, onLookup?: (term: string) => void): ReactNode {
+  const href = typeof el.href === "string" ? el.href : "";
+  // Yomitan internal search links start with `?` (e.g. ?query=猫&wildcards=off).
+  const internalQuery = href.startsWith("?") ? new URLSearchParams(href.slice(1)).get("query") : null;
+  if (internalQuery && onLookup) {
+    return (
+      <button type="button" className="sc-link" onClick={() => onLookup(internalQuery)}>
+        {children}
+      </button>
+    );
+  }
+  if (/^https?:\/\//.test(href)) {
+    return (
+      <a className="sc-link" href={href} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  }
+  return <span className="sc-link">{children}</span>;
 }
 
 /** Render a single glossary node (string, {text}, image, or structured content). */
@@ -101,16 +206,25 @@ export function GlossaryItemView({ node, onLookup }: { node: GlossaryNode } & Pr
   return null;
 }
 
+/** A part-of-speech / term tag chip: compact code label, full name on hover. */
+export function TagChip({ code, meta, kind = "pos" }: { code: string; meta?: ResolvedTag; kind?: "pos" | "term" }) {
+  const category = meta?.category ?? (kind === "term" ? "default" : "partOfSpeech");
+  const title = meta?.name ?? code;
+  return (
+    <span className={kind === "term" ? "term-tag" : "pos-tag"} data-category={category} title={title}>
+      {code}
+    </span>
+  );
+}
+
 /** Render one grouped sense: its tags, then its glossary lines. */
-export function SenseView({ sense, onLookup }: { sense: Sense } & Props) {
+export function SenseView({ sense, tagMeta, onLookup }: { sense: Sense; tagMeta?: TagMeta } & Props) {
   return (
     <li className="sense">
       {sense.tags.length > 0 && (
         <span className="sense-tags">
           {sense.tags.map((t) => (
-            <span key={t} className="pos-tag" title={t}>
-              {t}
-            </span>
+            <TagChip key={t} code={t} meta={tagMeta?.[t]} />
           ))}
         </span>
       )}
@@ -129,13 +243,14 @@ export function SenseView({ sense, onLookup }: { sense: Sense } & Props) {
 export function Definitions({
   senses,
   definitions,
+  tagMeta,
   onLookup,
-}: { senses?: Sense[]; definitions?: GlossaryNode[] } & Props) {
+}: { senses?: Sense[]; definitions?: GlossaryNode[]; tagMeta?: TagMeta } & Props) {
   if (senses && senses.length > 0) {
     return (
       <ol className="senses">
         {senses.map((s, i) => (
-          <SenseView key={i} sense={s} onLookup={onLookup} />
+          <SenseView key={i} sense={s} tagMeta={tagMeta} onLookup={onLookup} />
         ))}
       </ol>
     );
