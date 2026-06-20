@@ -14,6 +14,7 @@ import JSZip from "jszip";
 import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
 import { candidates, rulesMatchEntry } from "../domain/deinflect";
+import { TagBankEntry, TagInfo, buildTagBank, resolveTags } from "../domain/tags";
 
 // A Yomitan term-bank row:
 //   [term, reading, definitionTags, rules, score, glossary[], sequence, termTags]
@@ -57,8 +58,10 @@ function splitTags(raw: string | null | undefined): string[] {
 }
 
 /**
- * Parse a Yomitan archive into per-term entries, merging the multiple
- * term-bank rows of a term into grouped senses (Yomitan-style).
+ * Parse a Yomitan archive into entries keyed by term + reading: rows for the
+ * same (term, reading) merge into grouped senses (Yomitan-style), while
+ * homographs with different readings stay separate. A row with an empty reading
+ * is "unspecified" and folds into the term's existing entry.
  */
 async function parseArchive(
   file: Blob | ArrayBuffer | Uint8Array,
@@ -80,7 +83,39 @@ async function parseArchive(
   const native_lang = opts.native_lang ?? meta.targetLanguage ?? "vi";
   const title = meta.title ?? "Từ điển Yomitan";
 
+  // Tag banks (like Yomitan): code → full name / category / notes. Used to
+  // enrich each entry's part-of-speech & term tags for display.
+  let tagBank: Map<string, TagInfo> | undefined;
+  const tagFiles = Object.keys(zip.files)
+    .filter((name) => /tag_bank_\d+\.json$/.test(name))
+    .sort();
+  if (tagFiles.length) {
+    const rows: TagBankEntry[] = [];
+    for (const name of tagFiles) {
+      try {
+        const bank = JSON.parse(await zip.files[name].async("string")) as TagBankEntry[];
+        if (Array.isArray(bank)) rows.push(...bank);
+      } catch {
+        /* ignore a malformed tag bank — fall back to the built-in table */
+      }
+    }
+    if (rows.length) tagBank = buildTagBank(rows);
+  }
+
+  // Entries keyed by JSON [term, reading]; `byTerm` indexes them by term alone so
+  // an empty-reading row can fold into an existing entry and a later populated
+  // reading can back-fill a reading-less one. Readings are normalised to a
+  // string ("") so they are always a valid component of the `terms` key path.
   const entries = new Map<string, DictEntry>();
+  const byTerm = new Map<string, DictEntry[]>();
+  const keyOf = (t: string, r: string) => JSON.stringify([t, r]);
+  const addEntry = (e: DictEntry) => {
+    entries.set(keyOf(e.term, e.reading ?? ""), e);
+    const list = byTerm.get(e.term);
+    if (list) list.push(e);
+    else byTerm.set(e.term, [e]);
+  };
+
   const bankFiles = Object.keys(zip.files)
     .filter((name) => /term_bank_\d+\.json$/.test(name))
     .sort();
@@ -89,7 +124,7 @@ async function parseArchive(
     const bank = JSON.parse(await zip.files[name].async("string")) as YomitanTermBankEntry[];
     for (const row of bank) {
       const term = row[0];
-      const reading = row[1] || undefined;
+      const reading = row[1] || "";
       const definitionTags = splitTags(row[2]);
       const rules = row[3] || undefined;
       const score = typeof row[4] === "number" ? row[4] : 0;
@@ -98,17 +133,34 @@ async function parseArchive(
 
       if (!term || glossaryToLines(glossary).length === 0) continue;
 
-      const sense: Sense = { tags: definitionTags, glossary, dictionary: title };
-      const existing = entries.get(term);
-      if (existing) {
-        existing.senses!.push(sense);
-        existing.definitions.push(...glossary);
-        if (!existing.reading && reading) existing.reading = reading;
-        if (!existing.rules && rules) existing.rules = rules;
-        if (termTags.length) existing.termTags = [...new Set([...(existing.termTags ?? []), ...termTags])];
-        if (score > (existing.score ?? 0)) existing.score = score;
+      // Which entry should this row merge into?
+      let target: DictEntry | undefined;
+      if (reading) {
+        target = entries.get(keyOf(term, reading));
+        if (!target) {
+          // Back-fill a prior reading-less entry of the same term.
+          const blank = entries.get(keyOf(term, ""));
+          if (blank) {
+            entries.delete(keyOf(term, ""));
+            blank.reading = reading;
+            entries.set(keyOf(term, reading), blank);
+            target = blank;
+          }
+        }
       } else {
-        entries.set(term, {
+        // Empty reading is unspecified → fold into any existing entry.
+        target = byTerm.get(term)?.[0];
+      }
+
+      const sense: Sense = { tags: definitionTags, glossary, dictionary: title };
+      if (target) {
+        target.senses!.push(sense);
+        target.definitions.push(...glossary);
+        if (!target.rules && rules) target.rules = rules;
+        if (termTags.length) target.termTags = [...new Set([...(target.termTags ?? []), ...termTags])];
+        if (score > (target.score ?? 0)) target.score = score;
+      } else {
+        addEntry({
           term,
           reading,
           definitions: [...glossary],
@@ -122,6 +174,16 @@ async function parseArchive(
         });
       }
     }
+  }
+
+  // Resolve every entry's tag codes (sense part-of-speech + term tags) against
+  // the tag bank / built-in table, so the UI can show full names and colours.
+  for (const entry of entries.values()) {
+    const codes = new Set<string>();
+    for (const sense of entry.senses ?? []) for (const t of sense.tags) codes.add(t);
+    for (const t of entry.termTags ?? []) codes.add(t);
+    const tagMeta = resolveTags(codes, tagBank);
+    if (Object.keys(tagMeta).length) entry.tagMeta = tagMeta;
   }
 
   return { meta, term_lang, native_lang, entries };
@@ -206,14 +268,36 @@ export async function deleteLocalDictionary(id: string): Promise<void> {
   await tx.done;
 }
 
-/** Forward exact look-up within a language pair: term → entry. */
+/**
+ * Every stored entry for an exact term within a pair — one per reading. The key
+ * range spans all `[term_lang, native_lang, term, <any reading>]` keys.
+ */
+async function entriesForTerm(
+  term: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<DictEntry[]> {
+  const db = await getDb();
+  const range = IDBKeyRange.bound(
+    [term_lang, native_lang, term],
+    [term_lang, native_lang, term, "￿"],
+  );
+  return db.getAll("terms", range);
+}
+
+/**
+ * Forward exact look-up within a language pair. A term may have several readings
+ * (homographs); this returns the highest-scoring entry. Use `findTerms` to get
+ * every reading.
+ */
 export async function lookupTerm(
   term: string,
   term_lang: string,
   native_lang: string,
 ): Promise<DictEntry | undefined> {
-  const db = await getDb();
-  return db.get("terms", [term_lang, native_lang, term]);
+  const all = await entriesForTerm(term, term_lang, native_lang);
+  if (all.length === 0) return undefined;
+  return all.reduce((best, e) => ((e.score ?? 0) > (best.score ?? 0) ? e : best));
 }
 
 export interface TermResult {
@@ -240,20 +324,23 @@ export async function findTerms(
 
   const cands = candidates(query, term_lang);
 
-  const db = await getDb();
-  const byTerm = new Map<string, TermResult>();
+  // Key by term + reading so homographs (same term, different readings) surface
+  // as separate results instead of collapsing into one.
+  const byKey = new Map<string, TermResult>();
   for (const cand of cands) {
-    const entry = await db.get("terms", [term_lang, native_lang, cand.term]);
-    if (!entry) continue;
-    if (!rulesMatchEntry(cand.rules, entry.rules)) continue;
-    const prev = byTerm.get(entry.term);
-    // Prefer the candidate with the fewest reasons (closest to an exact match).
-    if (!prev || cand.reasons.length < prev.reasons.length) {
-      byTerm.set(entry.term, { entry, reasons: cand.reasons, source: query });
+    const matches = await entriesForTerm(cand.term, term_lang, native_lang);
+    for (const entry of matches) {
+      if (!rulesMatchEntry(cand.rules, entry.rules)) continue;
+      const key = JSON.stringify([entry.term, entry.reading ?? ""]);
+      const prev = byKey.get(key);
+      // Prefer the candidate with the fewest reasons (closest to an exact match).
+      if (!prev || cand.reasons.length < prev.reasons.length) {
+        byKey.set(key, { entry, reasons: cand.reasons, source: query });
+      }
     }
   }
 
-  return [...byTerm.values()].sort((a, b) => {
+  return [...byKey.values()].sort((a, b) => {
     if (a.reasons.length !== b.reasons.length) return a.reasons.length - b.reasons.length;
     return (b.entry.score ?? 0) - (a.entry.score ?? 0);
   });

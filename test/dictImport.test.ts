@@ -20,10 +20,53 @@ const structured = (text: string) => ({
   content: [{ tag: "ol", content: [{ tag: "li", content: [{ tag: "div", content: [text] }] }] }],
 });
 
+// A wty-ja-vi entry: etymology + glosses list + attribution backlink.
+const wtyEntry = (senses: string[]) => ({
+  type: "structured-content",
+  content: [
+    {
+      tag: "div",
+      data: { content: "preamble" },
+      content: [
+        {
+          tag: "details",
+          data: { content: "details-entry-Etymology" },
+          content: [
+            { tag: "summary", content: "Nguồn gốc từ" },
+            { tag: "div", data: { content: "Etymology-content" }, content: "/kupu/ → /kuu/" },
+          ],
+        },
+      ],
+    },
+    { tag: "ol", data: { content: "glosses" }, content: senses.map((s) => ({ tag: "li", content: [{ tag: "div", content: [s] }] })) },
+    { tag: "div", data: { content: "backlink" }, content: [{ tag: "a", href: "https://kaikki.org/", content: "Kaikki" }] },
+  ],
+});
+
 describe("flattenGloss", () => {
   it("flattens plain strings, arrays and structured content", () => {
     expect(flattenGloss("hello")).toBe("hello");
     expect(flattenGloss(structured("con mèo")).trim()).toBe("con mèo");
+  });
+
+  it("extracts only the glosses from a Wiktionary (wty) entry", () => {
+    // Not "Nguồn gốc từ /kupu/ → /kuu/ Ăn. Kaikki" — just the definition.
+    expect(flattenGloss(wtyEntry(["Ăn."]))).toBe("Ăn.");
+  });
+});
+
+describe("parseYomitanZip — Wiktionary (wty) entries", () => {
+  it("splits a glosses list into one definition per sense, dropping scaffolding", async () => {
+    const zip = await makeZip({
+      index: { title: "wty-ja-vi", sourceLanguage: "ja", targetLanguage: "vi" },
+      banks: {
+        "term_bank_1.json": [["変態", "", "n", "", 0, [wtyEntry(["Sự biến thái.", "Sự bất thường."])], 0, ""]],
+      },
+    });
+    const parsed = await parseYomitanZip(zip);
+    expect(parsed.entries).toEqual([
+      { term: "変態", reading: undefined, definitions: ["Sự biến thái.", "Sự bất thường."] },
+    ]);
   });
 });
 

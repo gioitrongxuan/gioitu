@@ -66,6 +66,20 @@ describe("Yomitan-rich client import", () => {
     expect(e?.senses?.[0].dictionary).toBe("JA Test");
   });
 
+  it("resolves tag codes against the tag bank (+ built-in fallback)", async () => {
+    const e = await lookupTerm("食べる", "ja", "vi");
+    // "v1" comes from the archive's tag_bank (author's wording, category pos→partOfSpeech)
+    expect(e?.tagMeta?.v1).toMatchObject({
+      code: "v1",
+      name: "ngoại động từ nhóm 1",
+      category: "partOfSpeech",
+    });
+    // "vt" isn't in the tag bank → resolved from the built-in JMdict table
+    expect(e?.tagMeta?.vt?.category).toBe("partOfSpeech");
+    // unknown term tag "⭐" stays bare (not in tagMeta)
+    expect(e?.tagMeta?.["⭐"]).toBeUndefined();
+  });
+
   it("finds inflected words via deinflection, with reasons", async () => {
     const r1 = await findTerms("食べた", "ja", "vi");
     expect(r1.map((r) => r.entry.term)).toEqual(["食べる"]);

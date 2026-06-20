@@ -13,7 +13,7 @@
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { VocabEntry } from "./types";
-import { GlossaryNode, Sense } from "./structured-content";
+import { GlossaryNode, ResolvedTag, Sense } from "./structured-content";
 
 export interface DictEntry {
   term: string;
@@ -33,6 +33,12 @@ export interface DictEntry {
   rules?: string;
   /** Term-level tags (e.g. ["⭐", "common"]). */
   termTags?: string[];
+  /**
+   * Tag codes (from `definitionTags`/`termTags`) resolved against the source
+   * dictionary's `tag_bank` — keyed by code → full name, category, notes. Lets
+   * the UI expand "n" → "noun" and colour-code tags the way Yomitan does.
+   */
+  tagMeta?: Record<string, ResolvedTag>;
   /** Yomitan ranking score (higher = more relevant). */
   score?: number;
   /** Source dictionary title (for display). */
@@ -54,8 +60,10 @@ export interface LocalDictionary {
 
 interface GioituDB extends DBSchema {
   terms: {
-    // Composite key scopes each entry to its dictionary (language pair).
-    key: [string, string, string]; // [term_lang, native_lang, term]
+    // Composite key scopes each entry to its language pair AND its reading, so
+    // homographs with different readings (辛い からい "cay" vs つらい "khổ") are
+    // stored separately instead of overwriting one another.
+    key: [string, string, string, string]; // [term_lang, native_lang, term, reading]
     value: DictEntry;
     indexes: { by_pair: [string, string]; by_dict: string };
   };
@@ -72,7 +80,7 @@ interface GioituDB extends DBSchema {
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -81,14 +89,17 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
     dbPromise = openDB<GioituDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         // v3 enriches dictionary storage (structured content, tags, rules) and
-        // adds a `dictionaries` registry. Recreate `terms` cleanly; the user
-        // re-imports dictionaries (they are a cache, not the source of truth).
+        // adds a `dictionaries` registry. v4 adds resolved tag metadata (from
+        // each dictionary's tag_bank). v5 adds `reading` to the `terms` key so
+        // homographs no longer overwrite each other. Recreate `terms` cleanly on
+        // any bump; the user re-imports dictionaries (a cache, not the source of
+        // truth).
         if (db.objectStoreNames.contains("terms")) db.deleteObjectStore("terms");
         const legacy = "reverse_tokens" as never;
         if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy);
 
         const terms = db.createObjectStore("terms", {
-          keyPath: ["term_lang", "native_lang", "term"],
+          keyPath: ["term_lang", "native_lang", "term", "reading"],
         });
         terms.createIndex("by_pair", ["term_lang", "native_lang"]);
         terms.createIndex("by_dict", "dictId");
