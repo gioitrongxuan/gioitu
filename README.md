@@ -52,6 +52,30 @@ npm run build
 In production the backend also serves the built `dist/` (single origin); in dev
 you run Vite separately and it proxies `/api` to the backend.
 
+## Quick start (Docker dev — live reload, no rebuild)
+
+Want the Docker convenience but without rebuilding the image on every edit? Use
+the dev compose, which **bind-mounts the repo** into the containers:
+
+```bash
+docker compose -f docker-compose.dev.yml up
+# → open http://localhost:5173   (Vite dev server with hot reload)
+```
+
+It starts three services: Postgres, the backend (`tsx watch` — restarts on
+`server/` changes), and the Vite dev server (HMR for `src/` changes). Editing
+code updates the app live — **no `--build` needed**. `node_modules` lives in a
+per-service named volume (so the host never clobbers the container's install);
+deps install on first start and are reused — run
+`docker compose -f docker-compose.dev.yml down -v` to force a reinstall after
+changing dependencies. Vite proxies `/api` to the `api` service via
+`VITE_PROXY_TARGET` and watches files with polling (`CHOKIDAR_USEPOLLING`) so
+changes are seen across the bind mount.
+
+> Use **either** `docker-compose.yml` (production: build `dist/`, single origin
+> on `:8787`) **or** `docker-compose.dev.yml` (live reload on `:5173`), not both
+> at once — they share Postgres and ports.
+
 The backend is required for **accounts + cloud sync** (email/password → JWT).
 Once signed in, the app caches everything in IndexedDB and keeps working if the
 backend goes offline — sync resumes when it is reachable again. Dictionary

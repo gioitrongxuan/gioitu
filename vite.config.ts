@@ -4,8 +4,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Vite + Vitest configuration.
-// The frontend talks to the optional backend (see /server) through /api,
-// which is proxied to the Express server during development.
+// The frontend talks to the optional backend (see /server) through /api, which
+// is proxied to the Express server during development. The target is overridable
+// via VITE_PROXY_TARGET so the dev container can point /api at the `api` service
+// (see docker-compose.dev.yml) instead of localhost.
 export default defineConfig({
   plugins: [react()],
   // Import aliases (also honoured by Vitest): "@" → src, "@server" → server/src.
@@ -20,7 +22,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8787",
+        target: process.env.VITE_PROXY_TARGET ?? "http://localhost:8787",
         changeOrigin: true,
       },
     },
