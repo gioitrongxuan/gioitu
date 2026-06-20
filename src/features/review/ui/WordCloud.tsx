@@ -1,7 +1,9 @@
 // Word Cloud (SPEC 4.3): flex-wrap tags, equal height, width by word length.
 // Colour = log-normalized lookup_count; badge = RELAPSED; highlight = due.
 
-import { buildCloud, CloudSort, shadeToColor, shadeToTextColor } from "../domain/wordcloud";
+import { buildCloud, CloudSort } from "../domain/wordcloud";
+import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
+import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
 
 interface Props {
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export function WordCloud({ entries, highlightDue, onlyDue, sort, onSelect }: Props) {
+  const { theme } = useTheme();
   const tags = buildCloud(entries, { now: Date.now(), sort }).filter((t) => (onlyDue ? t.due : true));
 
   if (tags.length === 0) {
@@ -31,7 +34,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, onSelect }: Pr
             key={`${entry.term}:${entry.term_lang}`}
             role="listitem"
             className={`tag${hasBadge ? " relapsed" : ""}${highlightDue && due ? " due" : ""}${dim ? " dimmed" : ""}`}
-            style={{ background: shadeToColor(shade), color: shadeToTextColor(shade) }}
+            style={{ background: heatBackground(shade), color: heatTextColor(shade, theme) }}
             title={`Tra ${entry.lookup_count} lần`}
             onClick={() => onSelect(entry)}
           >

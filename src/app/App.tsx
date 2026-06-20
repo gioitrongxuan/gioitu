@@ -14,6 +14,7 @@ import { SearchBar } from "@/features/dictionary/ui/SearchBar";
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
+import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, getSession } from "@/features/auth/data/auth";
@@ -77,6 +78,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [sort, setSort] = useState<CloudSort>("recent");
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [theming, setTheming] = useState(false);
   const { view, onResult, lookup, onSaveCustom, onSelectTag, closeView } = useLookup(store, pair);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
@@ -89,6 +91,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
           <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
+          <button className="link" onClick={() => setTheming(true)}>Giao diện</button>
           {email ? (
             <>
               <button className="link" onClick={store.runSync}>Đồng bộ</button>
@@ -162,6 +165,8 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
           onClose={() => setManaging(false)}
         />
       )}
+
+      {theming && <ThemeSettings onClose={() => setTheming(false)} />}
 
       <Toasts toasts={store.toasts} />
     </div>

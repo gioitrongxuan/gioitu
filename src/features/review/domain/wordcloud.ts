@@ -97,16 +97,5 @@ export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}):
   }));
 }
 
-/**
- * Map a shade in [0,1] to a CSS background colour from light grey → near-black.
- * Returns an `hsl(...)` string; lightness goes 92% (light) → 12% (dark).
- */
-export function shadeToColor(shade: number): string {
-  const lightness = Math.round(92 - shade * 80); // 92% → 12%
-  return `hsl(220, 12%, ${lightness}%)`;
-}
-
-/** Text colour that stays readable against the computed background. */
-export function shadeToTextColor(shade: number): string {
-  return shade > 0.55 ? "#f5f5f5" : "#1a1a1a";
-}
+// Shade → colour mapping lives in the theme feature (`heatBackground` /
+// `heatTextColor`), so the word-cloud "heatmap" follows the user's palette.
