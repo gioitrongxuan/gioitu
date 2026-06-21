@@ -23,3 +23,6 @@ server/*.db-wal
 
 # Reference clone of the upstream Yomitan source
 yomitan/
+
+# Imported dictionary data dumps (re-importable via the UI; not source)
+wty-*/
