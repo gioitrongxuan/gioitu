@@ -9,7 +9,7 @@ import { useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { LangPair } from "@/shared/languages";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
-import { TermResult, findTermsRouted } from "@/features/dictionary/data/search";
+import { TermResult, findTermsRouted, findFuzzyRouted } from "@/features/dictionary/data/search";
 import { LookupInput } from "@/features/review/domain/lookup";
 
 export type DetailView = {
@@ -40,6 +40,21 @@ export function useLookup(store: LookupRecorder, pair: LangPair) {
     const native_lang = primary?.native_lang ?? p.target;
     const primaryTerm = primary?.term ?? term;
     setView({ kind: "detail", term, primaryTerm, results, term_lang, native_lang });
+
+    // Fuzzy near-misses ("did you mean…") run off the hot path: scanning the
+    // whole dictionary can take a moment, so we never make the exact results
+    // wait on it. When it resolves we append, but only if the user is still
+    // looking at this exact result set (no newer search/append has replaced it).
+    const exclude = new Set(results.map((r) => JSON.stringify([r.entry.term, r.entry.reading ?? ""])));
+    void findFuzzyRouted(term, p, exclude).then((fuzzy) => {
+      if (!fuzzy.length) return;
+      setView((prev) =>
+        prev?.kind === "detail" && prev.term === term && prev.results === results
+          ? { ...prev, results: [...prev.results, ...fuzzy] }
+          : prev,
+      );
+    });
+
     if (primary) {
       const lines = sensesToLines(primary.senses);
       const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(primary.definitions));

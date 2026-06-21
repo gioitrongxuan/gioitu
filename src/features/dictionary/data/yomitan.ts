@@ -21,6 +21,7 @@ import {
   ipaPronunciations,
 } from "@/shared/term-meta";
 import { candidates, rulesMatchEntry } from "../domain/deinflect";
+import { fuzzyMatchDistance, fuzzyThreshold } from "../domain/fuzzy";
 import { TagBankEntry, TagInfo, buildTagBank, resolveTags } from "../domain/tags";
 
 // A Yomitan term-bank row:
@@ -372,6 +373,8 @@ export interface TermResult {
   source: string;
   /** IPA pronunciations attached from term-meta dictionaries (if any). */
   pronunciations?: Pronunciation[];
+  /** A near-miss surfaced by edit-distance, not an exact/deinflected match. */
+  fuzzy?: boolean;
 }
 
 /** Every stored term-meta row for a term within a pair (across all meta dicts). */
@@ -451,6 +454,58 @@ export async function suggestTerms(
     cursor = await cursor.continue();
   }
   return out;
+}
+
+/** Stable key for a (term, reading) pair — matches `findTerms`'s dedupe key. */
+function termReadingKey(term: string, reading: string | undefined): string {
+  return JSON.stringify([term, reading ?? ""]);
+}
+
+/**
+ * Fuzzy fallback: scan the pair's terms and return the closest near-misses by
+ * edit distance, so a misspelled or misremembered query still surfaces the word
+ * the user meant. `exclude` holds (term, reading) keys already shown as exact
+ * matches. This walks every term for the pair, so callers run it off the hot
+ * path (a cursor yields between steps, keeping the UI responsive).
+ */
+export async function fuzzyTerms(
+  text: string,
+  term_lang: string,
+  native_lang: string,
+  exclude: Set<string> = new Set(),
+  limit = 8,
+): Promise<TermResult[]> {
+  const query = text.trim();
+  if (!query) return [];
+  const max = fuzzyThreshold(query);
+
+  const db = await getDb();
+  const range = IDBKeyRange.only([term_lang, native_lang]);
+  const scored = new Map<string, { entry: DictEntry; distance: number }>();
+
+  let cursor = await db.transaction("terms").store.index("by_pair").openCursor(range);
+  while (cursor) {
+    const entry = cursor.value;
+    const key = termReadingKey(entry.term, entry.reading);
+    if (!exclude.has(key)) {
+      const distance = fuzzyMatchDistance(query, entry.term, entry.reading, max);
+      if (distance <= max) {
+        // Keep the best-scoring entry per (term, reading); on a tie, the closer.
+        const prev = scored.get(key);
+        if (!prev || distance < prev.distance) scored.set(key, { entry, distance });
+      }
+    }
+    cursor = await cursor.continue();
+  }
+
+  return [...scored.values()]
+    .sort((a, b) =>
+      a.distance !== b.distance
+        ? a.distance - b.distance
+        : (b.entry.score ?? 0) - (a.entry.score ?? 0),
+    )
+    .slice(0, limit)
+    .map(({ entry }) => ({ entry, reasons: [], source: query, fuzzy: true }));
 }
 
 /** Whether a dictionary for the given pair has been imported into IndexedDB. */

@@ -169,6 +169,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .reason-chip { background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 999px; }
 .reason-chip::before { content: "↞ "; color: var(--muted); }
 
+.fuzzy-divider { margin: 14px 0 6px; font-size: 12px; border-top: 1px dashed var(--border, #e5e7eb); padding-top: 10px; }
+
 .term-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
 
 /* IPA pronunciations from term-meta dictionaries (one group per source dict). */

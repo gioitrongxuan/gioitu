@@ -58,7 +58,13 @@ export function DetailPanel({
       {results.length > 0 ? (
         <div className="results">
           {results.map((res, i) => (
-            <ResultView key={i} res={res} onLookup={onLookup} />
+            <div key={i}>
+              {/* Separate near-misses from the real matches above them. */}
+              {res.fuzzy && !results[i - 1]?.fuzzy && (
+                <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
+              )}
+              <ResultView res={res} onLookup={onLookup} />
+            </div>
           ))}
         </div>
       ) : savedLines.length > 0 ? (
