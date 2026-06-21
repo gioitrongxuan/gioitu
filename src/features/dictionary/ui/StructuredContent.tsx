@@ -18,6 +18,7 @@ import {
   distributeFurigana,
   glossaryToLines,
 } from "@/shared/structured-content";
+import { Pronunciation } from "@/shared/term-meta";
 
 interface Props {
   onLookup?: (term: string) => void;
@@ -266,6 +267,31 @@ export function Definitions({
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * IPA pronunciations from term-meta dictionaries, grouped by source dictionary.
+ * Each transcription shows its accent/region tags (Hanoi / Huế / Sài Gòn…).
+ */
+export function Pronunciations({ pronunciations }: { pronunciations: Pronunciation[] }) {
+  if (!pronunciations.length) return null;
+  return (
+    <div className="pronunciations" aria-label="Phát âm">
+      {pronunciations.map((p, i) => (
+        <div className="pron-group" key={i}>
+          {p.dictionary && <span className="pron-dict">{p.dictionary}</span>}
+          {p.transcriptions.map((t, j) => (
+            <span className="ipa" key={j}>
+              <span className="ipa-text">{t.ipa}</span>
+              {t.tags?.map((tag) => (
+                <span className="ipa-tag" key={tag}>{tag}</span>
+              ))}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -14,6 +14,9 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { VocabEntry } from "./types";
 import { GlossaryNode, ResolvedTag, Sense } from "./structured-content";
+import { TermMetaEntry } from "./term-meta";
+
+export type { TermMetaEntry } from "./term-meta";
 
 export interface DictEntry {
   term: string;
@@ -54,6 +57,8 @@ export interface LocalDictionary {
   term_lang: string;
   native_lang: string;
   termCount: number;
+  /** Term-meta rows (IPA/pitch/freq) contributed — non-zero for meta-only dicts. */
+  metaCount?: number;
   importedAt: number;
   revision?: string;
 }
@@ -72,6 +77,13 @@ interface GioituDB extends DBSchema {
     value: LocalDictionary;
     indexes: { by_pair: [string, string] };
   };
+  term_meta: {
+    // Keyed so the same (term, reading, mode) can coexist across dictionaries
+    // and re-importing one dictionary overwrites rather than duplicates.
+    key: [string, string, string, string, string, string]; // [pair…, term, reading, mode, dictId]
+    value: TermMetaEntry;
+    indexes: { by_lookup: [string, string, string]; by_dict: string };
+  };
   user_data: {
     key: [string, string, string]; // [user_id, term, term_lang]
     value: VocabEntry;
@@ -80,7 +92,7 @@ interface GioituDB extends DBSchema {
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -91,7 +103,8 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         // v3 enriches dictionary storage (structured content, tags, rules) and
         // adds a `dictionaries` registry. v4 adds resolved tag metadata (from
         // each dictionary's tag_bank). v5 adds `reading` to the `terms` key so
-        // homographs no longer overwrite each other. Recreate `terms` cleanly on
+        // homographs no longer overwrite each other. v6 adds `term_meta` for
+        // Yomitan term-meta banks (IPA/pitch/freq). Recreate `terms` cleanly on
         // any bump; the user re-imports dictionaries (a cache, not the source of
         // truth).
         if (db.objectStoreNames.contains("terms")) db.deleteObjectStore("terms");
@@ -107,6 +120,14 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         if (!db.objectStoreNames.contains("dictionaries")) {
           const dicts = db.createObjectStore("dictionaries", { keyPath: "id" });
           dicts.createIndex("by_pair", ["term_lang", "native_lang"]);
+        }
+
+        if (!db.objectStoreNames.contains("term_meta")) {
+          const meta = db.createObjectStore("term_meta", {
+            keyPath: ["term_lang", "native_lang", "term", "reading", "mode", "dictId"],
+          });
+          meta.createIndex("by_lookup", ["term_lang", "native_lang", "term"]);
+          meta.createIndex("by_dict", "dictId");
         }
 
         if (!db.objectStoreNames.contains("user_data")) {

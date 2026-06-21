@@ -33,12 +33,15 @@ export function DictionaryImport({ pair, onImported }: Props) {
 
   useEffect(refresh, [refresh]);
 
-  async function run(label: string, task: () => Promise<{ title: string; termCount: number }>) {
+  async function run(
+    label: string,
+    task: () => Promise<{ title: string; termCount: number; metaCount: number }>,
+  ) {
     setBusy(true);
     setStatus(label);
     try {
       const res = await task();
-      setStatus(`Đã nhập “${res.title}”: ${res.termCount} từ (${pair.label}).`);
+      setStatus(`Đã nhập “${res.title}”: ${importSummary(res)} (${pair.label}).`);
       refresh();
       onImported();
     } catch (err) {
@@ -68,7 +71,7 @@ export function DictionaryImport({ pair, onImported }: Props) {
   }
 
   async function onDelete(d: LocalDictionary) {
-    if (!confirm(`Xóa từ điển “${d.title}” (${d.termCount} từ) khỏi máy này?`)) return;
+    if (!confirm(`Xóa từ điển “${d.title}” (${importSummary(d)}) khỏi máy này?`)) return;
     await deleteLocalDictionary(d.id);
     refresh();
     onImported();
@@ -109,7 +112,7 @@ export function DictionaryImport({ pair, onImported }: Props) {
               {dicts.map((d) => (
                 <li key={d.id}>
                   <span className="ld-title">{d.title}</span>
-                  <span className="ld-meta">{d.term_lang}→{d.native_lang} · {d.termCount}</span>
+                  <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
                   <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
                 </li>
               ))}
@@ -119,4 +122,12 @@ export function DictionaryImport({ pair, onImported }: Props) {
       )}
     </div>
   );
+}
+
+/** Human label for what an import added: headwords, IPA/meta rows, or both. */
+function importSummary({ termCount, metaCount }: { termCount: number; metaCount?: number }): string {
+  const parts: string[] = [];
+  if (termCount > 0) parts.push(`${termCount} từ`);
+  if (metaCount) parts.push(`${metaCount} phát âm`);
+  return parts.length ? parts.join(" · ") : "0 từ";
 }

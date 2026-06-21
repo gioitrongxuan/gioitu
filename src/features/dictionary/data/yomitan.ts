@@ -13,6 +13,13 @@
 import JSZip from "jszip";
 import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
+import {
+  Pronunciation,
+  TermMetaEntry,
+  TermMetaMode,
+  TermMetaRow,
+  ipaPronunciations,
+} from "@/shared/term-meta";
 import { candidates, rulesMatchEntry } from "../domain/deinflect";
 import { TagBankEntry, TagInfo, buildTagBank, resolveTags } from "../domain/tags";
 
@@ -42,6 +49,8 @@ export interface ImportResult {
   id: string;
   title: string;
   termCount: number;
+  /** IPA/pitch/freq rows imported (a meta-only dict has termCount 0). */
+  metaCount: number;
   term_lang: string;
   native_lang: string;
 }
@@ -66,7 +75,13 @@ function splitTags(raw: string | null | undefined): string[] {
 async function parseArchive(
   file: Blob | ArrayBuffer | Uint8Array,
   opts: { term_lang?: string; native_lang?: string },
-): Promise<{ meta: IndexJson; term_lang: string; native_lang: string; entries: Map<string, DictEntry> }> {
+): Promise<{
+  meta: IndexJson;
+  term_lang: string;
+  native_lang: string;
+  entries: Map<string, DictEntry>;
+  metaEntries: TermMetaEntry[];
+}> {
   const zip = await JSZip.loadAsync(file);
 
   let meta: IndexJson = {};
@@ -186,7 +201,49 @@ async function parseArchive(
     if (Object.keys(tagMeta).length) entry.tagMeta = tagMeta;
   }
 
-  return { meta, term_lang, native_lang, entries };
+  // Term-meta banks (IPA / pitch / freq): unlike term banks they add no
+  // headwords; each row annotates a term that is looked up from a term bank.
+  const metaEntries = await parseMetaBanks(zip, term_lang, native_lang, title);
+
+  return { meta, term_lang, native_lang, entries, metaEntries };
+}
+
+const META_MODES: ReadonlySet<string> = new Set(["ipa", "pitch", "freq"]);
+
+/** Read `term_meta_bank_*.json` rows into stored-meta entries (without dictId). */
+async function parseMetaBanks(
+  zip: JSZip,
+  term_lang: string,
+  native_lang: string,
+  title: string,
+): Promise<TermMetaEntry[]> {
+  const metaFiles = Object.keys(zip.files)
+    .filter((name) => /term_meta_bank_\d+\.json$/.test(name))
+    .sort();
+
+  const out: TermMetaEntry[] = [];
+  for (const name of metaFiles) {
+    let bank: TermMetaRow[];
+    try {
+      bank = JSON.parse(await zip.files[name].async("string")) as TermMetaRow[];
+    } catch {
+      continue; // skip a malformed meta bank rather than failing the whole import
+    }
+    if (!Array.isArray(bank)) continue;
+    for (const row of bank) {
+      const term = row[0];
+      const mode = row[1];
+      const data = row[2];
+      if (!term || !META_MODES.has(mode)) continue;
+      // The wty data carries its own `reading`; default to "" so it is always a
+      // valid component of the composite key.
+      const reading = typeof (data as { reading?: unknown })?.reading === "string"
+        ? (data as { reading: string }).reading
+        : "";
+      out.push({ term, reading, mode: mode as TermMetaMode, data, term_lang, native_lang, dictionary: title });
+    }
+  }
+  return out;
 }
 
 /**
@@ -197,14 +254,17 @@ export async function importYomitanZip(
   file: Blob | ArrayBuffer | Uint8Array,
   opts: { term_lang?: string; native_lang?: string } = {},
 ): Promise<ImportResult> {
-  const { meta, term_lang, native_lang, entries } = await parseArchive(file, opts);
+  const { meta, term_lang, native_lang, entries, metaEntries } = await parseArchive(file, opts);
   const id = uuid();
   const title = meta.title ?? "Từ điển Yomitan";
 
   const db = await getDb();
-  const tx = db.transaction(["terms", "dictionaries"], "readwrite");
+  const tx = db.transaction(["terms", "dictionaries", "term_meta"], "readwrite");
   for (const entry of entries.values()) {
     await tx.objectStore("terms").put({ ...entry, dictId: id });
+  }
+  for (const metaEntry of metaEntries) {
+    await tx.objectStore("term_meta").put({ ...metaEntry, dictId: id });
   }
   const dict: LocalDictionary = {
     id,
@@ -212,13 +272,14 @@ export async function importYomitanZip(
     term_lang,
     native_lang,
     termCount: entries.size,
+    metaCount: metaEntries.length,
     importedAt: Date.now(),
     revision: meta.revision,
   };
   await tx.objectStore("dictionaries").put(dict);
   await tx.done;
 
-  return { id, title, termCount: entries.size, term_lang, native_lang };
+  return { id, title, termCount: entries.size, metaCount: metaEntries.length, term_lang, native_lang };
 }
 
 /**
@@ -254,15 +315,17 @@ export async function listLocalDictionaries(
   return all.sort((a, b) => b.importedAt - a.importedAt);
 }
 
-/** Remove a locally imported dictionary and all of its terms. */
+/** Remove a locally imported dictionary and all of its terms and meta rows. */
 export async function deleteLocalDictionary(id: string): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["terms", "dictionaries"], "readwrite");
-  const idx = tx.objectStore("terms").index("by_dict");
-  let cursor = await idx.openCursor(IDBKeyRange.only(id));
-  while (cursor) {
-    await cursor.delete();
-    cursor = await cursor.continue();
+  const tx = db.transaction(["terms", "dictionaries", "term_meta"], "readwrite");
+  for (const store of ["terms", "term_meta"] as const) {
+    const idx = tx.objectStore(store).index("by_dict");
+    let cursor = await idx.openCursor(IDBKeyRange.only(id));
+    while (cursor) {
+      await cursor.delete();
+      cursor = await cursor.continue();
+    }
   }
   await tx.objectStore("dictionaries").delete(id);
   await tx.done;
@@ -307,6 +370,18 @@ export interface TermResult {
   reasons: string[];
   /** The original text that was searched. */
   source: string;
+  /** IPA pronunciations attached from term-meta dictionaries (if any). */
+  pronunciations?: Pronunciation[];
+}
+
+/** Every stored term-meta row for a term within a pair (across all meta dicts). */
+async function metaForTerm(
+  term: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<TermMetaEntry[]> {
+  const db = await getDb();
+  return db.getAllFromIndex("term_meta", "by_lookup", IDBKeyRange.only([term_lang, native_lang, term]));
 }
 
 /**
@@ -340,10 +415,20 @@ export async function findTerms(
     }
   }
 
-  return [...byKey.values()].sort((a, b) => {
+  const ranked = [...byKey.values()].sort((a, b) => {
     if (a.reasons.length !== b.reasons.length) return a.reasons.length - b.reasons.length;
     return (b.entry.score ?? 0) - (a.entry.score ?? 0);
   });
+
+  // Enrich each result with IPA from any term-meta dictionary for the pair.
+  for (const result of ranked) {
+    const meta = await metaForTerm(result.entry.term, term_lang, native_lang);
+    if (!meta.length) continue;
+    const pronunciations = ipaPronunciations(meta, result.entry.reading);
+    if (pronunciations.length) result.pronunciations = pronunciations;
+  }
+
+  return ranked;
 }
 
 /** Live-suggestion prefix search within a language pair. */
