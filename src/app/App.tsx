@@ -3,7 +3,7 @@
 // panel, the review session and dictionary import. Lookup orchestration lives
 // in useLookup; per-feature logic lives under src/features/*.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
@@ -12,6 +12,8 @@ import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort } from "@/features/review/domain/wordcloud";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
+import { hasLocalDict } from "@/features/dictionary/data/search";
+import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
@@ -74,6 +76,21 @@ interface MainAppProps {
 function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
+  // Which dictionary database look-ups hit. Persisted only once the user picks;
+  // until then we default to the source that actually has data (local if a
+  // dictionary is imported, otherwise the server) so neither kind of user hits
+  // an empty screen on first load.
+  const [dictSource, setDictSource] = useState<DictSource>(() => loadSource() ?? "local");
+  useEffect(() => {
+    if (loadSource() != null) return;
+    hasLocalDict(pair).then((has) => setDictSource(has ? "local" : "server"));
+    // Run once on mount; the saved choice (if any) already won above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const chooseSource = (s: DictSource) => {
+    setDictSource(s);
+    saveSource(s);
+  };
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
@@ -81,7 +98,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [managing, setManaging] = useState(false);
   const [theming, setTheming] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
-  const { view, onResult, lookup, onSaveCustom, onSelectTag, addToReview, closeView } = useLookup(store, pair);
+  const { view, onResult, lookup, onSaveCustom, onSelectTag, addToReview, closeView } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -141,7 +158,13 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         </div>
       ) : (
         <>
-          <SearchBar pair={pair} onPairChange={setPair} onResult={onResult} />
+          <SearchBar
+            pair={pair}
+            onPairChange={setPair}
+            source={dictSource}
+            onSourceChange={chooseSource}
+            onResult={onResult}
+          />
 
           <FilterBar
             dueCount={store.dueEntries.length}
