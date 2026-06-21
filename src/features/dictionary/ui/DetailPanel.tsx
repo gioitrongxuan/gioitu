@@ -22,9 +22,28 @@ interface Props {
   onClose: () => void;
   /** Navigate to another term (internal `?query=` links). */
   onLookup?: (term: string) => void;
+  /** Create the SRS card now ("[+]"), bypassing the ≥2-lookup gate. */
+  onAddToReview?: () => void;
+  /** Mark the word as already known → LEARNED. */
+  onMarkKnown?: (entry: VocabEntry) => void;
+  /** Mark a learned word as forgotten → relapse into the review queue. */
+  onMarkForgotten?: (entry: VocabEntry) => void;
+  /** Delete the word (tombstone). */
+  onDelete?: (entry: VocabEntry) => void;
 }
 
-export function DetailPanel({ term, results, entry, onSaveCustom, onClose, onLookup }: Props) {
+export function DetailPanel({
+  term,
+  results,
+  entry,
+  onSaveCustom,
+  onClose,
+  onLookup,
+  onAddToReview,
+  onMarkKnown,
+  onMarkForgotten,
+  onDelete,
+}: Props) {
   const [custom, setCustom] = useState("");
 
   const savedLines = !results.length && entry ? safeGlosses(entry.meaning) : [];
@@ -60,21 +79,49 @@ export function DetailPanel({ term, results, entry, onSaveCustom, onClose, onLoo
       )}
 
       {entry && (
-        <div className="srs-stats">
-          <div><span>Số lần tra</span><b>{entry.lookup_count}</b></div>
-          <div><span>Trạng thái</span><b>{statusLabel(entry.status)}</b></div>
-          <div>
-            <span>Thẻ SRS</span>
-            <b>{entry.card_state ?? "chưa tạo"}</b>
+        <>
+          <div className="srs-stats">
+            <div><span>Số lần tra</span><b>{entry.lookup_count}</b></div>
+            <div><span>Trạng thái</span><b>{statusLabel(entry)}</b></div>
+            <div>
+              <span>Thẻ SRS</span>
+              <b>{entry.card_state ?? "chưa tạo"}</b>
+            </div>
+            {entry.card_state && (
+              <>
+                <div><span>Chu kỳ</span><b>{formatInterval(entry.srs_interval)}</b></div>
+                <div><span>Ôn tiếp</span><b>{formatRelative(entry.next_review)}</b></div>
+                <div><span>EF / lapses</span><b>{entry.ease_factor.toFixed(2)} / {entry.lapses}</b></div>
+              </>
+            )}
           </div>
-          {entry.card_state && (
-            <>
-              <div><span>Chu kỳ</span><b>{formatInterval(entry.srs_interval)}</b></div>
-              <div><span>Ôn tiếp</span><b>{formatRelative(entry.next_review)}</b></div>
-              <div><span>EF / lapses</span><b>{entry.ease_factor.toFixed(2)} / {entry.lapses}</b></div>
-            </>
+
+          {entry.card_state == null && onAddToReview && (
+            <button className="primary add-review" onClick={onAddToReview}>
+              Thêm vào ôn tập
+            </button>
           )}
-        </div>
+
+          <div className="detail-actions">
+            {entry.status === "LEARNED"
+              ? onMarkForgotten && (
+                  <button className="link" onClick={() => onMarkForgotten(entry)}>Đã quên</button>
+                )
+              : onMarkKnown && (
+                  <button className="link" onClick={() => onMarkKnown(entry)}>Đã nhớ</button>
+                )}
+            {onDelete && (
+              <button
+                className="link danger"
+                onClick={() => {
+                  if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
+                }}
+              >
+                Xoá
+              </button>
+            )}
+          </div>
+        </>
       )}
     </aside>
   );
@@ -118,7 +165,10 @@ function ResultView({ res, onLookup }: { res: TermResult; onLookup?: (term: stri
   );
 }
 
-function statusLabel(s: VocabEntry["status"]): string {
+function statusLabel(entry: VocabEntry): string {
+  // A word with no card yet has only been seen, not committed to the queue.
+  if (entry.card_state == null) return "Chưa vào ôn tập";
+  const s = entry.status;
   return s === "LEARNED" ? "Đã thuộc" : s === "RELAPSED" ? "Tái quên !" : "Đang học";
 }
 

@@ -13,6 +13,11 @@ describe("visibility depends on SRS status (constraint 4)", () => {
     expect(isVisibleOnCloud({ status: "RELAPSED" })).toBe(true);
     expect(isVisibleOnCloud({ status: "LEARNED" })).toBe(false);
   });
+
+  it("hides deleted words regardless of status", () => {
+    expect(isVisibleOnCloud({ status: "LEARNING", deleted_at: 1 })).toBe(false);
+    expect(isVisibleOnCloud({ status: "RELAPSED", deleted_at: 1 })).toBe(false);
+  });
 });
 
 describe("log-normalized shade (fix point 7)", () => {

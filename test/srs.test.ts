@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gradeCard, newCardState, relapse, isDue } from "@/features/review/domain/srs";
+import { gradeCard, newCardState, relapse, markKnown, isDue } from "@/features/review/domain/srs";
 import { DAY, DEFAULT_SRS_CONFIG as CFG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
@@ -12,6 +12,17 @@ describe("newCardState (gating)", () => {
     expect(s.status).toBe("LEARNING");
     expect(s.ease_factor).toBe(2.5);
     expect(s.next_review).toBe(NOW);
+  });
+});
+
+describe("markKnown ('Đã nhớ')", () => {
+  it("graduates straight to a mature LEARNED card (hidden, out of queue)", () => {
+    const s = markKnown(NOW);
+    expect(s.status).toBe("LEARNED");
+    expect(s.card_state).toBe("REVIEW");
+    expect(s.srs_interval).toBe(CFG.matureThreshold);
+    expect(s.next_review).toBe(NOW + CFG.matureThreshold * 60_000);
+    expect(isDue({ card_state: s.card_state, next_review: s.next_review }, NOW)).toBe(false);
   });
 });
 

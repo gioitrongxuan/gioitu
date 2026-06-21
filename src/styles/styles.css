@@ -123,6 +123,13 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .srs-stats > div { display: flex; justify-content: space-between; font-size: 13px; }
 .srs-stats span { color: var(--muted); }
 
+.add-review { width: 100%; }
+.detail-actions { display: flex; gap: 16px; margin-top: 10px; }
+
+/* "Đã thuộc" achievement page */
+.learned-head { display: flex; align-items: baseline; gap: 16px; margin: 8px 0 4px; }
+.learned-head h2 { margin: 0; font-size: 20px; }
+
 /* Buttons */
 .primary { background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin-top: 8px; }
 .primary:disabled { background: #cbd5e1; }
