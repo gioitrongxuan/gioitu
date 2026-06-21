@@ -8,6 +8,8 @@ import {
   fuzzyTerms,
   hasLocalDictionary,
 } from "@/features/dictionary/data/yomitan";
+import { getSource } from "@/features/dictionary/data/sources";
+import { LANG_PAIRS } from "@/shared/languages";
 import {
   putEntry,
   getEntry,
@@ -16,6 +18,8 @@ import {
   reassignEntries,
 } from "@/features/review/data/repository";
 import { makeEntry } from "./fixtures";
+
+const EN_VI = LANG_PAIRS.find((p) => p.id === "en-vi")!;
 
 /** Build an in-memory Yomitan-style .zip for testing. */
 async function makeYomitanZip(): Promise<ArrayBuffer> {
@@ -69,6 +73,17 @@ describe("Yomitan import (forward, per-pair)", () => {
     const exclude = new Set([JSON.stringify(["resilient", ""])]);
     const fuzzy = await fuzzyTerms("resilient", "en", "vi", exclude);
     expect(fuzzy.map((r) => r.entry.term)).not.toContain("resilient");
+  });
+
+  it("the local source resolves against IndexedDB; the server source does not", async () => {
+    // Chosen source decides which database answers — no cross-source fallback.
+    const local = await getSource("local").findTerms("resilient", EN_VI);
+    expect(local.map((r) => r.entry.term)).toContain("resilient");
+
+    // With no backend reachable in tests, the server source returns nothing
+    // rather than silently falling back to the local dictionary.
+    const server = await getSource("server").findTerms("resilient", EN_VI);
+    expect(server).toEqual([]);
   });
 });
 

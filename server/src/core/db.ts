@@ -24,6 +24,9 @@ function sslFromEnv() {
 
 export async function initSchema(): Promise<void> {
   await pool.query(`
+    -- Edit-distance matching for fuzzy look-up (levenshtein_less_equal).
+    CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,

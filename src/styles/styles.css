@@ -27,12 +27,18 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Search bar */
 .searchbar { position: relative; margin-bottom: 12px; }
-.pair-toggle { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.pair-toggle button {
+.searchbar-toggles {
+  display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.pair-toggle, .source-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
+.pair-toggle button, .source-toggle button {
   border: 1px solid var(--line); background: #fff; padding: 6px 12px;
   border-radius: 999px; cursor: pointer; font-size: 13px; color: var(--muted);
 }
 .pair-toggle button.active { background: var(--fg); color: #fff; border-color: var(--fg); }
+/* Source toggle uses the accent so it reads as a separate choice from the pair. */
+.source-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .search-input {
   width: 100%; padding: 12px 14px; font-size: 16px;
   border: 1px solid var(--line); border-radius: 12px; outline: none;

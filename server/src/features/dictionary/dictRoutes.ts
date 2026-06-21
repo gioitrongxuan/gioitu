@@ -30,6 +30,21 @@ dictRoutes.get(
   }),
 );
 
+// --- Public: fuzzy near-misses by edit distance ("did you mean…") ---
+dictRoutes.get(
+  "/fuzzy",
+  wrap(async (req, res) => {
+    const term = String(req.query.term ?? "");
+    const src = String(req.query.src ?? "");
+    const tgt = String(req.query.tgt ?? "");
+    if (!term) return res.json([]);
+    // Clamp the edit-distance budget: anything larger turns a bounded scan into
+    // an expensive one and returns mostly noise.
+    const max = Math.min(Math.max(Number(req.query.max ?? 1), 1), 3);
+    res.json(await dictStore.fuzzy(term, src, tgt, max));
+  }),
+);
+
 // Import a Yomitan .zip. The body is the raw archive (Content-Type
 // application/zip); the language pair is taken from ?src=&tgt= when given,
 // otherwise from the archive's index.json.

@@ -31,6 +31,38 @@ export async function suggest(prefix: string, src: string, tgt: string) {
   return rows.map(rowToDictEntry);
 }
 
+/**
+ * Near-miss look-up by edit distance, for when the query is misspelled or
+ * misremembered. Mirrors the client's fuzzy matcher: distance is taken against
+ * the smaller of the term and its reading (so a kana query finds a kanji
+ * headword), bounded by `max`. A char-length pre-filter skips obviously-distant
+ * rows before the (bounded) Levenshtein runs, and results are closest-first.
+ */
+export async function fuzzy(term: string, src: string, tgt: string, max: number, limit = 8) {
+  const { rows } = await pool.query<DictRow>(
+    `WITH scored AS (
+       SELECT term, reading, definitions, term_lang, native_lang,
+         LEAST(
+           levenshtein_less_equal($3, term, $4),
+           CASE WHEN reading IS NOT NULL AND reading <> term
+                THEN levenshtein_less_equal($3, reading, $4)
+                ELSE $4 + 1 END
+         ) AS distance
+       FROM dict
+       WHERE term_lang = $1 AND native_lang = $2
+         AND (
+           abs(char_length(term) - char_length($3)) <= $4
+           OR (reading IS NOT NULL AND abs(char_length(reading) - char_length($3)) <= $4)
+         )
+     )
+     SELECT term, reading, definitions, term_lang, native_lang
+       FROM scored WHERE distance <= $4
+      ORDER BY distance, term LIMIT $5`,
+    [src, tgt, term, max, limit],
+  );
+  return rows.map(rowToDictEntry);
+}
+
 /** Parse a Yomitan archive buffer and bulk-insert it as a new dictionary. */
 export async function importBuffer(
   buf: Buffer,

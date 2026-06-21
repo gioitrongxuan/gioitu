@@ -38,8 +38,10 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 | Chọn cặp ngôn ngữ | Dãy nút chuyển 6 cặp thuận (Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt, Việt→Anh); nút đang chọn `active` | `SearchBar.tsx`, `languages.ts` |
 | Ô tra cứu | Placeholder `Tra từ (<cặp>)… Enter để xác nhận`; Enter để xác nhận | `SearchBar.tsx` |
 | Gợi ý live | Vừa gõ vừa gợi ý (debounce ~120ms): từ + cách đọc + nghĩa đầu. **Không** tính lượt tra | `SearchBar.tsx`, `searchSuggest` |
-| Định tuyến tìm | IndexedDB trước, server fallback nếu cặp chưa có từ điển cục bộ | `dictionary/data/search.ts` |
+| Chọn nguồn từ điển | Toggle *Trên máy* / *Server*; nguồn được chọn tra trực tiếp (không auto-fallback), lưu ở localStorage | `SearchBar.tsx`, `domain/source.ts`, `data/sources.ts` |
+| Định tuyến tìm | `search.ts` chỉ `getSource(source)` rồi uỷ thác; 2 nguồn sau interface `DictionarySource` | `dictionary/data/search.ts`, `data/sources.ts` |
 | Deinflection | Tự đưa từ biến cách về dạng từ điển; SRS theo dõi **lemma** | `domain/deinflect.ts`, [LOGIC §6](./LOGIC.md) |
+| Tra mờ (fuzzy) | Gõ sai/nhớ lộn vẫn ra: near-miss theo khoảng cách Levenshtein (cả term lẫn reading), chạy nền và **bổ sung** sau kết quả khớp đúng (*Có phải bạn muốn tìm:*) | `domain/fuzzy.ts`, `fuzzyTerms`/`serverFuzzy`, `findFuzzyRouted` |
 
 ### Detail Panel — chi tiết một từ
 

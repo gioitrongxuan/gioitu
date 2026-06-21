@@ -15,7 +15,7 @@ Hai khối dữ liệu được tách bạch (SPEC §2):
 
 | Khối | Nguồn sự thật | Cache | Ghi chú |
 |---|---|---|---|
-| **Từ điển** (tra cứu) | IndexedDB (client) | Server Postgres là *fallback* | Có thể tạo lại bằng re-import |
+| **Từ điển** (tra cứu) | IndexedDB (client) | Server Postgres là *nguồn chọn được* (toggle) | Có thể tạo lại bằng re-import |
 | **Dữ liệu học** (SRS) | Cloud DB (server) | IndexedDB | Tách khỏi từ điển để đồng bộ đa thiết bị |
 
 Lưu ý chiều cache **ngược nhau** giữa hai khối: với từ điển, IndexedDB là chính
@@ -33,7 +33,8 @@ và nhanh nhất; với dữ liệu học, Cloud DB là chân lý còn IndexedDB
 | Test | Vitest (môi trường `node`, `fake-indexeddb`) |
 
 Backend là **tuỳ chọn**: app dùng được đầy đủ ở chế độ khách (guest) hoàn toàn
-offline. Backend chỉ thêm tài khoản + đồng bộ cloud + từ điển fallback dùng chung.
+offline. Backend chỉ thêm tài khoản + đồng bộ cloud + từ điển dùng chung phía
+server (chọn được qua toggle *Server*).
 
 ## 3. Tổ chức theo feature (vertical slices)
 
@@ -101,7 +102,8 @@ src/
       domain/deinflect.ts   Deinflection (JA đầy đủ + EN nhẹ)
       domain/tags.ts        Phân giải tag code → tên/nhóm
       data/yomitan.ts       Parse Yomitan v3 zip → IndexedDB
-      data/search.ts        Search router: IndexedDB trước, server sau
+      data/sources.ts       Interface DictionarySource + 2 impl (IndexedDB / server)
+      data/search.ts        Facade: tra theo nguồn người dùng chọn (không fallback)
       data/serverDict.ts    Client gọi từ điển server (public, best-effort)
       data/dictAdmin.ts     Client gọi quản trị từ điển server (auth)
       ui/                    SearchBar, DetailPanel, StructuredContent, DictionaryImport
@@ -195,10 +197,12 @@ deinflect, không phải dạng biến cách người dùng gõ.
 Người dùng gõ → SearchBar
    │
    ▼
-findTermsRouted(text, pair)            (dictionary/data/search.ts)
-   │  1. candidates(text, lang) = deinflect            (domain/deinflect.ts)
-   │  2. findTerms() trên IndexedDB (lọc theo word-type rule, xếp hạng)
-   │  3. nếu pair CHƯA có từ điển cục bộ → fallback /api/dict/lookup
+findTermsRouted(text, pair, source)    (dictionary/data/search.ts)
+   │  getSource(source).findTerms(...)               (dictionary/data/sources.ts)
+   │  • "local":  candidates() = deinflect → findTerms() trên IndexedDB
+   │              (lọc theo word-type rule, xếp hạng, entry giàu)
+   │  • "server": deinflect rồi tra từng candidate qua /api/dict/lookup
+   │  (không có fallback chéo: nguồn nào được chọn thì tra đúng nguồn đó)
    ▼
 TermResult[]  →  useLookup.onResult()
    │  mở DetailPanel (furigana + tag + structured content)
@@ -255,18 +259,24 @@ native_lang)` — không có chế độ "đảo chiều" riêng; "Việt → An
 > còn ghi "bốn" (4) cặp — đó là chữ cũ; mã thực tế khai báo **6** cặp trong
 > `LANG_PAIRS`. `DEFAULT_PAIR` là `en-vi` (Anh → Việt).
 
-Thứ tự routing trong `findTermsRouted`:
+Người dùng chọn nguồn bằng **toggle trên SearchBar** (*Trên máy* / *Server*);
+`findTermsRouted` chỉ `getSource(source)` rồi uỷ thác. **Không** auto-fallback —
+nguồn nào được chọn thì tra đúng nguồn đó:
 
-1. **IndexedDB (client) — nhanh nhất.** Import Yomitan `.zip` (gắn cặp đã chọn)
-   vào store `terms`, key `[term_lang, native_lang, term, reading]`. Trả về
-   entry giàu (structured content, tag, rule).
-2. **Server fallback.** Nếu IndexedDB **chưa có** từ điển cho cặp đó, gọi
-   `/api/dict/lookup?src=&tgt=`. Đường server là plain-text; client vẫn deinflect
-   trước rồi tra từng candidate (giới hạn `MAX_SERVER_CANDIDATES = 12`).
+1. **IndexedDB (client) — nhanh nhất, offline-first.** Import Yomitan `.zip` (gắn
+   cặp đã chọn) vào store `terms`, key `[term_lang, native_lang, term, reading]`.
+   Trả về entry giàu (structured content, tag, rule).
+2. **Server (Postgres).** Gọi `/api/dict/lookup?src=&tgt=`. Đường server là
+   plain-text; client vẫn deinflect trước rồi tra từng candidate (giới hạn
+   `MAX_SERVER_CANDIDATES = 12`).
 
-> Phân tầng có chủ đích: đường **client/IndexedDB** (chính, offline-first) nhận
-> đủ "treatment" Yomitan; đường **server** giữ plain-text nhưng vẫn được
-> deinflect khi fallback.
+> Lựa chọn nguồn lưu ở localStorage (`gioitu.dictSource.v1`); lần đầu (chưa
+> chọn) mặc định theo nơi có dữ liệu — có từ điển cục bộ → *Trên máy*, không thì
+> *Server* — để không ai gặp màn hình trống.
+
+> Phân tầng có chủ đích: hai nguồn nằm sau cùng một interface `DictionarySource`
+> (`data/sources.ts`); `search.ts` chỉ là facade. Đường **client/IndexedDB** nhận
+> đủ "treatment" Yomitan; đường **server** giữ plain-text nhưng vẫn được deinflect.
 
 ## 8. Backend (tuỳ chọn)
 
