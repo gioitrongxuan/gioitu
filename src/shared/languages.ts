@@ -18,11 +18,13 @@ export interface LangPair {
 export const LANG_PAIRS: LangPair[] = [
   { id: "ja-vi", source: "ja", target: "vi", label: "Nhật → Việt" },
   { id: "vi-ja", source: "vi", target: "ja", label: "Việt → Nhật" },
+  { id: "ja-en", source: "ja", target: "en", label: "Nhật → Anh" },
+  { id: "en-ja", source: "en", target: "ja", label: "Anh → Nhật" },
   { id: "en-vi", source: "en", target: "vi", label: "Anh → Việt" },
   { id: "vi-en", source: "vi", target: "en", label: "Việt → Anh" },
 ];
 
-export const DEFAULT_PAIR = LANG_PAIRS[2]; // Anh → Việt
+export const DEFAULT_PAIR = LANG_PAIRS.find((p) => p.id === "en-vi")!; // Anh → Việt
 
 export function pairById(id: string): LangPair {
   return LANG_PAIRS.find((p) => p.id === id) ?? DEFAULT_PAIR;
