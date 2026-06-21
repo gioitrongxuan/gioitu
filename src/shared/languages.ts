@@ -24,7 +24,7 @@ export const LANG_PAIRS: LangPair[] = [
   { id: "vi-en", source: "vi", target: "en", label: "Việt → Anh" },
 ];
 
-export const DEFAULT_PAIR = LANG_PAIRS.find((p) => p.id === "en-vi")!; // Anh → Việt
+export const DEFAULT_PAIR = LANG_PAIRS.find((p) => p.id === "ja-vi")!; // Anh → Việt
 
 export function pairById(id: string): LangPair {
   return LANG_PAIRS.find((p) => p.id === id) ?? DEFAULT_PAIR;
