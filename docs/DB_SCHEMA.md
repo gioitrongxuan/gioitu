@@ -10,7 +10,7 @@
 
 | Khối dữ liệu | Nguồn sự thật | Bản cache | Tái tạo |
 |---|---|---|---|
-| **Từ điển** (tra cứu) | **IndexedDB** (`terms`, `term_meta`, `dictionaries`) | Postgres `dict` là *fallback* | Re-import Yomitan `.zip` |
+| **Từ điển** (tra cứu) | **IndexedDB** (`terms`, `term_meta`, `dictionaries`) | Postgres `dict` là *nguồn chọn được* (toggle, không auto-fallback) | Re-import Yomitan `.zip` |
 | **Dữ liệu học** (SRS) | **Postgres** `user_data` (per tài khoản) | IndexedDB `user_data` | Pull lại từ cloud |
 
 Nguyên tắc: store từ điển trong IndexedDB là **cache có chủ đích** — xoá đi
@@ -182,7 +182,8 @@ salt 16 byte, hash 64 byte); `created_at` epoch ms.
 **`dictionaries`** — registry từ điển server đã import (một dòng/zip). `id` UUID.
 Term tham chiếu qua `dict.dict_id` để liệt kê/xoá cả từ điển.
 
-**`dict`** — từ điển fallback, thuận, scope theo cặp `(term_lang, native_lang)`.
+**`dict`** — từ điển phía server (chọn được qua toggle *Server*), thuận, scope
+theo cặp `(term_lang, native_lang)`.
 Khoá chính `(term_lang, native_lang, term)`. `definitions` là **JSON array string**
 (plain-text — đường server không giữ structured content). `dict_id` FK
 **`ON DELETE SET NULL`**: xoá một từ điển import thì term của nó về `dict_id =

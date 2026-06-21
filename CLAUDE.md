@@ -56,9 +56,14 @@ server/src/    core/ (db) + features/{dictionary,sync}
 
 ## Dữ liệu
 
-- **IndexedDB là nguồn từ điển CHÍNH** (nhanh nhất); server là fallback. Store
-  `terms` (từ điển đã import) và `dictionaries` (registry) là **cache** — có thể
-  tạo lại bằng cách re-import. Khoá `terms` gồm cả `reading` để không gộp đồng âm.
+- **Hai nguồn từ điển, người dùng tự chọn** bằng toggle trên SearchBar
+  (*Trên máy* / *Server*) — **không** auto client-first/server-fallback nữa: nguồn
+  nào được chọn thì tra đúng nguồn đó. Logic chọn nguồn tách riêng: interface
+  `DictionarySource` (`dictionary/data/sources.ts`) có 2 cài đặt (IndexedDB và
+  server Postgres); `search.ts` chỉ là facade mỏng. Lựa chọn lưu ở localStorage
+  (`gioitu.dictSource.v1`). IndexedDB vẫn nhanh nhất / offline-first: store
+  `terms` (từ điển đã import) và `dictionaries` (registry) là **cache** — tạo lại
+  được bằng re-import. Khoá `terms` gồm cả `reading` để không gộp đồng âm.
 - **`user_data`** (dữ liệu học/SRS) trong IndexedDB chỉ là cache; nguồn sự thật
   là Cloud DB (server). Bump `DB_VERSION` trong `src/shared/db.ts` khi đổi schema.
 

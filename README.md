@@ -34,7 +34,7 @@ npm install
 # Frontend (Vite dev server on :5173, proxies /api -> :8787)
 npm run dev
 
-# Optional backend (accounts + fallback dictionary + cloud sync).
+# Optional backend (accounts + shared server dictionary + cloud sync).
 # Needs a PostgreSQL database — set DATABASE_URL (see .env.example).
 # e.g. createdb gioitu && export DATABASE_URL=postgres://localhost:5432/gioitu
 npm run server        # http://localhost:8787 (creates the schema + seeds on boot)
@@ -159,10 +159,17 @@ search bar: **Nhật → Việt**, **Việt → Nhật**, **Anh → Việt**, **
 scoped to the selected pair `(term_lang, native_lang)` — there is no separate
 reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
 
-1. **Client-side (IndexedDB)** — fastest. Import a Yomitan `.zip` (tagged with
-   the selected pair) into the `terms` store, keyed `[term_lang, native_lang, term]`.
-2. **Server-side fallback** — if IndexedDB has no dictionary for that pair, the
-   backend's default dictionary is queried over `/api` (`?src=&tgt=`).
+The user chooses which database answers via a **source toggle** in the search
+bar (*Trên máy* / *Server*) — there is **no** automatic client→server fallback;
+the chosen source answers outright (first-load default follows wherever data
+actually is). The two sources sit behind one `DictionarySource` interface
+(`dictionary/data/sources.ts`), with `search.ts` a thin facade over them:
+
+1. **Client-side (IndexedDB)** — fastest, offline-first. Import a Yomitan `.zip`
+   (tagged with the selected pair) into the `terms` store, keyed
+   `[term_lang, native_lang, term]`.
+2. **Server-side (Postgres)** — the backend's shared dictionary, queried over
+   `/api` (`?src=&tgt=`); plain-text entries, still deinflected client-side.
 
 ### Yomitan-style import, look-up & display
 
