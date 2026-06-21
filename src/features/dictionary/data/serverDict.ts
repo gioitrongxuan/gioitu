@@ -3,6 +3,7 @@
 // fall back to IndexedDB, so every call resolves to null/[] instead of throwing.
 
 import { DictEntry } from "@/shared/db";
+import { fuzzyThreshold } from "../domain/fuzzy";
 
 const BASE = "/api";
 
@@ -33,4 +34,17 @@ export async function serverSuggest(
 ): Promise<DictEntry[]> {
   const q = `prefix=${encodeURIComponent(prefix)}&src=${term_lang}&tgt=${native_lang}`;
   return (await getJson<DictEntry[]>(`/dict/suggest?${q}`)) ?? [];
+}
+
+/** Server-side fuzzy near-misses (edit distance), closest-first. */
+export async function serverFuzzy(
+  term: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<DictEntry[]> {
+  // Same edit-distance budget the client uses locally, so behaviour matches
+  // whether the dictionary lives in IndexedDB or on the server.
+  const max = fuzzyThreshold(term);
+  const q = `term=${encodeURIComponent(term)}&src=${term_lang}&tgt=${native_lang}&max=${max}`;
+  return (await getJson<DictEntry[]>(`/dict/fuzzy?${q}`)) ?? [];
 }

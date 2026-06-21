@@ -14,7 +14,7 @@ import {
   lookupTerm,
   TermResult,
 } from "./yomitan";
-import { serverLookup, serverSuggest } from "./serverDict";
+import { serverLookup, serverSuggest, serverFuzzy } from "./serverDict";
 import { candidates } from "../domain/deinflect";
 import { LangPair } from "@/shared/languages";
 
@@ -51,11 +51,14 @@ export async function findTermsRouted(text: string, pair: LangPair): Promise<Ter
 }
 
 /**
- * Near-miss look-up against the local dictionary: closest terms by edit distance
- * for when the query is misspelled or misremembered. Returned separately from
- * `findTermsRouted` so the exact results never wait on this full-store scan —
- * callers run it off the hot path and append the results. `exclude` lists the
- * (term, reading) keys already shown as exact matches, so they aren't repeated.
+ * Near-miss look-up for when the query is misspelled or misremembered: closest
+ * terms by edit distance. Resolves against IndexedDB when a local dictionary
+ * exists, otherwise against the server dictionary (Postgres `levenshtein`) — so
+ * fuzzy works the same whether the dictionary is imported locally or only on the
+ * server. Returned separately from `findTermsRouted` so the exact results never
+ * wait on this full scan; callers run it off the hot path and append the
+ * results. `exclude` lists the (term, reading) keys already shown as exact
+ * matches, so they aren't repeated.
  */
 export async function findFuzzyRouted(
   text: string,
@@ -64,9 +67,17 @@ export async function findFuzzyRouted(
 ): Promise<TermResult[]> {
   const query = text.trim();
   if (!query) return [];
-  // Fuzzy is local-only: the server has no fuzzy endpoint.
-  if (!(await hasLocalDictionary(pair.source, pair.target))) return [];
-  return fuzzyTerms(query, pair.source, pair.target, exclude);
+
+  if (await hasLocalDictionary(pair.source, pair.target)) {
+    return fuzzyTerms(query, pair.source, pair.target, exclude);
+  }
+
+  // No local dictionary → fuzzy against the server, mirroring the exact-lookup
+  // fallback. The server already ranks closest-first and bounds the distance.
+  const entries = await serverFuzzy(query, pair.source, pair.target);
+  return entries
+    .filter((e) => !exclude.has(JSON.stringify([e.term, e.reading ?? ""])))
+    .map((entry) => ({ entry, reasons: [], source: query, fuzzy: true }));
 }
 
 /** Single best forward match (kept for callers that only need one entry). */
