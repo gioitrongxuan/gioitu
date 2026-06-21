@@ -59,6 +59,8 @@ export async function initSchema(): Promise<void> {
     ALTER TABLE dict ADD COLUMN IF NOT EXISTS dict_id TEXT
       REFERENCES dictionaries(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_dict_source ON dict(dict_id);
+    -- Reading look-up: typing a word's reading finds it under its kanji term.
+    CREATE INDEX IF NOT EXISTS idx_dict_reading ON dict(term_lang, native_lang, reading);
 
     -- User learning data: source of truth (SPEC 2.C).
     CREATE TABLE IF NOT EXISTS user_data (

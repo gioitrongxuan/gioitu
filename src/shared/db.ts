@@ -70,7 +70,13 @@ interface GioituDB extends DBSchema {
     // stored separately instead of overwriting one another.
     key: [string, string, string, string]; // [term_lang, native_lang, term, reading]
     value: DictEntry;
-    indexes: { by_pair: [string, string]; by_dict: string };
+    indexes: {
+      by_pair: [string, string];
+      by_dict: string;
+      // Look up by reading so typing a word's reading (e.g. さくら, or romaji
+      // converted to kana) finds an entry keyed under its kanji term (桜).
+      by_reading: [string, string, string];
+    };
   };
   dictionaries: {
     key: string; // id
@@ -92,7 +98,7 @@ interface GioituDB extends DBSchema {
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -104,9 +110,10 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         // adds a `dictionaries` registry. v4 adds resolved tag metadata (from
         // each dictionary's tag_bank). v5 adds `reading` to the `terms` key so
         // homographs no longer overwrite each other. v6 adds `term_meta` for
-        // Yomitan term-meta banks (IPA/pitch/freq). Recreate `terms` cleanly on
-        // any bump; the user re-imports dictionaries (a cache, not the source of
-        // truth).
+        // Yomitan term-meta banks (IPA/pitch/freq). v7 adds a `by_reading` index
+        // so a reading look-up finds entries keyed under their kanji term.
+        // Recreate `terms` cleanly on any bump; the user re-imports dictionaries
+        // (a cache, not the source of truth).
         if (db.objectStoreNames.contains("terms")) db.deleteObjectStore("terms");
         const legacy = "reverse_tokens" as never;
         if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy);
@@ -116,6 +123,7 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         });
         terms.createIndex("by_pair", ["term_lang", "native_lang"]);
         terms.createIndex("by_dict", "dictId");
+        terms.createIndex("by_reading", ["term_lang", "native_lang", "reading"]);
 
         if (!db.objectStoreNames.contains("dictionaries")) {
           const dicts = db.createObjectStore("dictionaries", { keyPath: "id" });

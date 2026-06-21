@@ -350,6 +350,20 @@ async function entriesForTerm(
 }
 
 /**
+ * Every stored entry whose *reading* equals `reading` within a pair, so typing a
+ * word's reading (kana, or romaji converted to kana) finds entries keyed under
+ * their kanji term (さくら → 桜). Uses the `by_reading` index.
+ */
+async function entriesForReading(
+  reading: string,
+  term_lang: string,
+  native_lang: string,
+): Promise<DictEntry[]> {
+  const db = await getDb();
+  return db.getAllFromIndex("terms", "by_reading", IDBKeyRange.only([term_lang, native_lang, reading]));
+}
+
+/**
  * Forward exact look-up within a language pair. A term may have several readings
  * (homographs); this returns the highest-scoring entry. Use `findTerms` to get
  * every reading.
@@ -406,7 +420,13 @@ export async function findTerms(
   // as separate results instead of collapsing into one.
   const byKey = new Map<string, TermResult>();
   for (const cand of cands) {
-    const matches = await entriesForTerm(cand.term, term_lang, native_lang);
+    // Match the candidate against both the term and the reading, so typing a
+    // reading (kana, or romaji converted to kana) finds an entry keyed under its
+    // kanji term (さくら → 桜).
+    const matches = [
+      ...(await entriesForTerm(cand.term, term_lang, native_lang)),
+      ...(await entriesForReading(cand.term, term_lang, native_lang)),
+    ];
     for (const entry of matches) {
       if (!rulesMatchEntry(cand.rules, entry.rules)) continue;
       const key = JSON.stringify([entry.term, entry.reading ?? ""]);

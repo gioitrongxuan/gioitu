@@ -12,10 +12,17 @@ export interface ImportSummary {
   native_lang: string;
 }
 
-/** Forward lookup, scoped to a language pair (SPEC 2.A). */
+/**
+ * Forward lookup, scoped to a language pair (SPEC 2.A). Matches the query
+ * against both the term and the reading, so typing a reading (kana, or romaji
+ * converted to kana client-side) finds an entry keyed under its kanji term
+ * (さくら → 桜). An exact term match is preferred over a reading-only match.
+ */
 export async function lookup(term: string, src: string, tgt: string) {
   const { rows } = await pool.query<DictRow>(
-    "SELECT * FROM dict WHERE term_lang = $1 AND native_lang = $2 AND term = $3",
+    `SELECT * FROM dict
+      WHERE term_lang = $1 AND native_lang = $2 AND (term = $3 OR reading = $3)
+      ORDER BY (term = $3) DESC LIMIT 1`,
     [src, tgt, term],
   );
   return rows[0] ? rowToDictEntry(rows[0]) : null;

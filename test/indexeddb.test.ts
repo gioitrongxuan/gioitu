@@ -38,6 +38,17 @@ async function makeYomitanZip(): Promise<ArrayBuffer> {
   return zip.generateAsync({ type: "arraybuffer" });
 }
 
+/** A tiny JA→VI dictionary: a kanji term keyed under a kana reading. */
+async function makeJaZip(): Promise<ArrayBuffer> {
+  const zip = new JSZip();
+  zip.file("index.json", JSON.stringify({ title: "JA", sourceLanguage: "ja", targetLanguage: "vi" }));
+  zip.file(
+    "term_bank_1.json",
+    JSON.stringify([["桜", "さくら", null, "", 0, ["hoa anh đào"], 1, ""]]),
+  );
+  return zip.generateAsync({ type: "arraybuffer" });
+}
+
 describe("Yomitan import (forward, per-pair)", () => {
   beforeAll(async () => {
     const buf = await makeYomitanZip();
@@ -73,6 +84,19 @@ describe("Yomitan import (forward, per-pair)", () => {
     const exclude = new Set([JSON.stringify(["resilient", ""])]);
     const fuzzy = await fuzzyTerms("resilient", "en", "vi", exclude);
     expect(fuzzy.map((r) => r.entry.term)).not.toContain("resilient");
+  });
+
+  it("finds a kanji term by its reading, including via romaji input", async () => {
+    await importYomitanZip(await makeJaZip(), { term_lang: "ja", native_lang: "vi" });
+    const JA_VI = LANG_PAIRS.find((p) => p.id === "ja-vi")!;
+
+    // Typing the reading in kana finds 桜 (keyed under term 桜, reading さくら).
+    const kana = await getSource("local").findTerms("さくら", JA_VI);
+    expect(kana.map((r) => r.entry.term)).toContain("桜");
+
+    // Typing the reading in romaji works too (sakura → さくら → 桜).
+    const romaji = await getSource("local").findTerms("sakura", JA_VI);
+    expect(romaji.map((r) => r.entry.term)).toContain("桜");
   });
 
   it("the local source resolves against IndexedDB; the server source does not", async () => {
