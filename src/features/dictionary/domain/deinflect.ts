@@ -15,6 +15,8 @@
 //   a deinflection matches a dictionary entry when the entry's word-type is
 //   compatible with the candidate's `rules` (see rulesMatchEntry).
 
+import { romajiToHiragana } from "./romaji";
+
 /** Word-type flags. v* / adji are "real" (match dictionary entries); the rest
  *  are pseudo-types used only to chain rules (no dictionary entry carries them). */
 export const RULE = {
@@ -304,11 +306,27 @@ export function deinflectEnglish(source: string): Deinflection[] {
 /**
  * Generate look-up candidates for a query in a given source language: the
  * Japanese deinflector, the light English deinflector, or just the identity.
+ * For Japanese we also accept romaji input ("sakura", "tabeta") by converting
+ * it to kana and deinflecting that too, so typing a reading finds the entry.
  */
 export function candidates(text: string, lang: string): Deinflection[] {
   const q = text.trim();
   if (!q) return [];
-  if (lang === "ja") return deinflect(q);
+  if (lang === "ja") {
+    const out = deinflect(q);
+    const kana = romajiToHiragana(q);
+    if (kana && kana !== q) {
+      const seen = new Set(out.map((d) => d.term + "|" + d.rules));
+      for (const d of deinflect(kana)) {
+        const key = d.term + "|" + d.rules;
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push(d);
+        }
+      }
+    }
+    return out;
+  }
   if (lang === "en") return deinflectEnglish(q);
   return [{ term: q, reasons: [], rules: 0 }];
 }
