@@ -56,12 +56,26 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
       );
     });
 
-    if (primary) {
-      const lines = sensesToLines(primary.senses);
-      const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(primary.definitions));
-      await store.recordLookup({ term: primaryTerm, term_lang, native_lang, meaning, is_custom: false });
-    }
-    // No result → wait for the user to save a Custom Definition (no count yet).
+    // A lookup no longer counts on its own: showing results is not proof the user
+    // found what they meant (a list of near-misses tells us nothing). The user
+    // confirms the right entry with its "+" (addResult); only then do we record.
+  }
+
+  // The user picked one of the shown results as the match they wanted ("+",
+  // SPEC 4.4): record it against the history map. Works for exact and fuzzy
+  // results alike — we key on the entry's own dictionary form, not the surface
+  // typed. No confirmation: the click *is* the confirmation.
+  async function addResult(res: TermResult) {
+    const e = res.entry;
+    const lines = sensesToLines(e.senses);
+    const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(e.definitions));
+    await store.recordLookup({
+      term: e.term,
+      term_lang: e.term_lang,
+      native_lang: e.native_lang,
+      meaning,
+      is_custom: false,
+    });
   }
 
   // Navigate to another term from an internal dictionary link.
@@ -108,5 +122,5 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     });
   }
 
-  return { view, onResult, lookup, onSaveCustom, onSelectTag, addToReview, closeView: () => setView(null) };
+  return { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, addToReview, closeView: () => setView(null) };
 }

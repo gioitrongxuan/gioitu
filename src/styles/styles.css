@@ -169,6 +169,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .furigana ruby { ruby-align: center; }
 .furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; }
 .dict-name { font-size: 11px; color: var(--muted); background: #f1f5f9; padding: 2px 8px; border-radius: 999px; margin-left: auto; }
+.add-result { margin-left: auto; font-size: 18px; line-height: 1; padding: 2px 8px; align-self: center; }
+.add-result:disabled { color: var(--ok, #16a34a); opacity: 1; cursor: default; }
 
 .reasons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; font-size: 12px; }
 .reasons-base { font-weight: 600; }
