@@ -5,6 +5,7 @@ import {
   importYomitanZip,
   lookupTerm,
   suggestTerms,
+  fuzzyTerms,
   hasLocalDictionary,
 } from "@/features/dictionary/data/yomitan";
 import {
@@ -54,6 +55,20 @@ describe("Yomitan import (forward, per-pair)", () => {
   it("supports prefix suggestions within the pair", async () => {
     const s = await suggestTerms("e", "en", "vi");
     expect(s.map((x) => x.term)).toContain("ephemeral");
+  });
+
+  it("surfaces a misspelled query via fuzzy matching", async () => {
+    // A typo (dropped 'i') has no exact match but is one edit from "resilient".
+    expect(await lookupTerm("resilent", "en", "vi")).toBeUndefined();
+    const fuzzy = await fuzzyTerms("resilent", "en", "vi");
+    expect(fuzzy.map((r) => r.entry.term)).toContain("resilient");
+    expect(fuzzy[0].fuzzy).toBe(true);
+  });
+
+  it("excludes terms already shown as exact matches", async () => {
+    const exclude = new Set([JSON.stringify(["resilient", ""])]);
+    const fuzzy = await fuzzyTerms("resilient", "en", "vi", exclude);
+    expect(fuzzy.map((r) => r.entry.term)).not.toContain("resilient");
   });
 });
 
