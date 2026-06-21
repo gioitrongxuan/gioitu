@@ -47,6 +47,11 @@ export function fuzzyThreshold(query: string): number {
  * and its reading and keeping the smaller. A kana query (たべる) should match a
  * kanji term (食べる) via its reading; comparing only the term — often a short
  * kanji string — would reject it on length alone.
+ *
+ * A candidate must share the query's **first character** to count. Real typos
+ * rarely change the first letter, and the anchor kills coincidental near-misses
+ * between unrelated words ("sakura" vs the romaji reading "zakuro": distance 2,
+ * but s ≠ z) that otherwise surface as misleading "did you mean" suggestions.
  */
 export function fuzzyMatchDistance(
   query: string,
@@ -54,9 +59,10 @@ export function fuzzyMatchDistance(
   reading: string | undefined,
   max: number,
 ): number {
-  let best = editDistanceWithin(query, term, max);
+  let best = max + 1;
+  if (term[0] === query[0]) best = editDistanceWithin(query, term, max);
   if (best === 0) return 0;
-  if (reading && reading !== term) {
+  if (reading && reading !== term && reading[0] === query[0]) {
     best = Math.min(best, editDistanceWithin(query, reading, max));
   }
   return best;
