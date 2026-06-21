@@ -211,6 +211,26 @@ export function relapse(
   };
 }
 
+/**
+ * Mark a word as already known ("Đã nhớ"): graduate it straight to a mature
+ * REVIEW card so it counts as LEARNED — hidden from the cloud and out of the
+ * review queue, but proudly shown on the "Đã thuộc" map. Looking it up again
+ * later relapses it like any other mature word (SPEC 4.2).
+ */
+export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): SrsState {
+  return {
+    status: "LEARNED",
+    card_state: "REVIEW",
+    learning_step: 0,
+    ease_factor: cfg.initialEaseFactor,
+    reps: 0,
+    lapses: 0,
+    is_relearning: false,
+    srs_interval: cfg.matureThreshold,
+    next_review: now + cfg.matureThreshold * 60_000,
+  };
+}
+
 /** True when a card is due for review at time `now`. */
 export function isDue(entry: Pick<VocabEntry, "card_state" | "next_review">, now: number): boolean {
   return entry.card_state != null && entry.next_review != null && entry.next_review <= now;

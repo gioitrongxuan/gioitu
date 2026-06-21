@@ -3,6 +3,7 @@
 // Visibility depends on SRS status (LEARNED is hidden).
 
 import { isDue } from "./srs";
+import { isDeleted } from "./lifecycle";
 import { VocabEntry } from "@/shared/types";
 
 export interface CloudTag {
@@ -17,9 +18,13 @@ export interface CloudTag {
 
 /**
  * A word is visible on the main cloud while it is being actively learned.
- * LEARNED ("mature") words are hidden to free up space (SPEC 4.3 / constraint 4).
+ * LEARNED ("mature") words are hidden to free up space (SPEC 4.3 / constraint 4),
+ * and so are deleted words.
  */
-export function isVisibleOnCloud(entry: Pick<VocabEntry, "status">): boolean {
+export function isVisibleOnCloud(
+  entry: Pick<VocabEntry, "status"> & Partial<Pick<VocabEntry, "deleted_at">>,
+): boolean {
+  if (isDeleted(entry)) return false;
   return entry.status === "LEARNING" || entry.status === "RELAPSED";
 }
 

@@ -55,6 +55,23 @@ describe("SRS gating threshold (constraint 2)", () => {
   });
 });
 
+describe("manual add to the review queue ('Thêm vào ôn tập')", () => {
+  it("creates the card immediately on an existing card-less entry, even within the debounce window", () => {
+    // Mirrors the real flow: a word just looked up (count 1, < 2s ago) gets [+].
+    const existing = makeEntry({ lookup_count: 1, card_state: null, last_lookup_at: NOW - 500 });
+    const { entry, events } = registerLookup(existing, { ...baseInput, manualAdd: true }, NOW);
+    expect(events.cardCreated).toBe(true);
+    expect(entry.card_state).toBe("NEW");
+    expect(entry.lookup_count).toBe(2);
+  });
+
+  it("empty meaning keeps the entry's existing definition", () => {
+    const existing = makeEntry({ lookup_count: 1, card_state: null, meaning: JSON.stringify(["nghĩa cũ"]) });
+    const { entry } = registerLookup(existing, { ...baseInput, meaning: "", manualAdd: true }, NOW);
+    expect(entry.meaning).toBe(JSON.stringify(["nghĩa cũ"]));
+  });
+});
+
 describe("relapse trigger via lookup (SPEC 4.2, both cases)", () => {
   it("touching a LEARNED word again relapses it", () => {
     const learned = makeEntry({
@@ -83,5 +100,23 @@ describe("relapse trigger via lookup (SPEC 4.2, both cases)", () => {
     const { entry, events } = registerLookup(learned, { ...baseInput, manualAdd: true }, NOW);
     expect(events.relapsed).toBe(true);
     expect(entry.status).toBe("RELAPSED");
+  });
+});
+
+describe("resurrecting a deleted word by looking it up again", () => {
+  it("treats a tombstoned entry as never-seen: fresh entry that wins LWW", () => {
+    const tombstoned = makeEntry({
+      deleted_at: NOW - 100_000,
+      lookup_count: 9,
+      card_state: "REVIEW",
+      status: "LEARNED",
+      updated_at: NOW - 100_000,
+    });
+    const { entry, events } = registerLookup(tombstoned, baseInput, NOW);
+    expect(events.created).toBe(true);
+    expect(entry.deleted_at).toBeNull();
+    expect(entry.lookup_count).toBe(1); // fresh start, not 10
+    expect(entry.card_state).toBeNull();
+    expect(entry.updated_at).toBe(NOW); // past the tombstone → wins the sync
   });
 });

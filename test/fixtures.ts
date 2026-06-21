@@ -21,6 +21,7 @@ export function makeEntry(over: Partial<VocabEntry> = {}): VocabEntry {
     is_relearning: false,
     srs_interval: 0,
     next_review: null,
+    deleted_at: null,
     created_at: now,
     updated_at: now,
     ...over,

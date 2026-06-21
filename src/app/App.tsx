@@ -8,6 +8,7 @@ import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
+import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort } from "@/features/review/domain/wordcloud";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -79,10 +80,31 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
   const [theming, setTheming] = useState(false);
-  const { view, onResult, lookup, onSaveCustom, onSelectTag, closeView } = useLookup(store, pair);
+  const [page, setPage] = useState<"home" | "learned">("home");
+  const { view, onResult, lookup, onSaveCustom, onSelectTag, addToReview, closeView } = useLookup(store, pair);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
+
+  // Shared between the home and "Đã thuộc" pages so selecting a word opens its
+  // detail in place, without jumping back to the home screen.
+  const detailPanel = view?.kind === "detail" && (
+    <DetailPanel
+      term={view.term}
+      results={view.results}
+      entry={entryFor(view.primaryTerm, view.term_lang)}
+      onSaveCustom={onSaveCustom}
+      onClose={closeView}
+      onLookup={lookup}
+      onAddToReview={addToReview}
+      onMarkKnown={store.markKnownEntry}
+      onMarkForgotten={store.markForgottenEntry}
+      onDelete={async (e) => {
+        await store.deleteEntry(e);
+        closeView();
+      }}
+    />
+  );
 
   return (
     <div className="app">
@@ -91,6 +113,11 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
           <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
+          {store.learnedEntries.length > 0 && (
+            <button className="link" onClick={() => setPage("learned")}>
+              Đã thuộc ({store.learnedEntries.length})
+            </button>
+          )}
           <button className="link" onClick={() => setTheming(true)}>Giao diện</button>
           {email ? (
             <>
@@ -107,23 +134,34 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         </div>
       </header>
 
-      <SearchBar pair={pair} onPairChange={setPair} onResult={onResult} />
+      {page === "learned" ? (
+        <div className="learned-head">
+          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
+        </div>
+      ) : (
+        <>
+          <SearchBar pair={pair} onPairChange={setPair} onResult={onResult} />
 
-      <FilterBar
-        dueCount={store.dueEntries.length}
-        highlightDue={highlightDue}
-        onlyDue={onlyDue}
-        sort={sort}
-        onToggleHighlight={() => setHighlightDue((v) => !v)}
-        onToggleOnlyDue={() => setOnlyDue((v) => !v)}
-        onSortChange={setSort}
-        onStartReview={() => setReviewing(true)}
-      />
+          <FilterBar
+            dueCount={store.dueEntries.length}
+            highlightDue={highlightDue}
+            onlyDue={onlyDue}
+            sort={sort}
+            onToggleHighlight={() => setHighlightDue((v) => !v)}
+            onToggleOnlyDue={() => setOnlyDue((v) => !v)}
+            onSortChange={setSort}
+            onStartReview={() => setReviewing(true)}
+          />
+        </>
+      )}
 
       <main className="content">
         <section className="cloud-area">
           {!store.loaded ? (
             <p className="empty">Đang tải…</p>
+          ) : page === "learned" ? (
+            <LearnedCloud entries={store.learnedEntries} onSelect={onSelectTag} />
           ) : (
             <WordCloud
               entries={store.entries}
@@ -135,16 +173,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
           )}
         </section>
 
-        {view?.kind === "detail" && (
-          <DetailPanel
-            term={view.term}
-            results={view.results}
-            entry={entryFor(view.primaryTerm, view.term_lang)}
-            onSaveCustom={onSaveCustom}
-            onClose={closeView}
-            onLookup={lookup}
-          />
-        )}
+        {detailPanel}
       </main>
 
       {reviewing && (

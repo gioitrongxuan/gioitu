@@ -55,6 +55,7 @@ function createEntry(input: LookupInput, now: number): VocabEntry {
     is_relearning: false,
     srs_interval: 0,
     next_review: null,
+    deleted_at: null,
     created_at: now,
     updated_at: now,
   };
@@ -71,6 +72,11 @@ export function registerLookup(
   now: number,
   cfg: SrsConfig = DEFAULT_SRS_CONFIG,
 ): LookupResult {
+  // A previously *deleted* word is treated as never-seen: looking it up again
+  // resurrects it as a fresh entry. createEntry stamps updated_at = now, past the
+  // tombstone, so the resurrection wins the last-write-wins sync.
+  if (existing && existing.deleted_at != null) existing = undefined;
+
   // --- First-ever lookup of this term ---
   if (!existing) {
     const entry = createEntry(input, now);
