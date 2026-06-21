@@ -164,6 +164,14 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 .term-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
 
+/* IPA pronunciations from term-meta dictionaries (one group per source dict). */
+.pronunciations { display: grid; gap: 4px; margin: 8px 0; }
+.pron-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pron-dict { font-size: 11px; color: var(--muted); }
+.ipa { display: inline-flex; align-items: center; gap: 4px; }
+.ipa-text { font-size: 15px; color: #0f172a; font-family: "Charis SIL", "Doulos SIL", "Gentium", serif; }
+.ipa-tag { font-size: 10px; color: var(--muted); background: #f1f5f9; padding: 1px 6px; border-radius: 999px; }
+
 .senses { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; }
 .sense { line-height: 1.5; }
 .sense-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; margin-right: 6px; vertical-align: baseline; }
