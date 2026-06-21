@@ -22,6 +22,8 @@ interface Props {
   onClose: () => void;
   /** Navigate to another term (internal `?query=` links). */
   onLookup?: (term: string) => void;
+  /** Add one shown result to the history map ("+"), exact or fuzzy. */
+  onAddResult?: (res: TermResult) => void;
   /** Create the SRS card now ("[+]"), bypassing the ≥2-lookup gate. */
   onAddToReview?: () => void;
   /** Mark the word as already known → LEARNED. */
@@ -39,6 +41,7 @@ export function DetailPanel({
   onSaveCustom,
   onClose,
   onLookup,
+  onAddResult,
   onAddToReview,
   onMarkKnown,
   onMarkForgotten,
@@ -63,7 +66,7 @@ export function DetailPanel({
               {res.fuzzy && !results[i - 1]?.fuzzy && (
                 <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
               )}
-              <ResultView res={res} onLookup={onLookup} />
+              <ResultView res={res} onLookup={onLookup} onAdd={onAddResult} />
             </div>
           ))}
         </div>
@@ -133,8 +136,18 @@ export function DetailPanel({
   );
 }
 
-function ResultView({ res, onLookup }: { res: TermResult; onLookup?: (term: string) => void }) {
+function ResultView({
+  res,
+  onLookup,
+  onAdd,
+}: {
+  res: TermResult;
+  onLookup?: (term: string) => void;
+  onAdd?: (res: TermResult) => void;
+}) {
   const { entry } = res;
+  // Local-only: once added we flip to a checkmark so the click reads as done.
+  const [added, setAdded] = useState(false);
   return (
     <section className="result">
       <div className="result-head">
@@ -142,6 +155,20 @@ function ResultView({ res, onLookup }: { res: TermResult; onLookup?: (term: stri
           <Furigana term={entry.term} reading={entry.reading} />
         </span>
         {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
+        {onAdd && (
+          <button
+            className="link add-result"
+            title={added ? "Đã thêm vào lịch sử" : "Thêm vào lịch sử"}
+            aria-label="Thêm vào lịch sử"
+            disabled={added}
+            onClick={() => {
+              onAdd(res);
+              setAdded(true);
+            }}
+          >
+            {added ? "✓" : "+"}
+          </button>
+        )}
       </div>
 
       {res.reasons.length > 0 && (
