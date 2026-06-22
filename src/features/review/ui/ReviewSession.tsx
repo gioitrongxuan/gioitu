@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard } from "../domain/srs";
 import { formatInterval } from "@/shared/ui/format";
+import { MeaningView } from "@/shared/ui/MeaningView";
 
 interface Props {
   queue: VocabEntry[];
@@ -66,7 +67,15 @@ export function ReviewSession({ queue, onGrade, onClose }: Props) {
         <div className="flashcard" onClick={() => setFlipped(true)}>
           <div className="front">{card.term}</div>
           {flipped && (
-            <div className="back" dangerouslySetInnerHTML={{ __html: renderMeaning(card.meaning) }} />
+            <div className="back">
+              <MeaningView
+                term={card.term}
+                reading={card.reading}
+                pos={card.pos}
+                meaning={card.meaning}
+                example={card.example}
+              />
+            </div>
           )}
           {!flipped && <p className="hint">Nhấn để lật đáp án</p>}
         </div>
@@ -90,20 +99,3 @@ export function ReviewSession({ queue, onGrade, onClose }: Props) {
   );
 }
 
-function renderMeaning(meaning: string): string {
-  // Meaning may be plain text or a JSON array of glosses.
-  try {
-    const parsed = JSON.parse(meaning);
-    if (Array.isArray(parsed)) return parsed.map(escapeHtml).join("<br/>");
-  } catch {
-    /* not JSON */
-  }
-  return escapeHtml(meaning);
-}
-
-function escapeHtml(s: unknown): string {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}

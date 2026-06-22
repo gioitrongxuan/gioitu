@@ -69,11 +69,16 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     const e = res.entry;
     const lines = sensesToLines(e.senses);
     const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(e.definitions));
+    // Part-of-speech: the sense tags, resolved to their full names when known.
+    const posCodes = [...new Set((e.senses ?? []).flatMap((s) => s.tags))];
+    const pos = posCodes.map((c) => e.tagMeta?.[c]?.name ?? c).join(", ");
     await store.recordLookup({
       term: e.term,
       term_lang: e.term_lang,
       native_lang: e.native_lang,
       meaning,
+      reading: e.reading,
+      pos: pos || undefined,
       is_custom: false,
     });
   }

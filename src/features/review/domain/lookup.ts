@@ -12,6 +12,10 @@ export interface LookupInput {
   term_lang: string;
   native_lang: string;
   meaning: string;
+  /** Kana reading (for furigana). */
+  reading?: string;
+  /** Part-of-speech text (for tag chips). */
+  pos?: string;
   is_custom?: boolean;
   /**
    * True when the lookup originates from the user pressing `[+]` (Case 2).
@@ -43,6 +47,8 @@ function createEntry(input: LookupInput, now: number): VocabEntry {
     term_lang: input.term_lang,
     native_lang: input.native_lang,
     meaning: input.meaning,
+    reading: input.reading,
+    pos: input.pos,
     is_custom: input.is_custom ?? false,
     lookup_count: 1,
     last_lookup_at: now,
@@ -104,6 +110,8 @@ export function registerLookup(
   entry.updated_at = now;
   // Refresh meaning/custom flag if a richer/custom definition came through.
   if (input.meaning) entry.meaning = input.meaning;
+  if (input.reading) entry.reading = input.reading;
+  if (input.pos) entry.pos = input.pos;
   if (input.is_custom != null) entry.is_custom = input.is_custom;
 
   let relapsed = false;

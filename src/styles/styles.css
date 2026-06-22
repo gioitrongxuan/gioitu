@@ -370,6 +370,23 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .theme-actions { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
 .theme-actions .primary { margin: 0 0 0 auto; }
 
+/* Saved-word meaning (detail panel + review card): one shared layout. */
+.meaning-view { display: grid; gap: 8px; }
+.meaning-headword { font-size: 24px; font-weight: 600; line-height: 1.4; }
+.meaning-headword ruby { ruby-align: center; }
+.meaning-headword rt { font-size: 0.5em; color: var(--muted); font-weight: 400; }
+.meaning-pos { display: flex; gap: 4px; flex-wrap: wrap; }
+.meaning-view .senses { margin: 0; }
+.meaning-example { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* Yomitan sync */
+.yk-hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+.yk-error { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
+.yk-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.yk-copy { margin-top: 0; white-space: nowrap; }
+.yk-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
+.yk-steps em { font-style: normal; font-weight: 600; }
+
 /* Toasts */
 .toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
 .toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
