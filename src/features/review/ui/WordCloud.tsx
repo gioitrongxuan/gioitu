@@ -14,10 +14,13 @@ interface Props {
   onlyDue: boolean;
   /** Ordering of the cloud (recent-first by default). */
   sort: CloudSort;
+  /** When true, each tag shows an × that deletes it on click — no confirm. */
+  deleteMode: boolean;
   onSelect: (entry: VocabEntry) => void;
+  onDelete: (entry: VocabEntry) => void;
 }
 
-export function WordCloud({ entries, highlightDue, onlyDue, sort, onSelect }: Props) {
+export function WordCloud({ entries, highlightDue, onlyDue, sort, deleteMode, onSelect, onDelete }: Props) {
   const { theme } = useTheme();
   const tags = buildCloud(entries, { now: Date.now(), sort }).filter((t) => (onlyDue ? t.due : true));
 
@@ -29,12 +32,40 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, onSelect }: Pr
     <div className="word-cloud" role="list">
       {tags.map(({ entry, shade, hasBadge, due }) => {
         const dim = highlightDue && !due;
+        const className = `tag${hasBadge ? " relapsed" : ""}${highlightDue && due ? " due" : ""}${dim ? " dimmed" : ""}${deleteMode ? " deletable" : ""}`;
+        const style = { background: heatBackground(shade), color: heatTextColor(shade, theme) };
+
+        // Delete mode: the tag itself is no longer a select button (nested
+        // buttons are invalid), it's a plain container holding a delete ×.
+        if (deleteMode) {
+          return (
+            <span
+              key={`${entry.term}:${entry.term_lang}`}
+              role="listitem"
+              className={className}
+              style={style}
+              title={`Tra ${entry.lookup_count} lần`}
+            >
+              {hasBadge && <span className="badge" aria-label="Tái quên">!</span>}
+              <span className="tag-term">{entry.term}</span>
+              <button
+                className="tag-delete"
+                aria-label={`Xoá "${entry.term}"`}
+                title="Xoá"
+                onClick={() => onDelete(entry)}
+              >
+                ×
+              </button>
+            </span>
+          );
+        }
+
         return (
           <button
             key={`${entry.term}:${entry.term_lang}`}
             role="listitem"
-            className={`tag${hasBadge ? " relapsed" : ""}${highlightDue && due ? " due" : ""}${dim ? " dimmed" : ""}`}
-            style={{ background: heatBackground(shade), color: heatTextColor(shade, theme) }}
+            className={className}
+            style={style}
             title={`Tra ${entry.lookup_count} lần`}
             onClick={() => onSelect(entry)}
           >

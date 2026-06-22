@@ -93,6 +93,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   };
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -171,9 +172,11 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
             dueCount={store.dueEntries.length}
             highlightDue={highlightDue}
             onlyDue={onlyDue}
+            deleteMode={deleteMode}
             sort={sort}
             onToggleHighlight={() => setHighlightDue((v) => !v)}
             onToggleOnlyDue={() => setOnlyDue((v) => !v)}
+            onToggleDeleteMode={() => setDeleteMode((v) => !v)}
             onSortChange={setSort}
             onStartReview={() => setReviewing(true)}
           />
@@ -192,7 +195,9 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
               highlightDue={highlightDue}
               onlyDue={onlyDue}
               sort={sort}
+              deleteMode={deleteMode}
               onSelect={onSelectTag}
+              onDelete={store.deleteEntry}
             />
           )}
         </section>
