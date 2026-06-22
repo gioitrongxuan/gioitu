@@ -1,0 +1,86 @@
+name: Deploy
+
+# Mỗi lần push lên main: chạy lại test (cổng chặn) → build image và đẩy lên
+# GHCR → SSH vào EC2 để pull image mới và khởi động lại. Caddy tự lo HTTPS.
+on:
+  push:
+    branches: [main]
+
+# Không chạy chồng hai lần deploy cùng lúc, nhưng không hủy giữa chừng (tránh
+# bỏ dở một lần deploy đang diễn ra).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  # Tên image trên GHCR, ví dụ ghcr.io/gioitrongxuan/gioitu (đã là chữ thường).
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  # 1) Cổng chặn: không deploy nếu test/typecheck/build đỏ.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # 2) Build image production và đẩy lên GHCR (gắn cả :latest và :<sha>).
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write          # cần để push lên GHCR bằng GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Đăng nhập GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build và push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 3) Đẩy file hạ tầng mới nhất lên EC2 rồi pull image + khởi động lại.
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy compose + Caddyfile lên EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: docker-compose.prod.yml,Caddyfile
+          target: ~/gioitu
+      - name: Pull image và khởi động lại
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ~/gioitu
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f

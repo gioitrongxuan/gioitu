@@ -1,0 +1,28 @@
+name: CI
+
+# Chạy kiểm thử cho mọi pull request và mọi push lên nhánh (trừ main — main do
+# workflow Deploy lo, vốn đã chạy lại test trước khi deploy). Mục tiêu: không
+# nhánh/PR nào được merge khi test còn đỏ.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+# Hủy lần chạy cũ khi cùng một ref có commit mới hơn — tiết kiệm runner.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

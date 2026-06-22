@@ -1,0 +1,57 @@
+# Ngăn xếp production trên EC2. Image được GitHub Actions ("Deploy") build và
+# đẩy lên GHCR; ở đây ta chỉ PULL rồi chạy sau Caddy (tự cấp HTTPS), kèm một
+# Postgres có volume bền vững.
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Cấu hình lấy từ file .env cùng thư mục (xem .env.prod.example) — KHÔNG commit.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gioitu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?dat POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: gioitu
+    volumes:
+      - pgdata:/var/lib/postgresql/data      # dữ liệu DB tồn tại qua các lần deploy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gioitu -d gioitu"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Cho phép ghim tag cụ thể qua GIOITU_IMAGE để rollback; mặc định :latest.
+    image: ${GIOITU_IMAGE:-ghcr.io/gioitrongxuan/gioitu:latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://gioitu:${POSTGRES_PASSWORD}@db:5432/gioitu
+      GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:?dat GIOITU_JWT_SECRET trong .env}
+      PORT: "8787"
+    depends_on:
+      db:
+        condition: service_healthy           # đợi Postgres sẵn sàng mới start
+    expose:
+      - "8787"                                # chỉ nội bộ; Caddy gọi qua mạng compose
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?dat DOMAIN trong .env}
+    ports:
+      - "80:80"                               # HTTP -> Caddy tự chuyển sang HTTPS
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data                      # giữ chứng chỉ Let's Encrypt
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
