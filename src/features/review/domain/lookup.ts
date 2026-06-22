@@ -17,12 +17,6 @@ export interface LookupInput {
   /** Part-of-speech text (for tag chips). */
   pos?: string;
   is_custom?: boolean;
-  /**
-   * True when the lookup originates from the user pressing `[+]` (Case 2).
-   * A manual add asserts intent to learn → an SRS card is created immediately,
-   * bypassing the lookup_count ≥ 2 gate (SPEC 4.4).
-   */
-  manualAdd?: boolean;
 }
 
 export interface LookupResult {
@@ -68,9 +62,9 @@ function createEntry(input: LookupInput, now: number): VocabEntry {
 }
 
 /**
- * Process a confirmed lookup (Enter / suggestion pick / detail shown / `[+]`).
- * Returns the next entry state plus a set of events the UI can surface as
- * toasts / badges. Never mutates its input.
+ * Process a confirmed lookup (the user pressed "+" on a shown result, or
+ * followed an internal link). Returns the next entry state plus a set of events
+ * the UI can surface as toasts / badges. Never mutates its input.
  */
 export function registerLookup(
   existing: VocabEntry | undefined,
@@ -83,21 +77,16 @@ export function registerLookup(
   // tombstone, so the resurrection wins the last-write-wins sync.
   if (existing && existing.deleted_at != null) existing = undefined;
 
-  // --- First-ever lookup of this term ---
+  // --- First-ever lookup of this term: created, but not yet on the SRS queue
+  // (it must prove "forgettable" by being looked up again — see gating below). ---
   if (!existing) {
     const entry = createEntry(input, now);
-    let cardCreated = false;
-    // Manual [+] asserts intent → create the card right away (SPEC 4.4 gating).
-    if (input.manualAdd) {
-      Object.assign(entry, newCardState(now, cfg));
-      cardCreated = true;
-    }
-    return { entry, events: { created: true, counted: true, cardCreated, relapsed: false } };
+    return { entry, events: { created: true, counted: true, cardCreated: false, relapsed: false } };
   }
 
   // --- Debounce: same term re-opened within the window does not re-count ---
   const debounced = now - existing.last_lookup_at < LOOKUP_DEBOUNCE_MS;
-  if (debounced && !input.manualAdd) {
+  if (debounced) {
     return {
       entry: existing,
       events: { created: false, counted: false, cardCreated: false, relapsed: false },
@@ -123,7 +112,7 @@ export function registerLookup(
     relapsed = true;
   } else if (entry.card_state == null) {
     // --- Gating: create the SRS card once it has proven "forgettable" ---
-    if (entry.lookup_count >= SRS_GATING_THRESHOLD || input.manualAdd) {
+    if (entry.lookup_count >= SRS_GATING_THRESHOLD) {
       Object.assign(entry, newCardState(now, cfg));
       cardCreated = true;
     }

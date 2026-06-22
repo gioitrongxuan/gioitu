@@ -4,8 +4,8 @@
 // an SRS card immediately, bypassing the web app's lookup-count gate.
 //
 // The card/entry shape mirrors src/features/review/domain/{lookup,srs}.ts
-// (createEntry + newCardState, manual-add path). Kept as an independent copy
-// because the backend does not depend on frontend code — keep the two in sync.
+// (createEntry + newCardState). Kept as an independent copy because the backend
+// does not depend on frontend code — keep the two in sync.
 
 import type { VocabEntry } from "@/shared/types";
 

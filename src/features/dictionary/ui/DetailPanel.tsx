@@ -25,8 +25,6 @@ interface Props {
   onLookup?: (term: string) => void;
   /** Add one shown result to the history map ("+"), exact or fuzzy. */
   onAddResult?: (res: TermResult) => void;
-  /** Create the SRS card now ("[+]"), bypassing the ≥2-lookup gate. */
-  onAddToReview?: () => void;
   /** Mark the word as already known → LEARNED. */
   onMarkKnown?: (entry: VocabEntry) => void;
   /** Mark a learned word as forgotten → relapse into the review queue. */
@@ -43,7 +41,6 @@ export function DetailPanel({
   onClose,
   onLookup,
   onAddResult,
-  onAddToReview,
   onMarkKnown,
   onMarkForgotten,
   onDelete,
@@ -111,12 +108,6 @@ export function DetailPanel({
               </>
             )}
           </div>
-
-          {entry.card_state == null && onAddToReview && (
-            <button className="primary add-review" onClick={onAddToReview}>
-              Thêm vào ôn tập
-            </button>
-          )}
 
           <div className="detail-actions">
             {entry.status === "LEARNED"

@@ -101,7 +101,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [theming, setTheming] = useState(false);
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
-  const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, addToReview, closeView } = useLookup(store, pair, dictSource);
+  const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -117,7 +117,6 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
       onClose={closeView}
       onLookup={lookup}
       onAddResult={addResult}
-      onAddToReview={addToReview}
       onMarkKnown={store.markKnownEntry}
       onMarkForgotten={store.markForgottenEntry}
       onDelete={async (e) => {
