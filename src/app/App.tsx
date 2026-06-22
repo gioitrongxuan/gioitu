@@ -19,6 +19,7 @@ import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
 import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
+import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, getSession } from "@/features/auth/data/auth";
 import { Toasts } from "@/shared/ui/Toasts";
@@ -98,6 +99,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
   const [theming, setTheming] = useState(false);
+  const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
   const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, addToReview, closeView } = useLookup(store, pair, dictSource);
 
@@ -138,6 +140,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
             </button>
           )}
           <button className="link" onClick={() => setTheming(true)}>Giao diện</button>
+          <button className="link" onClick={() => setConnectingYomitan(true)}>Kết nối Yomitan</button>
           {email ? (
             <>
               <button className="link" onClick={store.runSync}>Đồng bộ</button>
@@ -225,6 +228,17 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
       )}
 
       {theming && <ThemeSettings onClose={() => setTheming(false)} />}
+
+      {connectingYomitan && (
+        <YomitanSync
+          loggedIn={email != null}
+          onRequestLogin={() => {
+            setConnectingYomitan(false);
+            onRequestLogin();
+          }}
+          onClose={() => setConnectingYomitan(false)}
+        />
+      )}
 
       <Toasts toasts={store.toasts} />
     </div>

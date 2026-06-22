@@ -34,6 +34,13 @@ export async function initSchema(): Promise<void> {
       created_at BIGINT NOT NULL
     );
 
+    -- Stable, long-lived key the user pastes into Yomitan's AnkiConnect "API
+    -- Key" field so the /api/yomitan-sync endpoint can attribute notes to them
+    -- (the login JWT expires; this does not). NULL until first generated; the
+    -- unique index permits many NULLs (Postgres treats NULLs as distinct).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
+
     -- Imported dictionaries (one row per .zip imported). Terms reference this
     -- via dict.dict_id so a whole dictionary can be listed or deleted.
     CREATE TABLE IF NOT EXISTS dictionaries (

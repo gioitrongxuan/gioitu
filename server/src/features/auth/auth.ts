@@ -66,6 +66,11 @@ export function newUserId(): string {
   return crypto.randomUUID();
 }
 
+/** A stable, long-lived API key for Yomitan sync (prefixed for recognisability). */
+export function newApiKey(): string {
+  return `gk_${crypto.randomBytes(24).toString("base64url")}`;
+}
+
 /** Basic email shape check. */
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

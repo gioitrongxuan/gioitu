@@ -10,6 +10,7 @@ import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
 import { Definitions, Furigana, Pronunciations, TagChip } from "./StructuredContent";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
+import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 
 interface Props {
   /** The text the user searched (surface form). */
@@ -49,12 +50,18 @@ export function DetailPanel({
 }: Props) {
   const [custom, setCustom] = useState("");
 
-  const savedLines = !results.length && entry ? safeGlosses(entry.meaning) : [];
+  const savedLines = !results.length && entry ? meaningToLines(entry.meaning) : [];
 
   return (
     <aside className="detail-panel" aria-label="Chi tiết từ">
       <header>
-        <h2>{term}</h2>
+        <h2>
+          {!results.length && entry?.reading ? (
+            <Furigana term={entry.term} reading={entry.reading} />
+          ) : (
+            term
+          )}
+        </h2>
         <button className="link close" onClick={onClose}>✕</button>
       </header>
 
@@ -70,8 +77,8 @@ export function DetailPanel({
             </div>
           ))}
         </div>
-      ) : savedLines.length > 0 ? (
-        <Definitions definitions={savedLines} onLookup={onLookup} />
+      ) : entry && savedLines.length > 0 ? (
+        <MeaningView pos={entry.pos} meaning={entry.meaning} example={entry.example} />
       ) : (
         <div className="custom-def">
           <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
@@ -209,12 +216,3 @@ function statusLabel(entry: VocabEntry): string {
   return s === "LEARNED" ? "Đã thuộc" : s === "RELAPSED" ? "Tái quên !" : "Đang học";
 }
 
-function safeGlosses(meaning: string): string[] {
-  try {
-    const p = JSON.parse(meaning);
-    if (Array.isArray(p)) return p.map(String);
-  } catch {
-    /* plain text */
-  }
-  return meaning ? [meaning] : [];
-}

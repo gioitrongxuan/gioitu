@@ -9,6 +9,7 @@ import {
   newUserId,
   isValidEmail,
 } from "./auth.js";
+import * as userStore from "./userStore.js";
 
 interface UserRow {
   id: string;
@@ -65,5 +66,23 @@ authRoutes.get(
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "Không tìm thấy người dùng" });
     res.json({ user_id: row.id, email: row.email });
+  }),
+);
+
+// Yomitan sync key: stable, long-lived key the user pastes into Yomitan so the
+// /api/yomitan-sync endpoint can attribute saved notes to their account.
+authRoutes.get(
+  "/yomitan-key",
+  requireAuth,
+  wrap(async (req: AuthedRequest, res) => {
+    res.json({ api_key: await userStore.ensureApiKey(req.userId!) });
+  }),
+);
+
+authRoutes.post(
+  "/yomitan-key/regenerate",
+  requireAuth,
+  wrap(async (req: AuthedRequest, res) => {
+    res.json({ api_key: await userStore.regenerateApiKey(req.userId!) });
   }),
 );

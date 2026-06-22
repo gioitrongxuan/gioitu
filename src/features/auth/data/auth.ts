@@ -65,3 +65,25 @@ export function register(email: string, password: string): Promise<Session> {
 export function login(email: string, password: string): Promise<Session> {
   return post("/auth/login", { email, password });
 }
+
+/** Authenticated request that returns parsed JSON, or throws the server's error. */
+async function authed<T>(path: string, method: "GET" | "POST"): Promise<T> {
+  const token = authToken();
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? "Yêu cầu thất bại");
+  return data as T;
+}
+
+/** The user's stable Yomitan API key (generated server-side on first request). */
+export function getYomitanKey(): Promise<{ api_key: string }> {
+  return authed("/auth/yomitan-key", "GET");
+}
+
+/** Rotate the Yomitan API key (old one stops working immediately). */
+export function regenerateYomitanKey(): Promise<{ api_key: string }> {
+  return authed("/auth/yomitan-key/regenerate", "POST");
+}
