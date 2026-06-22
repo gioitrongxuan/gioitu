@@ -1,57 +1,36 @@
-// Auth routes (mounted at /api/auth): email + password → JWT.
+// Auth routes (mounted at /api/auth): Google sign-in → session JWT.
 import { Router } from "express";
 import { pool } from "../../core/db.js";
 import { wrap, requireAuth, AuthedRequest } from "../../core/middleware.js";
-import {
-  hashPassword,
-  verifyPassword,
-  signToken,
-  newUserId,
-  isValidEmail,
-} from "./auth.js";
+import { signToken } from "./auth.js";
+import { googleClientId, verifyGoogleIdToken } from "./google.js";
 import * as userStore from "./userStore.js";
-
-interface UserRow {
-  id: string;
-  email: string;
-  password_hash: string;
-  created_at: string;
-}
 
 export const authRoutes = Router();
 
+// Public config the front-end needs before it can render the Google button.
+// Exposing the client id here (it is not secret) keeps a single source of truth
+// on the server, so no rebuild is needed to point the app at a Google project.
+authRoutes.get("/config", (_req, res) => {
+  res.json({ google_client_id: googleClientId() });
+});
+
+// Exchange a Google ID token (from Google Identity Services) for a session JWT.
 authRoutes.post(
-  "/register",
+  "/google",
   wrap(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim().toLowerCase();
-    const password = String(req.body?.password ?? "");
-    if (!isValidEmail(email)) return res.status(400).json({ error: "Email không hợp lệ" });
-    if (password.length < 6) return res.status(400).json({ error: "Mật khẩu tối thiểu 6 ký tự" });
+    const credential = String(req.body?.credential ?? "");
+    if (!credential) return res.status(400).json({ error: "Thiếu thông tin đăng nhập Google" });
 
-    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (existing.rowCount) return res.status(409).json({ error: "Email đã được đăng ký" });
-
-    const user = { id: newUserId(), email };
-    await pool.query(
-      "INSERT INTO users (id, email, password_hash, created_at) VALUES ($1, $2, $3, $4)",
-      [user.id, email, hashPassword(password), Date.now()],
-    );
-
-    res.json({ token: signToken(user), user_id: user.id, email });
-  }),
-);
-
-authRoutes.post(
-  "/login",
-  wrap(async (req, res) => {
-    const email = String(req.body?.email ?? "").trim().toLowerCase();
-    const password = String(req.body?.password ?? "");
-    const { rows } = await pool.query<UserRow>("SELECT * FROM users WHERE email = $1", [email]);
-    const row = rows[0];
-    if (!row || !verifyPassword(password, row.password_hash)) {
-      return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
+    let identity;
+    try {
+      identity = await verifyGoogleIdToken(credential);
+    } catch (err) {
+      return res.status(401).json({ error: (err as Error).message || "Xác minh Google thất bại" });
     }
-    res.json({ token: signToken(row), user_id: row.id, email: row.email });
+
+    const user = await userStore.upsertGoogleUser(identity);
+    res.json({ token: signToken(user), user_id: user.id, email: user.email });
   }),
 );
 

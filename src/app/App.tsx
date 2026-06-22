@@ -33,17 +33,15 @@ import { useLookup } from "./useLookup";
  * a guest is migrated to the new account so nothing is lost.
  */
 export default function App() {
-  const { session, login, register, logout } = useAuth();
+  const { session, loginWithGoogle, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
-  const migrateThen =
-    (fn: (email: string, password: string) => Promise<void>) =>
-    async (email: string, password: string) => {
-      await fn(email, password);
-      const s = getSession();
-      if (s) await reassignEntries(GUEST_USER_ID, s.user_id);
-      setShowAuth(false);
-    };
+  const signInWithGoogle = async (credential: string) => {
+    await loginWithGoogle(credential);
+    const s = getSession();
+    if (s) await reassignEntries(GUEST_USER_ID, s.user_id);
+    setShowAuth(false);
+  };
 
   const userId = session?.user_id ?? GUEST_USER_ID;
 
@@ -57,11 +55,7 @@ export default function App() {
         onRequestLogin={() => setShowAuth(true)}
       />
       {showAuth && !session && (
-        <AuthScreen
-          onLogin={migrateThen(login)}
-          onRegister={migrateThen(register)}
-          onClose={() => setShowAuth(false)}
-        />
+        <AuthScreen onCredential={signInWithGoogle} onClose={() => setShowAuth(false)} />
       )}
     </>
   );

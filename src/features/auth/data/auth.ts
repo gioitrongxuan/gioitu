@@ -1,4 +1,4 @@
-// Client-side auth: talks to the backend, persists the JWT + user in
+// Client-side auth: signs in with Google, persists the session JWT + user in
 // localStorage, and exposes the current session.
 
 export interface Session {
@@ -58,12 +58,17 @@ async function post(path: string, body: unknown): Promise<Session> {
   return session;
 }
 
-export function register(email: string, password: string): Promise<Session> {
-  return post("/auth/register", { email, password });
+/** Exchange a Google ID token (from Google Identity Services) for a session. */
+export function loginWithGoogle(credential: string): Promise<Session> {
+  return post("/auth/google", { credential });
 }
 
-export function login(email: string, password: string): Promise<Session> {
-  return post("/auth/login", { email, password });
+/** The server's public Google client id (null when sign-in is unconfigured). */
+export async function getGoogleClientId(): Promise<string | null> {
+  const res = await fetch("/api/auth/config");
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => ({}))) as { google_client_id?: string | null };
+  return data.google_client_id ?? null;
 }
 
 /** Authenticated request that returns parsed JSON, or throws the server's error. */

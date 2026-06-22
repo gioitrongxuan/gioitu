@@ -1,36 +1,27 @@
-// Login / Register screen (email + password). Shown when not authenticated.
+// Sign-in screen (Google only). Shown when the user chooses to sign in; the app
+// itself stays usable as a guest, so this is optional.
 
 import { useState } from "react";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 
 interface Props {
-  onLogin: (email: string, password: string) => Promise<void>;
-  onRegister: (email: string, password: string) => Promise<void>;
+  onCredential: (credential: string) => Promise<void>;
   /** When provided, the screen renders as a dismissible modal (guest flow). */
   onClose?: () => void;
 }
 
-export function AuthScreen({ onLogin, onRegister, onClose }: Props) {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export function AuthScreen({ onCredential, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const isModal = onClose != null;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCredential(credential: string) {
     setError(null);
-    setBusy(true);
     try {
-      if (mode === "login") await onLogin(email.trim(), password);
-      else await onRegister(email.trim(), password);
+      await onCredential(credential);
     } catch (err) {
       setError((err as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
-
-  const isModal = onClose != null;
 
   return (
     <div
@@ -46,47 +37,14 @@ export function AuthScreen({ onLogin, onRegister, onClose }: Props) {
         <h1>Gioitu</h1>
         <p className="muted">Từ điển cá nhân hóa + ôn tập lặp lại ngắt quãng</p>
 
-        <div className="auth-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
-            Đăng nhập
-          </button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>
-            Đăng ký
-          </button>
+        <div className="auth-google-wrap">
+          <GoogleSignInButton onCredential={handleCredential} />
         </div>
 
-        <form onSubmit={submit}>
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              autoComplete="email"
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Mật khẩu
-            <input
-              type="password"
-              value={password}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
-              required
-            />
-          </label>
-
-          {error && <p className="auth-error">{error}</p>}
-
-          <button className="primary" type="submit" disabled={busy}>
-            {busy ? "Đang xử lý…" : mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
-          </button>
-        </form>
+        {error && <p className="auth-error">{error}</p>}
 
         <p className="muted small">
-          Đăng nhập để đồng bộ tiến trình học của bạn trên mọi thiết bị.
+          Đăng nhập bằng Google để đồng bộ tiến trình học của bạn trên mọi thiết bị.
           {isModal && " Tiến trình bạn đã học khi dùng thử sẽ được giữ lại."}
         </p>
 
