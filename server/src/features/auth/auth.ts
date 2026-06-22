@@ -1,26 +1,11 @@
-// Authentication helpers (email + password → JWT), zero external deps.
-// Password hashing: scrypt with a per-user random salt.
+// Session-token helpers: after Google verifies the user (see google.ts) we mint
+// our own short-lived session JWT so the rest of the API authenticates the same
+// way regardless of identity provider. Zero external deps.
 // Tokens: HS256 JWT signed with GIOITU_JWT_SECRET.
 import crypto from "node:crypto";
 
 const JWT_SECRET = process.env.GIOITU_JWT_SECRET ?? "dev-insecure-secret-change-me";
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
-
-// --- Password hashing (scrypt) ---
-
-export function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16);
-  const hash = crypto.scryptSync(password, salt, 64);
-  return `${salt.toString("hex")}:${hash.toString("hex")}`;
-}
-
-export function verifyPassword(password: string, stored: string): boolean {
-  const [saltHex, hashHex] = stored.split(":");
-  if (!saltHex || !hashHex) return false;
-  const expected = Buffer.from(hashHex, "hex");
-  const actual = crypto.scryptSync(password, Buffer.from(saltHex, "hex"), 64);
-  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
-}
 
 // --- Minimal HS256 JWT ---
 
@@ -69,9 +54,4 @@ export function newUserId(): string {
 /** A stable, long-lived API key for Yomitan sync (prefixed for recognisability). */
 export function newApiKey(): string {
   return `gk_${crypto.randomBytes(24).toString("base64url")}`;
-}
-
-/** Basic email shape check. */
-export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }

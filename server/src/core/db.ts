@@ -30,9 +30,17 @@ export async function initSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      -- Google account subject ("sub" claim): the stable identity we match on so
+      -- a user keeps the same row even if their Google email later changes.
+      google_sub TEXT,
       created_at BIGINT NOT NULL
     );
+
+    -- Identity is now Google sign-in only; older databases predate this. Drop the
+    -- dead password column and add google_sub, backfilled on the user's next login.
+    ALTER TABLE users DROP COLUMN IF EXISTS password_hash;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);
 
     -- Stable, long-lived key the user pastes into Yomitan's AnkiConnect "API
     -- Key" field so the /api/yomitan-sync endpoint can attribute notes to them

@@ -23,6 +23,8 @@ services:
       DATABASE_URL: postgres://gioitu:gioitu@db:5432/gioitu
       # Override in a real deployment, e.g. `GIOITU_JWT_SECRET=... docker compose up`.
       GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:-dev-insecure-secret-change-me}
+      # Google "Sign in with Google" client id; leave unset to keep guest-only.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       PORT: "8787"
     depends_on:
       db:

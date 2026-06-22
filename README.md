@@ -76,12 +76,12 @@ changes are seen across the bind mount.
 > on `:8787`) **or** `docker-compose.dev.yml` (live reload on `:5173`), not both
 > at once — they share Postgres and ports.
 
-The backend is required for **accounts + cloud sync** (email/password → JWT).
+The backend is required for **accounts + cloud sync** (Google sign-in → JWT).
 Once signed in, the app caches everything in IndexedDB and keeps working if the
 backend goes offline — sync resumes when it is reachable again. Dictionary
 look-ups still fall back to IndexedDB / the server's default dictionary.
 
-## Guest mode + Authentication (email + password)
+## Guest mode + Authentication (Google sign-in)
 
 The app is **fully usable without an account**. If you are not signed in you run
 as a *guest*: look-ups, the Word Cloud, and SRS reviews all work and persist
@@ -90,7 +90,7 @@ locally in IndexedDB (keyed under the `__guest__` user id). Signing in is
 
 - **Guest** (`GUEST_USER_ID` in `src/features/auth/data/auth.ts`): no auth token, so sync is a
   no-op and data never leaves the device. The header shows *Khách* with an
-  *Đăng nhập* button that opens the login/register screen as a dismissible modal.
+  *Đăng nhập* button that opens the Google sign-in screen as a dismissible modal.
 - **First sign-in migrates guest progress**: `reassignEntries()`
   (`src/features/review/data/repository.ts`) moves any `__guest__` entries onto the new account
   (last-write-wins per term) so nothing learned while trying the app is lost.
@@ -98,10 +98,15 @@ locally in IndexedDB (keyed under the `__guest__` user id). Signing in is
 Per SPEC §2.C, learning data is tied to an account so it is consistent across
 devices once you sign in:
 
-- **Backend** (`server/src/features/auth/auth.ts`, zero external deps): passwords hashed with
-  `scrypt` + per-user random salt; sessions are **HS256 JWTs** signed with
-  `GIOITU_JWT_SECRET`. `POST /api/auth/register`, `POST /api/auth/login`,
-  `GET /api/auth/me`.
+- **Sign-in is Google-only.** Set `GOOGLE_CLIENT_ID` on the server (an OAuth 2.0
+  *Web application* client id from Google Cloud Console — not secret). The
+  frontend reads it from `GET /api/auth/config`, renders Google Identity
+  Services' button, and posts the resulting ID token to `POST /api/auth/google`.
+- **Backend** (`server/src/features/auth/`): `google.ts` verifies the ID token
+  with `google-auth-library` (signature, audience, issuer, expiry); the account
+  is matched by Google subject — falling back to email so a pre-OAuth account
+  keeps its data — then issued an **HS256 session JWT** (`auth.ts`) signed with
+  `GIOITU_JWT_SECRET`. Also `GET /api/auth/me`.
 - **Sync is protected**: `/api/sync` requires `Authorization: Bearer <token>`
   and derives `user_id` from the token — a client-supplied `user_id` is ignored
   (ownership cannot be spoofed).
