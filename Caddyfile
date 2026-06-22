@@ -1,0 +1,7 @@
+# Reverse proxy cho production. Caddy tự xin và gia hạn chứng chỉ Let's Encrypt
+# cho DOMAIN, rồi chuyển tiếp mọi request vào app (Express + UI) ở cổng 8787.
+# DOMAIN được nạp từ .env qua biến môi trường của service caddy.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8787
+}
