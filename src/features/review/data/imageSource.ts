@@ -1,22 +1,18 @@
-// Network wrapper around the pure wordImage logic. Talks to Wikipedia's
-// action API directly from the browser (anonymous CORS via `origin=*`), so the
-// feature needs no server and works the same offline-or-online as the rest of
-// the app: once a URL is stored on the entry it syncs and the <img> loads from
-// the Wikimedia CDN.
+// Thin client for the server's image endpoint (/api/word-image). The server
+// owns the Pixabay key and the Jisho translation; we just ask it for a word's
+// illustrative image. Returns null when there is genuinely none (the store then
+// records the attempt); throws on a transport/misconfig error so the store
+// leaves the word unstamped and retries on a later view.
 
-import { buildImageQueryUrl, parseImageResponse, wikipediaHost, WordImage } from "../domain/wordImage";
+import { WordImage } from "../domain/wordImage";
 
-/**
- * Find an illustrative image for a word.
- *   • returns a WordImage when the top article has a lead image,
- *   • returns null when the API answers but offers nothing usable (a real
- *     "none" — the caller records the attempt and won't retry),
- *   • throws on a network/transport failure so the caller can retry later.
- */
+const BASE = "/api";
+
 export async function fetchWordImage(term: string, termLang: string): Promise<WordImage | null> {
   const query = term.trim();
   if (!query) return null;
-  const res = await fetch(buildImageQueryUrl(query, termLang));
-  if (!res.ok) return null; // a valid HTTP answer with no result — not a transport error
-  return parseImageResponse(await res.json(), wikipediaHost(termLang));
+  const params = new URLSearchParams({ term: query, lang: termLang });
+  const res = await fetch(`${BASE}/word-image?${params}`);
+  if (!res.ok) throw new Error(`word-image HTTP ${res.status}`); // transient → not stamped
+  return (await res.json()) as WordImage | null;
 }
