@@ -9,8 +9,9 @@ import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
+import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { reassignEntries } from "@/features/review/data/repository";
-import { CloudSort } from "@/features/review/domain/wordcloud";
+import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
 import { hasLocalDict } from "@/features/dictionary/data/search";
 import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
@@ -93,6 +94,9 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   const [onlyDue, setOnlyDue] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
+  // Shared by both maps (home + "Đã thuộc") so the view reads the same way.
+  const [cloudLang, setCloudLang] = useState<CloudLang>("all");
+  const [grouping, setGrouping] = useState<TimeGrouping>("none");
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
   const [theming, setTheming] = useState(false);
@@ -159,6 +163,12 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
         <div className="learned-head">
           <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
           <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
+          <CloudViewControls
+            lang={cloudLang}
+            grouping={grouping}
+            onLangChange={setCloudLang}
+            onGroupingChange={setGrouping}
+          />
         </div>
       ) : (
         <>
@@ -176,10 +186,14 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
             onlyDue={onlyDue}
             deleteMode={deleteMode}
             sort={sort}
+            lang={cloudLang}
+            grouping={grouping}
             onToggleHighlight={() => setHighlightDue((v) => !v)}
             onToggleOnlyDue={() => setOnlyDue((v) => !v)}
             onToggleDeleteMode={() => setDeleteMode((v) => !v)}
             onSortChange={setSort}
+            onLangChange={setCloudLang}
+            onGroupingChange={setGrouping}
             onStartReview={() => setReviewing(true)}
           />
         </>
@@ -190,13 +204,20 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           {!store.loaded ? (
             <p className="empty">Đang tải…</p>
           ) : page === "learned" ? (
-            <LearnedCloud entries={store.learnedEntries} onSelect={onSelectTag} />
+            <LearnedCloud
+              entries={store.learnedEntries}
+              lang={cloudLang}
+              grouping={grouping}
+              onSelect={onSelectTag}
+            />
           ) : (
             <WordCloud
               entries={store.entries}
               highlightDue={highlightDue}
               onlyDue={onlyDue}
               sort={sort}
+              lang={cloudLang}
+              grouping={grouping}
               deleteMode={deleteMode}
               onSelect={onSelectTag}
               onDelete={store.deleteEntry}

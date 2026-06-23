@@ -3,7 +3,10 @@ import {
   buildCloud,
   computeShade,
   effectiveCount,
+  filterByLang,
+  groupByPeriod,
   isVisibleOnCloud,
+  periodOf,
 } from "@/features/review/domain/wordcloud";
 import { makeEntry } from "./fixtures";
 
@@ -81,6 +84,64 @@ describe("cloud ordering", () => {
     const freq = buildCloud(entries, { now: 1000, sort: "frequency" });
     const shadeOf = (c: typeof recent, term: string) => c.find((t) => t.entry.term === term)!.shade;
     expect(shadeOf(recent, "old")).toBeCloseTo(shadeOf(freq, "old"));
+  });
+});
+
+describe("language split", () => {
+  const entries = [
+    makeEntry({ term: "食べる", term_lang: "ja", status: "LEARNING", lookup_count: 5 }),
+    makeEntry({ term: "apple", term_lang: "en", status: "LEARNING", lookup_count: 3 }),
+    makeEntry({ term: "学校", term_lang: "ja", status: "RELAPSED", lookup_count: 1 }),
+  ];
+
+  it("filterByLang keeps only the chosen language; 'all' keeps everything", () => {
+    expect(filterByLang(entries, "all")).toHaveLength(3);
+    expect(filterByLang(entries, "ja").map((e) => e.term)).toEqual(["食べる", "学校"]);
+    expect(filterByLang(entries, "en").map((e) => e.term)).toEqual(["apple"]);
+  });
+
+  it("buildCloud filters by language and renormalizes the max within it", () => {
+    const ja = buildCloud(entries, { now: 0, lang: "ja" });
+    expect(ja.map((t) => t.entry.term).sort()).toEqual(["学校", "食べる"]);
+    // Within ja the max lookup_count is 5 (食べる) → shade 1; the en word is gone.
+    expect(ja.find((t) => t.entry.term === "食べる")!.shade).toBe(1);
+    expect(ja.some((t) => t.entry.term === "apple")).toBe(false);
+  });
+});
+
+describe("time bucketing (periodOf)", () => {
+  const now = new Date(2026, 5, 23, 10).getTime(); // 2026-06-23 local time
+
+  it("labels day buckets, with relative 'Hôm nay'/'Hôm qua'", () => {
+    expect(periodOf(new Date(2026, 5, 23, 8).getTime(), "day", now)).toEqual({ key: "2026-06-23", label: "Hôm nay" });
+    expect(periodOf(new Date(2026, 5, 22, 23).getTime(), "day", now)).toEqual({ key: "2026-06-22", label: "Hôm qua" });
+    expect(periodOf(new Date(2026, 5, 1).getTime(), "day", now)).toEqual({ key: "2026-06-01", label: "01/06/2026" });
+  });
+
+  it("labels month and year buckets", () => {
+    expect(periodOf(new Date(2026, 5, 9).getTime(), "month", now)).toEqual({ key: "2026-06", label: "Tháng 6 2026" });
+    expect(periodOf(new Date(2025, 11, 31).getTime(), "year", now)).toEqual({ key: "2025", label: "2025" });
+  });
+});
+
+describe("groupByPeriod", () => {
+  const now = new Date(2026, 5, 23, 12).getTime();
+  const tags = [
+    { entry: { last_lookup_at: new Date(2026, 5, 23, 9).getTime() } },
+    { entry: { last_lookup_at: new Date(2026, 5, 22, 9).getTime() } },
+    { entry: { last_lookup_at: new Date(2026, 4, 10).getTime() } },
+    { entry: { last_lookup_at: new Date(2026, 5, 23, 18).getTime() } },
+  ];
+
+  it("buckets by day, newest bucket first, keeping ≥1 item per matching day", () => {
+    const groups = groupByPeriod(tags, "day", now);
+    expect(groups.map((g) => g.label)).toEqual(["Hôm nay", "Hôm qua", "10/05/2026"]);
+    expect(groups[0].items).toHaveLength(2); // both 2026-06-23 lookups land together
+  });
+
+  it("buckets by month and year", () => {
+    expect(groupByPeriod(tags, "month", now).map((g) => g.label)).toEqual(["Tháng 6 2026", "Tháng 5 2026"]);
+    expect(groupByPeriod(tags, "year", now).map((g) => g.key)).toEqual(["2026"]);
   });
 });
 
