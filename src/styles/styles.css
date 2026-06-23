@@ -80,6 +80,9 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Word cloud */
 .word-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+/* Time-grouped cloud (ngày/tháng/năm display mode) */
+.cloud-groups { display: flex; flex-direction: column; gap: 18px; }
+.cloud-group-head { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .tag {
   position: relative; height: 38px; display: inline-flex; align-items: center;
   padding: 0 14px; border: none; border-radius: 8px; cursor: pointer;
@@ -144,7 +147,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .detail-actions { display: flex; gap: 16px; margin-top: 10px; }
 
 /* "Đã thuộc" achievement page */
-.learned-head { display: flex; align-items: baseline; gap: 16px; margin: 8px 0 4px; }
+.learned-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 8px 0 4px; }
 .learned-head h2 { margin: 0; font-size: 20px; }
 
 /* Buttons */
