@@ -5,6 +5,8 @@ export interface Session {
   token: string;
   user_id: string;
   email: string;
+  /** Server-decided: may this user manage the shared server dictionary? */
+  is_admin?: boolean;
 }
 
 const KEY = "gioitu_session";

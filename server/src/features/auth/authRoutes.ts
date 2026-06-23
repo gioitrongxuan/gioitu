@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { pool } from "../../core/db.js";
 import { wrap, requireAuth, AuthedRequest } from "../../core/middleware.js";
-import { signToken } from "./auth.js";
+import { isAdminEmail, signToken } from "./auth.js";
 import { googleClientId, verifyGoogleIdToken } from "./google.js";
 import * as userStore from "./userStore.js";
 
@@ -30,7 +30,12 @@ authRoutes.post(
     }
 
     const user = await userStore.upsertGoogleUser(identity);
-    res.json({ token: signToken(user), user_id: user.id, email: user.email });
+    res.json({
+      token: signToken(user),
+      user_id: user.id,
+      email: user.email,
+      is_admin: isAdminEmail(user.email),
+    });
   }),
 );
 
@@ -44,7 +49,7 @@ authRoutes.get(
     );
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "Không tìm thấy người dùng" });
-    res.json({ user_id: row.id, email: row.email });
+    res.json({ user_id: row.id, email: row.email, is_admin: isAdminEmail(row.email) });
   }),
 );
 

@@ -1,8 +1,8 @@
 // Dictionary routes (mounted at /api/dict). Public look-up + suggestions; the
-// rest mutate the shared dictionary and require a signed-in user. SQL lives in
-// dictStore; these handlers only validate input and shape the HTTP response.
+// rest manage the shared dictionary and require an admin (requireAdmin). SQL
+// lives in dictStore; these handlers only validate input and shape the response.
 import express, { Router } from "express";
-import { wrap, requireAuth } from "../../core/middleware.js";
+import { wrap, requireAdmin } from "../../core/middleware.js";
 import * as dictStore from "./dictStore.js";
 
 export const dictRoutes = Router();
@@ -50,7 +50,7 @@ dictRoutes.get(
 // otherwise from the archive's index.json.
 dictRoutes.post(
   "/import",
-  requireAuth,
+  requireAdmin,
   express.raw({ type: ["application/zip", "application/octet-stream"], limit: "256mb" }),
   wrap(async (req, res) => {
     const buf = req.body as Buffer;
@@ -70,7 +70,7 @@ dictRoutes.post(
 // Import a Yomitan .zip from a URL (the server downloads it). Body: { url }.
 dictRoutes.post(
   "/import-url",
-  requireAuth,
+  requireAdmin,
   wrap(async (req, res) => {
     const url = String(req.body?.url ?? "").trim();
     const src = req.body?.src ? String(req.body.src) : undefined;
@@ -97,7 +97,7 @@ dictRoutes.post(
 // List imported dictionaries with their current term counts.
 dictRoutes.get(
   "/dictionaries",
-  requireAuth,
+  requireAdmin,
   wrap(async (_req, res) => {
     res.json(await dictStore.listDictionaries());
   }),
@@ -106,7 +106,7 @@ dictRoutes.get(
 // Delete a dictionary and all of its terms.
 dictRoutes.delete(
   "/dictionaries/:id",
-  requireAuth,
+  requireAdmin,
   wrap(async (req, res) => {
     const found = await dictStore.deleteDictionary(String(req.params.id));
     if (!found) return res.status(404).json({ error: "Không tìm thấy từ điển" });
@@ -117,7 +117,7 @@ dictRoutes.delete(
 // Browse / search terms within a language pair (paginated).
 dictRoutes.get(
   "/terms",
-  requireAuth,
+  requireAdmin,
   wrap(async (req, res) => {
     const src = String(req.query.src ?? "");
     const tgt = String(req.query.tgt ?? "");
@@ -131,7 +131,7 @@ dictRoutes.get(
 // Add or edit a term's meanings (upsert).
 dictRoutes.put(
   "/term",
-  requireAuth,
+  requireAdmin,
   wrap(async (req, res) => {
     const term = String(req.body?.term ?? "").trim();
     const term_lang = String(req.body?.term_lang ?? "");
@@ -154,7 +154,7 @@ dictRoutes.put(
 // Delete a single term.
 dictRoutes.delete(
   "/term",
-  requireAuth,
+  requireAdmin,
   wrap(async (req, res) => {
     const term = String(req.body?.term ?? "");
     const term_lang = String(req.body?.term_lang ?? "");

@@ -1,6 +1,6 @@
 // Cross-cutting Express middleware: async-handler wrapping and bearer-token auth.
 import { NextFunction, Request, Response } from "express";
-import { verifyToken } from "../features/auth/auth.js";
+import { isAdminEmail, verifyToken } from "../features/auth/auth.js";
 
 // Wrap async route handlers so rejected promises become a 500 (not an
 // unhandled rejection) — Express 4 does not await handlers itself.
@@ -20,6 +20,19 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   const payload = token ? verifyToken(token) : null;
   if (!payload) return res.status(401).json({ error: "Cần đăng nhập" });
+  req.userId = payload.sub;
+  next();
+}
+
+/** Như requireAuth, nhưng còn yêu cầu người dùng là quản trị viên từ điển. */
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  const header = req.headers.authorization ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const payload = token ? verifyToken(token) : null;
+  if (!payload) return res.status(401).json({ error: "Cần đăng nhập" });
+  if (!isAdminEmail(payload.email)) {
+    return res.status(403).json({ error: "Không có quyền quản lý từ điển" });
+  }
   req.userId = payload.sub;
   next();
 }
