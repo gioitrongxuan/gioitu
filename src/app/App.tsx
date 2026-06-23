@@ -51,6 +51,7 @@ export default function App() {
         key={userId}
         userId={userId}
         email={session?.email ?? null}
+        isAdmin={session?.is_admin === true}
         onLogout={logout}
         onRequestLogin={() => setShowAuth(true)}
       />
@@ -64,11 +65,13 @@ export default function App() {
 interface MainAppProps {
   userId: string;
   email: string | null;
+  /** Only an admin may import/edit the shared server dictionary. */
+  isAdmin: boolean;
   onLogout: () => void;
   onRequestLogin: () => void;
 }
 
-function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
+function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
   // Which dictionary database look-ups hit. Persisted only once the user picks;
@@ -127,7 +130,9 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         <h1>Gioitu</h1>
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
-          <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
+          {isAdmin && (
+            <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
+          )}
           {store.learnedEntries.length > 0 && (
             <button className="link" onClick={() => setPage("learned")}>
               Đã thuộc ({store.learnedEntries.length})
@@ -210,7 +215,7 @@ function MainApp({ userId, email, onLogout, onRequestLogin }: MainAppProps) {
         />
       )}
 
-      {managing && (
+      {managing && isAdmin && (
         <DictionaryManager
           loggedIn={email != null}
           onRequestLogin={() => {

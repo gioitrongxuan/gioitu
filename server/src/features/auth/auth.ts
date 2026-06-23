@@ -7,6 +7,22 @@ import crypto from "node:crypto";
 const JWT_SECRET = process.env.GIOITU_JWT_SECRET ?? "dev-insecure-secret-change-me";
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
+/**
+ * Quản trị từ điển dùng chung: chỉ các email trong danh sách này mới được
+ * nhập/sửa/xoá. Cấu hình qua GIOITU_ADMIN_EMAILS (phân tách bằng dấu phẩy);
+ * mặc định là chủ sở hữu dự án. So khớp không phân biệt hoa/thường.
+ */
+const ADMIN_EMAILS = new Set(
+  (process.env.GIOITU_ADMIN_EMAILS ?? "gioi.trongxuan@gmail.com")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return typeof email === "string" && ADMIN_EMAILS.has(email.toLowerCase());
+}
+
 // --- Minimal HS256 JWT ---
 
 const b64url = (buf: Buffer | string) =>
