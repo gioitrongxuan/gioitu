@@ -1,7 +1,7 @@
 // Flashcard review session (SPEC 4.4): flip card, self-grade with 4 buttons.
 // Each button shows the interval it would schedule (computed via the engine).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard } from "../domain/srs";
 import { formatInterval } from "@/shared/ui/format";
@@ -11,6 +11,8 @@ interface Props {
   queue: VocabEntry[];
   onGrade: (entry: VocabEntry, grade: ReviewGrade) => Promise<VocabEntry>;
   onClose: () => void;
+  /** Lazily fetch the current card's illustrative image if it has none yet. */
+  onEnsureImage?: (entry: VocabEntry) => void;
 }
 
 const GRADES: { grade: ReviewGrade; label: string; cls: string }[] = [
@@ -20,12 +22,17 @@ const GRADES: { grade: ReviewGrade; label: string; cls: string }[] = [
   { grade: "easy", label: "Easy", cls: "easy" },
 ];
 
-export function ReviewSession({ queue, onGrade, onClose }: Props) {
+export function ReviewSession({ queue, onGrade, onClose, onEnsureImage }: Props) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
 
   const card = queue[index];
+
+  // Backfill an image for cards added before they were ever opened in detail.
+  useEffect(() => {
+    if (card) onEnsureImage?.(card);
+  }, [card, onEnsureImage]);
 
   const previews = useMemo(() => {
     if (!card) return {} as Record<ReviewGrade, string>;
@@ -74,6 +81,8 @@ export function ReviewSession({ queue, onGrade, onClose }: Props) {
                 pos={card.pos}
                 meaning={card.meaning}
                 example={card.example}
+                imageUrl={card.image_url}
+                imageSource={card.image_source}
               />
             </div>
           )}

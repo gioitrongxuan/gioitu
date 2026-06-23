@@ -4,13 +4,14 @@
 // structured-content glossary grouped by sense. Falls back to a Custom
 // Definition editor when nothing is found, and surfaces the SRS stats.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
 import { Definitions, Furigana, Pronunciations, TagChip } from "./StructuredContent";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
+import { WordImage } from "@/shared/ui/WordImage";
 
 interface Props {
   /** The text the user searched (surface form). */
@@ -33,6 +34,8 @@ interface Props {
   onMarkForgotten?: (entry: VocabEntry) => void;
   /** Delete the word (tombstone). */
   onDelete?: (entry: VocabEntry) => void;
+  /** Lazily fetch this word's illustrative image the first time it's shown. */
+  onEnsureImage?: (entry: VocabEntry) => void;
 }
 
 export function DetailPanel({
@@ -47,10 +50,17 @@ export function DetailPanel({
   onMarkKnown,
   onMarkForgotten,
   onDelete,
+  onEnsureImage,
 }: Props) {
   const [custom, setCustom] = useState("");
 
   const savedLines = !results.length && entry ? meaningToLines(entry.meaning) : [];
+
+  // Fetch the image once the word is a tracked entry; ensureImage itself is a
+  // no-op for words already checked, so this is safe to fire on every view.
+  useEffect(() => {
+    if (entry) onEnsureImage?.(entry);
+  }, [entry, onEnsureImage]);
 
   return (
     <aside className="detail-panel" aria-label="Chi tiết từ">
@@ -64,6 +74,10 @@ export function DetailPanel({
         </h2>
         <button className="link close" onClick={onClose}>✕</button>
       </header>
+
+      {entry?.image_url && (
+        <WordImage url={entry.image_url} alt={entry.term} source={entry.image_source} />
+      )}
 
       {results.length > 0 ? (
         <div className="results">

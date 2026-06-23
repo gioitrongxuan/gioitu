@@ -1,12 +1,14 @@
 // App store: a small React hook tying the domain logic to persistence.
 // Keeps the in-memory entry list in sync with IndexedDB and the cloud.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { VocabEntry, ReviewGrade } from "@/shared/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { VocabEntry, ReviewGrade, keyOf } from "@/shared/types";
 import { Toast } from "@/shared/ui/Toasts";
 import { registerLookup, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
+import { shouldFetchImage } from "../domain/wordImage";
+import { fetchWordImage } from "../data/imageSource";
 import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
 
 /** Drives the app for an authenticated user (id comes from the session). */
@@ -14,6 +16,8 @@ export function useAppStore(userId: string) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Words whose image fetch is in flight, so re-renders don't fire it twice.
+  const imageFetches = useRef<Set<string>>(new Set());
 
   const pushToast = useCallback((message: string, kind: Toast["kind"] = "info") => {
     const id = Date.now() + Math.random();
@@ -120,6 +124,39 @@ export function useAppStore(userId: string) {
     [pushToast],
   );
 
+  /**
+   * Lazily attach an illustrative image the first time a word is displayed.
+   * Idempotent: skips words already checked or being fetched. A network failure
+   * leaves `image_checked_at` unset so the next view retries; a clean "no image
+   * found" stamps the attempt so we don't re-query a word that simply has none.
+   */
+  const ensureImage = useCallback(
+    async (entry: VocabEntry) => {
+      if (!shouldFetchImage(entry)) return;
+      const key = keyOf(entry);
+      if (imageFetches.current.has(key)) return;
+      imageFetches.current.add(key);
+      try {
+        const image = await fetchWordImage(entry.term, entry.term_lang);
+        const now = Date.now();
+        const next: VocabEntry = {
+          ...entry,
+          image_url: image?.url,
+          image_source: image?.source,
+          image_checked_at: now,
+          updated_at: now,
+        };
+        await putEntry(next);
+        upsertLocal(next);
+      } catch (e) {
+        console.error("image fetch failed", e); // transient — retried on next view
+      } finally {
+        imageFetches.current.delete(key);
+      }
+    },
+    [upsertLocal],
+  );
+
   const dueEntries = useMemo(() => {
     const now = Date.now();
     return entries.filter((e) => isReviewable(e, now));
@@ -152,6 +189,7 @@ export function useAppStore(userId: string) {
     markKnownEntry,
     markForgottenEntry,
     deleteEntry,
+    ensureImage,
     runSync,
     pushToast,
   };

@@ -11,6 +11,7 @@
 
 import { Fragment } from "react";
 import { distributeFurigana } from "@/shared/japanese";
+import { WordImage } from "./WordImage";
 
 interface Props {
   /** Headword; rendered with furigana when `reading` is given. Omit to hide it
@@ -23,6 +24,10 @@ interface Props {
   meaning: string;
   /** Example sentence, shown apart from the numbered glosses. */
   example?: string;
+  /** Illustrative image URL; shown under the headword as a memory anchor. */
+  imageUrl?: string;
+  /** Attribution caption for `imageUrl`. */
+  imageSource?: string;
 }
 
 /** Parse a stored `meaning` (JSON string[] or plain text) into gloss lines. */
@@ -36,7 +41,7 @@ export function meaningToLines(meaning: string): string[] {
   return meaning ? [meaning] : [];
 }
 
-export function MeaningView({ term, reading, pos, meaning, example }: Props) {
+export function MeaningView({ term, reading, pos, meaning, example, imageUrl, imageSource }: Props) {
   const lines = meaningToLines(meaning);
   const posTags = pos ? pos.split(/[,、;；]/).map((t) => t.trim()).filter(Boolean) : [];
   const segments = term ? distributeFurigana(term, reading) : [];
@@ -57,6 +62,8 @@ export function MeaningView({ term, reading, pos, meaning, example }: Props) {
           )}
         </div>
       )}
+
+      {imageUrl && <WordImage url={imageUrl} alt={term ?? ""} source={imageSource} />}
 
       {posTags.length > 0 && (
         <div className="meaning-pos">
