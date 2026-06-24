@@ -7,8 +7,9 @@ import { Toast } from "@/shared/ui/Toasts";
 import { registerLookup, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
-import { shouldFetchImage } from "../domain/wordImage";
-import { fetchWordImage } from "../data/imageSource";
+import { shouldFetchImage, voteImage, clearImageVote } from "@/shared/wordImage";
+import { fetchImageCandidates } from "../data/imageSource";
+import { meaningToLines } from "@/shared/ui/MeaningView";
 import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
 
 /** Drives the app for an authenticated user (id comes from the session). */
@@ -125,10 +126,10 @@ export function useAppStore(userId: string) {
   );
 
   /**
-   * Lazily attach an illustrative image the first time a word is displayed.
-   * Idempotent: skips words already checked or being fetched. A network failure
-   * leaves `image_checked_at` unset so the next view retries; a clean "no image
-   * found" stamps the attempt so we don't re-query a word that simply has none.
+   * Lazily gather candidate images the first time a word is displayed.
+   * Idempotent: skips words already fetched (candidates present) or in flight.
+   * A network failure leaves the word unstamped so the next view retries; a
+   * clean "none found" stores an empty list so we don't re-query.
    */
   const ensureImage = useCallback(
     async (entry: VocabEntry) => {
@@ -137,12 +138,12 @@ export function useAppStore(userId: string) {
       if (imageFetches.current.has(key)) return;
       imageFetches.current.add(key);
       try {
-        const image = await fetchWordImage(entry.term, entry.term_lang);
+        const nativeMeaning = meaningToLines(entry.meaning)[0] ?? "";
+        const candidates = await fetchImageCandidates(entry.term, entry.term_lang, nativeMeaning);
         const now = Date.now();
         const next: VocabEntry = {
           ...entry,
-          image_url: image?.url,
-          image_source: image?.source,
+          image_candidates: candidates,
           image_checked_at: now,
           updated_at: now,
         };
@@ -155,6 +156,30 @@ export function useAppStore(userId: string) {
       }
     },
     [upsertLocal],
+  );
+
+  // Persist a new candidate list (after a vote) for an entry.
+  const saveCandidates = useCallback(
+    async (entry: VocabEntry, candidates: VocabEntry["image_candidates"]) => {
+      const next: VocabEntry = { ...entry, image_candidates: candidates, updated_at: Date.now() };
+      await putEntry(next);
+      upsertLocal(next);
+    },
+    [upsertLocal],
+  );
+
+  /** Up-vote one candidate image (repeat to outrank others). */
+  const voteImageEntry = useCallback(
+    (entry: VocabEntry, url: string) =>
+      saveCandidates(entry, voteImage(entry.image_candidates ?? [], url)),
+    [saveCandidates],
+  );
+
+  /** Clear a candidate's votes. */
+  const clearImageVoteEntry = useCallback(
+    (entry: VocabEntry, url: string) =>
+      saveCandidates(entry, clearImageVote(entry.image_candidates ?? [], url)),
+    [saveCandidates],
   );
 
   const dueEntries = useMemo(() => {
@@ -190,6 +215,8 @@ export function useAppStore(userId: string) {
     markForgottenEntry,
     deleteEntry,
     ensureImage,
+    voteImageEntry,
+    clearImageVoteEntry,
     runSync,
     pushToast,
   };

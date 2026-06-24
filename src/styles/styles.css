@@ -378,9 +378,25 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Illustrative image (detail panel + review card): fits the column, never overflows. */
 .word-image { margin: 4px 0; }
-.word-image img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.02); }
-.word-image-credit { margin: 4px 0 0; font-size: 11px; color: var(--muted); text-align: right; }
-.flashcard .word-image img { max-height: 180px; }
+.word-image > img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.02); }
+.word-image-credit { margin: 4px 0 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--muted); }
+.word-image-credit .link { font-size: 11px; }
+.flashcard .word-image > img { max-height: 180px; }
+
+/* Image vote screen: a grid of candidates; ▲ to vote, the winner is ringed. */
+.image-vote-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 70; padding: 16px; }
+.image-vote { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(720px, 100%); max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+.image-vote header { display: flex; align-items: baseline; gap: 8px; }
+.image-vote header h3 { margin: 0; font-size: 16px; }
+.image-vote header .close { margin-left: auto; }
+.image-vote > .muted { margin: 6px 0 12px; font-size: 12px; line-height: 1.5; }
+.image-vote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.vote-cell { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.02); }
+.vote-cell.winner { border-color: var(--accent, #4f8cff); box-shadow: 0 0 0 2px var(--accent, #4f8cff); }
+.vote-cell img { display: block; width: 100%; height: 120px; object-fit: cover; }
+.vote-controls { position: absolute; bottom: 0; left: 0; right: 0; display: flex; gap: 6px; justify-content: flex-end; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,0.55)); }
+.vote-controls .link { color: #fff; font-size: 13px; font-weight: 600; }
+.vote-controls .vote-up:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Yomitan sync */
 .yk-hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }

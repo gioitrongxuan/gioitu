@@ -126,6 +126,8 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
         closeView();
       }}
       onEnsureImage={store.ensureImage}
+      onVoteImage={store.voteImageEntry}
+      onClearImageVote={store.clearImageVoteEntry}
     />
   );
 
@@ -235,6 +237,8 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           onGrade={store.gradeReview}
           onClose={() => setReviewing(false)}
           onEnsureImage={store.ensureImage}
+          onVoteImage={store.voteImageEntry}
+          onClearImageVote={store.clearImageVoteEntry}
         />
       )}
 
