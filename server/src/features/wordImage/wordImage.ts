@@ -95,15 +95,21 @@ export function pixabayCandidates(json: unknown, keyword: string): ImageCandidat
 }
 
 /**
- * Merge candidate lists (in priority order), dropping duplicate image URLs and
- * capping the total. Order is preserved so the most relevant keyword's hits lead.
+ * Merge candidate lists round-robin: every keyword contributes its top hit
+ * before any keyword contributes its second. This keeps the pool diverse —
+ * otherwise a few near-synonymous glosses (大丈夫 → safe/secure/sound) fill the
+ * whole cap with one wrong cluster and the good keywords (OK, all right) never
+ * appear. Drops duplicate URLs and caps the total; keyword order still breaks
+ * ties (the first keyword leads the first round).
  */
 export function mergeCandidates(lists: ImageCandidate[][], cap: number): ImageCandidate[] {
   const seen = new Set<string>();
   const out: ImageCandidate[] = [];
-  for (const list of lists) {
-    for (const c of list) {
-      if (seen.has(c.url)) continue;
+  const longest = lists.reduce((m, l) => Math.max(m, l.length), 0);
+  for (let rank = 0; rank < longest; rank++) {
+    for (const list of lists) {
+      const c = list[rank];
+      if (!c || seen.has(c.url)) continue;
       seen.add(c.url);
       out.push(c);
       if (out.length >= cap) return out;

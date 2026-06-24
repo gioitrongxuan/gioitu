@@ -147,13 +147,34 @@ describe("pixabayCandidates", () => {
 });
 
 describe("mergeCandidates", () => {
-  it("preserves priority order, drops duplicate urls, and caps the total", () => {
-    const a = [{ url: "1", source: "a" }, { url: "2", source: "a" }];
-    const b = [{ url: "2", source: "b" }, { url: "3", source: "b" }, { url: "4", source: "b" }];
-    expect(mergeCandidates([a, b], 3)).toEqual([
-      { url: "1", source: "a" },
-      { url: "2", source: "a" }, // first occurrence wins
-      { url: "3", source: "b" },
+  it("interleaves keywords round-robin so each is represented before any repeats", () => {
+    const a = [{ url: "a1", source: "a" }, { url: "a2", source: "a" }, { url: "a3", source: "a" }];
+    const b = [{ url: "b1", source: "b" }, { url: "b2", source: "b" }];
+    expect(mergeCandidates([a, b], 10)).toEqual([
+      { url: "a1", source: "a" },
+      { url: "b1", source: "b" },
+      { url: "a2", source: "a" },
+      { url: "b2", source: "b" },
+      { url: "a3", source: "a" },
+    ]);
+  });
+
+  it("drops duplicate urls (first keyword to surface it wins)", () => {
+    const a = [{ url: "x", source: "a" }, { url: "a2", source: "a" }];
+    const b = [{ url: "x", source: "b" }, { url: "b2", source: "b" }];
+    expect(mergeCandidates([a, b], 10)).toEqual([
+      { url: "x", source: "a" },
+      { url: "a2", source: "a" },
+      { url: "b2", source: "b" },
+    ]);
+  });
+
+  it("caps the total", () => {
+    const a = [{ url: "a1", source: "a" }, { url: "a2", source: "a" }];
+    const b = [{ url: "b1", source: "b" }, { url: "b2", source: "b" }];
+    expect(mergeCandidates([a, b], 2)).toEqual([
+      { url: "a1", source: "a" },
+      { url: "b1", source: "b" },
     ]);
   });
 });

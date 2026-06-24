@@ -15,11 +15,13 @@ import {
 const PIXABAY_API_KEY = process.env.PIXABAY_API_KEY;
 const JISHO_SEARCH = "https://jisho.org/api/v1/search/words";
 
-// Breadth knobs: more glosses → more chances at a fitting image, bounded so a
+// Breadth knobs: cast a wide net across glosses (so everyday senses like
+// "OK"/"all right" are included, not just the homograph-prone first gloss),
+// few hits per keyword, then round-robin merge for a diverse pool. Bounded so a
 // single word can't fan out into dozens of Pixabay calls.
-const MAX_ENGLISH_GLOSSES = 5;
-const HITS_PER_KEYWORD = 5;
-const MAX_CANDIDATES = 12;
+const MAX_ENGLISH_GLOSSES = 8;
+const HITS_PER_KEYWORD = 3;
+const MAX_CANDIDATES = 15;
 
 /** Whether the feature is configured; the route 503s when it is not. */
 export function isConfigured(): boolean {
