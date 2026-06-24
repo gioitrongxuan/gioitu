@@ -1,43 +1,73 @@
 // Data layer for illustrative images: translate (Jisho) and search (Pixabay)
 // over the network. The Pixabay key is a server secret (PIXABAY_API_KEY) — the
-// whole reason this lives on the server and not in the browser.
+// whole reason this lives on the server and not in the browser. We run several
+// keyword searches and return a de-duplicated candidate list for the user to
+// vote on; pure assembly/parsing lives in wordImage.ts.
 
 import {
-  WordImage,
-  extractEnglishKeyword,
-  pickPixabayImage,
+  ImageCandidate,
+  extractEnglishKeywords,
+  mergeCandidates,
+  pixabayCandidates,
   pixabaySearchUrl,
 } from "./wordImage.js";
 
 const PIXABAY_API_KEY = process.env.PIXABAY_API_KEY;
 const JISHO_SEARCH = "https://jisho.org/api/v1/search/words";
 
+// Breadth knobs: more glosses → more chances at a fitting image, bounded so a
+// single word can't fan out into dozens of Pixabay calls.
+const MAX_ENGLISH_GLOSSES = 5;
+const HITS_PER_KEYWORD = 5;
+const MAX_CANDIDATES = 12;
+
 /** Whether the feature is configured; the route 503s when it is not. */
 export function isConfigured(): boolean {
   return Boolean(PIXABAY_API_KEY);
 }
 
-/** Translate a Japanese word to an English keyword via Jisho (best-effort). */
-async function toEnglishKeyword(term: string): Promise<string | null> {
-  const res = await fetch(`${JISHO_SEARCH}?keyword=${encodeURIComponent(term)}`);
-  if (!res.ok) return null;
-  return extractEnglishKeyword(await res.json(), term);
+/** Translate a Japanese word to several English keywords via Jisho (best-effort). */
+async function englishKeywords(term: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${JISHO_SEARCH}?keyword=${encodeURIComponent(term)}`);
+    if (!res.ok) return [];
+    return extractEnglishKeywords(await res.json(), term, MAX_ENGLISH_GLOSSES);
+  } catch {
+    return []; // Jisho down — fall back to the other keywords
+  }
+}
+
+/** Search Pixabay for one keyword; never throws (a bad keyword just yields none). */
+async function search(keyword: string, key: string): Promise<ImageCandidate[]> {
+  try {
+    const res = await fetch(pixabaySearchUrl(keyword, key, HITS_PER_KEYWORD));
+    if (!res.ok) return [];
+    return pixabayCandidates(await res.json(), keyword);
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Find an illustrative image for a word. Japanese terms are translated to an
- * English keyword first; everything else searches on the term as-is. Returns
- * null when Pixabay has no match (a definitive "none"). Throws on a transport
- * failure so the route surfaces a retryable error instead.
+ * Gather candidate images for a word from several keyword searches:
+ * its English glosses (Jisho, for Japanese), its Vietnamese meaning, and the
+ * term itself. English leads since Pixabay is English-centric. Returns a
+ * de-duplicated, capped list (possibly empty). Throws only if misconfigured.
  */
-export async function findImage(term: string, termLang: string): Promise<WordImage | null> {
+export async function findCandidates(
+  term: string,
+  termLang: string,
+  nativeMeaning: string,
+): Promise<ImageCandidate[]> {
   if (!PIXABAY_API_KEY) throw new Error("PIXABAY_API_KEY chưa được cấu hình");
   const query = term.trim();
-  if (!query) return null;
+  if (!query) return [];
 
-  // Fall back to the raw term if translation yields nothing — better than no search.
-  const keyword = termLang === "ja" ? (await toEnglishKeyword(query)) ?? query : query;
-  const res = await fetch(pixabaySearchUrl(keyword, PIXABAY_API_KEY));
-  if (!res.ok) throw new Error(`Pixabay HTTP ${res.status}`);
-  return pickPixabayImage(await res.json());
+  // Keyword priority: English glosses (best on Pixabay) → Vietnamese meaning →
+  // the raw term. De-dup keywords so we don't waste calls.
+  const english = termLang === "ja" ? await englishKeywords(query) : [query];
+  const keywords = [...new Set([...english, nativeMeaning.trim(), query].filter(Boolean))];
+
+  const lists = await Promise.all(keywords.map((k) => search(k, PIXABAY_API_KEY!)));
+  return mergeCandidates(lists, MAX_CANDIDATES);
 }

@@ -34,8 +34,12 @@ interface Props {
   onMarkForgotten?: (entry: VocabEntry) => void;
   /** Delete the word (tombstone). */
   onDelete?: (entry: VocabEntry) => void;
-  /** Lazily fetch this word's illustrative image the first time it's shown. */
+  /** Lazily fetch this word's candidate images the first time it's shown. */
   onEnsureImage?: (entry: VocabEntry) => void;
+  /** Up-vote a candidate image for the word. */
+  onVoteImage?: (entry: VocabEntry, url: string) => void;
+  /** Clear a candidate image's votes. */
+  onClearImageVote?: (entry: VocabEntry, url: string) => void;
 }
 
 export function DetailPanel({
@@ -51,6 +55,8 @@ export function DetailPanel({
   onMarkForgotten,
   onDelete,
   onEnsureImage,
+  onVoteImage,
+  onClearImageVote,
 }: Props) {
   const [custom, setCustom] = useState("");
 
@@ -75,8 +81,12 @@ export function DetailPanel({
         <button className="link close" onClick={onClose}>✕</button>
       </header>
 
-      {entry?.image_url && (
-        <WordImage url={entry.image_url} alt={entry.term} source={entry.image_source} />
+      {entry && onVoteImage && onClearImageVote && (
+        <WordImage
+          entry={entry}
+          onVote={(url) => onVoteImage(entry, url)}
+          onClear={(url) => onClearImageVote(entry, url)}
+        />
       )}
 
       {results.length > 0 ? (
