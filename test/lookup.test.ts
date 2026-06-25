@@ -21,12 +21,6 @@ describe("first lookup", () => {
     expect(entry.card_state).toBeNull();
     expect(events.cardCreated).toBe(false);
   });
-
-  it("manual [+] creates an SRS card immediately even at count 1", () => {
-    const { entry, events } = registerLookup(undefined, { ...baseInput, manualAdd: true }, NOW);
-    expect(entry.card_state).toBe("NEW");
-    expect(events.cardCreated).toBe(true);
-  });
 });
 
 describe("debounce (SPEC 4.1)", () => {
@@ -55,24 +49,20 @@ describe("SRS gating threshold (constraint 2)", () => {
   });
 });
 
-describe("manual add to the review queue ('Thêm vào ôn tập')", () => {
-  it("creates the card immediately on an existing card-less entry, even within the debounce window", () => {
-    // Mirrors the real flow: a word just looked up (count 1, < 2s ago) gets [+].
-    const existing = makeEntry({ lookup_count: 1, card_state: null, last_lookup_at: NOW - 500 });
-    const { entry, events } = registerLookup(existing, { ...baseInput, manualAdd: true }, NOW);
-    expect(events.cardCreated).toBe(true);
-    expect(entry.card_state).toBe("NEW");
-    expect(entry.lookup_count).toBe(2);
-  });
-
-  it("empty meaning keeps the entry's existing definition", () => {
-    const existing = makeEntry({ lookup_count: 1, card_state: null, meaning: JSON.stringify(["nghĩa cũ"]) });
-    const { entry } = registerLookup(existing, { ...baseInput, meaning: "", manualAdd: true }, NOW);
+describe("empty meaning", () => {
+  it("keeps the entry's existing definition when re-looked-up with no meaning", () => {
+    const existing = makeEntry({
+      lookup_count: 1,
+      card_state: null,
+      last_lookup_at: NOW - (LOOKUP_DEBOUNCE_MS + 1),
+      meaning: JSON.stringify(["nghĩa cũ"]),
+    });
+    const { entry } = registerLookup(existing, { ...baseInput, meaning: "" }, NOW);
     expect(entry.meaning).toBe(JSON.stringify(["nghĩa cũ"]));
   });
 });
 
-describe("relapse trigger via lookup (SPEC 4.2, both cases)", () => {
+describe("relapse trigger via lookup (SPEC 4.2)", () => {
   it("touching a LEARNED word again relapses it", () => {
     const learned = makeEntry({
       status: "LEARNED",
@@ -88,18 +78,6 @@ describe("relapse trigger via lookup (SPEC 4.2, both cases)", () => {
     expect(entry.lapses).toBe(1);
     expect(entry.lookup_count).toBe(9);
     expect(entry.card_state).toBe("LEARNING");
-  });
-
-  it("Case 2 [+] on an existing LEARNED word also relapses it", () => {
-    const learned = makeEntry({
-      status: "LEARNED",
-      card_state: "REVIEW",
-      srs_interval: 60 * 24 * 60,
-      last_lookup_at: NOW - 10_000,
-    });
-    const { entry, events } = registerLookup(learned, { ...baseInput, manualAdd: true }, NOW);
-    expect(events.relapsed).toBe(true);
-    expect(entry.status).toBe("RELAPSED");
   });
 });
 

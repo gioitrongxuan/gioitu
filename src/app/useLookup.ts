@@ -101,20 +101,6 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // The saved definition shows immediately via the learning entry's meaning.
   }
 
-  // Manually commit the current term to the review queue ("[+]", SPEC 4.4 Case 2):
-  // asserts intent to learn, so an SRS card is created immediately, bypassing the
-  // lookup-count gate. meaning="" keeps the entry's existing definition.
-  async function addToReview() {
-    if (view?.kind !== "detail") return;
-    await store.recordLookup({
-      term: view.primaryTerm,
-      term_lang: view.term_lang,
-      native_lang: view.native_lang,
-      meaning: "",
-      manualAdd: true,
-    });
-  }
-
   // Selecting a cloud tag opens a read-only detail (does NOT count as a lookup).
   function onSelectTag(entry: VocabEntry) {
     setView({
@@ -127,5 +113,5 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     });
   }
 
-  return { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, addToReview, closeView: () => setView(null) };
+  return { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null) };
 }

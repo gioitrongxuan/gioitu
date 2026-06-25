@@ -143,7 +143,6 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .srs-stats > div { display: flex; justify-content: space-between; font-size: 13px; }
 .srs-stats span { color: var(--muted); }
 
-.add-review { width: 100%; }
 .detail-actions { display: flex; gap: 16px; margin-top: 10px; }
 
 /* "Đã thuộc" achievement page */
