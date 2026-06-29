@@ -1,8 +1,23 @@
-// Dictionary data-access (SQL). Keeps all `dict` / `dictionaries` queries out of
-// the HTTP layer so routes stay thin and the SQL is unit-testable in isolation.
+// Dictionary data-access (SQL) trên schema mới: word + heading_lookup + entry +
+// word_image + word_comment (kế thừa jisho). Trả về DictionaryEntry đã-ráp; giữ
+// các route mỏng. Tra cứu qua bản chiếu heading_lookup; fuzzy dùng pg_trgm.
+
 import { randomUUID } from "node:crypto";
-import { pool, rowToDictEntry, DictRow } from "../../core/db.js";
-import { parseYomitanZip } from "./yomitan.js";
+import type { PoolClient } from "pg";
+import { pool } from "../../core/db.js";
+import { parseYomitanZip, parseYomitanDir, extractGlossLines, ParsedDictionary } from "./yomitan.js";
+import {
+  assembleEntry,
+  groupByWordId,
+  WordRow,
+  EntryRow,
+  ImageRow,
+  CommentRow,
+} from "./assemble.js";
+import type { DictionaryEntry, Sense } from "@/shared/dictionary";
+import type { GlossaryNode } from "@/shared/structured-content";
+// Furigana mã hoá dùng chung (thuần) — tái dùng thuật toán Yomitan ở src/shared.
+import { encodeWord } from "../../../../src/shared/furigana.js";
 
 export interface ImportSummary {
   dict_id: string;
@@ -12,111 +27,206 @@ export interface ImportSummary {
   native_lang: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Ráp entry từ word_id (gộp lô để tránh N+1)
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Ráp các DictionaryEntry cho danh sách word_id, giữ đúng thứ tự `ids`. */
+async function assembleByIds(ids: string[]): Promise<DictionaryEntry[]> {
+  if (ids.length === 0) return [];
+
+  const [words, entries, images, comments] = await Promise.all([
+    pool.query<WordRow>(
+      `SELECT id, term_lang, native_lang, headings, pitch, freq_rank, jlpt, score
+         FROM word WHERE id = ANY($1)`,
+      [ids],
+    ),
+    pool.query<EntryRow>(
+      `SELECT word_id, senses, dict_id, score FROM entry
+        WHERE word_id = ANY($1) ORDER BY score DESC, id`,
+      [ids],
+    ),
+    pool.query<ImageRow>(
+      `SELECT word_id, url, source FROM word_image WHERE word_id = ANY($1) ORDER BY ord, id`,
+      [ids],
+    ),
+    pool.query<CommentRow>(
+      `SELECT word_id, mean, likes, dislikes, author, avatar, source, created_at
+         FROM word_comment WHERE word_id = ANY($1) ORDER BY likes DESC, id`,
+      [ids],
+    ),
+  ]);
+
+  const wordById = new Map(words.rows.map((w) => [w.id, w]));
+  const entriesByWord = groupByWordId(entries.rows);
+  const imagesByWord = groupByWordId(images.rows);
+  const commentsByWord = groupByWordId(comments.rows);
+
+  const out: DictionaryEntry[] = [];
+  for (const id of ids) {
+    const word = wordById.get(id);
+    if (!word) continue;
+    out.push(
+      assembleEntry(
+        word,
+        entriesByWord.get(id) ?? [],
+        imagesByWord.get(id) ?? [],
+        commentsByWord.get(id) ?? [],
+      ),
+    );
+  }
+  return out;
+}
+
+/** word_id của các dòng heading, đã loại trùng, giữ thứ tự đầu vào. */
+function distinctWordIds(rows: { word_id: string }[]): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const r of rows) {
+    if (seen.has(r.word_id)) continue;
+    seen.add(r.word_id);
+    ids.push(r.word_id);
+  }
+  return ids;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tra cứu công khai
+// ─────────────────────────────────────────────────────────────────────────
+
 /**
- * Forward lookup, scoped to a language pair (SPEC 2.A). Matches the query
- * against both the term and the reading, so typing a reading (kana, or romaji
- * converted to kana client-side) finds an entry keyed under its kanji term
- * (さくら → 桜). An exact term match is preferred over a reading-only match.
+ * Tra xuôi theo cặp ngôn ngữ. Khớp cả cách viết (base) lẫn âm đọc (reading) —
+ * gõ reading vẫn ra entry dưới cách viết kanji — và ưu tiên khớp base.
  */
-export async function lookup(term: string, src: string, tgt: string) {
-  const { rows } = await pool.query<DictRow>(
-    `SELECT * FROM dict
-      WHERE term_lang = $1 AND native_lang = $2 AND (term = $3 OR reading = $3)
-      ORDER BY (term = $3) DESC LIMIT 1`,
+export async function lookup(term: string, src: string, tgt: string): Promise<DictionaryEntry | null> {
+  const { rows } = await pool.query<{ word_id: string }>(
+    `SELECT word_id FROM heading_lookup
+      WHERE term_lang = $1 AND native_lang = $2 AND (base = $3 OR reading = $3)
+      ORDER BY (base = $3) DESC LIMIT 1`,
     [src, tgt, term],
   );
-  return rows[0] ? rowToDictEntry(rows[0]) : null;
+  if (!rows[0]) return null;
+  const [entry] = await assembleByIds([rows[0].word_id]);
+  return entry ?? null;
 }
 
-/** Prefix suggestions within a language pair. */
-export async function suggest(prefix: string, src: string, tgt: string) {
-  const { rows } = await pool.query<DictRow>(
-    `SELECT * FROM dict WHERE term_lang = $1 AND native_lang = $2
-     AND term >= $3 AND term < $4 ORDER BY term LIMIT 10`,
+/** Gợi ý theo tiền tố cách viết. */
+export async function suggest(prefix: string, src: string, tgt: string): Promise<DictionaryEntry[]> {
+  const { rows } = await pool.query<{ word_id: string }>(
+    `SELECT word_id FROM heading_lookup
+      WHERE term_lang = $1 AND native_lang = $2 AND base >= $3 AND base < $4
+      ORDER BY base LIMIT 10`,
     [src, tgt, prefix, prefix + "￿"],
   );
-  return rows.map(rowToDictEntry);
+  return assembleByIds(distinctWordIds(rows));
 }
 
 /**
- * Near-miss look-up by edit distance, for when the query is misspelled or
- * misremembered. Mirrors the client's fuzzy matcher: distance is taken against
- * the smaller of the term and its reading (so a kana query finds a kanji
- * headword), bounded by `max`, and a candidate must share the query's first
- * character — real typos rarely change it, and the anchor drops coincidental
- * near-misses between unrelated words. A char-length pre-filter skips
- * obviously-distant rows before the (bounded) Levenshtein runs; closest-first.
+ * Near-miss bằng trigram (pg_trgm) trên base và reading — thay levenshtein, dùng
+ * được GIN index ở quy mô lớn. Sắp theo độ tương tự giảm dần, closest-first.
  */
-export async function fuzzy(term: string, src: string, tgt: string, max: number, limit = 8) {
-  const { rows } = await pool.query<DictRow>(
-    `WITH scored AS (
-       SELECT term, reading, definitions, term_lang, native_lang,
-         LEAST(
-           CASE WHEN left(term, 1) = left($3, 1)
-                THEN levenshtein_less_equal($3, term, $4) ELSE $4 + 1 END,
-           CASE WHEN reading IS NOT NULL AND reading <> term AND left(reading, 1) = left($3, 1)
-                THEN levenshtein_less_equal($3, reading, $4) ELSE $4 + 1 END
-         ) AS distance
-       FROM dict
-       WHERE term_lang = $1 AND native_lang = $2
-         AND (
-           (left(term, 1) = left($3, 1) AND abs(char_length(term) - char_length($3)) <= $4)
-           OR (reading IS NOT NULL AND left(reading, 1) = left($3, 1)
-               AND abs(char_length(reading) - char_length($3)) <= $4)
-         )
-     )
-     SELECT term, reading, definitions, term_lang, native_lang
-       FROM scored WHERE distance <= $4
-      ORDER BY distance, term LIMIT $5`,
-    [src, tgt, term, max, limit],
+export async function fuzzy(term: string, src: string, tgt: string, limit = 8): Promise<DictionaryEntry[]> {
+  const { rows } = await pool.query<{ word_id: string }>(
+    `SELECT word_id,
+            GREATEST(similarity(base, $3), CASE WHEN reading <> '' THEN similarity(reading, $3) ELSE 0 END) AS sim
+       FROM heading_lookup
+      WHERE term_lang = $1 AND native_lang = $2
+        AND (base % $3 OR (reading <> '' AND reading % $3))
+      ORDER BY sim DESC, base
+      LIMIT $4`,
+    [src, tgt, term, limit],
   );
-  return rows.map(rowToDictEntry);
+  return assembleByIds(distinctWordIds(rows));
 }
 
-/** Parse a Yomitan archive buffer and bulk-insert it as a new dictionary. */
-export async function importBuffer(
-  buf: Buffer,
-  opts: { term_lang?: string; native_lang?: string },
-): Promise<ImportSummary> {
-  const parsed = await parseYomitanZip(buf, opts);
-  if (parsed.entries.length === 0) {
-    throw new Error("Không tìm thấy từ nào trong file");
+// ─────────────────────────────────────────────────────────────────────────
+// Ghi: import, seed dùng chung helper dedup theo heading
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Tìm word theo (cặp, base, reading); chưa có thì tạo word + heading_lookup. */
+async function resolveOrCreateWord(
+  client: PoolClient,
+  term_lang: string,
+  native_lang: string,
+  base: string,
+  reading: string,
+): Promise<string> {
+  const found = await client.query<{ word_id: string }>(
+    `SELECT word_id FROM heading_lookup
+      WHERE term_lang = $1 AND native_lang = $2 AND base = $3 AND reading = $4`,
+    [term_lang, native_lang, base, reading],
+  );
+  if (found.rows[0]) return found.rows[0].word_id;
+
+  // Furigana mã hoá sẵn cho tiếng Nhật (vô nghĩa với en/vi → bỏ).
+  const furigana = term_lang === "ja" && base ? encodeWord(base, reading || undefined) : undefined;
+  const heading: Record<string, string> = { base };
+  if (reading) heading.reading = reading;
+  if (furigana) heading.furigana = furigana;
+  const ins = await client.query<{ id: string }>(
+    `INSERT INTO word (term_lang, native_lang, headings) VALUES ($1, $2, $3) RETURNING id`,
+    [term_lang, native_lang, JSON.stringify([heading])],
+  );
+  const wordId = ins.rows[0].id;
+  await client.query(
+    `INSERT INTO heading_lookup (term_lang, native_lang, base, reading, word_id)
+     VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+    [term_lang, native_lang, base, reading, wordId],
+  );
+  return wordId;
+}
+
+/** Một sense đơn giản từ danh sách nghĩa text (Yomitan/thủ công/seed). */
+function plainSense(definitions: string[], dictionary?: string): Sense {
+  return { pos: [], gloss: definitions, ...(dictionary ? { dictionary } : {}) };
+}
+
+/** Gắn senses của một nguồn vào một word (1 dòng entry / nguồn). */
+async function putEntry(
+  client: PoolClient,
+  wordId: string,
+  dictId: string | null,
+  senses: Sense[],
+): Promise<void> {
+  if (dictId === null) {
+    // dict_id NULL không kích hoạt UNIQUE(word_id,dict_id); ép ≤1 nghĩa thủ công/từ thủ công.
+    await client.query(`DELETE FROM entry WHERE word_id = $1 AND dict_id IS NULL`, [wordId]);
+    await client.query(`INSERT INTO entry (word_id, dict_id, senses) VALUES ($1, NULL, $2)`, [
+      wordId,
+      JSON.stringify(senses),
+    ]);
+    return;
   }
+  await client.query(
+    `INSERT INTO entry (word_id, dict_id, senses) VALUES ($1, $2, $3)
+     ON CONFLICT (word_id, dict_id) DO UPDATE SET senses = EXCLUDED.senses`,
+    [wordId, dictId, JSON.stringify(senses)],
+  );
+}
+
+/** Nạp một từ điển Yomitan đã parse — GIỮ structured content + POS theo từng sense. */
+async function importParsed(parsed: ParsedDictionary): Promise<ImportSummary> {
+  if (parsed.entries.length === 0) throw new Error("Không tìm thấy từ nào trong file");
 
   const dictId = randomUUID();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query(
-      "INSERT INTO dictionaries (id, title, term_lang, native_lang, created_at) VALUES ($1, $2, $3, $4, $5)",
+      `INSERT INTO dictionaries (id, title, term_lang, native_lang, source, created_at)
+       VALUES ($1, $2, $3, $4, 'yomitan', $5)`,
       [dictId, parsed.title, parsed.term_lang, parsed.native_lang, Date.now()],
     );
-    // Bulk insert in chunks (one multi-row statement each) for speed.
-    const CHUNK = 1000;
-    for (let i = 0; i < parsed.entries.length; i += CHUNK) {
-      const slice = parsed.entries.slice(i, i + CHUNK);
-      const values: unknown[] = [];
-      const tuples = slice.map((e, j) => {
-        const b = j * 6;
-        values.push(
-          e.term,
-          parsed.term_lang,
-          parsed.native_lang,
-          e.reading ?? null,
-          JSON.stringify(e.definitions),
-          dictId,
-        );
-        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6})`;
-      });
-      await client.query(
-        `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
-         VALUES ${tuples.join(", ")}
-         ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
-           reading = EXCLUDED.reading,
-           definitions = EXCLUDED.definitions,
-           dict_id = EXCLUDED.dict_id`,
-        values,
-      );
+    for (const e of parsed.entries) {
+      const wordId = await resolveOrCreateWord(client, parsed.term_lang, parsed.native_lang, e.term, e.reading ?? "");
+      // Mỗi sense: POS = definitionTags; gloss = bản phẳng; glossary = node gốc (render giàu).
+      const senses: Sense[] = e.senses.map((ps) => ({
+        pos: ps.tags as Sense["pos"],
+        gloss: extractGlossLines(ps.glossary),
+        glossary: ps.glossary as GlossaryNode[],
+        dictionary: parsed.title,
+      }));
+      await putEntry(client, wordId, dictId, senses.length ? senses : [plainSense(e.definitions, parsed.title)]);
     }
     await client.query("COMMIT");
   } catch (err) {
@@ -135,26 +245,44 @@ export async function importBuffer(
   };
 }
 
-/** List imported dictionaries with their current term counts. */
+/** Parse một archive .zip Yomitan và nạp thành một từ điển mới. */
+export async function importBuffer(
+  buf: Buffer,
+  opts: { term_lang?: string; native_lang?: string },
+): Promise<ImportSummary> {
+  return importParsed(await parseYomitanZip(buf, opts));
+}
+
+/** Nạp một từ điển Yomitan từ thư mục đã giải nén (vd JMdict_english). */
+export async function importYomitanDir(
+  dir: string,
+  opts: { term_lang?: string; native_lang?: string } = {},
+): Promise<ImportSummary> {
+  return importParsed(await parseYomitanDir(dir, opts));
+}
+
+/** Liệt kê từ điển đã nhập kèm số từ (số entry trỏ vào nó). */
 export async function listDictionaries() {
   const { rows } = await pool.query(
     `SELECT d.id, d.title, d.term_lang, d.native_lang, d.created_at,
-            COUNT(t.term)::int AS term_count
+            COUNT(e.id)::int AS term_count
        FROM dictionaries d
-       LEFT JOIN dict t ON t.dict_id = d.id
+       LEFT JOIN entry e ON e.dict_id = d.id
       GROUP BY d.id
       ORDER BY d.created_at DESC`,
   );
   return rows;
 }
 
-/** Delete a dictionary and all of its terms. Returns false if it did not exist. */
+/** Xoá một từ điển + entry của nó (cascade), rồi dọn word mồ côi. */
 export async function deleteDictionary(id: string): Promise<boolean> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("DELETE FROM dict WHERE dict_id = $1", [id]);
-    const del = await client.query("DELETE FROM dictionaries WHERE id = $1", [id]);
+    const del = await client.query("DELETE FROM dictionaries WHERE id = $1", [id]); // cascade entry
+    await client.query(
+      `DELETE FROM word w WHERE NOT EXISTS (SELECT 1 FROM entry e WHERE e.word_id = w.id)`,
+    );
     await client.query("COMMIT");
     return Boolean(del.rowCount);
   } catch (err) {
@@ -165,38 +293,60 @@ export async function deleteDictionary(id: string): Promise<boolean> {
   }
 }
 
-/** Browse / prefix-search terms within a language pair (paginated). */
-export async function browseTerms(
-  src: string,
-  tgt: string,
-  q: string,
-  limit: number,
-  offset: number,
-) {
-  // Escape LIKE wildcards in the user query; match as a prefix.
-  const like = q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
-  const hasQ = q.length > 0;
+// ─────────────────────────────────────────────────────────────────────────
+// Quản trị: duyệt / thêm-sửa / xoá từ (giữ hợp đồng I/O cũ cho DictionaryManager)
+// ─────────────────────────────────────────────────────────────────────────
 
-  const where = `term_lang = $1 AND native_lang = $2${hasQ ? " AND term ILIKE $3" : ""}`;
-  const params = hasQ ? [src, tgt, like] : [src, tgt];
-
-  const total = await pool.query<{ c: string }>(
-    `SELECT COUNT(*) AS c FROM dict WHERE ${where}`,
-    params,
-  );
-  const { rows } = await pool.query<DictRow & { dict_id: string | null }>(
-    `SELECT term, reading, definitions, term_lang, native_lang, dict_id
-       FROM dict WHERE ${where}
-      ORDER BY term LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-    [...params, limit, offset],
-  );
-  return {
-    total: Number(total.rows[0].c),
-    items: rows.map((r) => ({ ...rowToDictEntry(r), dict_id: r.dict_id })),
-  };
+/** Làm phẳng gloss của mọi sense về danh sách chuỗi (cho hợp đồng cũ). */
+function definitionsOf(entry: DictionaryEntry): string[] {
+  const out: string[] = [];
+  for (const s of entry.senses) for (const g of s.gloss) out.push(typeof g === "string" ? g : g.text);
+  return out;
 }
 
-/** Add or edit a term's meanings (upsert). Manual terms have no dict_id. */
+/** Duyệt / tìm theo tiền tố trong một cặp ngôn ngữ (phân trang). */
+export async function browseTerms(src: string, tgt: string, q: string, limit: number, offset: number) {
+  const like = q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
+  const hasQ = q.length > 0;
+  const where = `h.term_lang = $1 AND h.native_lang = $2${hasQ ? " AND h.base ILIKE $3" : ""}`;
+  const params: unknown[] = hasQ ? [src, tgt, like] : [src, tgt];
+
+  const total = await pool.query<{ c: string }>(
+    `SELECT COUNT(DISTINCT h.word_id) AS c FROM heading_lookup h WHERE ${where}`,
+    params,
+  );
+  const page = await pool.query<{ word_id: string }>(
+    `SELECT DISTINCT h.word_id, MIN(h.base) AS base FROM heading_lookup h
+      WHERE ${where}
+      GROUP BY h.word_id
+      ORDER BY base LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset],
+  );
+  const ids = distinctWordIds(page.rows);
+  const entries = await assembleByIds(ids);
+
+  const dictIds = await pool.query<{ word_id: string; dict_id: string | null }>(
+    `SELECT DISTINCT ON (word_id) word_id, dict_id FROM entry WHERE word_id = ANY($1) ORDER BY word_id, id`,
+    [ids],
+  );
+  const dictByWord = new Map(dictIds.rows.map((r) => [r.word_id, r.dict_id]));
+
+  const items = ids.map((id, i) => {
+    const e = entries[i];
+    const h = e.headings[0];
+    return {
+      term: h?.base ?? "",
+      reading: h?.reading,
+      definitions: definitionsOf(e),
+      term_lang: e.term_lang,
+      native_lang: e.native_lang,
+      dict_id: dictByWord.get(id) ?? null,
+    };
+  });
+  return { total: Number(total.rows[0].c), items };
+}
+
+/** Thêm/sửa nghĩa thủ công của một từ (entry dict_id = NULL). */
 export async function upsertTerm(entry: {
   term: string;
   term_lang: string;
@@ -204,20 +354,32 @@ export async function upsertTerm(entry: {
   reading: string | null;
   definitions: string[];
 }) {
-  await pool.query(
-    `INSERT INTO dict (term, term_lang, native_lang, reading, definitions, dict_id)
-     VALUES ($1, $2, $3, $4, $5, NULL)
-     ON CONFLICT (term_lang, native_lang, term) DO UPDATE SET
-       reading = EXCLUDED.reading,
-       definitions = EXCLUDED.definitions`,
-    [entry.term, entry.term_lang, entry.native_lang, entry.reading, JSON.stringify(entry.definitions)],
-  );
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const wordId = await resolveOrCreateWord(
+      client,
+      entry.term_lang,
+      entry.native_lang,
+      entry.term,
+      entry.reading ?? "",
+    );
+    await putEntry(client, wordId, null, [plainSense(entry.definitions)]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-/** Delete a single term. Returns false if it did not exist. */
+/** Xoá một từ (word + entry/heading cascade). Trả false nếu không có. */
 export async function deleteTerm(term: string, src: string, tgt: string): Promise<boolean> {
   const del = await pool.query(
-    "DELETE FROM dict WHERE term_lang = $1 AND native_lang = $2 AND term = $3",
+    `DELETE FROM word WHERE id IN (
+       SELECT word_id FROM heading_lookup WHERE term_lang = $1 AND native_lang = $2 AND base = $3
+     )`,
     [src, tgt, term],
   );
   return Boolean(del.rowCount);

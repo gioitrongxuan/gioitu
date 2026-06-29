@@ -14,6 +14,7 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { VocabEntry } from "./types";
 import { GlossaryNode, ResolvedTag, Sense } from "./structured-content";
+import type { PitchAccent, DictImage, DictComment } from "./dictionary";
 import { TermMetaEntry } from "./term-meta";
 
 export type { TermMetaEntry } from "./term-meta";
@@ -48,6 +49,18 @@ export interface DictEntry {
   dictionary?: string;
   /** Source dictionary id (for bulk deletion). */
   dictId?: string;
+
+  // --- Trường phong phú kiểu jisho (từ nguồn server/Mazii; vắng cho Yomitan local) ---
+  /** Hán-Việt của cách viết chính (vd "KHẨN CẤP TỊ NAN"). */
+  hanViet?: string;
+  /** JLPT level của cách viết chính (5..1). */
+  jlpt?: number;
+  /** Pitch accent (kana + accent + mora). */
+  pitch?: PitchAccent[];
+  /** Ảnh minh hoạ (read-only, từ Mazii). */
+  images?: DictImage[];
+  /** Bình luận cộng đồng (read-only, từ Mazii). */
+  comments?: DictComment[];
 }
 
 /** A registry entry for one imported dictionary (client side). */

@@ -2,11 +2,11 @@
 // (IndexedDB-only); when present it provides a fallback dictionary, account
 // auth and cloud sync. This file only bootstraps: init the schema, seed, then
 // assemble the app (see app.ts) and listen.
-import { initSchema } from "./core/db.js";
+import { runMigrations } from "./core/migrate.js";
 import { seedIfEmpty } from "./core/seed.js";
 import { createApp } from "./app.js";
 
-await initSchema();
+await runMigrations();
 await seedIfEmpty();
 
 const app = createApp();

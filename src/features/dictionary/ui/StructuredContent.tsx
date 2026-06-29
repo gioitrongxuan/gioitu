@@ -18,7 +18,9 @@ import {
   distributeFurigana,
   glossaryToLines,
 } from "@/shared/structured-content";
+import type { PitchAccent, DictImage, DictComment } from "@/shared/dictionary";
 import { Pronunciation } from "@/shared/term-meta";
+import { parsePitch } from "../domain/pitch";
 
 interface Props {
   onLookup?: (term: string) => void;
@@ -236,6 +238,16 @@ export function SenseView({ sense, tagMeta, onLookup }: { sense: Sense; tagMeta?
           </div>
         ))}
       </div>
+      {sense.examples && sense.examples.length > 0 && (
+        <ul className="sense-examples">
+          {sense.examples.map((ex, i) => (
+            <li className="example" key={i}>
+              <span className="example-ja" lang="ja">{ex.ja}</span>
+              <span className="example-vi">{ex.vi}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
@@ -311,5 +323,99 @@ export function Furigana({ term, reading }: { term: string; reading?: string }) 
         ),
       )}
     </span>
+  );
+}
+
+/** Huy hiệu cạnh headword: cấp JLPT + chữ Hán-Việt (riêng cho người Việt). */
+export function HeadwordBadges({ hanViet, jlpt }: { hanViet?: string; jlpt?: number }) {
+  if (!hanViet && !jlpt) return null;
+  return (
+    <div className="headword-badges">
+      {jlpt ? <span className="jlpt-badge" title={`Trình độ JLPT N${jlpt}`}>N{jlpt}</span> : null}
+      {hanViet ? <span className="hanviet" title="Âm Hán-Việt">{hanViet}</span> : null}
+    </div>
+  );
+}
+
+/** Sơ đồ pitch accent kiểu OJAD: gạch trên ở mora cao, bước xuống ở chỗ rớt giọng. */
+export function PitchView({ pitch }: { pitch?: PitchAccent[] }) {
+  const usable = (pitch ?? []).filter((p) => p.accent && p.moras && p.moras.length);
+  if (!usable.length) return null;
+  return (
+    <div className="pitches" aria-label="Giọng cao thấp">
+      {usable.map((p, i) => {
+        const parsed = parsePitch(p.accent, p.moras ?? []);
+        if (!parsed) return null;
+        return (
+          <div className="pitch" key={i} lang="ja">
+            {parsed.moras.map((m, j) => (
+              <span key={j} className={`pitch-mora${m.high ? " high" : " low"}${m.dropsAfter ? " drop" : ""}`}>
+                {m.mora}
+              </span>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Gallery ảnh minh hoạ (read-only, hotlink). Ẩn ảnh hỏng; mở lớn ở tab mới. */
+export function ImageGallery({ images }: { images?: DictImage[] }) {
+  if (!images || !images.length) return null;
+  return (
+    <div className="word-images" aria-label="Ảnh minh hoạ">
+      {images.map((im, i) => (
+        <a key={i} className="word-image" href={im.url} target="_blank" rel="noopener noreferrer">
+          <img
+            src={im.url}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              const a = e.currentTarget.closest(".word-image");
+              if (a instanceof HTMLElement) a.style.display = "none";
+            }}
+          />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/** Bình luận cộng đồng (read-only, nhập từ Mazii). */
+export function CommentList({ comments }: { comments?: DictComment[] }) {
+  if (!comments || !comments.length) return null;
+  return (
+    <div className="word-comments">
+      <div className="word-comments-head">
+        Bình luận cộng đồng <span className="muted">· Mazii</span>
+      </div>
+      <ul>
+        {comments.map((c, i) => (
+          <li className="comment" key={i}>
+            {c.avatar && (
+              <img
+                className="comment-avatar"
+                src={c.avatar}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  e.currentTarget.style.visibility = "hidden";
+                }}
+              />
+            )}
+            <div className="comment-body">
+              <div className="comment-mean">{c.mean}</div>
+              <div className="comment-meta muted">
+                {c.author && <span className="comment-author">{c.author}</span>}
+                {(c.likes ?? 0) > 0 && <span className="comment-likes">👍 {c.likes}</span>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
