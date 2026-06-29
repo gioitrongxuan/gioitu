@@ -64,9 +64,13 @@ describe("parseYomitanZip — Wiktionary (wty) entries", () => {
       },
     });
     const parsed = await parseYomitanZip(zip);
-    expect(parsed.entries).toEqual([
-      { term: "変態", reading: undefined, definitions: ["Sự biến thái.", "Sự bất thường."] },
-    ]);
+    expect(parsed.entries).toHaveLength(1);
+    const e = parsed.entries[0];
+    expect(e.term).toBe("変態");
+    expect(e.definitions).toEqual(["Sự biến thái.", "Sự bất thường."]);
+    expect(e.senses).toHaveLength(1);
+    expect(e.senses[0].tags).toEqual(["n"]);
+    expect(e.senses[0].glossary.length).toBeGreaterThan(0); // structured content GIỮ nguyên
   });
 });
 
@@ -84,9 +88,9 @@ describe("parseYomitanZip", () => {
     expect(parsed.title).toBe("wty-ja-vi");
     expect(parsed.term_lang).toBe("ja");
     expect(parsed.native_lang).toBe("vi");
-    expect(parsed.entries).toEqual([
-      { term: "猫", reading: "ねこ", definitions: ["con mèo"] },
-    ]);
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0]).toMatchObject({ term: "猫", reading: "ねこ", definitions: ["con mèo"] });
+    expect(parsed.entries[0].senses[0].tags).toEqual(["n"]);
   });
 
   it("honors an explicit pair override over index.json", async () => {
@@ -111,11 +115,28 @@ describe("parseYomitanZip", () => {
     });
     const parsed = await parseYomitanZip(zip);
     expect(parsed.entries).toHaveLength(1);
-    expect(parsed.entries[0]).toEqual({
+    expect(parsed.entries[0]).toMatchObject({
       term: "道",
       reading: "みち",
       definitions: ["đường", "đạo lý"],
     });
+    // Hai dòng (hai bank) gộp vào một entry; reading rỗng fold vào みち.
+    expect(parsed.entries[0].senses).toHaveLength(2);
+  });
+
+  it("tách từ đồng âm: cùng term, reading khác nhau → entry riêng", async () => {
+    const zip = await makeZip({
+      index: { sourceLanguage: "ja", targetLanguage: "vi" },
+      banks: {
+        "term_bank_1.json": [
+          ["辛い", "からい", "adj-i", "", 0, ["cay"], 0, ""],
+          ["辛い", "つらい", "adj-i", "", 0, ["khổ"], 0, ""],
+        ],
+      },
+    });
+    const parsed = await parseYomitanZip(zip);
+    expect(parsed.entries).toHaveLength(2);
+    expect(parsed.entries.map((e) => e.reading)).toEqual(["からい", "つらい"]);
   });
 
   it("skips entries with no term or no usable gloss", async () => {

@@ -1,6 +1,8 @@
 // Minimal demo dictionaries (one small set per language pair) so every
-// direction returns something out of the box.
+// direction returns something out of the box. Ghi vào schema mới (word/entry)
+// qua dictStore.upsertTerm — không còn chạm bảng `dict` cũ.
 import { pool } from "./db.js";
+import { upsertTerm } from "../features/dictionary/dictStore.js";
 
 interface SeedEntry {
   term: string;
@@ -27,25 +29,17 @@ const SAMPLE: SeedEntry[] = [
 ];
 
 export async function seedIfEmpty(): Promise<void> {
-  const { rows } = await pool.query<{ c: string }>("SELECT COUNT(*) AS c FROM dict");
+  const { rows } = await pool.query<{ c: string }>("SELECT COUNT(*) AS c FROM word");
   if (Number(rows[0].c) > 0) return;
 
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    for (const e of SAMPLE) {
-      await client.query(
-        `INSERT INTO dict (term, term_lang, native_lang, reading, definitions)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [e.term, e.term_lang, e.native_lang, e.reading ?? null, JSON.stringify(e.definitions)],
-      );
-    }
-    await client.query("COMMIT");
-    console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
+  for (const e of SAMPLE) {
+    await upsertTerm({
+      term: e.term,
+      term_lang: e.term_lang,
+      native_lang: e.native_lang,
+      reading: e.reading ?? null,
+      definitions: e.definitions,
+    });
   }
+  console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);
 }

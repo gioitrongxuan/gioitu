@@ -69,6 +69,8 @@ export interface Sense {
   glossary: GlossaryNode[];
   /** Source dictionary title, when known. */
   dictionary?: string;
+  /** Example sentences for this sense (ja + vi). From Mazii / rich sources. */
+  examples?: { ja: string; vi: string }[];
 }
 
 // Wiktionary-to-Yomitan / Kaikki dictionaries (e.g. wty-ja-vi) label the parts

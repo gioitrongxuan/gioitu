@@ -8,10 +8,20 @@ import { useEffect, useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
-import { Definitions, Furigana, Pronunciations, TagChip } from "./StructuredContent";
+import {
+  CommentList,
+  Definitions,
+  Furigana,
+  HeadwordBadges,
+  ImageGallery,
+  PitchView,
+  Pronunciations,
+  TagChip,
+} from "./StructuredContent";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { WordImage } from "@/shared/ui/WordImage";
+import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 
 interface Props {
   /** The text the user searched (surface form). */
@@ -193,6 +203,17 @@ function ResultView({
         )}
       </div>
 
+      <HeadwordBadges hanViet={entry.hanViet} jlpt={entry.jlpt} />
+
+      <AddToListButton
+        word={{
+          term: entry.term,
+          reading: entry.reading,
+          term_lang: entry.term_lang,
+          native_lang: entry.native_lang,
+        }}
+      />
+
       {res.reasons.length > 0 && (
         <div className="reasons" title="Cách chia của từ gốc">
           <span className="reasons-base">{entry.term}</span>
@@ -213,6 +234,7 @@ function ResultView({
       {res.pronunciations && res.pronunciations.length > 0 && (
         <Pronunciations pronunciations={res.pronunciations} />
       )}
+      <PitchView pitch={entry.pitch} />
 
       <Definitions
         senses={entry.senses}
@@ -220,6 +242,9 @@ function ResultView({
         tagMeta={entry.tagMeta}
         onLookup={onLookup}
       />
+
+      <ImageGallery images={entry.images} />
+      <CommentList comments={entry.comments} />
     </section>
   );
 }

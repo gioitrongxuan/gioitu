@@ -27,3 +27,7 @@ yomitan/
 
 # Imported dictionary data dumps (re-importable via the UI; not source)
 wty-*/
+
+# Reference data dumps & upstream clones (huge; re-importable, not source)
+ref/
+yomitan-api/

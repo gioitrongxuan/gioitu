@@ -208,6 +208,52 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .sense-body { display: inline; }
 .gloss { margin: 2px 0; }
 
+/* Ví dụ trong từng sense (ja + vi) */
+.sense-examples { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.sense-examples .example { font-size: 13px; line-height: 1.5; }
+.example-ja { display: block; }
+.example-vi { display: block; color: var(--muted); }
+
+/* Huy hiệu cạnh headword: JLPT + Hán-Việt */
+.headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
+.jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
+.hanviet { font-size: 12px; color: #92400e; background: #fef3c7; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
+
+/* Pitch accent (kiểu OJAD): gạch trên ở mora cao, góc phải = bước xuống giọng */
+.pitches { display: grid; gap: 6px; margin: 8px 0; }
+.pitch { display: inline-flex; padding-top: 6px; }
+.pitch-mora { font-size: 15px; padding: 0 1px; border-top: 2px solid transparent; }
+.pitch-mora.high { border-top-color: var(--fg); }
+.pitch-mora.drop { border-right: 2px solid var(--fg); }
+
+/* Gallery ảnh minh hoạ (cuộn ngang) */
+.word-images { display: flex; gap: 6px; overflow-x: auto; margin: 10px 0; padding-bottom: 4px; }
+.word-image { flex: 0 0 auto; }
+.word-image img { height: 72px; width: auto; border-radius: 6px; object-fit: cover; display: block; background: var(--line); }
+
+/* Thêm vào study list */
+.add-to-list { position: relative; margin: 4px 0; }
+.add-to-list-menu {
+  position: absolute; z-index: 10; top: 100%; left: 0; min-width: 220px; margin-top: 4px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 8px;
+}
+.atl-new { display: flex; gap: 6px; margin-bottom: 6px; }
+.atl-new input { flex: 1; min-width: 0; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.add-to-list-menu ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 180px; overflow-y: auto; }
+.add-to-list-menu li button { width: 100%; text-align: left; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+.add-to-list-menu li button:hover { background: var(--line); }
+.atl-status { margin: 6px 0 0; font-size: 12px; }
+
+/* Bình luận cộng đồng (Mazii) */
+.word-comments { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.word-comments-head { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.word-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.comment { display: flex; gap: 8px; }
+.comment-avatar { width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto; }
+.comment-body { font-size: 13px; line-height: 1.45; }
+.comment-meta { display: flex; gap: 8px; font-size: 11px; margin-top: 1px; }
+
 /* Tags — coloured by Yomitan category (data-category). Compact code label,
    full name on hover (title). */
 .pos-tag, .term-tag {
