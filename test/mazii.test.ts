@@ -40,7 +40,6 @@ describe("mapMaziiRecord", () => {
     expect(w.hanViet).toBe("KHẨN CẤP TỊ NAN");
     expect(w.jlpt).toBe(1);
     expect(w.pitch?.[0]).toMatchObject({ accent: "LHHHHLL-L", moras: ["き", "ん"] });
-    expect(w.furigana).toContain(";"); // chuỗi furigana mã hoá
   });
 
   it("means → senses (pos/gloss/examples/dictionary) + opposite_word → xref antonym", () => {

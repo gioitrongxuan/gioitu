@@ -16,8 +16,6 @@ import {
 } from "./assemble.js";
 import type { DictionaryEntry, Sense } from "@/shared/dictionary";
 import type { GlossaryNode } from "@/shared/structured-content";
-// Furigana mã hoá dùng chung (thuần) — tái dùng thuật toán Yomitan ở src/shared.
-import { encodeWord } from "../../../../src/shared/furigana.js";
 
 export interface ImportSummary {
   dict_id: string;
@@ -158,11 +156,9 @@ async function resolveOrCreateWord(
   );
   if (found.rows[0]) return found.rows[0].word_id;
 
-  // Furigana mã hoá sẵn cho tiếng Nhật (vô nghĩa với en/vi → bỏ).
-  const furigana = term_lang === "ja" && base ? encodeWord(base, reading || undefined) : undefined;
+  // Furigana không lưu ở đây — client tự dựng ruby lúc render (distributeFurigana).
   const heading: Record<string, string> = { base };
   if (reading) heading.reading = reading;
-  if (furigana) heading.furigana = furigana;
   const ins = await client.query<{ id: string }>(
     `INSERT INTO word (term_lang, native_lang, headings) VALUES ($1, $2, $3) RETURNING id`,
     [term_lang, native_lang, JSON.stringify([heading])],
