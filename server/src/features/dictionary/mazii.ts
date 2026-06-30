@@ -4,12 +4,10 @@
 // luận gắn vào word-unit chính (search[0]).
 //
 // Quyết định: weight (ngữ nghĩa không rõ) KHÔNG map sang freq_rank; synsets HOÃN;
-// opposite_word → sense.xref (antonym); comment chỉ lấy status=1; furigana mã hoá
-// sinh tại đây bằng encodeWord (tái dùng thuật toán Yomitan ở src/shared).
+// opposite_word → sense.xref (antonym); comment chỉ lấy status=1. Furigana KHÔNG
+// lưu lúc import — client tự dựng ruby lúc render (distributeFurigana).
 
 import type { Sense, PitchAccent, ExampleSentence, CrossReference } from "@/shared/dictionary";
-// src/shared là code dùng chung; furigana encode thuần (không I/O) nên import được ở server.
-import { encodeWord } from "../../../../src/shared/furigana.js";
 
 /** Tối đa số ảnh giữ cho mỗi từ (URL Mazii nhiều và dễ chết; cắt cho gọn). */
 export const MAX_IMAGES_PER_WORD = 16;
@@ -139,7 +137,6 @@ export function mapMaziiRecord(rec: MaziiRecord): MappedRecord {
       base,
       reading,
       hanViet: s.han ?? undefined,
-      furigana: encodeWord(base, reading || undefined),
       jlpt: parseJlpt(s.level),
       pitch: pitchOf(s.pronunciation),
       senses,
