@@ -37,7 +37,6 @@ services:
     environment:
       DATABASE_URL: postgres://gioitu:gioitu@db:5432/gioitu
       GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:-dev-insecure-secret-change-me}
-      PIXABAY_API_KEY: ${PIXABAY_API_KEY:-}
       PORT: "8787"
     volumes:
       - .:/app
