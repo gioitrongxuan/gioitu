@@ -33,14 +33,17 @@ export interface KanjiEntry {
   strokeCounts?: number[];
 
   components: string[];
-  meanings: string[]; // tiếng Việt
+  /** Nghĩa theo `native_lang` của dòng (EN từ KANJIDIC2, VI từ Mazii…). */
+  meanings: string[];
+  /** Âm Hán-Việt (Mazii chính, KANJIDIC2 `vietnam` làm fallback). Chỉ dòng tiếng Việt. */
+  hanViet?: string[];
 
   kunyomi: KanjiReading[];
   onyomi: KanjiReading[];
   nanori?: string[];
 
-  /** Mọi âm đọc (kể cả bất quy tắc) kèm điểm phổ biến. */
-  readings: KanjiReadingScore[];
+  /** Điểm phổ biến mỗi âm đọc — TÍNH lúc query (cross-ref từ), không lưu. */
+  readings?: KanjiReadingScore[];
   /** Điểm phổ biến tổng của kanji. */
   score?: number;
 
@@ -49,4 +52,34 @@ export interface KanjiEntry {
   keiseiSemantic?: string[];
 
   // exampleWords (từ chứa kanji này): TÍNH lúc query qua heading_lookup, không lưu.
+}
+
+/** Một từ ví dụ chứa kanji (tính lúc query, hiển thị ở trang kanji). */
+export interface KanjiExampleWord {
+  base: string;
+  reading?: string;
+  hanViet?: string;
+  sense?: string;
+}
+
+/** Trả về cho GET /api/kanji/:literal — kanji + các từ ví dụ. */
+export interface KanjiLookupResult {
+  kanji: KanjiEntry;
+  examples: KanjiExampleWord[];
+}
+
+// --- Shape JSONB lưu trong bảng `kanji` (bảng chỉ có 1 cột readings/structural) ---
+
+/** Cột `kanji.readings`: gộp on/kun/nanori (âm đọc thô, không phải điểm phổ biến). */
+export interface StoredReadings {
+  onyomi: KanjiReading[];
+  kunyomi: KanjiReading[];
+  nanori?: string[];
+}
+
+/** Cột `kanji.structural`: gộp phân loại cấu tạo + phần nghĩa/âm của chữ hình thanh. */
+export interface StoredStructural {
+  category?: StructuralCategory;
+  keiseiPhonetic?: string[];
+  keiseiSemantic?: string[];
 }

@@ -21,6 +21,7 @@ import {
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
+import { KanjiBreakdown } from "./KanjiPanel";
 
 interface Props {
   /** The text the user searched (surface form). */
@@ -230,6 +231,11 @@ function ResultView({
 
       <ImageGallery images={entry.images} />
       <CommentList comments={entry.comments} />
+
+      {/* Phân tích chữ Hán — chỉ với từ tiếng Nhật (kanji là dữ liệu server). */}
+      {entry.term_lang === "ja" && (
+        <KanjiBreakdown term={entry.term} src={entry.term_lang} tgt={entry.native_lang} onLookup={onLookup} />
+      )}
     </section>
   );
 }
