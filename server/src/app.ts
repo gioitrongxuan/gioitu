@@ -7,6 +7,7 @@ import express from "express";
 import cors from "cors";
 import { authRoutes } from "./features/auth/authRoutes.js";
 import { dictRoutes } from "./features/dictionary/dictRoutes.js";
+import { kanjiRoutes } from "./features/dictionary/kanjiRoutes.js";
 import { syncRoutes } from "./features/sync/syncRoutes.js";
 import { studyListRoutes } from "./features/studylist/studyListRoutes.js";
 import { ankiRoutes } from "./features/anki/ankiRoutes.js";
@@ -19,6 +20,7 @@ export function createApp() {
   // Feature routers (each owns its sub-paths).
   app.use("/api/auth", authRoutes);
   app.use("/api/dict", dictRoutes);
+  app.use("/api/kanji", kanjiRoutes);
   app.use("/api/sync", syncRoutes);
   app.use("/api/studylist", studyListRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
