@@ -1,23 +1,16 @@
 // Flashcard review session (SPEC 4.4): flip card, self-grade with 4 buttons.
 // Each button shows the interval it would schedule (computed via the engine).
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard } from "../domain/srs";
 import { formatInterval } from "@/shared/ui/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
-import { WordImage } from "@/shared/ui/WordImage";
 
 interface Props {
   queue: VocabEntry[];
   onGrade: (entry: VocabEntry, grade: ReviewGrade) => Promise<VocabEntry>;
   onClose: () => void;
-  /** Lazily fetch the current card's candidate images if it has none yet. */
-  onEnsureImage?: (entry: VocabEntry) => void;
-  /** Up-vote a candidate image for the card. */
-  onVoteImage?: (entry: VocabEntry, url: string) => void;
-  /** Clear a candidate image's votes. */
-  onClearImageVote?: (entry: VocabEntry, url: string) => void;
 }
 
 const GRADES: { grade: ReviewGrade; label: string; cls: string }[] = [
@@ -27,24 +20,12 @@ const GRADES: { grade: ReviewGrade; label: string; cls: string }[] = [
   { grade: "easy", label: "Easy", cls: "easy" },
 ];
 
-export function ReviewSession({
-  queue,
-  onGrade,
-  onClose,
-  onEnsureImage,
-  onVoteImage,
-  onClearImageVote,
-}: Props) {
+export function ReviewSession({ queue, onGrade, onClose }: Props) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
 
   const card = queue[index];
-
-  // Backfill an image for cards added before they were ever opened in detail.
-  useEffect(() => {
-    if (card) onEnsureImage?.(card);
-  }, [card, onEnsureImage]);
 
   const previews = useMemo(() => {
     if (!card) return {} as Record<ReviewGrade, string>;
@@ -87,13 +68,6 @@ export function ReviewSession({
           <div className="front">{card.term}</div>
           {flipped && (
             <div className="back">
-              {onVoteImage && onClearImageVote && (
-                <WordImage
-                  entry={card}
-                  onVote={(url) => onVoteImage(card, url)}
-                  onClear={(url) => onClearImageVote(card, url)}
-                />
-              )}
               <MeaningView
                 term={card.term}
                 reading={card.reading}

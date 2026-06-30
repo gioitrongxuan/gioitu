@@ -4,7 +4,7 @@
 // structured-content glossary grouped by sense. Falls back to a Custom
 // Definition editor when nothing is found, and surfaces the SRS stats.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
@@ -20,7 +20,6 @@ import {
 } from "./StructuredContent";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
-import { WordImage } from "@/shared/ui/WordImage";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 
 interface Props {
@@ -42,12 +41,6 @@ interface Props {
   onMarkForgotten?: (entry: VocabEntry) => void;
   /** Delete the word (tombstone). */
   onDelete?: (entry: VocabEntry) => void;
-  /** Lazily fetch this word's candidate images the first time it's shown. */
-  onEnsureImage?: (entry: VocabEntry) => void;
-  /** Up-vote a candidate image for the word. */
-  onVoteImage?: (entry: VocabEntry, url: string) => void;
-  /** Clear a candidate image's votes. */
-  onClearImageVote?: (entry: VocabEntry, url: string) => void;
 }
 
 export function DetailPanel({
@@ -61,19 +54,10 @@ export function DetailPanel({
   onMarkKnown,
   onMarkForgotten,
   onDelete,
-  onEnsureImage,
-  onVoteImage,
-  onClearImageVote,
 }: Props) {
   const [custom, setCustom] = useState("");
 
   const savedLines = !results.length && entry ? meaningToLines(entry.meaning) : [];
-
-  // Fetch the image once the word is a tracked entry; ensureImage itself is a
-  // no-op for words already checked, so this is safe to fire on every view.
-  useEffect(() => {
-    if (entry) onEnsureImage?.(entry);
-  }, [entry, onEnsureImage]);
 
   return (
     <aside className="detail-panel" aria-label="Chi tiết từ">
@@ -87,14 +71,6 @@ export function DetailPanel({
         </h2>
         <button className="link close" onClick={onClose}>✕</button>
       </header>
-
-      {entry && onVoteImage && onClearImageVote && (
-        <WordImage
-          entry={entry}
-          onVote={(url) => onVoteImage(entry, url)}
-          onClear={(url) => onClearImageVote(entry, url)}
-        />
-      )}
 
       {results.length > 0 ? (
         <div className="results">

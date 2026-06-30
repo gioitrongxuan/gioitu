@@ -124,9 +124,6 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
         await store.deleteEntry(e);
         closeView();
       }}
-      onEnsureImage={store.ensureImage}
-      onVoteImage={store.voteImageEntry}
-      onClearImageVote={store.clearImageVoteEntry}
     />
   );
 
@@ -235,9 +232,6 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           queue={store.dueEntries}
           onGrade={store.gradeReview}
           onClose={() => setReviewing(false)}
-          onEnsureImage={store.ensureImage}
-          onVoteImage={store.voteImageEntry}
-          onClearImageVote={store.clearImageVoteEntry}
         />
       )}
 

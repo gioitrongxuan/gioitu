@@ -10,7 +10,6 @@ import { dictRoutes } from "./features/dictionary/dictRoutes.js";
 import { syncRoutes } from "./features/sync/syncRoutes.js";
 import { studyListRoutes } from "./features/studylist/studyListRoutes.js";
 import { ankiRoutes } from "./features/anki/ankiRoutes.js";
-import { wordImageRoutes } from "./features/wordImage/wordImageRoutes.js";
 
 export function createApp() {
   const app = express();
@@ -22,8 +21,6 @@ export function createApp() {
   app.use("/api/dict", dictRoutes);
   app.use("/api/sync", syncRoutes);
   app.use("/api/studylist", studyListRoutes);
-  // Free illustrative image for a vocabulary word (Jisho JA→EN + Pixabay).
-  app.use("/api/word-image", wordImageRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
   app.use("/api/yomitan-sync", ankiRoutes);
 
