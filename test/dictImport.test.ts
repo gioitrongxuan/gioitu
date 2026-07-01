@@ -139,6 +139,20 @@ describe("parseYomitanZip", () => {
     expect(parsed.entries.map((e) => e.reading)).toEqual(["からい", "つらい"]);
   });
 
+  it("bắt score Yomitan (row[4]) — MAX qua các dòng gộp; kèm revision", async () => {
+    const zip = await makeZip({
+      index: { title: "JMdict", revision: "JMdict.2026-06-24", sourceLanguage: "ja", targetLanguage: "en" },
+      banks: {
+        "term_bank_1.json": [["語", "ご", "", "", 3, ["word"], 0, ""]],
+        "term_bank_2.json": [["語", "", "", "", 9, ["term"], 0, ""]],
+      },
+    });
+    const parsed = await parseYomitanZip(zip);
+    expect(parsed.revision).toBe("JMdict.2026-06-24");
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0].score).toBe(9); // max(3, 9)
+  });
+
   it("skips entries with no term or no usable gloss", async () => {
     const zip = await makeZip({
       index: { sourceLanguage: "ja", targetLanguage: "vi" },

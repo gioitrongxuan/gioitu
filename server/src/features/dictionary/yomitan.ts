@@ -26,6 +26,7 @@ type YomitanTermBankEntry = [
 
 interface IndexJson {
   title?: string;
+  revision?: string;
   sourceLanguage?: string;
   targetLanguage?: string;
 }
@@ -43,10 +44,13 @@ export interface ParsedDictEntry {
   /** Bản phẳng (mỗi sense một/nhiều dòng) cho tìm kiếm / fallback. */
   definitions: string[];
   termTags: string[];
+  /** Điểm phổ biến Yomitan (row[4]); một entry gộp nhiều dòng → lấy MAX. Dùng xếp hạng. */
+  score: number;
 }
 
 export interface ParsedDictionary {
   title: string;
+  revision?: string;
   term_lang: string;
   native_lang: string;
   entries: ParsedDictEntry[];
@@ -169,12 +173,14 @@ function buildEntries(banks: YomitanTermBankEntry[][]): ParsedDictEntry[] {
 
       const sense: ParsedSense = { tags: splitTags(row[2]), glossary };
       const termTags = splitTags(row[7]);
+      const score = typeof row[4] === "number" ? row[4] : 0;
 
       const target = findTarget(term, reading);
       if (target) {
         target.senses.push(sense);
         for (const d of lines) if (!target.definitions.includes(d)) target.definitions.push(d);
         for (const t of termTags) if (!target.termTags.includes(t)) target.termTags.push(t);
+        if (score > target.score) target.score = score;
       } else {
         const entry: ParsedDictEntry = {
           term,
@@ -182,6 +188,7 @@ function buildEntries(banks: YomitanTermBankEntry[][]): ParsedDictEntry[] {
           senses: [sense],
           definitions: lines,
           termTags,
+          score,
         };
         out.push(entry);
         const list = byTerm.get(term);
@@ -196,6 +203,7 @@ function buildEntries(banks: YomitanTermBankEntry[][]): ParsedDictEntry[] {
 function resolveLangs(meta: IndexJson, opts: { term_lang?: string; native_lang?: string }) {
   return {
     title: meta.title ?? "Từ điển Yomitan",
+    revision: meta.revision,
     term_lang: opts.term_lang ?? meta.sourceLanguage ?? "en",
     native_lang: opts.native_lang ?? meta.targetLanguage ?? "vi",
   };
