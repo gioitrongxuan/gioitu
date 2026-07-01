@@ -13,6 +13,7 @@ import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "../../core/db.js";
+import { bulkInsert } from "./bulkInsert.js";
 import { parseMaziiLine, mapMaziiRecord, StagedWord, StagedImage, StagedComment } from "./mazii.js";
 
 export interface MaziiImportSummary {
@@ -28,26 +29,6 @@ export interface MaziiImportSummary {
 const TERM_LANG = "ja";
 const NATIVE_LANG = "vi";
 const FLUSH_EVERY = 2000; // số dòng giữa các lần flush staging
-
-/** INSERT nhiều dòng, chia mẻ để không vượt giới hạn tham số của Postgres. */
-async function bulkInsert(
-  client: PoolClient,
-  table: string,
-  cols: string[],
-  rows: unknown[][],
-  chunkRows: number,
-): Promise<void> {
-  for (let i = 0; i < rows.length; i += chunkRows) {
-    const slice = rows.slice(i, i + chunkRows);
-    const params: unknown[] = [];
-    const tuples = slice.map((r, j) => {
-      const base = j * cols.length;
-      params.push(...r);
-      return "(" + cols.map((_, k) => "$" + (base + k + 1)).join(",") + ")";
-    });
-    await client.query(`INSERT INTO ${table} (${cols.join(",")}) VALUES ${tuples.join(",")}`, params);
-  }
-}
 
 /** Lấy (hoặc tạo) một dòng dictionaries cho Mazii — tái nhập không tạo trùng. */
 async function ensureMaziiDictionary(client: PoolClient): Promise<string> {
@@ -174,6 +155,39 @@ export async function importMaziiFile(
         WHERE w.term_lang = $1 AND w.native_lang = $2
           AND NOT EXISTS (SELECT 1 FROM heading_lookup h WHERE h.word_id = w.id)
        ON CONFLICT DO NOTHING`,
+      [TERM_LANG, NATIVE_LANG],
+    );
+
+    // 2b) Lấp pitch/jlpt/Hán-Việt cho word ĐÃ TỒN TẠI. Bước 1 chỉ set các trường
+    //     này lúc TẠO word mới → word do nguồn khác/lần nhập trước tạo (hoặc backfill
+    //     dict cũ) chỉ nhận sense/ảnh/bình luận, thiếu pitch/Hán-Việt. Chỉ điền chỗ
+    //     THIẾU (COALESCE / hanViet null) nên idempotent, không đè dữ liệu sẵn có.
+    await client.query(
+      `UPDATE word w SET
+         pitch = COALESCE(w.pitch, s.pitch),
+         jlpt  = COALESCE(w.jlpt, s.jlpt),
+         headings = CASE
+           WHEN s.han_viet IS NOT NULL AND (w.headings->0->>'hanViet') IS NULL
+           THEN jsonb_set(w.headings, '{0,hanViet}', to_jsonb(s.han_viet))
+           ELSE w.headings END
+       FROM (SELECT DISTINCT ON (base, reading) base, reading, han_viet, jlpt, pitch
+               FROM stg_word ORDER BY base, reading) s
+       JOIN heading_lookup h
+         ON h.term_lang = $1 AND h.native_lang = $2 AND h.base = s.base AND h.reading = s.reading
+      WHERE w.id = h.word_id
+        AND ( (w.pitch IS NULL AND s.pitch IS NOT NULL)
+           OR (w.jlpt IS NULL AND s.jlpt IS NOT NULL)
+           OR (s.han_viet IS NOT NULL AND (w.headings->0->>'hanViet') IS NULL) )`,
+      [TERM_LANG, NATIVE_LANG],
+    );
+
+    // 2c) Lấp han_viet ở bản chiếu heading_lookup (khớp theo đúng cách viết/âm đọc).
+    await client.query(
+      `UPDATE heading_lookup h SET han_viet = s.han_viet
+         FROM (SELECT DISTINCT ON (base, reading) base, reading, han_viet
+                 FROM stg_word ORDER BY base, reading) s
+        WHERE h.term_lang = $1 AND h.native_lang = $2 AND h.base = s.base AND h.reading = s.reading
+          AND h.han_viet IS NULL AND s.han_viet IS NOT NULL`,
       [TERM_LANG, NATIVE_LANG],
     );
 

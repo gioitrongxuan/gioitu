@@ -73,8 +73,9 @@ export async function exampleWords(
          WHERE term_lang = $1 AND native_lang = $2
            AND position($3 IN base) > 0 AND char_length(base) > 1
       )
-      -- Mazii chưa có điểm phổ biến (score=0); từ NGẮN thường là từ cơ bản → ưu tiên.
-      ORDER BY char_length(w.headings->0->>'base') ASC, w.score DESC NULLS LAST, w.id
+      -- Ưu tiên tần suất (score lan từ JMdict). Từ chưa có score (=0) xếp sau, khi
+      -- đó từ NGẮN thường là từ cơ bản hơn nên ưu tiên tiếp.
+      ORDER BY w.score DESC, char_length(w.headings->0->>'base') ASC, w.id
       LIMIT $4`,
     [src, tgt, literal, limit],
   );
