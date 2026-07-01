@@ -14,7 +14,7 @@ dictRoutes.get(
     const term = String(req.query.term ?? "");
     const src = String(req.query.src ?? "");
     const tgt = String(req.query.tgt ?? "");
-    res.json(await dictStore.lookup(term, src, tgt));
+    res.json(await dictStore.lookupMany(term, src, tgt));
   }),
 );
 

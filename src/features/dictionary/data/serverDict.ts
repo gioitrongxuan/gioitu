@@ -60,15 +60,19 @@ function toDictEntry(e: DictionaryEntry): DictEntry {
   };
 }
 
-/** Server-side forward lookup (fallback when IndexedDB has no dictionary). */
+/**
+ * Server-side forward lookup. Trả về MỌI từ khớp cách-viết-hoặc-âm-đọc (đồng âm:
+ * gõ さくら ra cả 桜 lẫn 櫻), xếp phổ biến giảm dần — như nguồn local. Rỗng khi
+ * không có / backend vắng mặt.
+ */
 export async function serverLookup(
   term: string,
   term_lang: string,
   native_lang: string,
-): Promise<DictEntry | null> {
+): Promise<DictEntry[]> {
   const q = `term=${encodeURIComponent(term)}&src=${term_lang}&tgt=${native_lang}`;
-  const entry = await getJson<DictionaryEntry>(`/dict/lookup?${q}`);
-  return entry ? toDictEntry(entry) : null;
+  const entries = (await getJson<DictionaryEntry[]>(`/dict/lookup?${q}`)) ?? [];
+  return entries.map(toDictEntry);
 }
 
 export async function serverSuggest(
