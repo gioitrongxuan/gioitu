@@ -41,19 +41,25 @@ const serverSource: DictionarySource = {
   async findTerms(text, pair) {
     const query = text.trim();
     if (!query) return [];
-    // The server can't deinflect, so look each candidate form up and keep the
-    // closest (fewest inflection reasons) per term.
+    // The server can't deinflect, so look each candidate form up. A form can map
+    // to several entries (homographs sharing a reading: さくら → 桜, 櫻); key by
+    // (term, reading) so they surface separately, keeping the closest match.
     const cands = candidates(query, pair.source).slice(0, MAX_SERVER_CANDIDATES);
-    const byTerm = new Map<string, TermResult>();
+    const byKey = new Map<string, TermResult>();
     for (const cand of cands) {
-      const entry = await serverLookup(cand.term, pair.source, pair.target);
-      if (!entry) continue;
-      const prev = byTerm.get(entry.term);
-      if (!prev || cand.reasons.length < prev.reasons.length) {
-        byTerm.set(entry.term, { entry, reasons: cand.reasons, source: query });
+      const entries = await serverLookup(cand.term, pair.source, pair.target);
+      for (const entry of entries) {
+        const key = JSON.stringify([entry.term, entry.reading ?? ""]);
+        const prev = byKey.get(key);
+        if (!prev || cand.reasons.length < prev.reasons.length) {
+          byKey.set(key, { entry, reasons: cand.reasons, source: query });
+        }
       }
     }
-    return [...byTerm.values()].sort((a, b) => a.reasons.length - b.reasons.length);
+    // Exact (fewest reasons) first, then most common (score) — như nguồn local.
+    return [...byKey.values()].sort(
+      (a, b) => a.reasons.length - b.reasons.length || (b.entry.score ?? 0) - (a.entry.score ?? 0),
+    );
   },
 
   suggest: (prefix, pair) => serverSuggest(prefix, pair.source, pair.target),

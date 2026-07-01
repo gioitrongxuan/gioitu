@@ -93,19 +93,20 @@ function distinctWordIds(rows: { word_id: string }[]): string[] {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Tra xuôi theo cặp ngôn ngữ. Khớp cả cách viết (base) lẫn âm đọc (reading) —
- * gõ reading vẫn ra entry dưới cách viết kanji — và ưu tiên khớp base.
+ * Tra xuôi theo cặp ngôn ngữ. Khớp cả cách viết (base) lẫn âm đọc (reading) và
+ * trả về MỌI từ khớp — gõ một âm đọc phải ra tất cả đồng âm mang âm đó
+ * (さくら → 桜 và 櫻), không chỉ một. Ưu tiên khớp base, rồi độ phổ biến (score)
+ * giảm dần — như jisho và nguồn local; nếu chỉ lấy một dòng không xếp score thì
+ * dễ trả nhầm cách viết hiếm (櫻) thay vì cách viết thường (桜).
  */
-export async function lookup(term: string, src: string, tgt: string): Promise<DictionaryEntry | null> {
+export async function lookupMany(term: string, src: string, tgt: string): Promise<DictionaryEntry[]> {
   const { rows } = await pool.query<{ word_id: string }>(
-    `SELECT word_id FROM heading_lookup
-      WHERE term_lang = $1 AND native_lang = $2 AND (base = $3 OR reading = $3)
-      ORDER BY (base = $3) DESC LIMIT 1`,
+    `SELECT h.word_id FROM heading_lookup h JOIN word w ON w.id = h.word_id
+      WHERE h.term_lang = $1 AND h.native_lang = $2 AND (h.base = $3 OR h.reading = $3)
+      ORDER BY (h.base = $3) DESC, w.score DESC, h.word_id`,
     [src, tgt, term],
   );
-  if (!rows[0]) return null;
-  const [entry] = await assembleByIds([rows[0].word_id]);
-  return entry ?? null;
+  return assembleByIds(distinctWordIds(rows));
 }
 
 /** Gợi ý theo tiền tố cách viết. */
