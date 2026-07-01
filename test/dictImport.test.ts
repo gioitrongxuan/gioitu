@@ -139,6 +139,19 @@ describe("parseYomitanZip", () => {
     expect(parsed.entries.map((e) => e.reading)).toEqual(["からい", "つらい"]);
   });
 
+  it("bỏ qua file AppleDouble ._term_bank_*.json (rác từ tar macOS)", async () => {
+    const zip = await makeZip({
+      index: { sourceLanguage: "ja", targetLanguage: "en" },
+      banks: {
+        "term_bank_1.json": [["猫", "ねこ", "n", "", 0, ["cat"], 0, ""]],
+        // Regex không neo đầu sẽ bắt nhầm file này (thực tế nó là rác nhị phân → crash).
+        "._term_bank_1.json": [["KHÔNG_ĐƯỢC_LẤY", "", "n", "", 0, ["nope"], 0, ""]],
+      },
+    });
+    const parsed = await parseYomitanZip(zip);
+    expect(parsed.entries.map((e) => e.term)).toEqual(["猫"]);
+  });
+
   it("bắt score Yomitan (row[4]) — MAX qua các dòng gộp; kèm revision", async () => {
     const zip = await makeZip({
       index: { title: "JMdict", revision: "JMdict.2026-06-24", sourceLanguage: "ja", targetLanguage: "en" },
