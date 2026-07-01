@@ -56,6 +56,11 @@ export interface ParsedDictionary {
   entries: ParsedDictEntry[];
 }
 
+// Khớp trên BASENAME + neo đầu: tránh bắt nhầm file AppleDouble `._term_bank_1.json`
+// (macOS tar sinh ra) — không neo thì `term_bank_\d+\.json$` khớp cả `._...` → parse rác.
+const TERM_BANK_RE = /^term_bank_\d+\.json$/;
+const basename = (p: string): string => p.slice(p.lastIndexOf("/") + 1);
+
 const SECTION_GLOSSES = "glosses";
 const NOISE_SECTIONS = new Set(["backlink", "attribution", "tag", "tags"]);
 const BLOCK_TAGS = new Set(["div", "p", "ol", "ul", "li", "tr", "table", "thead", "tbody", "br", "details"]);
@@ -227,7 +232,7 @@ export async function parseYomitanZip(
   }
 
   const bankNames = Object.keys(zip.files)
-    .filter((name) => /term_bank_\d+\.json$/.test(name))
+    .filter((name) => TERM_BANK_RE.test(basename(name)))
     .sort();
   const banks: YomitanTermBankEntry[][] = [];
   for (const name of bankNames) {
@@ -248,7 +253,7 @@ export async function parseYomitanDir(
   } catch {
     /* ignore */
   }
-  const files = (await readdir(dir)).filter((f) => /term_bank_\d+\.json$/.test(f)).sort();
+  const files = (await readdir(dir)).filter((f) => TERM_BANK_RE.test(basename(f))).sort();
   const banks: YomitanTermBankEntry[][] = [];
   for (const f of files) {
     banks.push(JSON.parse(await readFile(join(dir, f), "utf8")) as YomitanTermBankEntry[]);
