@@ -330,6 +330,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .auth-card h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
 .auth-card .muted.small { font-size: 12px; margin-top: 16px; }
 .auth-google-wrap { display: flex; justify-content: center; margin: 22px 0 6px; min-height: 44px; }
+.auth-dev-login { display: block; width: 100%; margin: 6px 0 0; padding: 8px; border: 1px dashed var(--line); border-radius: 8px; background: #fff; cursor: pointer; font: inherit; color: var(--muted); }
+.auth-dev-login:hover { border-color: var(--fg); color: var(--fg); }
 .auth-error { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
 
 /* Auth as a dismissible modal (guest flow) */

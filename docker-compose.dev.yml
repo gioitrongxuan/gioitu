@@ -37,6 +37,8 @@ services:
     environment:
       DATABASE_URL: postgres://gioitu:gioitu@db:5432/gioitu
       GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:-dev-insecure-secret-change-me}
+      # Bật đăng nhập dev (không cần Google) — CHỈ ở stack dev này, prod không đặt.
+      GIOITU_DEV_LOGIN: "1"
       PORT: "8787"
     volumes:
       - .:/app

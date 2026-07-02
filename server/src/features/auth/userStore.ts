@@ -43,6 +43,19 @@ export async function upsertGoogleUser({ sub, email }: GoogleIdentity): Promise<
   return { id, email };
 }
 
+/**
+ * Resolve (or create) an account by email alone — no Google subject. Dùng cho
+ * đăng nhập dev; giữ nguyên tài khoản cũ nếu email đã tồn tại.
+ */
+export async function upsertUserByEmail(email: string): Promise<AccountUser> {
+  const found = await pool.query<{ id: string }>("SELECT id FROM users WHERE email = $1", [email]);
+  if (found.rows[0]) return { id: found.rows[0].id, email };
+
+  const id = newUserId();
+  await pool.query("INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)", [id, email, Date.now()]);
+  return { id, email };
+}
+
 /** The user's Yomitan API key, generating and persisting one on first request. */
 export async function ensureApiKey(userId: string): Promise<string> {
   const { rows } = await pool.query<{ api_key: string | null }>(
