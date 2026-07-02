@@ -10,7 +10,7 @@ import type { EditableSense, JlptLevel, PitchAccent, TermEditState } from "@/sha
 import { saveTerm } from "../../data/dictAdmin";
 import { accentDrop, accentPattern, splitMoras } from "../../domain/pitch";
 import { MISC_OPTIONS, POS_OPTIONS } from "../../domain/tag-options";
-import { PitchView } from "../StructuredContent";
+import { PitchView } from "../PitchView";
 import { TagInput } from "./TagInput";
 
 interface Example {

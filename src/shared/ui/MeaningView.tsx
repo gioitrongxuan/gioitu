@@ -9,8 +9,7 @@
 // review/domain/lookup and the Yomitan sync), so the glossary is text-only;
 // live dictionary search keeps its richer renderer in StructuredContent.
 
-import { Fragment } from "react";
-import { distributeFurigana } from "@/shared/japanese";
+import { Furigana } from "./Furigana";
 
 interface Props {
   /** Headword; rendered with furigana when `reading` is given. Omit to hide it
@@ -39,22 +38,12 @@ export function meaningToLines(meaning: string): string[] {
 export function MeaningView({ term, reading, pos, meaning, example }: Props) {
   const lines = meaningToLines(meaning);
   const posTags = pos ? pos.split(/[,、;；]/).map((t) => t.trim()).filter(Boolean) : [];
-  const segments = term ? distributeFurigana(term, reading) : [];
 
   return (
     <div className="meaning-view">
       {term && (
         <div className="meaning-headword">
-          {segments.map((s, i) =>
-            s.reading ? (
-              <ruby key={i}>
-                {s.text}
-                <rt>{s.reading}</rt>
-              </ruby>
-            ) : (
-              <Fragment key={i}>{s.text}</Fragment>
-            ),
-          )}
+          <Furigana term={term} reading={reading} />
         </div>
       )}
 

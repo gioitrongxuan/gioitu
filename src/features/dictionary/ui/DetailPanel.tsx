@@ -8,16 +8,11 @@ import { useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { reasonLabel } from "../domain/deinflect";
-import {
-  CommentList,
-  Definitions,
-  Furigana,
-  HeadwordBadges,
-  ImageGallery,
-  PitchView,
-  Pronunciations,
-  TagChip,
-} from "./StructuredContent";
+import { Definitions } from "./Definitions";
+import { ImageGallery, CommentList } from "./Media";
+import { PitchView, Pronunciations } from "./PitchView";
+import { TagChip, HeadwordBadges } from "./TagChip";
+import { Furigana } from "@/shared/ui/Furigana";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
@@ -65,7 +60,7 @@ export function DetailPanel({
       <header>
         <h2>
           {!results.length && entry?.reading ? (
-            <Furigana term={entry.term} reading={entry.reading} />
+            <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
           ) : (
             term
           )}
@@ -161,7 +156,7 @@ function ResultView({
     <section className="result">
       <div className="result-head">
         <span className="headword">
-          <Furigana term={entry.term} reading={entry.reading} />
+          <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
         </span>
         {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
         {onAdd && (
@@ -193,7 +188,7 @@ function ResultView({
 
       {res.reasons.length > 0 && (
         <div className="reasons" title="Cách chia của từ gốc">
-          <span className="reasons-base">{entry.term}</span>
+          <span className="reasons-base" lang="ja">{entry.term}</span>
           {res.reasons.map((r, i) => (
             <span key={i} className="reason-chip">{reasonLabel(r)}</span>
           ))}
