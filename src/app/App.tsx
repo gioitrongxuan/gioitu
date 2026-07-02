@@ -27,6 +27,7 @@ import { Toasts } from "@/shared/ui/Toasts";
 import { VocabEntry } from "@/shared/types";
 import { DEFAULT_PAIR, LangPair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
+import { HeaderMenu, MenuItem } from "./HeaderMenu";
 
 /**
  * No auth gate: the app is fully usable as a guest. Signing in is optional and
@@ -137,34 +138,36 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
     />
   );
 
+  // Một danh sách action cho cả hai cách hiện: hàng nút (desktop) và menu ☰
+  // (mobile). CSS theo breakpoint 760px quyết định bên nào hiển thị.
+  const menuItems: MenuItem[] = [
+    ...(isAdmin ? [{ label: "Quản lý từ điển", run: () => setManaging(true) }] : []),
+    ...(store.learnedEntries.length > 0
+      ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
+      : []),
+    { label: "Giao diện", run: () => setTheming(true) },
+    { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
+    ...(email
+      ? [
+          { label: "Đồng bộ", run: store.runSync },
+          { label: "Đăng xuất", run: onLogout },
+        ]
+      : [{ label: "Đăng nhập", run: onRequestLogin }]),
+  ];
+
   return (
     <div className="app">
       <header className="app-header">
         <h1>Gioitu</h1>
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
-          {isAdmin && (
-            <button className="link" onClick={() => setManaging(true)}>Quản lý từ điển</button>
-          )}
-          {store.learnedEntries.length > 0 && (
-            <button className="link" onClick={() => setPage("learned")}>
-              Đã thuộc ({store.learnedEntries.length})
+          {menuItems.map((item) => (
+            <button key={item.label} className="link" onClick={item.run}>
+              {item.label}
             </button>
-          )}
-          <button className="link" onClick={() => setTheming(true)}>Giao diện</button>
-          <button className="link" onClick={() => setConnectingYomitan(true)}>Kết nối Yomitan</button>
-          {email ? (
-            <>
-              <button className="link" onClick={store.runSync}>Đồng bộ</button>
-              <span className="user-email" title={email}>{email}</span>
-              <button className="link" onClick={onLogout}>Đăng xuất</button>
-            </>
-          ) : (
-            <>
-              <span className="user-email">Khách</span>
-              <button className="link" onClick={onRequestLogin}>Đăng nhập</button>
-            </>
-          )}
+          ))}
+          <span className="user-email" title={email ?? undefined}>{email ?? "Khách"}</span>
+          <HeaderMenu items={menuItems} email={email} />
         </div>
       </header>
 
