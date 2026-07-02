@@ -17,6 +17,9 @@ import {
 } from "./jisho-tags";
 import { GlossaryNode } from "./structured-content";
 
+// Re-export để nơi khác (form sửa, store) chỉ cần import từ một chỗ.
+export type { JlptLevel } from "./jisho-tags";
+
 /** Một cách viết của từ (= jisho Heading), kèm cờ chất lượng + hạng phổ biến. */
 export interface Heading {
   /** Chữ viết (kanji, hoặc kana/EN nếu không có kanji). */
@@ -128,6 +131,55 @@ export interface DictComment {
   avatar?: string;
   source?: string;
   createdAt?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Hợp đồng SỬA (admin): lớp nghĩa thủ công + thuộc tính cấp từ mà con người
+// nhập tay. Là input của PUT /dict/term và output của GET /dict/term/edit.
+// Cố ý phẳng hơn Sense (gloss là chuỗi thuần, không structured content) vì đây
+// là thứ người dùng gõ trong form; server ráp lại thành Sense khi lưu.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Một nghĩa sửa được: từ loại + nhãn cách dùng + các dòng nghĩa + ví dụ + ghi chú. */
+export interface EditableSense {
+  /** Mã từ loại (POS) — "n", "v5k", "adj-i"… */
+  pos: string[];
+  /** Mã nhãn cách dùng / sắc thái (misc) — "uk", "col", "hon"… */
+  misc: string[];
+  /** Các dòng nghĩa (mỗi phần tử một nghĩa). */
+  gloss: string[];
+  /** Câu ví dụ (nguồn + bản dịch tiếng Việt). */
+  examples?: { ja: string; vi: string }[];
+  /** Ghi chú cách dùng. */
+  info?: string[];
+}
+
+/** Toàn bộ thuộc tính sửa được của một từ (lớp nghĩa thủ công + cấp từ). */
+export interface EditableTerm {
+  term: string;
+  term_lang: string;
+  native_lang: string;
+  reading?: string;
+  /** Âm Hán-Việt của cách viết chính. */
+  hanViet?: string;
+  jlpt?: JlptLevel;
+  pitch?: PitchAccent[];
+  senses: EditableSense[];
+}
+
+/** Nghĩa từ một từ điển đã nhập (read-only) — hiển thị để đối chiếu khi sửa. */
+export interface ImportedSensePreview {
+  dictionary?: string;
+  gloss: string[];
+}
+
+/**
+ * Trạng thái GET để mở form sửa: từ đã sửa được + id lexeme (để lưu đúng chỗ) +
+ * các nghĩa đã nhập kèm (read-only). `word_id` vắng nghĩa là từ chưa tồn tại.
+ */
+export interface TermEditState extends EditableTerm {
+  word_id?: string;
+  imported: ImportedSensePreview[];
 }
 
 /** Một từ điển đã ráp đầy đủ (≈ jisho Word.Entry) — kiểu API trả về & UI render. */

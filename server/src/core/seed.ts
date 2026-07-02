@@ -38,7 +38,7 @@ export async function seedIfEmpty(): Promise<void> {
       term_lang: e.term_lang,
       native_lang: e.native_lang,
       reading: e.reading ?? null,
-      definitions: e.definitions,
+      senses: [{ pos: [], misc: [], gloss: e.definitions }],
     });
   }
   console.log(`Seeded ${SAMPLE.length} demo dictionary entries across 4 pairs.`);

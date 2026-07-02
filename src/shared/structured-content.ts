@@ -71,6 +71,8 @@ export interface Sense {
   dictionary?: string;
   /** Example sentences for this sense (ja + vi). From Mazii / rich sources. */
   examples?: { ja: string; vi: string }[];
+  /** Usage notes for this sense (JMdict `info`) — shown as a muted footnote. */
+  info?: string[];
 }
 
 // Wiktionary-to-Yomitan / Kaikki dictionaries (e.g. wty-ja-vi) label the parts

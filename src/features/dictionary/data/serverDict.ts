@@ -34,11 +34,13 @@ const splitPos = (codes: string[]): string[] =>
 function toDictEntry(e: DictionaryEntry): DictEntry {
   const head: Heading = e.headings[0] ?? { base: "" };
   const senses: Sense[] = e.senses.map((s) => ({
-    tags: splitPos(s.pos),
+    // Chip từ loại gộp cả nhãn cách dùng (misc: uk/col/hon…) để dữ liệu sửa tay hiện đủ.
+    tags: splitPos([...s.pos, ...(s.misc ?? [])]),
     // Giữ structured content (Yomitan) khi có để render giàu; nếu không, dùng gloss text.
     glossary: s.glossary && s.glossary.length ? s.glossary : s.gloss.map(glossText),
     dictionary: s.dictionary,
     examples: s.examples,
+    info: s.info,
   }));
   const posCodes = [...new Set(senses.flatMap((s) => s.tags))];
   return {
