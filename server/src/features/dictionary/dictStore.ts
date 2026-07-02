@@ -14,8 +14,22 @@ import {
   ImageRow,
   CommentRow,
 } from "./assemble.js";
-import type { DictionaryEntry, Sense } from "@/shared/dictionary";
+import type {
+  DictionaryEntry,
+  EditableSense,
+  Heading,
+  JlptLevel,
+  PitchAccent,
+  Sense,
+  TermEditState,
+} from "@/shared/dictionary";
 import type { GlossaryNode } from "@/shared/structured-content";
+import {
+  editableToSenses,
+  importedPreview,
+  patchPrimaryHeading,
+  sensesToEditable,
+} from "./termEdit.js";
 
 export interface ImportSummary {
   dict_id: string;
@@ -343,25 +357,94 @@ export async function browseTerms(src: string, tgt: string, q: string, limit: nu
   return { total: Number(total.rows[0].c), items };
 }
 
-/** Thêm/sửa nghĩa thủ công của một từ (entry dict_id = NULL). */
+/**
+ * Vá thuộc tính cấp từ (heading chính: reading/Hán-Việt/JLPT; cột pitch/jlpt) rồi
+ * dựng lại bản chiếu tra cho từ này. Ghi headings luôn; chỉ đụng `pitch` khi được
+ * cung cấp (đừng xoá pitch nhập từ Mazii ở các sửa không liên quan).
+ */
+async function applyWordAttributes(
+  client: PoolClient,
+  wordId: string,
+  a: {
+    term: string;
+    reading: string;
+    hanViet?: string;
+    jlpt?: JlptLevel;
+    pitch?: PitchAccent[];
+    term_lang: string;
+    native_lang: string;
+  },
+): Promise<void> {
+  const cur = await client.query<{ headings: Heading[] }>(`SELECT headings FROM word WHERE id = $1`, [wordId]);
+  const headings = patchPrimaryHeading(cur.rows[0]?.headings ?? [], {
+    term: a.term,
+    reading: a.reading || undefined,
+    hanViet: a.hanViet,
+    jlpt: a.jlpt,
+  });
+
+  if (a.pitch !== undefined) {
+    await client.query(`UPDATE word SET headings = $2, jlpt = $3, pitch = $4 WHERE id = $1`, [
+      wordId,
+      JSON.stringify(headings),
+      a.jlpt ?? null,
+      a.pitch.length ? JSON.stringify(a.pitch) : null,
+    ]);
+  } else {
+    await client.query(`UPDATE word SET headings = $2, jlpt = $3 WHERE id = $1`, [
+      wordId,
+      JSON.stringify(headings),
+      a.jlpt ?? null,
+    ]);
+  }
+
+  // Đồng bộ bản chiếu tra cho ĐÚNG cách viết đang sửa (đổi reading/Hán-Việt).
+  // Chỉ đụng hàng có base = term để không xoá han_viet của các cách viết khác
+  // (nguồn Mazii có thể chỉ lưu han_viet ở cột lookup, không ở headings JSONB).
+  await client.query(`DELETE FROM heading_lookup WHERE word_id = $1 AND base = $2`, [wordId, a.term]);
+  await client.query(
+    `INSERT INTO heading_lookup (term_lang, native_lang, base, reading, word_id, han_viet)
+     VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
+    [a.term_lang, a.native_lang, a.term, a.reading, wordId, a.hanViet ?? null],
+  );
+}
+
+/**
+ * Thêm/sửa lớp nghĩa THỦ CÔNG của một từ (entry dict_id = NULL) cùng thuộc tính
+ * cấp từ (reading/Hán-Việt/JLPT/pitch). Khi có `word_id` thì sửa đúng từ đó (kể
+ * cả đổi reading); không có thì tạo/khớp theo (cách viết, âm đọc).
+ */
 export async function upsertTerm(entry: {
+  word_id?: string;
   term: string;
   term_lang: string;
   native_lang: string;
-  reading: string | null;
-  definitions: string[];
+  reading?: string | null;
+  hanViet?: string;
+  jlpt?: JlptLevel;
+  pitch?: PitchAccent[];
+  senses: EditableSense[];
 }) {
+  const reading = entry.reading ?? "";
+  const senses = editableToSenses(entry.senses);
+  if (senses.length === 0) throw new Error("Cần ít nhất một nghĩa");
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const wordId = await resolveOrCreateWord(
-      client,
-      entry.term_lang,
-      entry.native_lang,
-      entry.term,
-      entry.reading ?? "",
-    );
-    await putEntry(client, wordId, null, [plainSense(entry.definitions)]);
+    const wordId =
+      entry.word_id ??
+      (await resolveOrCreateWord(client, entry.term_lang, entry.native_lang, entry.term, reading));
+    await applyWordAttributes(client, wordId, {
+      term: entry.term,
+      reading,
+      hanViet: entry.hanViet,
+      jlpt: entry.jlpt,
+      pitch: entry.pitch,
+      term_lang: entry.term_lang,
+      native_lang: entry.native_lang,
+    });
+    await putEntry(client, wordId, null, senses);
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -369,6 +452,53 @@ export async function upsertTerm(entry: {
   } finally {
     client.release();
   }
+}
+
+/**
+ * Trạng thái để mở form sửa một từ: thuộc tính cấp từ + lớp nghĩa thủ công (sửa
+ * được) + các nghĩa đã nhập kèm (read-only, để đối chiếu). Null nếu không có từ.
+ */
+export async function getTermForEdit(
+  src: string,
+  tgt: string,
+  term: string,
+  reading: string,
+): Promise<TermEditState | null> {
+  const found = await pool.query<{ word_id: string }>(
+    `SELECT word_id FROM heading_lookup
+      WHERE term_lang = $1 AND native_lang = $2 AND base = $3 AND reading = $4`,
+    [src, tgt, term, reading ?? ""],
+  );
+  if (!found.rows[0]) return null;
+  const wordId = found.rows[0].word_id;
+
+  const [wordRes, entryRes] = await Promise.all([
+    pool.query<{ headings: Heading[]; pitch: PitchAccent[] | null; jlpt: number | null }>(
+      `SELECT headings, pitch, jlpt FROM word WHERE id = $1`,
+      [wordId],
+    ),
+    pool.query<{ senses: Sense[]; dict_id: string | null }>(
+      `SELECT senses, dict_id FROM entry WHERE word_id = $1 ORDER BY (dict_id IS NULL) DESC, id`,
+      [wordId],
+    ),
+  ]);
+  const word = wordRes.rows[0];
+  const head = word?.headings?.find((h) => h.base === term) ?? word?.headings?.[0];
+  const manual = entryRes.rows.find((e) => e.dict_id === null);
+  const imported = entryRes.rows.filter((e) => e.dict_id !== null).flatMap((e) => e.senses ?? []);
+
+  return {
+    word_id: wordId,
+    term,
+    term_lang: src,
+    native_lang: tgt,
+    reading: head?.reading,
+    hanViet: head?.hanViet,
+    jlpt: (head?.jlpt ?? word?.jlpt ?? undefined) as JlptLevel | undefined,
+    pitch: word?.pitch ?? undefined,
+    senses: sensesToEditable(manual?.senses ?? []),
+    imported: importedPreview(imported),
+  };
 }
 
 /** Xoá một từ (word + entry/heading cascade). Trả false nếu không có. */

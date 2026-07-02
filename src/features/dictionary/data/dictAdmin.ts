@@ -5,6 +5,7 @@
 // surface backend errors to the caller instead of returning null.
 
 import { DictEntry } from "@/shared/db";
+import type { EditableTerm, TermEditState } from "@/shared/dictionary";
 import { authToken } from "@/features/auth/data/auth";
 
 const BASE = "/api";
@@ -107,14 +108,21 @@ export function browseTerms(
   return request<TermsPage>(`/dict/terms?${q}`, { headers: authHeaders() });
 }
 
-export function saveTerm(entry: {
-  term: string;
-  term_lang: string;
-  native_lang: string;
-  reading?: string;
-  definitions: string[];
-}): Promise<DictEntry> {
-  return request<DictEntry>("/dict/term", {
+/** Toàn bộ trạng thái sửa được của một từ (kèm id lexeme để lưu đúng chỗ). */
+export function fetchTermForEdit(
+  term_lang: string,
+  native_lang: string,
+  term: string,
+  reading?: string,
+): Promise<TermEditState> {
+  const q = new URLSearchParams({ src: term_lang, tgt: native_lang, term });
+  if (reading) q.set("reading", reading);
+  return request<TermEditState>(`/dict/term/edit?${q}`, { headers: authHeaders() });
+}
+
+/** Thêm/sửa một từ. `word_id` (khi sửa) đảm bảo ghi đúng lexeme kể cả khi đổi reading. */
+export function saveTerm(entry: EditableTerm & { word_id?: string }): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/dict/term", {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(entry),

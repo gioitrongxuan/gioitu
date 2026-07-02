@@ -1,8 +1,9 @@
-// Collapsible "add a new term" form for the current language pair.
+// Khối "thêm từ mới" thu gọn cho cặp ngôn ngữ hiện tại. Chỉ là vỏ <details> bọc
+// TermForm (mode="new") — toàn bộ trường phong phú dùng chung với lúc sửa.
 
 import { useState } from "react";
 import { LangPair } from "@/shared/languages";
-import { saveTerm } from "../../data/dictAdmin";
+import { TermForm } from "./TermForm";
 
 export function NewTermForm({
   pair,
@@ -13,50 +14,22 @@ export function NewTermForm({
   onSaved: () => void;
   onError: (s: string | null) => void;
 }) {
-  const [term, setTerm] = useState("");
-  const [reading, setReading] = useState("");
-  const [defs, setDefs] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    const definitions = defs.split("\n").map((s) => s.trim()).filter(Boolean);
-    if (!term.trim() || definitions.length === 0) {
-      onError("Cần nhập từ và ít nhất một nghĩa");
-      return;
-    }
-    setBusy(true);
-    onError(null);
-    try {
-      await saveTerm({
-        term: term.trim(),
-        term_lang: pair.source,
-        native_lang: pair.target,
-        reading: reading.trim() || undefined,
-        definitions,
-      });
-      setTerm(""); setReading(""); setDefs("");
-      onSaved();
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  // `key` ép TermForm dựng lại (xoá trắng) sau mỗi lần lưu hoặc đổi cặp ngôn ngữ.
+  const [seq, setSeq] = useState(0);
 
   return (
     <details className="new-term">
       <summary>+ Thêm từ mới ({pair.label})</summary>
-      <div className="new-term-fields">
-        <input placeholder="Từ" value={term} onChange={(e) => setTerm(e.target.value)} />
-        <input placeholder="Cách đọc (tùy chọn)" value={reading} onChange={(e) => setReading(e.target.value)} />
-        <textarea
-          placeholder="Mỗi dòng một nghĩa"
-          rows={3}
-          value={defs}
-          onChange={(e) => setDefs(e.target.value)}
-        />
-        <button className="primary" disabled={busy} onClick={submit}>Lưu từ</button>
-      </div>
+      <TermForm
+        key={`${pair.id}-${seq}`}
+        pair={pair}
+        mode="new"
+        onError={onError}
+        onDone={() => {
+          setSeq((n) => n + 1);
+          onSaved();
+        }}
+      />
     </details>
   );
 }

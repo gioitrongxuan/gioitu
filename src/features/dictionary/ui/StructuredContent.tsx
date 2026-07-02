@@ -238,6 +238,9 @@ export function SenseView({ sense, tagMeta, onLookup }: { sense: Sense; tagMeta?
           </div>
         ))}
       </div>
+      {sense.info && sense.info.length > 0 && (
+        <div className="sense-info muted">{sense.info.join(" · ")}</div>
+      )}
       {sense.examples && sense.examples.length > 0 && (
         <ul className="sense-examples">
           {sense.examples.map((ex, i) => (

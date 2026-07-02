@@ -1,10 +1,13 @@
-// One row in the term browser: shows a term's reading + glosses, with inline
-// edit / delete against the shared server dictionary.
+// Một hàng trong trình duyệt từ: hiện cách viết + cách đọc + nghĩa rút gọn. Bấm
+// "Sửa" nạp toàn bộ thuộc tính sửa được (nghĩa/ POS / ví dụ / pitch…) rồi mở
+// TermForm; "Xóa" gỡ từ khỏi từ điển server.
 
 import { useState } from "react";
 import { LangPair } from "@/shared/languages";
+import type { TermEditState } from "@/shared/dictionary";
 import { glossToText } from "@/shared/structured-content";
-import { TermRow, saveTerm, deleteTerm } from "../../data/dictAdmin";
+import { TermRow, deleteTerm, fetchTermForEdit } from "../../data/dictAdmin";
+import { TermForm } from "./TermForm";
 
 export function TermEditor({
   row,
@@ -17,33 +20,18 @@ export function TermEditor({
   onChanged: () => void;
   onError: (s: string | null) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [defs, setDefs] = useState(row.definitions.map(glossToText).join("\n"));
-  const [reading, setReading] = useState(row.reading ?? "");
-  const [busy, setBusy] = useState(false);
+  const [state, setState] = useState<TermEditState | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function save() {
-    const definitions = defs.split("\n").map((s) => s.trim()).filter(Boolean);
-    if (definitions.length === 0) {
-      onError("Cần ít nhất một nghĩa");
-      return;
-    }
-    setBusy(true);
+  async function openEditor() {
+    setLoading(true);
     onError(null);
     try {
-      await saveTerm({
-        term: row.term,
-        term_lang: pair.source,
-        native_lang: pair.target,
-        reading: reading.trim() || undefined,
-        definitions,
-      });
-      setEditing(false);
-      onChanged();
+      setState(await fetchTermForEdit(pair.source, pair.target, row.term, row.reading));
     } catch (err) {
       onError((err as Error).message);
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
@@ -63,28 +51,30 @@ export function TermEditor({
         <b>{row.term}</b>
         {row.reading && <span className="reading">{row.reading}</span>}
         <span className="term-actions">
-          {editing ? (
-            <>
-              <button className="link" disabled={busy} onClick={save}>Lưu</button>
-              <button className="link" onClick={() => setEditing(false)}>Hủy</button>
-            </>
+          {state ? (
+            <button className="link" onClick={() => setState(null)}>Đóng</button>
           ) : (
             <>
-              <button className="link" onClick={() => setEditing(true)}>Sửa</button>
+              <button className="link" disabled={loading} onClick={openEditor}>
+                {loading ? "Đang tải…" : "Sửa"}
+              </button>
               <button className="link danger" onClick={remove}>Xóa</button>
             </>
           )}
         </span>
       </div>
-      {editing ? (
-        <div className="term-edit-fields">
-          <input
-            placeholder="Cách đọc"
-            value={reading}
-            onChange={(e) => setReading(e.target.value)}
-          />
-          <textarea rows={3} value={defs} onChange={(e) => setDefs(e.target.value)} />
-        </div>
+      {state ? (
+        <TermForm
+          pair={pair}
+          mode="edit"
+          initial={state}
+          onError={onError}
+          onCancel={() => setState(null)}
+          onDone={() => {
+            setState(null);
+            onChanged();
+          }}
+        />
       ) : (
         <ul className="definitions">
           {row.definitions.map((d, i) => <li key={i}>{glossToText(d)}</li>)}

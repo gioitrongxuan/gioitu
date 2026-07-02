@@ -2,10 +2,47 @@
 // rest manage the shared dictionary and require an admin (requireAdmin). SQL
 // lives in dictStore; these handlers only validate input and shape the response.
 import express, { Router } from "express";
+import type { EditableSense, JlptLevel, PitchAccent } from "@/shared/dictionary";
 import { wrap, requireAdmin } from "../../core/middleware.js";
 import * as dictStore from "./dictStore.js";
 
 export const dictRoutes = Router();
+
+// --- Nắn body của PUT /term (tin admin, nhưng vẫn chuẩn hoá kiểu) ---
+
+const asStrings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
+
+function parseSenses(raw: unknown): EditableSense[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((s) => {
+    const o = (s ?? {}) as Record<string, unknown>;
+    const examples = Array.isArray(o.examples)
+      ? (o.examples as unknown[])
+          .map((e) => {
+            const eo = (e ?? {}) as Record<string, unknown>;
+            return { ja: String(eo.ja ?? "").trim(), vi: String(eo.vi ?? "").trim() };
+          })
+          .filter((e) => e.ja || e.vi)
+      : [];
+    return { pos: asStrings(o.pos), misc: asStrings(o.misc), gloss: asStrings(o.gloss), info: asStrings(o.info), examples };
+  });
+}
+
+/** `pitch` vắng → undefined (giữ nguyên); `[]` → xoá; ngược lại lọc mục hợp lệ. */
+function parsePitch(raw: unknown): PitchAccent[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .map((p) => {
+      const o = (p ?? {}) as Record<string, unknown>;
+      return {
+        kana: o.kana ? String(o.kana) : undefined,
+        accent: o.accent ? String(o.accent) : undefined,
+        moras: Array.isArray(o.moras) ? o.moras.map(String) : undefined,
+      };
+    })
+    .filter((p) => Boolean(p.accent && p.moras && p.moras.length));
+}
 
 // --- Public: forward lookup, scoped to a language pair (SPEC 2.A) ---
 dictRoutes.get(
@@ -126,26 +163,49 @@ dictRoutes.get(
   }),
 );
 
-// Add or edit a term's meanings (upsert).
+// Fetch a term's full editable state (manual senses + word attributes + a
+// read-only view of what imported dictionaries already say).
+dictRoutes.get(
+  "/term/edit",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const src = String(req.query.src ?? "");
+    const tgt = String(req.query.tgt ?? "");
+    const term = String(req.query.term ?? "").trim();
+    const reading = String(req.query.reading ?? "");
+    if (!term || !src || !tgt) return res.status(400).json({ error: "Thiếu tham số" });
+    const state = await dictStore.getTermForEdit(src, tgt, term, reading);
+    if (!state) return res.status(404).json({ error: "Không tìm thấy từ" });
+    res.json(state);
+  }),
+);
+
+// Add or edit a term (upsert): manual senses (POS / usage / glosses / examples /
+// notes) plus word attributes (reading / Hán-Việt / JLPT / pitch).
 dictRoutes.put(
   "/term",
   requireAdmin,
   wrap(async (req, res) => {
-    const term = String(req.body?.term ?? "").trim();
-    const term_lang = String(req.body?.term_lang ?? "");
-    const native_lang = String(req.body?.native_lang ?? "");
-    const reading = req.body?.reading ? String(req.body.reading) : null;
-    const definitions = Array.isArray(req.body?.definitions)
-      ? (req.body.definitions as unknown[]).map((d) => String(d).trim()).filter(Boolean)
-      : [];
+    const body = req.body ?? {};
+    const term = String(body.term ?? "").trim();
+    const term_lang = String(body.term_lang ?? "");
+    const native_lang = String(body.native_lang ?? "");
+    const word_id = body.word_id ? String(body.word_id) : undefined;
+    const reading = body.reading ? String(body.reading) : null;
+    const hanViet = body.hanViet ? String(body.hanViet).trim() : undefined;
+    const jlptNum = Number(body.jlpt);
+    const jlpt = jlptNum >= 1 && jlptNum <= 5 ? (jlptNum as JlptLevel) : undefined;
+    const pitch = parsePitch(body.pitch);
+    const senses = parseSenses(body.senses);
+
     if (!term || !term_lang || !native_lang) {
       return res.status(400).json({ error: "Thiếu từ hoặc cặp ngôn ngữ" });
     }
-    if (definitions.length === 0) {
+    if (!senses.some((s) => s.gloss.length > 0)) {
       return res.status(400).json({ error: "Cần ít nhất một nghĩa" });
     }
-    await dictStore.upsertTerm({ term, term_lang, native_lang, reading, definitions });
-    res.json({ term, reading: reading ?? undefined, definitions, term_lang, native_lang });
+    await dictStore.upsertTerm({ word_id, term, term_lang, native_lang, reading, hanViet, jlpt, pitch, senses });
+    res.json({ ok: true });
   }),
 );
 

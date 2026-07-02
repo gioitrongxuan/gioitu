@@ -382,6 +382,42 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .term-edit-fields { display: grid; gap: 8px; margin-top: 8px; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 16px; }
 
+/* Rich term editor (add / edit a word's full vocabulary) */
+.term-form { display: grid; gap: 12px; margin-top: 10px; }
+.term-form input, .term-form textarea, .term-form select {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit;
+}
+.form-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.form-field { flex: 1 1 160px; display: grid; gap: 4px; }
+.field-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.static-term { font-size: 16px; padding: 4px 0; }
+
+.senses-editor { display: grid; gap: 10px; }
+.sense-editor { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 12px; display: grid; gap: 10px; margin: 0; }
+.sense-editor legend { font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 4px; display: flex; gap: 10px; align-items: baseline; }
+
+.tag-input { display: grid; gap: 4px; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.edit-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface, #f4f4f5); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+.chip-x { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
+.tag-add { flex: 1 1 80px; min-width: 80px; border: none !important; padding: 2px !important; }
+.tag-add:focus { outline: none; }
+
+.examples-editor { display: grid; gap: 6px; }
+.example-row { display: flex; gap: 6px; align-items: center; }
+.example-row input { flex: 1; }
+
+.pitch-editor summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+.pitch-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.pitch-row input[type=number] { width: 64px; flex: none; }
+.pitch-row .pitches { margin: 0; }
+
+.imported-preview { display: grid; gap: 4px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.imported-sense { font-size: 13px; color: var(--muted); display: flex; gap: 8px; }
+
+.form-actions { display: flex; gap: 12px; align-items: center; }
+.sense-info { font-size: 12px; margin-top: 4px; }
+
 /* Theme settings */
 .theme-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(15, 23, 42, 0.45); }
 .theme-card { width: min(480px, 96vw); max-height: 90vh; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
