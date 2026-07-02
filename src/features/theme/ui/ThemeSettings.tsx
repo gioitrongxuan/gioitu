@@ -33,6 +33,7 @@ const PALETTE_FIELDS: FieldDef[] = [
   { key: "accent", label: "Màu nhấn" },
   { key: "warn", label: "Cảnh báo" },
   { key: "bg", label: "Nền trang" },
+  { key: "surface", label: "Nền thẻ" },
   { key: "fg", label: "Chữ" },
   { key: "muted", label: "Chữ phụ" },
   { key: "line", label: "Đường kẻ" },
