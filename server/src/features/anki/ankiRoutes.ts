@@ -34,9 +34,10 @@ ankiRoutes.post(
     };
 
     const reply = await handleAction(action, params, req.body?.key, opts, deps);
-    // Success replies are the UNWRAPPED value with no error key; failures carry
-    // `{ error }`. Both go out as HTTP 200 so Yomitan reads our message instead
-    // of a generic connection error (see ankiProtocol.ts for the wire contract).
-    res.json(reply.kind === "result" ? reply.value : { error: reply.message });
+    // Success replies are wrapped as `{ result }` with no error key; failures
+    // carry `{ error }`. Both go out as HTTP 200 so Yomitan reads our message
+    // instead of a generic connection error (see ankiProtocol.ts for the wire
+    // contract, including why bare scalars can't be sent unwrapped).
+    res.json(reply.kind === "result" ? { result: reply.value } : { error: reply.message });
   }),
 );

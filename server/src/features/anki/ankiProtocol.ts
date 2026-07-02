@@ -6,10 +6,14 @@
 //
 // Wire contract (verified against yomidevs/yomitan AnkiConnect._invoke): the
 // client reads the WHOLE response body as the result and only treats it as a
-// failure if the body contains an `error` field. So every success reply is the
-// UNWRAPPED raw value (e.g. `6`, never `{ "result": 6 }`) and must NOT carry an
-// `error` key (`error: null` would be read as a failure). `AnkiReply` keeps that
-// distinction explicit; the route serializes it (see ankiRoutes.ts).
+// failure if the body contains an `error` field, so a success reply must NOT
+// carry an `error` key (`error: null` would be read as a failure). Within that
+// constraint, success replies are wrapped as `{ "result": value }` rather than
+// sent as a bare/unwrapped value: some AnkiConnect clients (e.g. Swift's
+// JSONSerialization without .fragmentsAllowed) reject a top-level JSON scalar
+// like a bare `6`, and a bare array can't be told apart from an object client
+// side. `AnkiReply` keeps success/failure explicit; the route serializes it
+// (see ankiRoutes.ts).
 
 import type { NoteFields, SaveNoteOptions } from "./ankiNote.js";
 
