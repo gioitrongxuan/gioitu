@@ -1,10 +1,12 @@
 // Phân tích chữ Hán của một từ (kiểu jisho): mỗi kanji một thẻ — chữ lớn, Hán-Việt,
-// JLPT/cấp, số nét, nghĩa, On/Kun, bộ phận cấu tạo; mở rộng để xem từ ví dụ (lười tải).
-// Dữ liệu từ /api/kanji (server-only). Không có kanji / offline → không hiện gì.
+// JLPT/cấp, số nét, nghĩa, On/Kun, bộ phận cấu tạo; mở rộng để xem từ ví dụ và
+// thứ tự nét viết (đều lười tải). Dữ liệu từ /api/kanji (server-only) và KanjiVG.
+// Không có kanji / offline → không hiện gì.
 
 import { useEffect, useState } from "react";
 import type { KanjiEntry, KanjiExampleWord } from "@/shared/kanji";
 import { fetchKanjiBreakdown, fetchKanji } from "../data/kanjiApi";
+import { KanjiStrokeDiagram } from "./KanjiStrokeDiagram";
 
 interface BreakdownProps {
   term: string;
@@ -49,6 +51,8 @@ function KanjiCard({
 }) {
   const [examples, setExamples] = useState<KanjiExampleWord[] | null>(null);
   const [open, setOpen] = useState(false);
+  // Sơ đồ nét chỉ mount khi mở — KanjiStrokeDiagram tự tải (và cache) KanjiVG.
+  const [showStrokes, setShowStrokes] = useState(false);
 
   const toggle = () => {
     const next = !open;
@@ -61,7 +65,7 @@ function KanjiCard({
   return (
     <div className="kanji-card">
       <div className="kanji-card-main">
-        <span className="kanji-literal">{kanji.literal}</span>
+        <span className="kanji-literal" lang="ja">{kanji.literal}</span>
         <div className="kanji-info">
           <div className="kanji-badges">
             {kanji.hanViet?.length ? <span className="han-viet">{kanji.hanViet.join(", ")}</span> : null}
@@ -75,13 +79,13 @@ function KanjiCard({
             {kanji.onyomi.length > 0 && (
               <>
                 <dt>On</dt>
-                <dd>{kanji.onyomi.map((r) => r.text).join("、")}</dd>
+                <dd lang="ja">{kanji.onyomi.map((r) => r.text).join("、")}</dd>
               </>
             )}
             {kanji.kunyomi.length > 0 && (
               <>
                 <dt>Kun</dt>
-                <dd>{kanji.kunyomi.map((r) => r.text).join("、")}</dd>
+                <dd lang="ja">{kanji.kunyomi.map((r) => r.text).join("、")}</dd>
               </>
             )}
           </dl>
@@ -92,16 +96,23 @@ function KanjiCard({
         <div className="kanji-components">
           <span className="muted">Bộ phận:</span>
           {kanji.components.map((c) => (
-            <span key={c} className="component">
+            <span key={c} className="component" lang="ja">
               {c}
             </span>
           ))}
         </div>
       )}
 
-      <button className="link kanji-examples-toggle" onClick={toggle}>
-        {open ? "Ẩn từ ví dụ" : "Từ ví dụ"}
-      </button>
+      <div className="kanji-toggles">
+        <button className="link" onClick={toggle}>
+          {open ? "Ẩn từ ví dụ" : "Từ ví dụ"}
+        </button>
+        <button className="link" onClick={() => setShowStrokes((v) => !v)}>
+          {showStrokes ? "Ẩn nét viết" : "Nét viết"}
+        </button>
+      </div>
+
+      {showStrokes && <KanjiStrokeDiagram kanji={kanji.literal} />}
 
       {open &&
         examples !== null &&
@@ -109,10 +120,10 @@ function KanjiCard({
           <ul className="kanji-examples">
             {examples.map((e, i) => (
               <li key={i}>
-                <button className="link example-word" onClick={() => onLookup?.(e.base)}>
-                  {e.base}
+                <button className="link example-word" lang="ja" onClick={() => onLookup?.(e.base)}>
+                  <HighlightKanji text={e.base} kanji={kanji.literal} />
                 </button>
-                {e.reading && <span className="reading">{e.reading}</span>}
+                {e.reading && <span className="reading" lang="ja">{e.reading}</span>}
                 {e.hanViet && <span className="han-viet">{e.hanViet}</span>}
                 {e.sense && <span className="muted">{e.sense}</span>}
               </li>
@@ -122,5 +133,20 @@ function KanjiCard({
           <p className="muted">Không có từ ví dụ.</p>
         ))}
     </div>
+  );
+}
+
+/** Tô đậm chữ Hán đang xét bên trong từ ví dụ (kiểu jisho). */
+function HighlightKanji({ text, kanji }: { text: string; kanji: string }) {
+  return (
+    <>
+      {[...text].map((ch, i) =>
+        ch === kanji ? (
+          <span key={i} className="kanji-hit">{ch}</span>
+        ) : (
+          ch
+        ),
+      )}
+    </>
   );
 }
