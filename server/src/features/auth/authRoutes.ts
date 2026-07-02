@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { pool } from "../../core/db.js";
 import { wrap, requireAuth, AuthedRequest } from "../../core/middleware.js";
-import { isAdminEmail, signToken } from "./auth.js";
+import { defaultAdminEmail, devLoginEnabled, isAdminEmail, signToken } from "./auth.js";
 import { googleClientId, verifyGoogleIdToken } from "./google.js";
 import * as userStore from "./userStore.js";
 
@@ -11,9 +11,28 @@ export const authRoutes = Router();
 // Public config the front-end needs before it can render the Google button.
 // Exposing the client id here (it is not secret) keeps a single source of truth
 // on the server, so no rebuild is needed to point the app at a Google project.
+// `dev_login` tells the UI whether the no-Google dev sign-in is available.
 authRoutes.get("/config", (_req, res) => {
-  res.json({ google_client_id: googleClientId() });
+  res.json({ google_client_id: googleClientId(), dev_login: devLoginEnabled() });
 });
+
+// Dev-only sign-in: mint a session (default: the admin email) without Google.
+// Gated by GIOITU_DEV_LOGIN — returns 404 when disabled so it's invisible in prod.
+authRoutes.post(
+  "/dev-login",
+  wrap(async (req, res) => {
+    if (!devLoginEnabled()) return res.status(404).json({ error: "Không khả dụng" });
+    const requested = String(req.body?.email ?? "").trim().toLowerCase();
+    const email = requested || defaultAdminEmail();
+    const user = await userStore.upsertUserByEmail(email);
+    res.json({
+      token: signToken(user),
+      user_id: user.id,
+      email: user.email,
+      is_admin: isAdminEmail(user.email),
+    });
+  }),
+);
 
 // Exchange a Google ID token (from Google Identity Services) for a session JWT.
 authRoutes.post(

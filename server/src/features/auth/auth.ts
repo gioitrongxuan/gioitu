@@ -23,6 +23,20 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   return typeof email === "string" && ADMIN_EMAILS.has(email.toLowerCase());
 }
 
+/**
+ * Đăng nhập dev: cho phép lấy phiên (kể cả admin) KHÔNG cần Google, chỉ khi
+ * GIOITU_DEV_LOGIN bật. Prod không đặt biến này → route tắt hoàn toàn. Là công
+ * tắc tường minh nên không thể vô tình lộ ở môi trường thật.
+ */
+export function devLoginEnabled(): boolean {
+  return ["1", "true", "yes"].includes((process.env.GIOITU_DEV_LOGIN ?? "").trim().toLowerCase());
+}
+
+/** Email admin mặc định (đầu danh sách) — email đăng nhập dev khi không chỉ định. */
+export function defaultAdminEmail(): string {
+  return [...ADMIN_EMAILS][0] ?? "dev@local";
+}
+
 // --- Minimal HS256 JWT ---
 
 const b64url = (buf: Buffer | string) =>

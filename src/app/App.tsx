@@ -34,14 +34,24 @@ import { useLookup } from "./useLookup";
  * a guest is migrated to the new account so nothing is lost.
  */
 export default function App() {
-  const { session, loginWithGoogle, logout } = useAuth();
+  const { session, loginWithGoogle, devLogin, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
-  const signInWithGoogle = async (credential: string) => {
-    await loginWithGoogle(credential);
+  // Sau khi đăng nhập (Google hoặc dev), gom dữ liệu học của phiên khách về tài khoản.
+  const adoptGuestData = async () => {
     const s = getSession();
     if (s) await reassignEntries(GUEST_USER_ID, s.user_id);
     setShowAuth(false);
+  };
+
+  const signInWithGoogle = async (credential: string) => {
+    await loginWithGoogle(credential);
+    await adoptGuestData();
+  };
+
+  const signInDev = async () => {
+    await devLogin();
+    await adoptGuestData();
   };
 
   const userId = session?.user_id ?? GUEST_USER_ID;
@@ -57,7 +67,7 @@ export default function App() {
         onRequestLogin={() => setShowAuth(true)}
       />
       {showAuth && !session && (
-        <AuthScreen onCredential={signInWithGoogle} onClose={() => setShowAuth(false)} />
+        <AuthScreen onCredential={signInWithGoogle} onDevLogin={signInDev} onClose={() => setShowAuth(false)} />
       )}
     </>
   );

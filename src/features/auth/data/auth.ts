@@ -65,12 +65,31 @@ export function loginWithGoogle(credential: string): Promise<Session> {
   return post("/auth/google", { credential });
 }
 
+/**
+ * Dev-only sign-in (no Google). Blank email → the server's default admin email.
+ * Fails with the server's error when GIOITU_DEV_LOGIN is off.
+ */
+export function devLogin(email?: string): Promise<Session> {
+  return post("/auth/dev-login", email ? { email } : {});
+}
+
+export interface AuthConfig {
+  google_client_id: string | null;
+  /** Whether the no-Google dev sign-in is available (dev environments only). */
+  dev_login: boolean;
+}
+
+/** Public auth config: Google client id + whether dev sign-in is on. */
+export async function getAuthConfig(): Promise<AuthConfig> {
+  const res = await fetch("/api/auth/config");
+  if (!res.ok) return { google_client_id: null, dev_login: false };
+  const data = (await res.json().catch(() => ({}))) as Partial<AuthConfig>;
+  return { google_client_id: data.google_client_id ?? null, dev_login: data.dev_login === true };
+}
+
 /** The server's public Google client id (null when sign-in is unconfigured). */
 export async function getGoogleClientId(): Promise<string | null> {
-  const res = await fetch("/api/auth/config");
-  if (!res.ok) return null;
-  const data = (await res.json().catch(() => ({}))) as { google_client_id?: string | null };
-  return data.google_client_id ?? null;
+  return (await getAuthConfig()).google_client_id;
 }
 
 /** Authenticated request that returns parsed JSON, or throws the server's error. */

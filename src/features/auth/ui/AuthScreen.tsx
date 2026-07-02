@@ -1,23 +1,44 @@
 // Sign-in screen (Google only). Shown when the user chooses to sign in; the app
 // itself stays usable as a guest, so this is optional.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAuthConfig } from "../data/auth";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 
 interface Props {
   onCredential: (credential: string) => Promise<void>;
+  /** Dev-only sign-in (no Google); the button appears only when the server enables it. */
+  onDevLogin?: () => Promise<void>;
   /** When provided, the screen renders as a dismissible modal (guest flow). */
   onClose?: () => void;
 }
 
-export function AuthScreen({ onCredential, onClose }: Props) {
+export function AuthScreen({ onCredential, onDevLogin, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
+  const [devEnabled, setDevEnabled] = useState(false);
   const isModal = onClose != null;
+
+  useEffect(() => {
+    let alive = true;
+    getAuthConfig().then((c) => alive && setDevEnabled(c.dev_login));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function handleCredential(credential: string) {
     setError(null);
     try {
       await onCredential(credential);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDevLogin() {
+    setError(null);
+    try {
+      await onDevLogin?.();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -40,6 +61,12 @@ export function AuthScreen({ onCredential, onClose }: Props) {
         <div className="auth-google-wrap">
           <GoogleSignInButton onCredential={handleCredential} />
         </div>
+
+        {devEnabled && onDevLogin && (
+          <button type="button" className="auth-dev-login" onClick={handleDevLogin}>
+            Đăng nhập dev (admin)
+          </button>
+        )}
 
         {error && <p className="auth-error">{error}</p>}
 
