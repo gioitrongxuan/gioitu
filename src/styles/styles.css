@@ -142,7 +142,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   background: var(--surface); border: 1px solid var(--line);
   border-radius: 12px 12px 0 0; padding: 14px;
-  max-height: 75vh; overflow: auto;
+  /* dvh: trừ đúng phần thanh địa chỉ mobile co giãn; vh là fallback. */
+  max-height: 75vh; max-height: 75dvh; overflow: auto;
   box-shadow: 0 -8px 24px rgba(0,0,0,0.16);
 }
 @media (min-width: 760px) {
@@ -372,7 +373,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Dictionary manager */
 .manager-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--overlay); }
-.manager-card { width: min(720px, 96vw); max-height: 90vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
+.manager-card { width: min(720px, 96vw); max-height: 90vh; max-height: 90dvh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
 .manager-head { display: flex; align-items: center; justify-content: space-between; position: relative; }
 .manager-head h2 { margin: 0; font-size: 20px; }
 .manager-gate { display: grid; gap: 12px; padding: 24px 0; place-items: start; }
@@ -451,7 +452,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Theme settings */
 .theme-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--overlay); }
-.theme-card { width: min(480px, 96vw); max-height: 90vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
+.theme-card { width: min(480px, 96vw); max-height: 90vh; max-height: 90dvh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
 .theme-section { margin-top: 18px; }
 .theme-section h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
@@ -496,6 +497,44 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .yk-copy { margin-top: 0; white-space: nowrap; }
 .yk-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
 .yk-steps em { font-style: normal; font-weight: 600; }
+
+/* ---- Header menu (☰) & mobile ----
+   Breakpoint duy nhất của app là 760px — khớp mọi @media min-width: 760px ở
+   trên (CSS không cho dùng var() trong @media nên giữ bằng quy ước). */
+.header-menu { display: none; position: relative; }
+.menu-button {
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 8px; padding: 6px 10px; font-size: 16px; line-height: 1; cursor: pointer;
+}
+.header-menu-backdrop { position: fixed; inset: 0; z-index: 39; }
+.header-menu-panel {
+  position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 40;
+  min-width: 210px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 8px;
+  display: grid; gap: 2px;
+}
+.header-menu-panel .link { text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 15px; }
+.header-menu-panel .link:hover { background: var(--surface-2); }
+.header-menu-panel .user-email {
+  max-width: none; padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--line); margin-bottom: 4px;
+}
+
+@media (max-width: 759px) {
+  .app { padding: 12px; }
+  /* Action phụ gom vào ☰; giữ nút nhập từ điển, ẩn phần đếm cho gọn. */
+  .header-actions > .link, .header-actions > .user-email { display: none; }
+  .dict-count, .dict-status { display: none; }
+  .header-menu { display: block; }
+}
+
+/* Màn cảm ứng: nới vùng chạm (không đụng layout chuột/bàn phím). */
+@media (pointer: coarse) {
+  .pair-toggle button, .source-toggle button { padding: 9px 15px; }
+  .suggestions li button { padding: 12px 10px; }
+  .kanji-toggles .link, .detail-actions .link { padding: 6px 0; }
+  .header-menu-panel .link { padding: 12px 10px; }
+}
 
 /* Toasts */
 .toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }

@@ -23,6 +23,7 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
   const [suggestions, setSuggestions] = useState<DictEntry[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<number | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Live suggestions — does NOT increment lookup_count.
   useEffect(() => {
@@ -41,6 +42,8 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
   async function confirm(term: string) {
     setOpen(false);
     setQuery(term);
+    // Trên màn cảm ứng, thu bàn phím lại để kết quả (bottom sheet) không bị che.
+    if (window.matchMedia?.("(pointer: coarse)").matches) inputRef.current?.blur();
     const results = await findTermsRouted(term, pair, source);
     onResult(results, term, pair);
   }
@@ -86,6 +89,7 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
 
       <form onSubmit={onSubmit} autoComplete="off">
         <input
+          ref={inputRef}
           className="search-input"
           placeholder={`Tra từ (${pair.label})… Enter để xác nhận`}
           value={query}
