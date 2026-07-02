@@ -1,19 +1,18 @@
-// The AnkiConnect protocol for the fake server (mounted at /api/yomitan-sync).
-// Yomitan talks to this endpoint exactly as if it were the AnkiConnect plugin;
-// `handleAction` below is the pure dispatcher (I/O injected via AnkiDeps) and
-// the constants are the fixed values Yomitan expects during the handshake and
-// field mapping.
+// The AnkiConnect protocol for the fake server (mounted at /api/yomitan-sync
+// and /api/anki-sync — see ankiRoutes.ts). Clients talk to this endpoint
+// exactly as if it were the AnkiConnect plugin; `handleAction` below is the
+// pure dispatcher (I/O injected via AnkiDeps) and the constants are the fixed
+// values a client expects during the handshake and field mapping.
 //
-// Wire contract (verified against yomidevs/yomitan AnkiConnect._invoke): the
-// client reads the WHOLE response body as the result and only treats it as a
-// failure if the body contains an `error` field, so a success reply must NOT
-// carry an `error` key (`error: null` would be read as a failure). Within that
-// constraint, success replies are wrapped as `{ "result": value }` rather than
-// sent as a bare/unwrapped value: some AnkiConnect clients (e.g. Swift's
-// JSONSerialization without .fragmentsAllowed) reject a top-level JSON scalar
-// like a bare `6`, and a bare array can't be told apart from an object client
-// side. `AnkiReply` keeps success/failure explicit; the route serializes it
-// (see ankiRoutes.ts).
+// `AnkiReply` keeps success (`result`, the unwrapped value) and failure
+// (`message`, sent as `{ error }`) explicit. It intentionally does NOT decide
+// the wire format itself — ankiRoutes.ts serializes it two different ways,
+// because the two real clients disagree: Yomitan's own AnkiConnect client
+// reads the WHOLE response body as the result and never unwraps a `{ result }`
+// envelope (verified empirically — see ankiRoutes.ts), while standards-
+// compliant clients expect that envelope and additionally may reject a bare
+// JSON scalar at the top level. A success reply must never carry an `error`
+// key regardless of format (Yomitan reads `error: null` as a failure).
 
 import type { NoteFields, SaveNoteOptions } from "./ankiNote.js";
 
