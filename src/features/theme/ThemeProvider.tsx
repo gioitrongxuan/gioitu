@@ -26,6 +26,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     applyTheme(theme);
     saveTheme(theme);
+    // Tint the browser chrome (mobile address bar) to match the page.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.bg);
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);

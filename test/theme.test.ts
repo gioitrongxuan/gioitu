@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   DEFAULT_THEME,
+  DARK_THEME,
   THEME_PRESETS,
   applyTheme,
   loadTheme,
   saveTheme,
   isHexColor,
+  isDarkColor,
   heatBackground,
   heatTextColor,
   type Theme,
@@ -49,20 +51,41 @@ describe("heatTextColor", () => {
   });
 });
 
+describe("isDarkColor", () => {
+  it("classifies the built-in backgrounds", () => {
+    expect(isDarkColor(DEFAULT_THEME.bg)).toBe(false);
+    expect(isDarkColor(DARK_THEME.bg)).toBe(true);
+  });
+});
+
 describe("applyTheme", () => {
-  it("writes every field to its CSS custom property", () => {
+  const makeRoot = () => {
     const calls: Record<string, string> = {};
-    const root = {
-      style: { setProperty: (k: string, v: string) => { calls[k] = v; } },
-    } as unknown as HTMLElement;
+    const style = { setProperty: (k: string, v: string) => { calls[k] = v; }, colorScheme: "" };
+    return { calls, style, root: { style } as unknown as HTMLElement };
+  };
+
+  it("writes every field to its CSS custom property", () => {
+    const { calls, root } = makeRoot();
 
     applyTheme(DEFAULT_THEME, root);
 
     expect(calls["--accent"]).toBe(DEFAULT_THEME.accent);
+    expect(calls["--surface"]).toBe(DEFAULT_THEME.surface);
     expect(calls["--heat-from"]).toBe(DEFAULT_THEME.heatFrom);
     expect(calls["--heat-to"]).toBe(DEFAULT_THEME.heatTo);
     // One CSS var per editable field, no more, no less.
     expect(Object.keys(calls)).toHaveLength(Object.keys(DEFAULT_THEME).length);
+  });
+
+  it("flips color-scheme with the background's darkness", () => {
+    const light = makeRoot();
+    applyTheme(DEFAULT_THEME, light.root);
+    expect(light.style.colorScheme).toBe("light");
+
+    const dark = makeRoot();
+    applyTheme(DARK_THEME, dark.root);
+    expect(dark.style.colorScheme).toBe("dark");
   });
 });
 
@@ -99,6 +122,27 @@ describe("loadTheme / saveTheme", () => {
 
   it("returns the default when nothing is stored", () => {
     expect(loadTheme()).toEqual(DEFAULT_THEME);
+  });
+
+  describe("with an OS dark preference", () => {
+    // Node has no `window`; fake just the matchMedia gate loadTheme consults.
+    beforeEach(() => {
+      (globalThis as unknown as { window: unknown }).window = {
+        matchMedia: (query: string) => ({ matches: query === "(prefers-color-scheme: dark)" }),
+      };
+    });
+    afterEach(() => {
+      delete (globalThis as { window?: unknown }).window;
+    });
+
+    it("first-time visitors get the dark palette", () => {
+      expect(loadTheme()).toEqual(DARK_THEME);
+    });
+
+    it("a saved theme still wins over the OS preference", () => {
+      saveTheme(DEFAULT_THEME);
+      expect(loadTheme()).toEqual(DEFAULT_THEME);
+    });
   });
 });
 

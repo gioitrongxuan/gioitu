@@ -19,6 +19,8 @@ export interface Theme {
   warn: string;
   /** Page background. */
   bg: string;
+  /** Card / panel / input background. */
+  surface: string;
   /** Main text colour. */
   fg: string;
   /** Secondary text colour. */
@@ -34,9 +36,28 @@ export const DEFAULT_THEME: Theme = {
   accent: "#2563eb",
   warn: "#dc2626",
   bg: "#ffffff",
+  surface: "#ffffff",
   fg: "#1a1a1a",
   muted: "#6b7280",
   line: "#e5e7eb",
+};
+
+/**
+ * Built-in dark palette. The heatmap inverts: rarely looked-up words sit close
+ * to the surface colour and the hottest words glow bright — `heatTextColor`
+ * keeps tag text readable either way. Also the default for first-time visitors
+ * whose OS prefers dark (see `loadTheme`).
+ */
+export const DARK_THEME: Theme = {
+  heatFrom: "#374151",
+  heatTo: "#e5e7eb",
+  accent: "#3b82f6",
+  warn: "#ef4444",
+  bg: "#111827",
+  surface: "#1f2937",
+  fg: "#e5e7eb",
+  muted: "#9ca3af",
+  line: "#374151",
 };
 
 export interface ThemePreset {
@@ -56,6 +77,11 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: "slate",
     name: "Mặc định",
     theme: DEFAULT_THEME,
+  },
+  {
+    id: "dark",
+    name: "Tối",
+    theme: DARK_THEME,
   },
   {
     id: "ember",
@@ -86,6 +112,7 @@ const VAR_MAP: Record<keyof Theme, string> = {
   accent: "--accent",
   warn: "--warn",
   bg: "--bg",
+  surface: "--surface",
   fg: "--fg",
   muted: "--muted",
   line: "--line",
@@ -93,14 +120,24 @@ const VAR_MAP: Record<keyof Theme, string> = {
 
 const THEME_KEYS = Object.keys(VAR_MAP) as (keyof Theme)[];
 
-/** Push a theme onto the document (or any element) as CSS custom properties. */
+/**
+ * Push a theme onto the document (or any element) as CSS custom properties.
+ * Also flips `color-scheme` so native widgets (scrollbars, form controls,
+ * `<input type=color>`…) match a dark palette.
+ */
 export function applyTheme(theme: Theme, root: HTMLElement = document.documentElement): void {
   for (const key of THEME_KEYS) root.style.setProperty(VAR_MAP[key], theme[key]);
+  root.style.colorScheme = isDarkColor(theme.bg) ? "dark" : "light";
 }
 
 const STORAGE_KEY = "gioitu.theme.v1";
 
-/** Read the saved theme, falling back to (and back-filling from) the default. */
+/**
+ * Read the saved theme, falling back to (and back-filling from) the default.
+ * First-time visitors (nothing stored) get light or dark following the OS
+ * preference; after that the choice is persisted and no longer tracks the OS —
+ * the presets in settings are the way to switch.
+ */
 export function loadTheme(): Theme {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -108,7 +145,12 @@ export function loadTheme(): Theme {
   } catch {
     /* malformed / unavailable storage — fall through to default */
   }
-  return { ...DEFAULT_THEME };
+  return prefersDark() ? { ...DARK_THEME } : { ...DEFAULT_THEME };
+}
+
+/** OS-level dark preference; false outside a browser (tests). */
+function prefersDark(): boolean {
+  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 }
 
 /** Persist a theme; ignores storage failures (private mode, quota, …). */
@@ -152,6 +194,11 @@ function relativeLuminance([r, g, b]: [number, number, number]): number {
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   };
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** Whether a `#rrggbb` colour is dark enough to call the theme "dark". */
+export function isDarkColor(hex: string): boolean {
+  return relativeLuminance(parseHex(hex)) < 0.4;
 }
 
 /**
