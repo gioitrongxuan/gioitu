@@ -28,10 +28,16 @@
   --overlay: rgba(15, 23, 42, 0.45);
 
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Font tiếng Nhật: ưu tiên font hệ thống (offline-first, không tải webfont);
+     Noto Sans JP dùng khi máy có sẵn. Áp qua :lang(ja) — mọi chữ Nhật trong
+     app phải được bọc lang="ja" để ăn font này. */
+  --font-ja: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
+    "Noto Sans JP", "Meiryo", sans-serif;
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--fg); background: var(--bg); }
+:lang(ja) { font-family: var(--font-ja); }
 
 .app { max-width: 960px; margin: 0 auto; padding: 16px; }
 
@@ -59,6 +65,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .search-input {
   width: 100%; padding: 12px 14px; font-size: 16px;
   border: 1px solid var(--line); border-radius: 12px; outline: none;
+  background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
 
@@ -148,6 +155,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
     max-height: calc(100vh - 32px);
   }
 }
+.detail-panel { overflow-wrap: break-word; }
 .detail-panel header { display: flex; align-items: baseline; gap: 8px; }
 .detail-panel header h2 { margin: 0; font-size: 18px; }
 .detail-panel .reading { color: var(--muted); font-size: 13px; }
@@ -191,13 +199,17 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .ld-meta { color: var(--muted); font-size: 12px; }
 
 /* Yomitan-style definition view */
-.detail-panel .results { display: grid; gap: 16px; margin: 10px 0; }
+/* minmax(0,…): mặc định track grid không co dưới min-content, nên một gloss /
+   bảng dài trong kết quả fuzzy sẽ banh cột rộng hơn panel và chữ hết wrap. */
+.detail-panel .results { display: grid; gap: 16px; margin: 10px 0; grid-template-columns: minmax(0, 1fr); }
 .result { border-top: 1px solid var(--line); padding-top: 12px; }
 .result:first-child { border-top: none; padding-top: 0; }
 .result-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .headword { font-size: 24px; font-weight: 600; line-height: 1.4; }
+/* Kết quả khớp nhất (đầu danh sách) nổi hơn các kết quả sau — kiểu jisho. */
+.result:first-child .headword { font-size: 28px; }
 .furigana ruby { ruby-align: center; }
-.furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; }
+.furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; user-select: none; }
 .dict-name { font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 999px; margin-left: auto; }
 .add-result { margin-left: auto; font-size: 18px; line-height: 1; padding: 2px 8px; align-self: center; }
 .add-result:disabled { color: var(--ok); opacity: 1; cursor: default; }
@@ -231,10 +243,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .example-ja { display: block; }
 .example-vi { display: block; color: var(--muted); }
 
-/* Huy hiệu cạnh headword: JLPT + Hán-Việt */
+/* Huy hiệu cạnh headword: JLPT + Hán-Việt (chip Hán-Việt dùng chung với thẻ kanji) */
 .headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
 .jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
-.hanviet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
+.hanviet, .kanji-badges .han-viet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
 
 /* Pitch accent (kiểu OJAD): gạch trên ở mora cao, góc phải = bước xuống giọng */
 .pitches { display: grid; gap: 6px; margin: 8px 0; }
@@ -469,9 +481,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Saved-word meaning (detail panel + review card): one shared layout. */
 .meaning-view { display: grid; gap: 8px; }
+/* Ruby/rt của headword do .furigana (shared/ui/Furigana) lo. */
 .meaning-headword { font-size: 24px; font-weight: 600; line-height: 1.4; }
-.meaning-headword ruby { ruby-align: center; }
-.meaning-headword rt { font-size: 0.5em; color: var(--muted); font-weight: 400; }
 .meaning-pos { display: flex; gap: 4px; flex-wrap: wrap; }
 .meaning-view .senses { margin: 0; }
 .meaning-example { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -501,7 +512,6 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .kanji-literal { font-size: 40px; line-height: 1; font-weight: 600; flex: none; }
 .kanji-info { flex: 1; min-width: 0; }
 .kanji-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.kanji-badges .han-viet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
 .kanji-badges .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--fg); }
 .kanji-badges .badge.jlpt { color: #fff; background: var(--accent); font-weight: 600; }
 .kanji-badges .badge.muted { color: var(--muted); }

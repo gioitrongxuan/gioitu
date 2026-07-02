@@ -1,33 +1,21 @@
-// Renderer for Yomitan glossary / structured content (an HTML-ish subset),
-// plus a furigana headword and rich part-of-speech tags. Ported to follow
-// Yomitan's StructuredContentGenerator more closely than before:
+// Renderer for Yomitan glossary / structured content (an HTML-ish subset).
+// Ported to follow Yomitan's StructuredContentGenerator more closely:
 //   • inline `style` objects are applied (font, colour, margins, decoration…),
 //   • `data` objects become `data-sc-*` attributes (theme/CSS hooks),
 //   • tables get colSpan/rowSpan and a horizontal-scroll container,
 //   • <details>/<summary>, list `start`/`listStyleType`, and `lang` are honoured.
 // Tags are whitelisted; internal `?query=` links call back into the look-up;
 // images degrade to their alt text (we don't store blobs).
+//
+// Các component hiển thị mục từ (Furigana, TagChip, Definitions, PitchView,
+// Media) tách ra file riêng cùng thư mục; đây chỉ còn renderer thuần.
 
-import { CSSProperties, Fragment, ReactNode } from "react";
-import {
-  GlossaryNode,
-  ResolvedTag,
-  SCNode,
-  SCElement,
-  Sense,
-  distributeFurigana,
-  glossaryToLines,
-} from "@/shared/structured-content";
-import type { PitchAccent, DictImage, DictComment } from "@/shared/dictionary";
-import { Pronunciation } from "@/shared/term-meta";
-import { parsePitch } from "../domain/pitch";
+import { CSSProperties, ReactNode } from "react";
+import { GlossaryNode, SCNode, SCElement } from "@/shared/structured-content";
 
 interface Props {
   onLookup?: (term: string) => void;
 }
-
-/** Optional code→ResolvedTag map (from the entry) for rich tag display. */
-type TagMeta = Record<string, ResolvedTag> | undefined;
 
 // Tags we render as themselves; everything else falls back to <span>.
 const INLINE_TAGS = new Set(["span", "ruby", "rt", "rp", "b", "strong", "em", "i", "u", "sub", "sup", "code", "a"]);
@@ -207,218 +195,4 @@ export function GlossaryItemView({ node, onLookup }: { node: GlossaryNode } & Pr
     if (typeof obj.text === "string") return <>{obj.text}</>;
   }
   return null;
-}
-
-/** A part-of-speech / term tag chip: compact code label, full name on hover. */
-export function TagChip({ code, meta, kind = "pos" }: { code: string; meta?: ResolvedTag; kind?: "pos" | "term" }) {
-  const category = meta?.category ?? (kind === "term" ? "default" : "partOfSpeech");
-  const title = meta?.name ?? code;
-  return (
-    <span className={kind === "term" ? "term-tag" : "pos-tag"} data-category={category} title={title}>
-      {code}
-    </span>
-  );
-}
-
-/** Render one grouped sense: its tags, then its glossary lines. */
-export function SenseView({ sense, tagMeta, onLookup }: { sense: Sense; tagMeta?: TagMeta } & Props) {
-  return (
-    <li className="sense">
-      {sense.tags.length > 0 && (
-        <span className="sense-tags">
-          {sense.tags.map((t) => (
-            <TagChip key={t} code={t} meta={tagMeta?.[t]} />
-          ))}
-        </span>
-      )}
-      <div className="sense-body">
-        {sense.glossary.map((g, i) => (
-          <div className="gloss" key={i}>
-            <GlossaryItemView node={g} onLookup={onLookup} />
-          </div>
-        ))}
-      </div>
-      {sense.info && sense.info.length > 0 && (
-        <div className="sense-info muted">{sense.info.join(" · ")}</div>
-      )}
-      {sense.examples && sense.examples.length > 0 && (
-        <ul className="sense-examples">
-          {sense.examples.map((ex, i) => (
-            <li className="example" key={i}>
-              <span className="example-ja" lang="ja">{ex.ja}</span>
-              <span className="example-vi">{ex.vi}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
-/** Render senses (preferred) or fall back to flat string definitions. */
-export function Definitions({
-  senses,
-  definitions,
-  tagMeta,
-  onLookup,
-}: { senses?: Sense[]; definitions?: GlossaryNode[]; tagMeta?: TagMeta } & Props) {
-  if (senses && senses.length > 0) {
-    return (
-      <ol className="senses">
-        {senses.map((s, i) => (
-          <SenseView key={i} sense={s} tagMeta={tagMeta} onLookup={onLookup} />
-        ))}
-      </ol>
-    );
-  }
-  const lines = glossaryToLines(definitions);
-  return (
-    <ol className="senses">
-      {lines.map((d, i) => (
-        <li className="sense" key={i}>
-          <div className="sense-body">
-            <div className="gloss">{d}</div>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/**
- * IPA pronunciations from term-meta dictionaries, grouped by source dictionary.
- * Each transcription shows its accent/region tags (Hanoi / Huế / Sài Gòn…).
- */
-export function Pronunciations({ pronunciations }: { pronunciations: Pronunciation[] }) {
-  if (!pronunciations.length) return null;
-  return (
-    <div className="pronunciations" aria-label="Phát âm">
-      {pronunciations.map((p, i) => (
-        <div className="pron-group" key={i}>
-          {p.dictionary && <span className="pron-dict">{p.dictionary}</span>}
-          {p.transcriptions.map((t, j) => (
-            <span className="ipa" key={j}>
-              <span className="ipa-text">{t.ipa}</span>
-              {t.tags?.map((tag) => (
-                <span className="ipa-tag" key={tag}>{tag}</span>
-              ))}
-            </span>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** A headword rendered with furigana ruby over the kanji. */
-export function Furigana({ term, reading }: { term: string; reading?: string }) {
-  const segments = distributeFurigana(term, reading);
-  return (
-    <span className="furigana">
-      {segments.map((seg, i) =>
-        seg.reading ? (
-          <ruby key={i}>
-            {seg.text}
-            <rt>{seg.reading}</rt>
-          </ruby>
-        ) : (
-          <Fragment key={i}>{seg.text}</Fragment>
-        ),
-      )}
-    </span>
-  );
-}
-
-/** Huy hiệu cạnh headword: cấp JLPT + chữ Hán-Việt (riêng cho người Việt). */
-export function HeadwordBadges({ hanViet, jlpt }: { hanViet?: string; jlpt?: number }) {
-  if (!hanViet && !jlpt) return null;
-  return (
-    <div className="headword-badges">
-      {jlpt ? <span className="jlpt-badge" title={`Trình độ JLPT N${jlpt}`}>N{jlpt}</span> : null}
-      {hanViet ? <span className="hanviet" title="Âm Hán-Việt">{hanViet}</span> : null}
-    </div>
-  );
-}
-
-/** Sơ đồ pitch accent kiểu OJAD: gạch trên ở mora cao, bước xuống ở chỗ rớt giọng. */
-export function PitchView({ pitch }: { pitch?: PitchAccent[] }) {
-  const usable = (pitch ?? []).filter((p) => p.accent && p.moras && p.moras.length);
-  if (!usable.length) return null;
-  return (
-    <div className="pitches" aria-label="Giọng cao thấp">
-      {usable.map((p, i) => {
-        const parsed = parsePitch(p.accent, p.moras ?? []);
-        if (!parsed) return null;
-        return (
-          <div className="pitch" key={i} lang="ja">
-            {parsed.moras.map((m, j) => (
-              <span key={j} className={`pitch-mora${m.high ? " high" : " low"}${m.dropsAfter ? " drop" : ""}`}>
-                {m.mora}
-              </span>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Gallery ảnh minh hoạ (read-only, hotlink). Ẩn ảnh hỏng; mở lớn ở tab mới. */
-export function ImageGallery({ images }: { images?: DictImage[] }) {
-  if (!images || !images.length) return null;
-  return (
-    <div className="word-images" aria-label="Ảnh minh hoạ">
-      {images.map((im, i) => (
-        <a key={i} className="word-image" href={im.url} target="_blank" rel="noopener noreferrer">
-          <img
-            src={im.url}
-            alt=""
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              const a = e.currentTarget.closest(".word-image");
-              if (a instanceof HTMLElement) a.style.display = "none";
-            }}
-          />
-        </a>
-      ))}
-    </div>
-  );
-}
-
-/** Bình luận cộng đồng (read-only, nhập từ Mazii). */
-export function CommentList({ comments }: { comments?: DictComment[] }) {
-  if (!comments || !comments.length) return null;
-  return (
-    <div className="word-comments">
-      <div className="word-comments-head">
-        Bình luận cộng đồng <span className="muted">· Mazii</span>
-      </div>
-      <ul>
-        {comments.map((c, i) => (
-          <li className="comment" key={i}>
-            {c.avatar && (
-              <img
-                className="comment-avatar"
-                src={c.avatar}
-                alt=""
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.visibility = "hidden";
-                }}
-              />
-            )}
-            <div className="comment-body">
-              <div className="comment-mean">{c.mean}</div>
-              <div className="comment-meta muted">
-                {c.author && <span className="comment-author">{c.author}</span>}
-                {(c.likes ?? 0) > 0 && <span className="comment-likes">👍 {c.likes}</span>}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
