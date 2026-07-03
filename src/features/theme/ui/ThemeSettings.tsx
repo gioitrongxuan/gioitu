@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../ThemeProvider";
 import {
   Theme,
+  ThemeDecor,
   THEME_PRESETS,
   isHexColor,
   heatBackground,
@@ -43,9 +44,13 @@ const PALETTE_FIELDS: FieldDef[] = [
 const PREVIEW_SHADES = [0, 0.25, 0.5, 0.75, 1];
 
 export function ThemeSettings({ onClose }: Props) {
-  const { theme, setTheme, setField, reset } = useTheme();
-  // Snapshot the palette as it was when the modal opened, for "Hoàn tác".
-  const [initial] = useState<Theme>(theme);
+  const { theme, decor, setTheme, setField, setDecor, applyPreset, reset } = useTheme();
+  // Snapshot palette + decor as they were when the modal opened, for "Hoàn tác".
+  const [initial] = useState<{ theme: Theme; decor: ThemeDecor }>({ theme, decor });
+  const undo = () => {
+    setTheme(initial.theme);
+    setDecor(initial.decor);
+  };
 
   const activePreset = THEME_PRESETS.find(
     (p) => (Object.keys(p.theme) as (keyof Theme)[]).every((k) => p.theme[k] === theme[k]),
@@ -67,7 +72,7 @@ export function ThemeSettings({ onClose }: Props) {
                 key={preset.id}
                 type="button"
                 className={`preset-chip${activePreset?.id === preset.id ? " active" : ""}`}
-                onClick={() => setTheme({ ...preset.theme })}
+                onClick={() => applyPreset(preset)}
               >
                 <span
                   className="preset-swatch"
@@ -76,10 +81,24 @@ export function ThemeSettings({ onClose }: Props) {
                   }}
                   aria-hidden
                 />
+                {preset.icons && <span className="preset-emblem" aria-hidden>{preset.icons.emblem}</span>}
                 {preset.name}
               </button>
             ))}
           </div>
+        </section>
+
+        <section className="theme-section">
+          <h3>Hiệu ứng nền</h3>
+          <label className="fx-toggle">
+            <input
+              type="checkbox"
+              checked={decor.effectsEnabled}
+              onChange={(e) => setDecor({ ...decor, effectsEnabled: e.target.checked })}
+            />
+            <span>Hiện hoạ tiết nền của theme (Majin Buu, Cell, Rừng trúc, Akatsuki)</span>
+          </label>
+          <p className="fx-hint">Hoạ tiết sẽ đứng yên khi hệ điều hành bật "giảm chuyển động".</p>
         </section>
 
         <section className="theme-section">
@@ -112,7 +131,7 @@ export function ThemeSettings({ onClose }: Props) {
         </section>
 
         <footer className="theme-actions">
-          <button type="button" className="link" onClick={() => setTheme(initial)}>Hoàn tác</button>
+          <button type="button" className="link" onClick={undo}>Hoàn tác</button>
           <button type="button" className="link" onClick={reset}>Mặc định</button>
           <button type="button" className="primary" onClick={onClose}>Xong</button>
         </footer>

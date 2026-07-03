@@ -1,0 +1,28 @@
+/* Hoạ tiết rừng trúc — tông trắng-đen-xanh lá, màu hardcode theo motif. */
+.fx-bamboo {
+  background: linear-gradient(180deg, rgba(220, 237, 200, 0.55), transparent 55%);
+}
+.fx-bamboo-side {
+  position: absolute; bottom: 0; height: 105vh; width: clamp(70px, 9vw, 130px);
+}
+.fx-bamboo-side svg { width: 100%; height: 100%; }
+.fx-bamboo-side.left { left: -14px; }
+/* Mép phải lật gương; sway nằm ở svg bên trong nên không giẫm transform này. */
+.fx-bamboo-side.right { right: -14px; transform: scaleX(-1); }
+.fx-bamboo-side svg {
+  transform-origin: 50% 100%;
+  animation: fx-bamboo-sway calc(var(--fx-drift) / 7) ease-in-out infinite alternate;
+}
+.fx-bamboo-side.right svg { animation-delay: calc(var(--fx-drift) / -14); }
+.fx-bamboo-stalks { fill: #35563a; }
+.fx-bamboo-leaves { fill: #4c7a4c; }
+
+.fx-bamboo-paw { position: absolute; width: 56px; fill: #1c1c1c; opacity: 0.5; }
+.fx-bamboo-paw.w1 { right: 16%; bottom: 6%; transform: rotate(-18deg); }
+.fx-bamboo-paw.w2 { right: 11%; bottom: 16%; transform: rotate(-6deg); }
+.fx-bamboo-paw.w3 { right: 15%; bottom: 27%; transform: rotate(8deg); }
+
+@keyframes fx-bamboo-sway {
+  from { transform: rotate(-0.8deg); }
+  to { transform: rotate(0.8deg); }
+}

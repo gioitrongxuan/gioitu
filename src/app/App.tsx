@@ -19,6 +19,7 @@ import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
 import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
+import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
 import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { useAuth } from "@/features/auth/useAuth";
@@ -171,6 +172,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
 
   return (
     <div className="app">
+      <ThemeBackdrop />
       <header className="app-header" {...behindSheet}>
         {/* Header kiểu jisho: chỉ wordmark + nhập từ điển + ☰; mọi action phụ
             nằm trong menu để phần đầu trang nhường đất cho ô tìm kiếm. */}

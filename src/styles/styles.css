@@ -222,6 +222,19 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 .empty, .muted { color: var(--muted); font-size: 14px; }
 
+/* Hiệu ứng nền trang trí của theme (features/theme/ui/ThemeBackdrop).
+   Cố định sau toàn bộ nội dung: z-index âm + pointer-events none nên không
+   che chuột/chạm; chỉ animate transform (không layout/paint thuộc tính khác)
+   để cuộn và word cloud dày thẻ vẫn mượt. */
+.theme-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.fx-layer { position: absolute; inset: 0; }
+/* Người dùng bật "giảm chuyển động" (hoặc chọn speed "none"): hoạ tiết vẫn
+   hiện nhưng đứng yên. */
+@media (prefers-reduced-motion: reduce) {
+  .fx-layer *, .fx-layer { animation: none !important; }
+}
+.fx-layer[data-speed="none"] *, .fx-layer[data-speed="none"] { animation: none !important; }
+
 /* Detail panel */
 /* Mobile: a fixed bottom sheet so the panel is always visible, even when a
    word is tapped after scrolling deep into a long word cloud. */
@@ -613,6 +626,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .preset-chip:hover { border-color: var(--accent); }
 .preset-chip.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .preset-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); }
+.preset-emblem { font-size: 14px; line-height: 1; }
+
+/* Công tắc hiệu ứng nền trong cài đặt giao diện. */
+.fx-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; cursor: pointer; }
+.fx-toggle input { margin: 2px 0 0; accent-color: var(--accent); }
+.fx-hint { margin: 6px 0 0 24px; font-size: 12px; color: var(--muted); }
 
 .heat-preview { margin-bottom: 12px; gap: 6px; }
 .heat-preview .tag { cursor: default; font-size: 13px; height: 32px; padding: 0 12px; }
