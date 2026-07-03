@@ -27,9 +27,12 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
-  // confirm() đặt lại query → effect gợi ý chạy lần nữa và mở lại dropdown đè
-  // lên kết quả vừa tra. Cờ này nuốt đúng một lần chạy đó.
+  // confirm() phải dập được gợi ý ở CẢ ba pha, kẻo dropdown mở lại đè lên kết
+  // quả vừa tra: (1) effect re-run do setQuery — nuốt bằng skipSuggestRef;
+  // (2) timer debounce còn treo — clearTimeout; (3) fetch đã bay đi đang chờ
+  // kết quả — so epoch trước khi áp kết quả.
   const skipSuggestRef = useRef(false);
+  const suggestEpochRef = useRef(0);
 
   // Live suggestions — does NOT increment lookup_count.
   useEffect(() => {
@@ -44,13 +47,18 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
     }
     window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
-      setSuggestions(await searchSuggest(query.trim(), pair, source));
+      const epoch = suggestEpochRef.current;
+      const items = await searchSuggest(query.trim(), pair, source);
+      if (epoch !== suggestEpochRef.current) return; // đã confirm trong lúc chờ
+      setSuggestions(items);
       setOpen(true);
     }, 120);
     return () => window.clearTimeout(debounceRef.current);
   }, [query, pair, source]);
 
   async function confirm(term: string) {
+    suggestEpochRef.current++;
+    window.clearTimeout(debounceRef.current);
     setOpen(false);
     // Chỉ khi term khác query hiện tại thì setQuery mới re-run effect gợi ý.
     if (term !== query) skipSuggestRef.current = true;
