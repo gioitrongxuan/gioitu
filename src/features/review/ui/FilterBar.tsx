@@ -52,18 +52,16 @@ export function FilterBar({
           <option value="frequency">Tần suất tra</option>
         </select>
       </label>
-      <label className="chk">
-        <input type="checkbox" checked={highlightDue} onChange={onToggleHighlight} />
+      {/* Chip bật/tắt thay checkbox — cùng ngôn ngữ pill với phần còn lại. */}
+      <button type="button" className={`chip-toggle${highlightDue ? " on" : ""}`} aria-pressed={highlightDue} onClick={onToggleHighlight}>
         Nổi bật từ cần ôn
-      </label>
-      <label className="chk">
-        <input type="checkbox" checked={onlyDue} onChange={onToggleOnlyDue} />
+      </button>
+      <button type="button" className={`chip-toggle${onlyDue ? " on" : ""}`} aria-pressed={onlyDue} onClick={onToggleOnlyDue}>
         Chỉ hiện từ cần ôn
-      </label>
-      <label className={`chk${deleteMode ? " danger" : ""}`}>
-        <input type="checkbox" checked={deleteMode} onChange={onToggleDeleteMode} />
+      </button>
+      <button type="button" className={`chip-toggle danger${deleteMode ? " on" : ""}`} aria-pressed={deleteMode} onClick={onToggleDeleteMode}>
         Chế độ xoá
-      </label>
+      </button>
       <button className="review-btn" disabled={dueCount === 0} onClick={onStartReview}>
         Ôn tập hôm nay ({dueCount})
       </button>

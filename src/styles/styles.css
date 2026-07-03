@@ -7,7 +7,7 @@
   --line: #e5e7eb;
   --accent: #2563eb;
   --warn: #dc2626;
-  --bg: #ffffff;
+  --bg: #f6f7f9;
   --surface: #ffffff;
   /* Word-cloud heatmap endpoints (low → high look-up frequency). */
   --heat-from: #e8eaee;
@@ -43,31 +43,80 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; margin-bottom: 12px;
+  gap: 16px; margin-bottom: 14px;
 }
 .app-header h1 { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
-.header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-
-/* Search bar */
-.searchbar { position: relative; margin-bottom: 12px; }
-.searchbar-toggles {
-  display: flex; flex-wrap: wrap; justify-content: space-between;
-  align-items: center; gap: 8px; margin-bottom: 8px;
+.wordmark { display: flex; align-items: center; gap: 9px; }
+.logo-mark {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border-radius: 9px; background: var(--accent); color: #fff;
+  font-size: 18px; font-weight: 600; line-height: 1;
 }
-.pair-toggle, .source-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
-.pair-toggle button, .source-toggle button {
+.header-actions { display: flex; align-items: center; gap: 12px; }
+
+/* Search bar — một hàng kiểu jisho: [cặp ngôn ngữ ▾][ô tìm][nguồn]. */
+.searchbar { position: relative; margin-bottom: 12px; }
+.search-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pair-menu { position: relative; flex: none; }
+.pair-menu-button {
+  height: 46px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  color: var(--fg); font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.pair-menu-button:hover { border-color: var(--accent); }
+.pair-menu-button .caret { color: var(--muted); font-size: 11px; }
+.pair-menu-panel {
+  position: absolute; top: 100%; left: 0; z-index: 30; margin: 6px 0 0;
+  min-width: 180px; list-style: none; padding: 6px; display: grid; gap: 2px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.pair-menu-panel button {
+  width: 100%; text-align: left; border: none; background: none; cursor: pointer;
+  padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--fg);
+}
+.pair-menu-panel button:hover { background: var(--surface-2); }
+.pair-menu-panel button.active {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  color: var(--accent); font-weight: 600;
+}
+/* Backdrop bắt cú bấm ra ngoài cho mọi menu thả xuống (☰, cặp ngôn ngữ). */
+.menu-backdrop { position: fixed; inset: 0; z-index: 29; }
+
+/* Hàng pill chọn cặp ngôn ngữ — còn dùng trong Dictionary Manager. */
+.pair-toggle { display: flex; flex-wrap: wrap; gap: 4px; }
+.pair-toggle button {
   border: 1px solid var(--line); background: var(--surface); padding: 6px 12px;
   border-radius: 999px; cursor: pointer; font-size: 13px; color: var(--muted);
 }
 .pair-toggle button.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-/* Source toggle uses the accent so it reads as a separate choice from the pair. */
-.source-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 .search-input {
-  width: 100%; padding: 12px 14px; font-size: 16px;
+  flex: 1 1 220px; min-width: 0; height: 46px; padding: 0 14px; font-size: 16px;
   border: 1px solid var(--line); border-radius: 12px; outline: none;
   background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
+
+.source-toggle {
+  flex: none; display: inline-flex; align-items: stretch; gap: 2px;
+  height: 46px; padding: 4px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.source-toggle button {
+  border: none; background: none; padding: 0 13px; border-radius: 9px;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.source-toggle button.active { background: var(--accent); color: #fff; }
+
+/* Màn hẹp: cặp + nguồn lên hàng đầu, ô tìm full hàng dưới. */
+@media (max-width: 559px) {
+  .pair-menu { order: 1; }
+  .source-toggle { order: 2; margin-left: auto; }
+  .search-input { order: 3; flex-basis: 100%; }
+}
 
 .suggestions {
   position: absolute; z-index: 10; left: 0; right: 0; margin: 4px 0 0;
@@ -85,11 +134,26 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .sug-def { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Filter bar */
-.filter-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
-.chk.danger { color: var(--warn); font-weight: 600; }
-.sort-select { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
-.sort-select select { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; background: var(--surface); cursor: pointer; }
+.filter-bar { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.sort-select { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sort-select select { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 13px; color: var(--fg); background: var(--surface); cursor: pointer; }
+
+/* Chip bật/tắt (thay checkbox): pill lặng khi tắt, nhuộm màu nhấn khi bật. */
+.chip-toggle {
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.chip-toggle:hover { border-color: var(--accent); }
+.chip-toggle.on {
+  background: color-mix(in oklab, var(--accent) 13%, var(--surface));
+  border-color: var(--accent); color: var(--accent);
+}
+.chip-toggle.danger:hover { border-color: var(--warn); }
+.chip-toggle.danger.on {
+  background: color-mix(in oklab, var(--warn) 12%, var(--surface));
+  border-color: var(--warn); color: var(--warn);
+}
 .review-btn {
   margin-left: auto; background: var(--accent); color: #fff; border: none;
   padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
@@ -102,7 +166,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   .content:has(.detail-panel) { grid-template-columns: 1fr 320px; }
 }
 
-/* Word cloud */
+/* Word cloud — nằm trong một thẻ surface để nổi khối trên nền xám nhẹ. */
+.cloud-area {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px; min-height: 220px;
+}
+.cloud-area > .empty { display: grid; place-items: center; min-height: 180px; text-align: center; margin: 0; }
 .word-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
 /* Time-grouped cloud (ngày/tháng/năm display mode) */
 .cloud-groups { display: flex; flex-direction: column; gap: 18px; }
@@ -385,6 +454,9 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .manager-subhead { font-size: 14px; margin: 8px 0 0; }
 .import-label.block { display: block; text-align: center; }
 
+/* Nhãn checkbox thường — còn dùng trong Dictionary Manager (ImportTab). */
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+
 .import-progress { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
 .import-progress li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); }
 .import-progress li.done { background: color-mix(in oklab, var(--ok) 12%, var(--surface)); }
@@ -501,12 +573,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 /* ---- Header menu (☰) & mobile ----
    Breakpoint duy nhất của app là 760px — khớp mọi @media min-width: 760px ở
    trên (CSS không cho dùng var() trong @media nên giữ bằng quy ước). */
-.header-menu { display: none; position: relative; }
+.header-menu { position: relative; }
 .menu-button {
   border: 1px solid var(--line); background: var(--surface); color: var(--fg);
-  border-radius: 8px; padding: 6px 10px; font-size: 16px; line-height: 1; cursor: pointer;
+  border-radius: 9px; padding: 7px 11px; font-size: 16px; line-height: 1; cursor: pointer;
 }
-.header-menu-backdrop { position: fixed; inset: 0; z-index: 39; }
+.menu-button:hover { border-color: var(--accent); }
 .header-menu-panel {
   position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 40;
   min-width: 210px; background: var(--surface); border: 1px solid var(--line);
@@ -522,10 +594,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 @media (max-width: 759px) {
   .app { padding: 12px; }
-  /* Action phụ gom vào ☰; giữ nút nhập từ điển, ẩn phần đếm cho gọn. */
-  .header-actions > .link, .header-actions > .user-email { display: none; }
+  /* Ẩn phần đếm cạnh nút nhập từ điển cho gọn. */
   .dict-count, .dict-status { display: none; }
-  .header-menu { display: block; }
 }
 
 /* Màn cảm ứng: nới vùng chạm (không đụng layout chuột/bàn phím). */

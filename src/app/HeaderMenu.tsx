@@ -30,7 +30,7 @@ export function HeaderMenu({ items, email }: { items: MenuItem[]; email: string 
       </button>
       {open && (
         <>
-          <div className="header-menu-backdrop" onClick={() => setOpen(false)} />
+          <div className="menu-backdrop" onClick={() => setOpen(false)} />
           <div className="header-menu-panel" role="menu">
             <div className="user-email">{email ?? "Khách"}</div>
             {items.map((item) => (
