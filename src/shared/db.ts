@@ -61,6 +61,10 @@ export interface DictEntry {
   images?: DictImage[];
   /** Bình luận cộng đồng (read-only, từ Mazii). */
   comments?: DictComment[];
+  /** Id dòng `word` trên server — cần cho các thao tác admin (duyệt/sửa). */
+  wordId?: string;
+  /** Đã được admin kiểm duyệt nội dung (tích xanh cạnh từ). */
+  verified?: boolean;
 }
 
 /** A registry entry for one imported dictionary (client side). */

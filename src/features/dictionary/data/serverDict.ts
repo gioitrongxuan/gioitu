@@ -59,6 +59,8 @@ function toDictEntry(e: DictionaryEntry): DictEntry {
     pitch: e.pitch,
     images: e.images,
     comments: e.comments,
+    wordId: e.word_id,
+    verified: e.verified,
   };
 }
 

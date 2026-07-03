@@ -13,13 +13,15 @@ interface Props {
   loggedIn: boolean;
   onRequestLogin: () => void;
   onClose: () => void;
+  /** Mở thẳng tab sửa với từ đang xem (đi từ nút "Sửa từ" trên kết quả tra). */
+  initialEdit?: { pair: LangPair; query: string };
 }
 
 type Tab = "import" | "edit";
 
-export function DictionaryManager({ loggedIn, onRequestLogin, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>("import");
-  const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
+export function DictionaryManager({ loggedIn, onRequestLogin, onClose, initialEdit }: Props) {
+  const [tab, setTab] = useState<Tab>(initialEdit ? "edit" : "import");
+  const [pair, setPair] = useState<LangPair>(initialEdit?.pair ?? DEFAULT_PAIR);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -52,7 +54,7 @@ export function DictionaryManager({ loggedIn, onRequestLogin, onClose }: Props) 
             {tab === "import" ? (
               <ImportTab pair={pair} onError={setError} />
             ) : (
-              <EditTab pair={pair} onError={setError} />
+              <EditTab pair={pair} onError={setError} initialQuery={initialEdit?.query} />
             )}
           </>
         )}

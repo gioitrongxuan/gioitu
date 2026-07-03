@@ -7,6 +7,7 @@ import { migration as m0002 } from "./0002_dictionary_core.js";
 import { migration as m0003 } from "./0003_backfill_dict.js";
 import { migration as m0004 } from "./0004_kanji_hanviet.js";
 import { migration as m0005 } from "./0005_drop_dict.js";
+import { migration as m0006 } from "./0006_word_verified.js";
 
 export interface Migration {
   /** Mã phiên bản, vd "0001". Dùng làm khoá trong schema_migrations. */
@@ -15,7 +16,7 @@ export interface Migration {
   sql: string;
 }
 
-export const migrations: Migration[] = [m0001, m0002, m0003, m0004, m0005];
+export const migrations: Migration[] = [m0001, m0002, m0003, m0004, m0005, m0006];
 
 /** Các migration chưa áp dụng, giữ nguyên thứ tự. Thuần → test được không cần DB. */
 export function pendingMigrations(applied: Set<string>, all: Migration[] = migrations): Migration[] {

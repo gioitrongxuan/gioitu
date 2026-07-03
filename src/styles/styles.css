@@ -333,6 +333,11 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .example-vi { display: block; color: var(--muted); }
 
 /* Huy hiệu cạnh headword: JLPT + Hán-Việt (chip Hán-Việt dùng chung với thẻ kanji) */
+/* Tích xanh "đã kiểm duyệt" cạnh từ — dùng cả ở kết quả tra lẫn trình quản lý. */
+.verified-badge { color: var(--ok); font-weight: 700; font-size: 14px; white-space: nowrap; }
+.admin-actions { display: flex; align-items: center; gap: 12px; }
+.admin-actions .danger { color: var(--warn); font-size: 12px; }
+
 .headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
 .jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
 .hanviet, .kanji-badges .han-viet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
@@ -535,8 +540,24 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .pitch-row input[type=number] { width: 64px; flex: none; }
 .pitch-row .pitches { margin: 0; }
 
-.imported-preview { display: grid; gap: 4px; border-top: 1px dashed var(--line); padding-top: 10px; }
-.imported-sense { font-size: 13px; color: var(--muted); display: flex; gap: 8px; }
+/* Nghĩa của từng nguồn đã nhập — mỗi nguồn một khối gập, sửa/gỡ độc lập. */
+.imported-editors { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.imported-editor { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; gap: 10px; }
+.imported-editor summary { cursor: pointer; font-size: 13px; }
+.imported-editor .dict-name { font-weight: 600; }
+.imported-note { font-size: 12px; margin: 0; }
+
+/* Kiểm duyệt + quản lý ảnh/bình luận trong form sửa. */
+.verify-row { display: flex; align-items: center; gap: 10px; }
+.media-editor { display: grid; gap: 6px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.word-image.editable { position: relative; }
+.word-image.editable button {
+  position: absolute; top: 2px; right: 2px; line-height: 1; padding: 2px 6px;
+  background: var(--surface); border-radius: 999px; border: 1px solid var(--line);
+}
+.comment-moderation { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.comment-moderation li { font-size: 13px; display: flex; gap: 6px; align-items: baseline; }
+.comment-moderation .comment-mean { flex: 1; min-width: 0; }
 
 .form-actions { display: flex; gap: 12px; align-items: center; }
 .sense-info { font-size: 12px; margin-top: 4px; }

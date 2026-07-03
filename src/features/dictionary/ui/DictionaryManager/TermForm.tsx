@@ -1,31 +1,25 @@
-// Form sửa/thêm một từ trên từ điển server, bao trọn thuộc tính từ vựng mà app
-// render: cách đọc, Hán-Việt, JLPT, pitch accent, và NHIỀU nghĩa — mỗi nghĩa có
-// từ loại (POS), nhãn cách dùng (misc), các dòng nghĩa, câu ví dụ và ghi chú.
-// Dùng chung cho cả "thêm mới" (mode="new") lẫn "sửa" (mode="edit"); phần lưu đi
-// qua saveTerm → PUT /dict/term (lớp nghĩa thủ công, dict_id NULL).
+// Form sửa/thêm một từ trên từ điển server, bao trọn MỌI thứ app render khi tra:
+// cách đọc, Hán-Việt, JLPT, pitch accent, lớp nghĩa thủ công (nhiều nghĩa — POS/
+// misc/định nghĩa/ví dụ/ghi chú), nghĩa của từng nguồn đã nhập, ảnh minh hoạ,
+// bình luận, và cờ kiểm duyệt (tích xanh). Dùng chung cho "thêm mới" (mode="new")
+// lẫn "sửa" (mode="edit"). Nút Lưu chỉ ghi lớp thủ công + thuộc tính cấp từ
+// (PUT /dict/term); duyệt/nguồn nhập/ảnh/bình luận là hành động tức thời.
 
 import { useState } from "react";
 import { LangPair } from "@/shared/languages";
-import type { EditableSense, JlptLevel, PitchAccent, TermEditState } from "@/shared/dictionary";
-import { saveTerm } from "../../data/dictAdmin";
+import type { JlptLevel, PitchAccent, TermEditState } from "@/shared/dictionary";
+import {
+  addTermImage,
+  deleteTermComment,
+  deleteTermImage,
+  saveTerm,
+  setTermVerified,
+} from "../../data/dictAdmin";
 import { accentDrop, accentPattern, splitMoras } from "../../domain/pitch";
-import { MISC_OPTIONS, POS_OPTIONS } from "../../domain/tag-options";
 import { PitchView } from "../PitchView";
-import { TagInput } from "./TagInput";
+import { ImportedEntryEditor } from "./ImportedEntryEditor";
+import { SenseDraft, SenseEditorList, toEditableSenses, toSenseDrafts } from "./SenseEditorList";
 
-interface Example {
-  ja: string;
-  vi: string;
-}
-interface SenseDraft {
-  pos: string[];
-  misc: string[];
-  /** Nhiều dòng — mỗi dòng một nghĩa. */
-  gloss: string;
-  /** Nhiều dòng — mỗi dòng một ghi chú. */
-  info: string;
-  examples: Example[];
-}
 /** Pitch nhập bằng vị trí xuống giọng (dễ hơn gõ chuỗi L/H); dựng pattern lúc lưu. */
 interface PitchDraft {
   kana: string;
@@ -33,30 +27,6 @@ interface PitchDraft {
 }
 
 const JLPT_LEVELS: JlptLevel[] = [5, 4, 3, 2, 1];
-
-const emptySense = (): SenseDraft => ({ pos: [], misc: [], gloss: "", info: "", examples: [] });
-
-function toSenseDrafts(senses: EditableSense[]): SenseDraft[] {
-  if (!senses.length) return [emptySense()];
-  return senses.map((s) => ({
-    pos: s.pos ?? [],
-    misc: s.misc ?? [],
-    gloss: (s.gloss ?? []).join("\n"),
-    info: (s.info ?? []).join("\n"),
-    examples: s.examples?.map((e) => ({ ja: e.ja, vi: e.vi })) ?? [],
-  }));
-}
-
-function toEditableSenses(drafts: SenseDraft[]): EditableSense[] {
-  const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
-  return drafts.map((d) => ({
-    pos: d.pos,
-    misc: d.misc,
-    gloss: lines(d.gloss),
-    info: lines(d.info),
-    examples: d.examples.map((e) => ({ ja: e.ja.trim(), vi: e.vi.trim() })).filter((e) => e.ja || e.vi),
-  }));
-}
 
 function toPitchDrafts(pitch: PitchAccent[] | undefined): PitchDraft[] {
   return (pitch ?? []).map((p) => ({ kana: p.kana ?? "", drop: String(accentDrop(p.accent, p.moras ?? [])) }));
@@ -91,6 +61,7 @@ export function TermForm({
   onError: (s: string | null) => void;
 }) {
   const isJa = pair.source === "ja";
+  const wordId = initial?.word_id;
   const [term, setTerm] = useState(initial?.term ?? "");
   const [reading, setReading] = useState(initial?.reading ?? "");
   const [hanViet, setHanViet] = useState(initial?.hanViet ?? "");
@@ -99,10 +70,13 @@ export function TermForm({
   const [senses, setSenses] = useState<SenseDraft[]>(toSenseDrafts(initial?.senses ?? []));
   const [busy, setBusy] = useState(false);
 
-  const patchSense = (i: number, patch: Partial<SenseDraft>) =>
-    setSenses((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  const patchExample = (si: number, ei: number, patch: Partial<Example>) =>
-    patchSense(si, { examples: senses[si].examples.map((e, idx) => (idx === ei ? { ...e, ...patch } : e)) });
+  // Các phần tức-thời (không đi qua nút Lưu): trạng thái cục bộ đồng bộ tay với
+  // server sau mỗi hành động thành công.
+  const [verified, setVerified] = useState(initial?.verified === true);
+  const [imported, setImported] = useState(initial?.imported ?? []);
+  const [images, setImages] = useState(initial?.images ?? []);
+  const [comments, setComments] = useState(initial?.comments ?? []);
+  const [newImageUrl, setNewImageUrl] = useState("");
 
   async function submit() {
     const t = term.trim();
@@ -111,7 +85,9 @@ export function TermForm({
       onError("Cần nhập từ");
       return;
     }
-    if (!editableSenses.some((s) => s.gloss.length > 0)) {
+    // Từ có nguồn nhập vẫn hợp lệ khi lớp thủ công trống; từ mới thì phải có nghĩa.
+    const manualEmpty = !editableSenses.some((s) => s.gloss.length > 0);
+    if (manualEmpty && imported.length === 0) {
       onError("Cần ít nhất một nghĩa");
       return;
     }
@@ -119,7 +95,7 @@ export function TermForm({
     onError(null);
     try {
       await saveTerm({
-        word_id: initial?.word_id,
+        word_id: wordId,
         term: t,
         term_lang: pair.source,
         native_lang: pair.target,
@@ -137,8 +113,72 @@ export function TermForm({
     }
   }
 
+  async function toggleVerified() {
+    if (!wordId) return;
+    setBusy(true);
+    onError(null);
+    try {
+      const res = await setTermVerified(wordId, !verified);
+      setVerified(res.verified);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addImage() {
+    const url = newImageUrl.trim();
+    if (!wordId || !url) return;
+    setBusy(true);
+    onError(null);
+    try {
+      const image = await addTermImage(wordId, url);
+      setImages((prev) => (prev.some((i) => i.id === image.id) ? prev : [...prev, image]));
+      setNewImageUrl("");
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeImage(id: string) {
+    onError(null);
+    try {
+      await deleteTermImage(id);
+      setImages((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
+  async function removeComment(id: string) {
+    onError(null);
+    try {
+      await deleteTermComment(id);
+      setComments((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
   return (
     <div className="term-form">
+      {/* Cờ kiểm duyệt — hành động tức thời, chỉ với từ đã tồn tại. */}
+      {wordId && (
+        <div className="verify-row">
+          {verified ? (
+            <span className="verified-badge" title="Từ đã được kiểm duyệt">✓ Đã kiểm duyệt</span>
+          ) : (
+            <span className="muted">Chưa kiểm duyệt</span>
+          )}
+          <button type="button" className="link" disabled={busy} onClick={toggleVerified}>
+            {verified ? "Bỏ duyệt" : "Duyệt từ này"}
+          </button>
+        </div>
+      )}
+
       {/* Cách viết (base) + cách đọc: base khoá khi sửa (đổi base = từ khác). */}
       <div className="form-row">
         <label className="form-field">
@@ -177,69 +217,10 @@ export function TermForm({
         )}
       </div>
 
-      {/* Nghĩa: nhiều sense, mỗi sense gồm POS / cách dùng / các dòng nghĩa / ví dụ / ghi chú. */}
+      {/* Lớp nghĩa thủ công: nhiều sense, mỗi sense gồm POS / cách dùng / định nghĩa / ví dụ / ghi chú. */}
       <div className="senses-editor">
-        <span className="field-label">Nghĩa</span>
-        {senses.map((s, i) => (
-          <fieldset className="sense-editor" key={i}>
-            <legend>
-              Nghĩa {i + 1}
-              {senses.length > 1 && (
-                <button
-                  type="button"
-                  className="link danger"
-                  onClick={() => setSenses((prev) => prev.filter((_, idx) => idx !== i))}
-                >
-                  Bỏ
-                </button>
-              )}
-            </legend>
-            <TagInput label="Từ loại" codes={s.pos} options={POS_OPTIONS} onChange={(pos) => patchSense(i, { pos })} />
-            <TagInput label="Cách dùng / sắc thái" codes={s.misc} options={MISC_OPTIONS} onChange={(misc) => patchSense(i, { misc })} />
-            <label className="form-field">
-              <span className="field-label">Định nghĩa (mỗi dòng một nghĩa)</span>
-              <textarea rows={2} value={s.gloss} onChange={(e) => patchSense(i, { gloss: e.target.value })} />
-            </label>
-
-            <div className="examples-editor">
-              <span className="field-label">Ví dụ</span>
-              {s.examples.map((ex, ei) => (
-                <div className="example-row" key={ei}>
-                  <input
-                    lang={isJa ? "ja" : undefined}
-                    placeholder="Câu ví dụ"
-                    value={ex.ja}
-                    onChange={(e) => patchExample(i, ei, { ja: e.target.value })}
-                  />
-                  <input
-                    placeholder="Bản dịch"
-                    value={ex.vi}
-                    onChange={(e) => patchExample(i, ei, { vi: e.target.value })}
-                  />
-                  <button
-                    type="button"
-                    className="link danger"
-                    aria-label="Bỏ ví dụ"
-                    onClick={() => patchSense(i, { examples: s.examples.filter((_, idx) => idx !== ei) })}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button type="button" className="link" onClick={() => patchSense(i, { examples: [...s.examples, { ja: "", vi: "" }] })}>
-                + Ví dụ
-              </button>
-            </div>
-
-            <label className="form-field">
-              <span className="field-label">Ghi chú (tùy chọn)</span>
-              <textarea rows={1} value={s.info} onChange={(e) => patchSense(i, { info: e.target.value })} />
-            </label>
-          </fieldset>
-        ))}
-        <button type="button" className="link" onClick={() => setSenses((prev) => [...prev, emptySense()])}>
-          + Thêm nghĩa
-        </button>
+        <span className="field-label">Nghĩa{imported.length > 0 ? " (thủ công)" : ""}</span>
+        <SenseEditorList senses={senses} onChange={setSenses} isJa={isJa} />
       </div>
 
       {/* Pitch accent — chỉ từ tiếng Nhật; nhập vị trí xuống giọng, xem trước sơ đồ. */}
@@ -283,16 +264,78 @@ export function TermForm({
         </details>
       )}
 
-      {/* Nghĩa từ từ điển đã nhập (read-only) — để đối chiếu, tránh nhập trùng. */}
-      {initial?.imported && initial.imported.length > 0 && (
-        <div className="imported-preview">
-          <span className="field-label">Từ từ điển đã nhập (không sửa được)</span>
-          {initial.imported.map((im, i) => (
-            <div className="imported-sense" key={i}>
-              {im.dictionary && <span className="dict-name">{im.dictionary}</span>}
-              <span>{im.gloss.join("; ")}</span>
-            </div>
+      {/* Nghĩa của từng nguồn đã nhập — sửa/gỡ độc lập với lớp thủ công. */}
+      {imported.length > 0 && (
+        <div className="imported-editors">
+          <span className="field-label">Nghĩa từ từ điển đã nhập</span>
+          {imported.map((entry) => (
+            <ImportedEntryEditor
+              key={entry.entry_id}
+              entry={entry}
+              isJa={isJa}
+              onError={onError}
+              onRemoved={() => setImported((prev) => prev.filter((e) => e.entry_id !== entry.entry_id))}
+            />
           ))}
+        </div>
+      )}
+
+      {/* Ảnh minh hoạ — gỡ ảnh sai/hỏng, thêm ảnh bằng URL. */}
+      {wordId && (
+        <div className="media-editor">
+          <span className="field-label">Ảnh minh hoạ</span>
+          {images.length > 0 && (
+            <div className="word-images">
+              {images.map((im) => (
+                <span className="word-image editable" key={im.id}>
+                  <img src={im.url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                  <button
+                    type="button"
+                    className="link danger"
+                    aria-label="Gỡ ảnh"
+                    title="Gỡ ảnh"
+                    onClick={() => removeImage(im.id)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="example-row">
+            <input
+              placeholder="https://… (URL ảnh)"
+              value={newImageUrl}
+              onChange={(e) => setNewImageUrl(e.target.value)}
+            />
+            <button type="button" className="link" disabled={busy || !newImageUrl.trim()} onClick={addImage}>
+              + Thêm ảnh
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bình luận cộng đồng — chỉ gỡ (kiểm duyệt), không sửa nội dung hộ người khác. */}
+      {comments.length > 0 && (
+        <div className="media-editor">
+          <span className="field-label">Bình luận ({comments.length})</span>
+          <ul className="comment-moderation">
+            {comments.map((c) => (
+              <li key={c.id}>
+                <span className="comment-mean">{c.mean}</span>
+                {c.author && <span className="muted"> — {c.author}</span>}
+                <button
+                  type="button"
+                  className="link danger"
+                  aria-label="Gỡ bình luận"
+                  title="Gỡ bình luận"
+                  onClick={() => removeComment(c.id)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
