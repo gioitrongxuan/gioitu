@@ -35,7 +35,8 @@ export const DEFAULT_THEME: Theme = {
   heatTo: "#1b1f26",
   accent: "#2563eb",
   warn: "#dc2626",
-  bg: "#ffffff",
+  // Nền lệch xám nhẹ để các thẻ surface trắng nổi khối (bớt phẳng/khô).
+  bg: "#f6f7f9",
   surface: "#ffffff",
   fg: "#1a1a1a",
   muted: "#6b7280",

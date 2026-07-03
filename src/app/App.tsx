@@ -158,15 +158,14 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Gioitu</h1>
+        {/* Header kiểu jisho: chỉ wordmark + nhập từ điển + ☰; mọi action phụ
+            nằm trong menu để phần đầu trang nhường đất cho ô tìm kiếm. */}
+        <h1 className="wordmark">
+          <span className="logo-mark" lang="ja" aria-hidden>語</span>
+          Gioitu
+        </h1>
         <div className="header-actions">
           <DictionaryImport pair={pair} onImported={() => undefined} />
-          {menuItems.map((item) => (
-            <button key={item.label} className="link" onClick={item.run}>
-              {item.label}
-            </button>
-          ))}
-          <span className="user-email" title={email ?? undefined}>{email ?? "Khách"}</span>
           <HeaderMenu items={menuItems} email={email} />
         </div>
       </header>
