@@ -4,7 +4,7 @@
 // structured-content glossary grouped by sense. Falls back to a Custom
 // Definition editor when nothing is found, and surfaces the SRS stats.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { setTermVerified } from "../data/dictAdmin";
@@ -12,8 +12,9 @@ import { reasonLabel } from "../domain/deinflect";
 import { Definitions } from "./Definitions";
 import { ImageGallery, CommentList } from "./Media";
 import { PitchView, Pronunciations } from "./PitchView";
-import { TagChip, HeadwordBadges } from "./TagChip";
+import { TagChip, HeadwordBadges, FrequencyTags } from "./TagChip";
 import { Furigana } from "@/shared/ui/Furigana";
+import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
@@ -60,96 +61,113 @@ export function DetailPanel({
 }: Props) {
   const [custom, setCustom] = useState("");
 
+  // Mobile: panel là bottom sheet phủ lên cloud — khoá cuộn body để kéo trong
+  // sheet không cuộn luôn nội dung phía sau (desktop panel nằm cạnh, không khoá).
+  const isSheet = useMediaQuery(MOBILE_MEDIA_QUERY);
+  useEffect(() => {
+    if (!isSheet) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isSheet]);
+
   const savedLines = !results.length && entry ? meaningToLines(entry.meaning) : [];
 
   return (
-    <aside className="detail-panel" aria-label="Chi tiết từ">
-      <header>
-        <h2>
-          {!results.length && entry?.reading ? (
-            <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
-          ) : (
-            term
-          )}
-        </h2>
-        <button className="link close" onClick={onClose}>✕</button>
-      </header>
-
-      {results.length > 0 ? (
-        <div className="results">
-          {results.map((res, i) => (
-            <div key={i}>
-              {/* Separate near-misses from the real matches above them. */}
-              {res.fuzzy && !results[i - 1]?.fuzzy && (
-                <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
-              )}
-              <ResultView
-                res={res}
-                onLookup={onLookup}
-                onAdd={onAddResult}
-                isAdmin={isAdmin}
-                onAdminEdit={onAdminEdit}
-              />
-            </div>
-          ))}
-        </div>
-      ) : entry && savedLines.length > 0 ? (
-        <MeaningView pos={entry.pos} meaning={entry.meaning} example={entry.example} />
-      ) : (
-        <div className="custom-def">
-          <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
-          <textarea
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="Nhập nghĩa của bạn…"
-            rows={4}
-          />
-          <button className="primary" disabled={!custom.trim()} onClick={() => onSaveCustom(custom.trim())}>
-            Lưu định nghĩa
-          </button>
-        </div>
-      )}
-
-      {entry && (
-        <>
-          <div className="srs-stats">
-            <div><span>Số lần tra</span><b>{entry.lookup_count}</b></div>
-            <div><span>Trạng thái</span><b>{statusLabel(entry)}</b></div>
-            <div>
-              <span>Thẻ SRS</span>
-              <b>{entry.card_state ?? "chưa tạo"}</b>
-            </div>
-            {entry.card_state && (
-              <>
-                <div><span>Chu kỳ</span><b>{formatInterval(entry.srs_interval)}</b></div>
-                <div><span>Ôn tiếp</span><b>{formatRelative(entry.next_review)}</b></div>
-                <div><span>EF / lapses</span><b>{entry.ease_factor.toFixed(2)} / {entry.lapses}</b></div>
-              </>
+    <>
+      {/* Lớp che sau sheet (chỉ hiện trên mobile — desktop ẩn qua CSS): chặn
+          chạm xuyên xuống cloud/filter, chạm vào thì đóng panel. */}
+      <div className="detail-backdrop" aria-hidden="true" onClick={onClose} />
+      <aside className="detail-panel" aria-label="Chi tiết từ">
+        <header>
+          <h2>
+            {!results.length && entry?.reading ? (
+              <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
+            ) : (
+              term
             )}
-          </div>
+          </h2>
+          <button className="link close" onClick={onClose}>✕</button>
+        </header>
 
-          <div className="detail-actions">
-            {entry.status === "LEARNED"
-              ? onMarkForgotten && (
-                  <button className="link" onClick={() => onMarkForgotten(entry)}>Đã quên</button>
-                )
-              : onMarkKnown && (
-                  <button className="link" onClick={() => onMarkKnown(entry)}>Đã nhớ</button>
+        {results.length > 0 ? (
+          <div className="results">
+            {results.map((res, i) => (
+              <div key={i}>
+                {/* Separate near-misses from the real matches above them. */}
+                {res.fuzzy && !results[i - 1]?.fuzzy && (
+                  <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
                 )}
-            {onDelete && (
-              <button
-                className="link danger"
-                onClick={() => {
-                  if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
-                }}
-              >
-                Xoá
-              </button>
-            )}
+                <ResultView
+                  res={res}
+                  onLookup={onLookup}
+                  onAdd={onAddResult}
+                  isAdmin={isAdmin}
+                  onAdminEdit={onAdminEdit}
+                />
+              </div>
+            ))}
           </div>
-        </>
-      )}
-    </aside>
+        ) : entry && savedLines.length > 0 ? (
+          <MeaningView pos={entry.pos} meaning={entry.meaning} example={entry.example} />
+        ) : (
+          <div className="custom-def">
+            <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
+            <textarea
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder="Nhập nghĩa của bạn…"
+              rows={4}
+            />
+            <button className="primary" disabled={!custom.trim()} onClick={() => onSaveCustom(custom.trim())}>
+              Lưu định nghĩa
+            </button>
+          </div>
+        )}
+
+        {entry && (
+          <>
+            <div className="srs-stats">
+              <div><span>Số lần tra</span><b>{entry.lookup_count}</b></div>
+              <div><span>Trạng thái</span><b>{statusLabel(entry)}</b></div>
+              <div>
+                <span>Thẻ SRS</span>
+                <b>{entry.card_state ?? "chưa tạo"}</b>
+              </div>
+              {entry.card_state && (
+                <>
+                  <div><span>Chu kỳ</span><b>{formatInterval(entry.srs_interval)}</b></div>
+                  <div><span>Ôn tiếp</span><b>{formatRelative(entry.next_review)}</b></div>
+                  <div><span>EF / lapses</span><b>{entry.ease_factor.toFixed(2)} / {entry.lapses}</b></div>
+                </>
+              )}
+            </div>
+
+            <div className="detail-actions">
+              {entry.status === "LEARNED"
+                ? onMarkForgotten && (
+                    <button className="link" onClick={() => onMarkForgotten(entry)}>Đã quên</button>
+                  )
+                : onMarkKnown && (
+                    <button className="link" onClick={() => onMarkKnown(entry)}>Đã nhớ</button>
+                  )}
+              {onDelete && (
+                <button
+                  className="link danger"
+                  onClick={() => {
+                    if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
+                  }}
+                >
+                  Xoá
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </aside>
+    </>
   );
 }
 
@@ -217,6 +235,8 @@ function ResultView({
       </div>
 
       <HeadwordBadges hanViet={entry.hanViet} jlpt={entry.jlpt} />
+
+      <FrequencyTags frequencies={res.frequencies} />
 
       {/* Kiểm duyệt nội dung — chỉ admin, chỉ kết quả server. */}
       {canModerate && (

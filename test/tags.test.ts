@@ -4,6 +4,7 @@ import {
   resolveTag,
   resolveTags,
   normalizeCategory,
+  tagSymbol,
   TagBankEntry,
 } from "@/features/dictionary/domain/tags";
 
@@ -41,6 +42,24 @@ describe("resolveTag", () => {
 
   it("returns null for an unknown code (UI keeps the bare code)", () => {
     expect(resolveTag("☆nonsense☆")).toBeNull();
+  });
+});
+
+describe("tagSymbol", () => {
+  it("maps common codes to Vietnamese dictionary abbreviations", () => {
+    expect(tagSymbol("n")).toBe("d.");
+    expect(tagSymbol("v5k")).toBe("đg.");
+    expect(tagSymbol("vs")).toBe("đg.");
+    expect(tagSymbol("adj-i")).toBe("t.");
+    expect(tagSymbol("adv")).toBe("p.");
+    expect(tagSymbol("P")).toBe("★");
+    expect(tagSymbol("common")).toBe("★");
+  });
+
+  it("leaves less common codes without a symbol (UI keeps the bare code)", () => {
+    expect(tagSymbol("uk")).toBeUndefined();
+    expect(tagSymbol("on-mim")).toBeUndefined();
+    expect(tagSymbol("☆nonsense☆")).toBeUndefined();
   });
 });
 

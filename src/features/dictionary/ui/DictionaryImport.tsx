@@ -124,10 +124,11 @@ export function DictionaryImport({ pair, onImported }: Props) {
   );
 }
 
-/** Human label for what an import added: headwords, IPA/meta rows, or both. */
+/** Human label for what an import added: headwords, meta rows, or both. */
 function importSummary({ termCount, metaCount }: { termCount: number; metaCount?: number }): string {
   const parts: string[] = [];
   if (termCount > 0) parts.push(`${termCount} từ`);
-  if (metaCount) parts.push(`${metaCount} phát âm`);
+  // Meta rows là phát âm (IPA) hoặc tần suất — gọi chung là "chú thích".
+  if (metaCount) parts.push(`${metaCount} chú thích`);
   return parts.length ? parts.join(" · ") : "0 từ";
 }

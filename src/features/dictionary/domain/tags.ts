@@ -132,6 +132,36 @@ const BUILTIN: Record<string, [string, string, string?]> = {
   rare: ["hiếm gặp", "archaism", "rare"],
 };
 
+// Ký hiệu gọn cho các tag phổ biến, theo lối viết tắt từ loại của từ điển
+// tiếng Việt (d. = danh từ, đg. = động từ, t. = tính từ…). Màn hẹp hiện ký
+// hiệu thay cho mã JMdict để hàng tag đỡ rối; tên đầy đủ vẫn ở title. Tra
+// theo mã lúc render nên áp cho cả tag bank lẫn built-in, kể cả dữ liệu đã
+// import từ trước.
+const TAG_SYMBOLS: Record<string, string> = {};
+function assignSymbol(symbol: string, codes: string[]) {
+  for (const code of codes) TAG_SYMBOLS[code] = symbol;
+}
+assignSymbol("d.", ["n", "n-adv", "n-suf", "n-pref", "n-t"]);
+assignSymbol("đ.", ["pn"]);
+assignSymbol("đg.", [
+  "v1", "v1-s", "v5", "v5u", "v5u-s", "v5k", "v5k-s", "v5g", "v5s", "v5t",
+  "v5n", "v5b", "v5m", "v5r", "v5r-i", "v5aru", "vk", "vs", "vs-i", "vs-s",
+  "vz", "vt", "vi", "vn", "vr", "iv", "aux-v",
+]);
+assignSymbol("t.", ["adj", "adj-i", "adj-na", "adj-no", "adj-pn", "adj-t", "adj-f", "aux-adj"]);
+assignSymbol("p.", ["adv", "adv-to"]);
+assignSymbol("tr.", ["prt", "aux"]);
+assignSymbol("k.", ["conj"]);
+assignSymbol("c.", ["int"]);
+assignSymbol("s.", ["num", "ctr"]);
+assignSymbol("ng.", ["exp", "id"]);
+assignSymbol("★", ["P", "common", "ichi", "news", "spec"]);
+
+/** Ký hiệu gọn của một mã tag phổ biến (undefined → UI giữ nguyên mã). */
+export function tagSymbol(code: string): string | undefined {
+  return TAG_SYMBOLS[code];
+}
+
 /** Build a code→TagInfo map from parsed `tag_bank` rows (later rows win ties). */
 export function buildTagBank(entries: TagBankEntry[]): Map<string, TagInfo> {
   const map = new Map<string, TagInfo>();

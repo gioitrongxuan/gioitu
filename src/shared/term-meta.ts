@@ -3,7 +3,7 @@
 // live apart from the headword glosses and are *attached* to a term at look-up
 // time, enriching whatever gloss entry was found. A meta-only dictionary (e.g.
 // `wty-ja-vi-ipa`) therefore adds no headwords of its own; it decorates existing
-// ones. Only IPA is rendered today; pitch/freq rows are stored for the future.
+// ones. IPA and frequency are rendered; pitch rows are stored for the future.
 
 /** A Yomitan term-meta row: [term, mode, data] — `data` shape depends on mode. */
 export type TermMetaRow = [string, TermMetaMode, unknown];
@@ -62,4 +62,66 @@ export function ipaPronunciations(meta: TermMetaEntry[], reading?: string): Pron
     if (transcriptions.length) out.push({ dictionary: m.dictionary, transcriptions });
   }
   return out;
+}
+
+/**
+ * One frequency dictionary's rank for a term, ready to render as a chip.
+ * External corpus data (Anime, News, Wiki…) — NOT the user's own lookup count.
+ */
+export interface TermFrequency {
+  dictionary?: string;
+  /** The label to show — the dictionary's displayValue when it provides one. */
+  display: string;
+  /** Numeric rank when known; smaller = more common. */
+  value?: number;
+}
+
+/**
+ * Yomitan freq `data` is loosely shaped: a bare number/string, `{value,
+ * displayValue}`, or reading-scoped `{reading, frequency}` wrapping either.
+ */
+function parseFrequencyData(data: unknown): { display: string; value?: number } | null {
+  if (typeof data === "number") return { display: String(data), value: data };
+  if (typeof data === "string") {
+    const n = Number(data);
+    return { display: data, value: Number.isFinite(n) ? n : undefined };
+  }
+  if (data && typeof data === "object") {
+    const obj = data as { frequency?: unknown; value?: unknown; displayValue?: unknown };
+    if (obj.frequency !== undefined) return parseFrequencyData(obj.frequency);
+    if (typeof obj.value === "number") {
+      return {
+        display: typeof obj.displayValue === "string" ? obj.displayValue : String(obj.value),
+        value: obj.value,
+      };
+    }
+    if (typeof obj.displayValue === "string") return { display: obj.displayValue };
+  }
+  return null;
+}
+
+/**
+ * Select the frequency ranks that apply to an entry, one per source dictionary
+ * (keeping the best — smallest — rank). A row with its own reading only applies
+ * to that reading (homographs); an empty reading applies to any. If nothing
+ * matches, fall back to every freq row, like IPA does — some dictionaries store
+ * the term itself in the reading field. Pure: no I/O, easy to test.
+ */
+export function frequencyRanks(meta: TermMetaEntry[], reading?: string): TermFrequency[] {
+  const freq = meta.filter((m) => m.mode === "freq");
+  if (freq.length === 0) return [];
+
+  const applicable = reading ? freq.filter((m) => !m.reading || m.reading === reading) : freq;
+  const rows = applicable.length ? applicable : freq;
+
+  const byDict = new Map<string, TermFrequency>();
+  for (const m of rows) {
+    const parsed = parseFrequencyData(m.data);
+    if (!parsed) continue;
+    const key = m.dictionary ?? "";
+    const prev = byDict.get(key);
+    const isBetter = parsed.value != null && (prev?.value == null || parsed.value < prev.value);
+    if (!prev || isBetter) byDict.set(key, { dictionary: m.dictionary, ...parsed });
+  }
+  return [...byDict.values()];
 }
