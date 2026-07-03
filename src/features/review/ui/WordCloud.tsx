@@ -26,7 +26,9 @@ interface Props {
 }
 
 export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping, deleteMode, onSelect, onDelete }: Props) {
-  const { theme } = useTheme();
+  const { theme, icons } = useTheme();
+  // Theme trang trí có thể thay glyph "!" của badge tái quên bằng icon riêng.
+  const relapseGlyph = icons?.relapse ?? "!";
   const now = Date.now();
   const tags = buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true));
 
@@ -45,7 +47,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
     if (deleteMode) {
       return (
         <span key={key} role="listitem" className={className} style={style} title={`Tra ${entry.lookup_count} lần`}>
-          {hasBadge && <span className="badge" aria-label="Tái quên">!</span>}
+          {hasBadge && <span className="badge" aria-label="Tái quên">{relapseGlyph}</span>}
           <span className="tag-term">{entry.term}</span>
           <button
             className="tag-delete"
@@ -68,7 +70,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
         title={`Tra ${entry.lookup_count} lần`}
         onClick={() => onSelect(entry)}
       >
-        {hasBadge && <span className="badge" aria-label="Tái quên">!</span>}
+        {hasBadge && <span className="badge" aria-label="Tái quên">{relapseGlyph}</span>}
         <span className="tag-term">{entry.term}</span>
       </button>
     );

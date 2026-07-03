@@ -1,0 +1,20 @@
+/* Hoạ tiết Cell — tông xanh neon trên nền sinh học tối, màu hardcode theo
+   nhân vật (không theo palette). */
+.fx-cell {
+  background: linear-gradient(160deg, rgba(22, 62, 32, 0.55) 0%, rgba(34, 12, 46, 0.6) 100%);
+}
+/* Phủ dư một chu kỳ pattern (31×54) về phía trên-trái để trôi không lộ mép. */
+.fx-cell-hex {
+  position: absolute; top: -54px; left: -31px;
+  width: calc(100% + 62px); height: calc(100% + 108px);
+  opacity: 0.5;
+  animation: fx-cell-drift var(--fx-drift) linear infinite;
+}
+.fx-cell-figure {
+  position: absolute; left: -1vw; bottom: 0; height: min(62vh, 520px);
+  filter: saturate(0.85);
+}
+@keyframes fx-cell-drift {
+  from { transform: translate(0, 0); }
+  to { transform: translate(31px, 54px); }
+}

@@ -1,0 +1,35 @@
+/* Hoạ tiết Akatsuki — đỏ/đen hardcode theo motif, không theo palette. */
+.fx-akatsuki {
+  background: radial-gradient(80% 60% at 50% 0%, rgba(76, 20, 28, 0.5), transparent 70%);
+}
+/* Mây xuất phát ngoài mép trái và kết thúc ngoài mép phải nên vòng lặp
+   animation nhảy về đầu ở chỗ không nhìn thấy. */
+.fx-akatsuki-cloud {
+  position: absolute; left: -160px; width: 130px;
+  animation: fx-aka-drift var(--fx-drift) linear infinite;
+}
+.fx-akatsuki-cloud.c1 { top: 10%; width: 150px; }
+.fx-akatsuki-cloud.c2 {
+  top: 38%; width: 105px;
+  animation-duration: calc(var(--fx-drift) * 1.4);
+  animation-delay: calc(var(--fx-drift) / -2.2);
+}
+.fx-akatsuki-cloud.c3 {
+  top: 68%; width: 125px;
+  animation-duration: calc(var(--fx-drift) * 1.8);
+  animation-delay: calc(var(--fx-drift) / -1.3);
+}
+/* Quạ chỉ bay trong 12% đầu chu kỳ rồi "nghỉ" ngoài màn hình phần còn lại. */
+.fx-akatsuki-crow {
+  position: absolute; top: 26%; left: -80px; width: 64px; opacity: 0.55;
+  animation: fx-aka-crow calc(var(--fx-drift) * 3) linear infinite;
+}
+@keyframes fx-aka-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(100vw + 320px)); }
+}
+@keyframes fx-aka-crow {
+  0% { transform: translate(0, 0); }
+  12% { transform: translate(calc(100vw + 160px), -60px); }
+  100% { transform: translate(calc(100vw + 160px), -60px); }
+}

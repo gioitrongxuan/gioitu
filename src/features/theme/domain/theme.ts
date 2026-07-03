@@ -61,10 +61,40 @@ export const DARK_THEME: Theme = {
   line: "#374151",
 };
 
+/** Effect keys — each maps to a lazy-loaded component in presets/registry. */
+export type BackgroundEffect = "buu" | "cell" | "bamboo" | "akatsuki";
+
+/** Drift speed of the decorative pattern; "none" freezes it entirely. */
+export type BackgroundSpeed = "none" | "slow" | "medium";
+
+/**
+ * Decorative page background of a preset, rendered by ui/ThemeBackdrop behind
+ * all content. Pure data — the actual visuals (SVG/CSS/images) live in
+ * presets/<effect>/ and are only downloaded when the preset is picked.
+ */
+export interface PresetBackground {
+  effect: BackgroundEffect;
+  speed: BackgroundSpeed;
+  /** Max opacity of the whole layer (0–1] — kept low so text stays readable. */
+  opacity: number;
+}
+
+/** Themed glyphs for tags/badges; absent fields fall back to app defaults. */
+export interface PresetIcons {
+  /** Signature glyph shown on the preset chip in settings. */
+  emblem: string;
+  /** Replaces the default "!" relapse badge on word-cloud tags. */
+  relapse: string;
+}
+
 export interface ThemePreset {
   id: string;
   name: string;
   theme: Theme;
+  /** Decorative background; plain colour presets simply omit it. */
+  background?: PresetBackground;
+  /** Themed icon set; omit to keep the app's default glyphs. */
+  icons?: PresetIcons;
 }
 
 /**
@@ -104,7 +134,81 @@ export const THEME_PRESETS: ThemePreset[] = [
     name: "Nho",
     theme: { ...DEFAULT_THEME, heatFrom: "#f3e8ff", heatTo: "#581c87", accent: "#9333ea" },
   },
+  // ---- Bộ theme trang trí: màu + icon + hiệu ứng nền (presets/<effect>/). ----
+  {
+    id: "buu",
+    name: "Majin Buu",
+    theme: {
+      heatFrom: "#fbcfe8",
+      heatTo: "#701a75",
+      accent: "#db2777",
+      warn: "#dc2626",
+      bg: "#fdf2f8",
+      surface: "#ffffff",
+      fg: "#4a1033",
+      muted: "#9d5c7d",
+      line: "#f3d3e3",
+    },
+    background: { effect: "buu", speed: "slow", opacity: 0.35 },
+    icons: { emblem: "🍬", relapse: "💢" },
+  },
+  {
+    id: "cell",
+    name: "Cell",
+    theme: {
+      heatFrom: "#1d3524",
+      heatTo: "#a3e635",
+      accent: "#4ade80",
+      warn: "#f87171",
+      bg: "#0c1510",
+      surface: "#16241a",
+      fg: "#dcefe0",
+      muted: "#93ac9b",
+      line: "#28402e",
+    },
+    background: { effect: "cell", speed: "slow", opacity: 0.3 },
+    icons: { emblem: "🧬", relapse: "☣" },
+  },
+  {
+    id: "panda",
+    name: "Rừng trúc",
+    theme: {
+      heatFrom: "#e4efd8",
+      heatTo: "#1c1c1c",
+      accent: "#15803d",
+      warn: "#dc2626",
+      bg: "#f4f8ef",
+      surface: "#ffffff",
+      fg: "#232a20",
+      muted: "#6b7a64",
+      line: "#dde7d4",
+    },
+    background: { effect: "bamboo", speed: "slow", opacity: 0.3 },
+    icons: { emblem: "🐼", relapse: "🐾" },
+  },
+  {
+    id: "akatsuki",
+    name: "Akatsuki",
+    theme: {
+      heatFrom: "#33212a",
+      heatTo: "#ef4444",
+      accent: "#ef4444",
+      warn: "#f59e0b",
+      bg: "#0f0b0d",
+      surface: "#1c1418",
+      fg: "#ece4e4",
+      muted: "#a18f93",
+      line: "#3a2b30",
+    },
+    background: { effect: "akatsuki", speed: "slow", opacity: 0.35 },
+    icons: { emblem: "☁️", relapse: "◉" },
+  },
 ];
+
+/** The preset with the given id, or undefined (id null = no decor chosen). */
+export function presetById(id: string | null): ThemePreset | undefined {
+  return id == null ? undefined : THEME_PRESETS.find((p) => p.id === id);
+}
 
 /** Maps each editable field to its CSS custom property name. */
 const VAR_MAP: Record<keyof Theme, string> = {
@@ -158,6 +262,49 @@ function prefersDark(): boolean {
 export function saveTheme(theme: Theme): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(theme));
+  } catch {
+    /* ignore */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Decor — phần "ngoài màu" của bộ theme: preset nào đang cấp hiệu ứng nền /
+// icon set, và người dùng có muốn hiện hiệu ứng hay không. Tách khỏi Theme để
+// giữ nguyên hợp đồng 9 màu (applyTheme và localStorage cũ không đổi).
+
+export interface ThemeDecor {
+  /** Preset cấp background/icons; null = chỉ dùng màu, không trang trí. */
+  presetId: string | null;
+  /** Công tắc riêng: tắt khi hiệu ứng nền gây xao nhãng lúc học. */
+  effectsEnabled: boolean;
+}
+
+export const DEFAULT_DECOR: ThemeDecor = { presetId: null, effectsEnabled: true };
+
+const DECOR_KEY = "gioitu.decor.v1";
+
+/** Read the saved decor; wrong types or malformed JSON fall back per-field. */
+export function loadDecor(): ThemeDecor {
+  try {
+    const raw = localStorage.getItem(DECOR_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<ThemeDecor>;
+      return {
+        presetId: typeof parsed.presetId === "string" ? parsed.presetId : DEFAULT_DECOR.presetId,
+        effectsEnabled:
+          typeof parsed.effectsEnabled === "boolean" ? parsed.effectsEnabled : DEFAULT_DECOR.effectsEnabled,
+      };
+    }
+  } catch {
+    /* malformed / unavailable storage — fall through to default */
+  }
+  return { ...DEFAULT_DECOR };
+}
+
+/** Persist decor; ignores storage failures (private mode, quota, …). */
+export function saveDecor(decor: ThemeDecor): void {
+  try {
+    localStorage.setItem(DECOR_KEY, JSON.stringify(decor));
   } catch {
     /* ignore */
   }

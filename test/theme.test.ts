@@ -2,15 +2,20 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   DEFAULT_THEME,
   DARK_THEME,
+  DEFAULT_DECOR,
   THEME_PRESETS,
   applyTheme,
   loadTheme,
   saveTheme,
+  loadDecor,
+  saveDecor,
+  presetById,
   isHexColor,
   isDarkColor,
   heatBackground,
   heatTextColor,
   type Theme,
+  type ThemeDecor,
 } from "@/features/theme/domain/theme";
 
 describe("isHexColor", () => {
@@ -160,5 +165,84 @@ describe("THEME_PRESETS", () => {
   it("has unique preset ids", () => {
     const ids = THEME_PRESETS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("keeps body text readable on the page background in every preset", () => {
+    for (const preset of THEME_PRESETS) {
+      // Nền tối phải đi với chữ sáng và ngược lại — đủ để không "chữ chìm nền".
+      expect(
+        isDarkColor(preset.theme.bg) !== isDarkColor(preset.theme.fg),
+        `${preset.id}: fg ${preset.theme.fg} on bg ${preset.theme.bg}`,
+      ).toBe(true);
+    }
+  });
+});
+
+describe("decorated presets (background + icons)", () => {
+  const decorated = THEME_PRESETS.filter((p) => p.background != null);
+
+  it("ships the four character presets", () => {
+    expect(decorated.map((p) => p.id)).toEqual(["buu", "cell", "panda", "akatsuki"]);
+  });
+
+  it("keeps the background subtle: opacity in (0, 0.5]", () => {
+    for (const preset of decorated) {
+      expect(preset.background!.opacity, preset.id).toBeGreaterThan(0);
+      expect(preset.background!.opacity, preset.id).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it("every decorated preset also names its icon set", () => {
+    for (const preset of decorated) {
+      expect(preset.icons, preset.id).toBeDefined();
+      expect(preset.icons!.emblem.length, preset.id).toBeGreaterThan(0);
+      expect(preset.icons!.relapse.length, preset.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("plain colour presets carry no decor", () => {
+    for (const preset of THEME_PRESETS.filter((p) => p.background == null)) {
+      expect(preset.icons, preset.id).toBeUndefined();
+    }
+  });
+});
+
+describe("presetById", () => {
+  it("finds a preset and returns undefined for null/unknown", () => {
+    expect(presetById("akatsuki")?.name).toBe("Akatsuki");
+    expect(presetById(null)).toBeUndefined();
+    expect(presetById("no-such-theme")).toBeUndefined();
+  });
+});
+
+describe("loadDecor / saveDecor", () => {
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    (globalThis as unknown as { localStorage: Storage }).localStorage = {
+      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      clear: () => store.clear(),
+      key: () => null,
+      length: 0,
+    };
+  });
+
+  it("round-trips a saved decor", () => {
+    const decor: ThemeDecor = { presetId: "cell", effectsEnabled: false };
+    saveDecor(decor);
+    expect(loadDecor()).toEqual(decor);
+  });
+
+  it("returns the default when nothing is stored", () => {
+    expect(loadDecor()).toEqual(DEFAULT_DECOR);
+  });
+
+  it("falls back per-field on wrong types and malformed data", () => {
+    localStorage.setItem("gioitu.decor.v1", JSON.stringify({ presetId: 42, effectsEnabled: "yes" }));
+    expect(loadDecor()).toEqual(DEFAULT_DECOR);
+
+    localStorage.setItem("gioitu.decor.v1", "{not valid json");
+    expect(loadDecor()).toEqual(DEFAULT_DECOR);
   });
 });
