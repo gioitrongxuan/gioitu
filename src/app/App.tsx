@@ -24,6 +24,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, getSession } from "@/features/auth/data/auth";
 import { Toasts } from "@/shared/ui/Toasts";
+import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
 import { DEFAULT_PAIR, LangPair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
@@ -120,6 +121,12 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
 
+  // Mobile: panel chi tiết là bottom sheet phủ lên trang — nội dung nền bị
+  // backdrop che chuột/chạm, còn inert + aria-hidden chặn nốt focus bàn phím
+  // và trình đọc màn hình. Desktop panel nằm cạnh nội dung nên không áp.
+  const isMobile = useMediaQuery(MOBILE_MEDIA_QUERY);
+  const behindSheet = isMobile && view?.kind === "detail" ? { inert: "", "aria-hidden": true } : {};
+
   // Shared between the home and "Đã thuộc" pages so selecting a word opens its
   // detail in place, without jumping back to the home screen.
   const detailPanel = view?.kind === "detail" && (
@@ -164,7 +171,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header" {...behindSheet}>
         {/* Header kiểu jisho: chỉ wordmark + nhập từ điển + ☰; mọi action phụ
             nằm trong menu để phần đầu trang nhường đất cho ô tìm kiếm. */}
         <h1 className="wordmark">
@@ -178,7 +185,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
       </header>
 
       {page === "learned" ? (
-        <div className="learned-head">
+        <div className="learned-head" {...behindSheet}>
           <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
           <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
           <CloudViewControls
@@ -189,7 +196,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           />
         </div>
       ) : (
-        <>
+        <div {...behindSheet}>
           <SearchBar
             pair={pair}
             onPairChange={setPair}
@@ -214,11 +221,11 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
             onGroupingChange={setGrouping}
             onStartReview={() => setReviewing(true)}
           />
-        </>
+        </div>
       )}
 
       <main className="content">
-        <section className="cloud-area">
+        <section className="cloud-area" {...behindSheet}>
           {!store.loaded ? (
             <p className="empty">Đang tải…</p>
           ) : page === "learned" ? (

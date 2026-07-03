@@ -231,9 +231,21 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   border-radius: 12px 12px 0 0; padding: 14px;
   /* dvh: trừ đúng phần thanh địa chỉ mobile co giãn; vh là fallback. */
   max-height: 75vh; max-height: 75dvh; overflow: auto;
+  /* Cuộn hết trong sheet thì dừng, không lan xuống cloud phía sau. */
+  overscroll-behavior: contain;
   padding-bottom: calc(14px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 24px rgba(0,0,0,0.16);
+  animation: sheet-in 0.22s ease;
 }
+/* Lớp che sau bottom sheet: chặn chạm xuyên xuống cloud/filter và tách sheet
+   khỏi nền cùng màu; chạm vào để đóng (DetailPanel gắn onClose). */
+.detail-backdrop {
+  position: fixed; inset: 0; z-index: 19;
+  background: var(--overlay);
+  animation: backdrop-in 0.22s ease;
+}
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0.5; } }
+@keyframes backdrop-in { from { opacity: 0; } }
 @media (min-width: 760px) {
   /* Desktop: stick to the top of the viewport within the right column so it
      stays in view as the cloud scrolls. */
@@ -242,7 +254,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
     z-index: auto; align-self: start;
     border-radius: 12px; box-shadow: none;
     max-height: calc(100vh - 32px);
+    animation: none;
   }
+  /* Desktop: panel nằm cạnh nội dung, không phủ — không cần lớp che. */
+  .detail-backdrop { display: none; }
 }
 .detail-panel { overflow-wrap: break-word; }
 .detail-panel header { display: flex; align-items: baseline; gap: 8px; }
@@ -399,6 +414,31 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .pos-tag[data-category=archaism],   .term-tag[data-category=archaism]   { --tag-color: #d9534f; }
 .pos-tag[data-category=name],       .term-tag[data-category=name]       { --tag-color: #b6327a; }
 .pos-tag[data-category=dictionary], .term-tag[data-category=dictionary] { --tag-color: #aa66cc; }
+
+/* Tag phổ biến mang hai nhãn (TagChip): màn hẹp hiện ký hiệu từ điển Việt
+   (d., đg., ★…), màn rộng hiện mã gốc — tên đầy đủ vẫn ở title khi hover. */
+.tag-abbr { display: none; }
+@media (max-width: 759px) {
+  .tag-abbr { display: inline; }
+  .tag-code { display: none; }
+}
+
+/* Chip tần suất corpus (kiểu jisho: mỗi nguồn một màu, hạng nhỏ = thông dụng).
+   Dữ liệu tham khảo ngoài — khác "Số lần tra" cá nhân trong srs-stats. */
+.freq-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.freq-tag {
+  --freq-color: #64748b;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; line-height: 1.5; padding: 0 6px; border-radius: 4px;
+  color: #fff; background: var(--freq-color); white-space: nowrap; cursor: help;
+}
+.freq-tag b { font-weight: 600; }
+.freq-tag[data-freq-color="0"] { --freq-color: #0e7490; }
+.freq-tag[data-freq-color="1"] { --freq-color: #6d28d9; }
+.freq-tag[data-freq-color="2"] { --freq-color: #b45309; }
+.freq-tag[data-freq-color="3"] { --freq-color: #be185d; }
+.freq-tag[data-freq-color="4"] { --freq-color: #4d7c0f; }
+.freq-tag[data-freq-color="5"] { --freq-color: #1d4ed8; }
 
 /* Structured content */
 .sc-ul, .sc-ol { margin: 4px 0; padding-left: 18px; }

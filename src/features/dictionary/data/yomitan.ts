@@ -15,9 +15,11 @@ import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
 import {
   Pronunciation,
+  TermFrequency,
   TermMetaEntry,
   TermMetaMode,
   TermMetaRow,
+  frequencyRanks,
   ipaPronunciations,
 } from "@/shared/term-meta";
 import { candidates, rulesMatchEntry } from "../domain/deinflect";
@@ -387,6 +389,8 @@ export interface TermResult {
   source: string;
   /** IPA pronunciations attached from term-meta dictionaries (if any). */
   pronunciations?: Pronunciation[];
+  /** Corpus frequency ranks attached from term-meta dictionaries (if any). */
+  frequencies?: TermFrequency[];
   /** A near-miss surfaced by edit-distance, not an exact/deinflected match. */
   fuzzy?: boolean;
 }
@@ -443,12 +447,14 @@ export async function findTerms(
     return (b.entry.score ?? 0) - (a.entry.score ?? 0);
   });
 
-  // Enrich each result with IPA from any term-meta dictionary for the pair.
+  // Enrich each result with IPA + frequency from the pair's term-meta dicts.
   for (const result of ranked) {
     const meta = await metaForTerm(result.entry.term, term_lang, native_lang);
     if (!meta.length) continue;
     const pronunciations = ipaPronunciations(meta, result.entry.reading);
     if (pronunciations.length) result.pronunciations = pronunciations;
+    const frequencies = frequencyRanks(meta, result.entry.reading);
+    if (frequencies.length) result.frequencies = frequencies;
   }
 
   return ranked;
