@@ -16,8 +16,11 @@ import {
 } from "./assemble.js";
 import type {
   DictionaryEntry,
+  EditableComment,
+  EditableImage,
   EditableSense,
   Heading,
+  ImportedEntryEdit,
   JlptLevel,
   PitchAccent,
   Sense,
@@ -26,9 +29,9 @@ import type {
 import type { GlossaryNode } from "@/shared/structured-content";
 import {
   editableToSenses,
-  importedPreview,
   patchPrimaryHeading,
   sensesToEditable,
+  stampSenseSource,
 } from "./termEdit.js";
 
 export interface ImportSummary {
@@ -49,7 +52,7 @@ async function assembleByIds(ids: string[]): Promise<DictionaryEntry[]> {
 
   const [words, entries, images, comments] = await Promise.all([
     pool.query<WordRow>(
-      `SELECT id, term_lang, native_lang, headings, pitch, freq_rank, jlpt, score
+      `SELECT id, term_lang, native_lang, headings, pitch, freq_rank, jlpt, score, verified
          FROM word WHERE id = ANY($1)`,
       [ids],
     ),
@@ -346,11 +349,13 @@ export async function browseTerms(src: string, tgt: string, q: string, limit: nu
     const e = entries[i];
     const h = e.headings[0];
     return {
+      wordId: id,
       term: h?.base ?? "",
       reading: h?.reading,
       definitions: definitionsOf(e),
       term_lang: e.term_lang,
       native_lang: e.native_lang,
+      verified: e.verified === true,
       dict_id: dictByWord.get(id) ?? null,
     };
   });
@@ -413,6 +418,10 @@ async function applyWordAttributes(
  * Thêm/sửa lớp nghĩa THỦ CÔNG của một từ (entry dict_id = NULL) cùng thuộc tính
  * cấp từ (reading/Hán-Việt/JLPT/pitch). Khi có `word_id` thì sửa đúng từ đó (kể
  * cả đổi reading); không có thì tạo/khớp theo (cách viết, âm đọc).
+ *
+ * Senses rỗng chỉ hợp lệ với từ ĐÃ tồn tại: nghĩa là "xoá lớp thủ công, chỉ sửa
+ * thuộc tính" — cần thiết để sửa cách đọc/Hán-Việt của từ nhập máy mà không phải
+ * bịa thêm nghĩa tay. Nếu vì thế từ không còn nguồn nghĩa nào thì xoá luôn từ.
  */
 export async function upsertTerm(entry: {
   word_id?: string;
@@ -427,14 +436,37 @@ export async function upsertTerm(entry: {
 }) {
   const reading = entry.reading ?? "";
   const senses = editableToSenses(entry.senses);
-  if (senses.length === 0) throw new Error("Cần ít nhất một nghĩa");
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const wordId =
-      entry.word_id ??
-      (await resolveOrCreateWord(client, entry.term_lang, entry.native_lang, entry.term, reading));
+    let wordId = entry.word_id;
+    if (!wordId) {
+      if (senses.length === 0) {
+        const found = await client.query<{ word_id: string }>(
+          `SELECT word_id FROM heading_lookup
+            WHERE term_lang = $1 AND native_lang = $2 AND base = $3 AND reading = $4`,
+          [entry.term_lang, entry.native_lang, entry.term, reading],
+        );
+        wordId = found.rows[0]?.word_id;
+        if (!wordId) throw new Error("Cần ít nhất một nghĩa");
+      } else {
+        wordId = await resolveOrCreateWord(client, entry.term_lang, entry.native_lang, entry.term, reading);
+      }
+    }
+
+    if (senses.length === 0) {
+      await client.query(`DELETE FROM entry WHERE word_id = $1 AND dict_id IS NULL`, [wordId]);
+      const rest = await client.query(`SELECT 1 FROM entry WHERE word_id = $1 LIMIT 1`, [wordId]);
+      if (!rest.rows[0]) {
+        await client.query(`DELETE FROM word WHERE id = $1`, [wordId]);
+        await client.query("COMMIT");
+        return;
+      }
+    } else {
+      await putEntry(client, wordId, null, senses);
+    }
+
     await applyWordAttributes(client, wordId, {
       term: entry.term,
       reading,
@@ -444,7 +476,6 @@ export async function upsertTerm(entry: {
       term_lang: entry.term_lang,
       native_lang: entry.native_lang,
     });
-    await putEntry(client, wordId, null, senses);
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -455,8 +486,9 @@ export async function upsertTerm(entry: {
 }
 
 /**
- * Trạng thái để mở form sửa một từ: thuộc tính cấp từ + lớp nghĩa thủ công (sửa
- * được) + các nghĩa đã nhập kèm (read-only, để đối chiếu). Null nếu không có từ.
+ * Trạng thái để mở form sửa một từ: thuộc tính cấp từ + lớp nghĩa thủ công +
+ * nghĩa của TỪNG nguồn đã nhập (sửa được, theo entry_id) + ảnh/bình luận (gỡ
+ * được) + cờ kiểm duyệt. Null nếu không có từ.
  */
 export async function getTermForEdit(
   src: string,
@@ -472,20 +504,47 @@ export async function getTermForEdit(
   if (!found.rows[0]) return null;
   const wordId = found.rows[0].word_id;
 
-  const [wordRes, entryRes] = await Promise.all([
-    pool.query<{ headings: Heading[]; pitch: PitchAccent[] | null; jlpt: number | null }>(
-      `SELECT headings, pitch, jlpt FROM word WHERE id = $1`,
+  const [wordRes, entryRes, imageRes, commentRes] = await Promise.all([
+    pool.query<{ headings: Heading[]; pitch: PitchAccent[] | null; jlpt: number | null; verified: boolean }>(
+      `SELECT headings, pitch, jlpt, verified FROM word WHERE id = $1`,
       [wordId],
     ),
-    pool.query<{ senses: Sense[]; dict_id: string | null }>(
-      `SELECT senses, dict_id FROM entry WHERE word_id = $1 ORDER BY (dict_id IS NULL) DESC, id`,
+    pool.query<{ id: string; senses: Sense[]; dict_id: string | null; title: string | null }>(
+      `SELECT e.id, e.senses, e.dict_id, d.title FROM entry e
+         LEFT JOIN dictionaries d ON d.id = e.dict_id
+        WHERE e.word_id = $1 ORDER BY (e.dict_id IS NULL) DESC, e.id`,
+      [wordId],
+    ),
+    pool.query<{ id: string; url: string; source: string | null }>(
+      `SELECT id, url, source FROM word_image WHERE word_id = $1 ORDER BY ord, id`,
+      [wordId],
+    ),
+    pool.query<{ id: string; mean: string; author: string | null }>(
+      `SELECT id, mean, author FROM word_comment WHERE word_id = $1 ORDER BY likes DESC, id`,
       [wordId],
     ),
   ]);
   const word = wordRes.rows[0];
   const head = word?.headings?.find((h) => h.base === term) ?? word?.headings?.[0];
   const manual = entryRes.rows.find((e) => e.dict_id === null);
-  const imported = entryRes.rows.filter((e) => e.dict_id !== null).flatMap((e) => e.senses ?? []);
+  const imported: ImportedEntryEdit[] = entryRes.rows
+    .filter((e) => e.dict_id !== null)
+    .map((e) => ({
+      entry_id: e.id,
+      // Tên nguồn: registry là nguồn sự thật; sense JSON là dấu vết lúc import.
+      dictionary: e.title ?? e.senses?.find((s) => s.dictionary)?.dictionary,
+      senses: sensesToEditable(e.senses ?? []),
+    }));
+  const images: EditableImage[] = imageRes.rows.map((i) => ({
+    id: i.id,
+    url: i.url,
+    source: i.source ?? undefined,
+  }));
+  const comments: EditableComment[] = commentRes.rows.map((c) => ({
+    id: c.id,
+    mean: c.mean,
+    author: c.author ?? undefined,
+  }));
 
   return {
     word_id: wordId,
@@ -496,9 +555,98 @@ export async function getTermForEdit(
     hanViet: head?.hanViet,
     jlpt: (head?.jlpt ?? word?.jlpt ?? undefined) as JlptLevel | undefined,
     pitch: word?.pitch ?? undefined,
+    verified: word?.verified === true,
     senses: sensesToEditable(manual?.senses ?? []),
-    imported: importedPreview(imported),
+    imported,
+    images,
+    comments,
   };
+}
+
+/** Bật/tắt cờ kiểm duyệt của một từ. Trả false nếu word_id không tồn tại. */
+export async function setTermVerified(wordId: string, verified: boolean): Promise<boolean> {
+  const res = await pool.query(`UPDATE word SET verified = $2 WHERE id = $1`, [wordId, verified]);
+  return Boolean(res.rowCount);
+}
+
+/**
+ * Ghi đè nghĩa của MỘT nguồn đã nhập (một dòng entry). Senses rỗng = gỡ nguồn
+ * đó khỏi từ; nếu từ không còn nguồn nghĩa nào thì xoá luôn word (đồng bộ với
+ * cách deleteDictionary dọn word mồ côi). Sense sửa tay được đóng dấu lại tên
+ * nguồn để UI vẫn hiện đúng xuất xứ.
+ */
+export async function updateEntrySenses(
+  entryId: string,
+  editable: EditableSense[],
+): Promise<{ found: boolean; deleted: boolean }> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const cur = await client.query<{ word_id: string; dict_id: string | null; title: string | null }>(
+      `SELECT e.word_id, e.dict_id, d.title FROM entry e
+         LEFT JOIN dictionaries d ON d.id = e.dict_id
+        WHERE e.id = $1`,
+      [entryId],
+    );
+    const row = cur.rows[0];
+    if (!row) {
+      await client.query("ROLLBACK");
+      return { found: false, deleted: false };
+    }
+
+    const senses = stampSenseSource(editableToSenses(editable), row.title ?? undefined);
+    if (senses.length === 0) {
+      await client.query(`DELETE FROM entry WHERE id = $1`, [entryId]);
+      await client.query(
+        `DELETE FROM word w WHERE w.id = $1
+           AND NOT EXISTS (SELECT 1 FROM entry e WHERE e.word_id = w.id)`,
+        [row.word_id],
+      );
+      await client.query("COMMIT");
+      return { found: true, deleted: true };
+    }
+
+    await client.query(`UPDATE entry SET senses = $2 WHERE id = $1`, [entryId, JSON.stringify(senses)]);
+    await client.query("COMMIT");
+    return { found: true, deleted: false };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/** Thêm một ảnh minh hoạ (cuối gallery). Trùng URL thì trả về ảnh sẵn có. */
+export async function addWordImage(wordId: string, url: string): Promise<EditableImage | null> {
+  const ins = await pool.query<{ id: string; url: string; source: string | null }>(
+    `INSERT INTO word_image (word_id, url, source, ord)
+     SELECT $1, $2, 'admin', COALESCE(MAX(ord) + 1, 0) FROM word_image WHERE word_id = $1
+     ON CONFLICT (word_id, url) DO NOTHING
+     RETURNING id, url, source`,
+    [wordId, url],
+  );
+  const row =
+    ins.rows[0] ??
+    (
+      await pool.query<{ id: string; url: string; source: string | null }>(
+        `SELECT id, url, source FROM word_image WHERE word_id = $1 AND url = $2`,
+        [wordId, url],
+      )
+    ).rows[0];
+  return row ? { id: row.id, url: row.url, source: row.source ?? undefined } : null;
+}
+
+/** Gỡ một ảnh minh hoạ theo id. Trả false nếu không có. */
+export async function deleteWordImage(id: string): Promise<boolean> {
+  const res = await pool.query(`DELETE FROM word_image WHERE id = $1`, [id]);
+  return Boolean(res.rowCount);
+}
+
+/** Gỡ một bình luận theo id. Trả false nếu không có. */
+export async function deleteWordComment(id: string): Promise<boolean> {
+  const res = await pool.query(`DELETE FROM word_comment WHERE id = $1`, [id]);
+  return Boolean(res.rowCount);
 }
 
 /** Xoá một từ (word + entry/heading cascade). Trả false nếu không có. */

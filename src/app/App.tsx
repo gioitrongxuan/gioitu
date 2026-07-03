@@ -110,6 +110,8 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   const [grouping, setGrouping] = useState<TimeGrouping>("none");
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
+  // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
+  const [manageEditQuery, setManageEditQuery] = useState<string | null>(null);
   const [theming, setTheming] = useState(false);
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
@@ -134,6 +136,11 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
       onDelete={async (e) => {
         await store.deleteEntry(e);
         closeView();
+      }}
+      isAdmin={isAdmin}
+      onAdminEdit={(term) => {
+        setManageEditQuery(term);
+        setManaging(true);
       }}
     />
   );
@@ -250,11 +257,16 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
       {managing && isAdmin && (
         <DictionaryManager
           loggedIn={email != null}
+          initialEdit={manageEditQuery != null ? { pair, query: manageEditQuery } : undefined}
           onRequestLogin={() => {
             setManaging(false);
+            setManageEditQuery(null);
             onRequestLogin();
           }}
-          onClose={() => setManaging(false)}
+          onClose={() => {
+            setManaging(false);
+            setManageEditQuery(null);
+          }}
         />
       )}
 

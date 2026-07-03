@@ -10,6 +10,7 @@ const word: WordRow = {
   freq_rank: 100,
   jlpt: 1,
   score: 5,
+  verified: true,
 };
 
 describe("assembleEntry — ráp DictionaryEntry từ các dòng DB", () => {
@@ -29,6 +30,8 @@ describe("assembleEntry — ráp DictionaryEntry từ các dòng DB", () => {
     expect(e.images).toEqual([{ url: "http://x/a.png", source: "mazii" }]);
     expect(e.comments?.[0]).toMatchObject({ mean: "hành động tự vệ", likes: 2, createdAt: 1700000000000 });
     expect(e.score).toBe(5);
+    expect(e.word_id).toBe("1");
+    expect(e.verified).toBe(true);
   });
 
   it("không có ảnh/bình luận → bỏ trường (undefined)", () => {

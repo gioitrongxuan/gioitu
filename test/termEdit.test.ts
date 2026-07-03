@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   editableToSenses,
-  importedPreview,
   patchPrimaryHeading,
   sensesToEditable,
+  stampSenseSource,
 } from "@server/features/dictionary/termEdit";
 
 describe("editableToSenses — form → Sense lưu được", () => {
@@ -70,10 +70,20 @@ describe("patchPrimaryHeading — vá thuộc tính cách viết chính", () => 
   });
 });
 
-describe("importedPreview", () => {
-  it("gộp gloss theo từ điển", () => {
-    expect(
-      importedPreview([{ pos: ["n"], gloss: ["cat", { text: "feline", type: "expl" }], dictionary: "JMdict" }]),
-    ).toEqual([{ dictionary: "JMdict", gloss: ["cat", "feline"] }]);
+describe("stampSenseSource — đóng dấu lại tên nguồn sau khi sửa tay", () => {
+  it("gắn dictionary lên mọi sense, kể cả sense đã mang tên khác", () => {
+    const out = stampSenseSource(
+      [
+        { pos: ["n"], gloss: ["cat"] },
+        { pos: [], gloss: ["feline"], dictionary: "cũ" },
+      ],
+      "JMdict",
+    );
+    expect(out.map((s) => s.dictionary)).toEqual(["JMdict", "JMdict"]);
+  });
+
+  it("không có tên nguồn (lớp thủ công) → giữ nguyên", () => {
+    const senses = [{ pos: [], gloss: ["x"] }];
+    expect(stampSenseSource(senses)).toBe(senses);
   });
 });

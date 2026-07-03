@@ -9,8 +9,17 @@ import { TermEditor } from "./TermEditor";
 
 const PAGE = 50;
 
-export function EditTab({ pair, onError }: { pair: LangPair; onError: (s: string | null) => void }) {
-  const [q, setQ] = useState("");
+export function EditTab({
+  pair,
+  onError,
+  initialQuery,
+}: {
+  pair: LangPair;
+  onError: (s: string | null) => void;
+  /** Từ được mở sẵn khi đi từ kết quả tra ("Sửa từ"). */
+  initialQuery?: string;
+}) {
+  const [q, setQ] = useState(initialQuery ?? "");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<{ total: number; items: TermRow[] }>({ total: 0, items: [] });
   const [loading, setLoading] = useState(false);

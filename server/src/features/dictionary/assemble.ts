@@ -14,6 +14,7 @@ export interface WordRow {
   freq_rank: number | null;
   jlpt: number | null;
   score: number;
+  verified: boolean;
 }
 export interface EntryRow {
   word_id: string;
@@ -44,6 +45,7 @@ export function assembleEntry(
   comments: CommentRow[] = [],
 ): DictionaryEntry {
   return {
+    word_id: word.id,
     term_lang: word.term_lang,
     native_lang: word.native_lang,
     headings: word.headings ?? [],
@@ -63,6 +65,7 @@ export function assembleEntry(
         }))
       : undefined,
     score: word.score ?? 0,
+    verified: word.verified === true,
   };
 }
 

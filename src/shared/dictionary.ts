@@ -167,23 +167,48 @@ export interface EditableTerm {
   senses: EditableSense[];
 }
 
-/** Nghĩa từ một từ điển đã nhập (read-only) — hiển thị để đối chiếu khi sửa. */
-export interface ImportedSensePreview {
+/**
+ * Nghĩa của một nguồn đã nhập (Mazii/Yomitan…), sửa được theo từng nguồn —
+ * mỗi nguồn là một dòng `entry` riêng nên mang `entry_id` để lưu đúng chỗ.
+ * Lưu ý: sửa sẽ thay glossary có cấu trúc của nguồn bằng văn bản thuần.
+ */
+export interface ImportedEntryEdit {
+  entry_id: string;
   dictionary?: string;
-  gloss: string[];
+  senses: EditableSense[];
+}
+
+/** Một ảnh minh hoạ trong trạng thái sửa (id DB để xoá từng ảnh). */
+export interface EditableImage {
+  id: string;
+  url: string;
+  source?: string;
+}
+
+/** Một bình luận trong trạng thái sửa (chỉ cần đủ để nhận diện và gỡ). */
+export interface EditableComment {
+  id: string;
+  mean: string;
+  author?: string;
 }
 
 /**
  * Trạng thái GET để mở form sửa: từ đã sửa được + id lexeme (để lưu đúng chỗ) +
- * các nghĩa đã nhập kèm (read-only). `word_id` vắng nghĩa là từ chưa tồn tại.
+ * nghĩa của từng nguồn đã nhập + ảnh/bình luận (gỡ được) + cờ kiểm duyệt.
+ * `word_id` vắng nghĩa là từ chưa tồn tại.
  */
 export interface TermEditState extends EditableTerm {
   word_id?: string;
-  imported: ImportedSensePreview[];
+  verified: boolean;
+  imported: ImportedEntryEdit[];
+  images: EditableImage[];
+  comments: EditableComment[];
 }
 
 /** Một từ điển đã ráp đầy đủ (≈ jisho Word.Entry) — kiểu API trả về & UI render. */
 export interface DictionaryEntry {
+  /** Id dòng `word` — client cần để gọi các thao tác admin (duyệt/sửa). */
+  word_id?: string;
   term_lang: string;
   native_lang: string;
   /** Các cách viết; phần tử đầu là cách viết chính. */
@@ -195,4 +220,6 @@ export interface DictionaryEntry {
   comments?: DictComment[];
   /** Điểm phổ biến của cả entry, để xếp kết quả tìm. Cao = phổ biến hơn. */
   score: number;
+  /** Đã được admin kiểm duyệt nội dung (tích xanh cạnh từ). */
+  verified?: boolean;
 }

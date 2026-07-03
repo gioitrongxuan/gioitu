@@ -2,14 +2,7 @@
 // gõ) và mô hình lưu (Sense/Heading kế thừa jisho). Không chạm DB → test được
 // không cần Postgres. dictStore chỉ lo phần SQL, gọi các hàm này để nắn dữ liệu.
 
-import type {
-  EditableSense,
-  Gloss,
-  Heading,
-  ImportedSensePreview,
-  JlptLevel,
-  Sense,
-} from "@/shared/dictionary";
+import type { EditableSense, Gloss, Heading, JlptLevel, Sense } from "@/shared/dictionary";
 
 const glossText = (g: Gloss): string => (typeof g === "string" ? g : g.text);
 
@@ -51,12 +44,14 @@ export function sensesToEditable(senses: Sense[]): EditableSense[] {
   }));
 }
 
-/** Nghĩa từ các từ điển đã nhập → bản xem read-only (gộp theo tên từ điển). */
-export function importedPreview(senses: Sense[]): ImportedSensePreview[] {
-  return senses.map((s) => ({
-    dictionary: s.dictionary,
-    gloss: (s.gloss ?? []).map(glossText),
-  }));
+/**
+ * Đóng dấu tên nguồn lên từng sense trước khi lưu vào entry của nguồn đó —
+ * `dictionary` sống trong JSON sense (gắn lúc import), sửa tay xong phải gắn
+ * lại để UI vẫn hiện đúng nguồn.
+ */
+export function stampSenseSource(senses: Sense[], dictionary?: string): Sense[] {
+  if (!dictionary) return senses;
+  return senses.map((s) => ({ ...s, dictionary }));
 }
 
 /**

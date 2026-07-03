@@ -13,6 +13,12 @@ export const dictRoutes = Router();
 const asStrings = (v: unknown): string[] =>
   Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
 
+/** Id BIGINT (word/entry/ảnh/bình luận) — không phải chuỗi số thì coi như thiếu. */
+const asId = (v: unknown): string => {
+  const s = String(v ?? "").trim();
+  return /^\d+$/.test(s) ? s : "";
+};
+
 function parseSenses(raw: unknown): EditableSense[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((s) => {
@@ -190,7 +196,7 @@ dictRoutes.put(
     const term = String(body.term ?? "").trim();
     const term_lang = String(body.term_lang ?? "");
     const native_lang = String(body.native_lang ?? "");
-    const word_id = body.word_id ? String(body.word_id) : undefined;
+    const word_id = asId(body.word_id) || undefined;
     const reading = body.reading ? String(body.reading) : null;
     const hanViet = body.hanViet ? String(body.hanViet).trim() : undefined;
     const jlptNum = Number(body.jlpt);
@@ -201,10 +207,88 @@ dictRoutes.put(
     if (!term || !term_lang || !native_lang) {
       return res.status(400).json({ error: "Thiếu từ hoặc cặp ngôn ngữ" });
     }
-    if (!senses.some((s) => s.gloss.length > 0)) {
-      return res.status(400).json({ error: "Cần ít nhất một nghĩa" });
+    // Senses rỗng hợp lệ khi từ đã tồn tại (chỉ sửa thuộc tính / xoá lớp thủ
+    // công); store tự bác nếu là từ mới — trả 400 với thông điệp của nó.
+    try {
+      await dictStore.upsertTerm({ word_id, term, term_lang, native_lang, reading, hanViet, jlpt, pitch, senses });
+    } catch (err) {
+      return res.status(400).json({ error: (err as Error).message || "Không lưu được từ" });
     }
-    await dictStore.upsertTerm({ word_id, term, term_lang, native_lang, reading, hanViet, jlpt, pitch, senses });
+    res.json({ ok: true });
+  }),
+);
+
+// Bật/tắt cờ kiểm duyệt của một từ (tích xanh cạnh từ khi tra).
+dictRoutes.post(
+  "/term/verify",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const wordId = asId(req.body?.word_id);
+    const verified = req.body?.verified === true;
+    if (!wordId) return res.status(400).json({ error: "Thiếu word_id" });
+    const found = await dictStore.setTermVerified(wordId, verified);
+    if (!found) return res.status(404).json({ error: "Không tìm thấy từ" });
+    res.json({ ok: true, verified });
+  }),
+);
+
+// Ghi đè nghĩa của một nguồn đã nhập (một dòng entry). Senses rỗng = gỡ nguồn
+// đó khỏi từ. Lưu ý: sửa thay glossary có cấu trúc bằng văn bản thuần.
+dictRoutes.put(
+  "/term/entry",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const entryId = asId(req.body?.entry_id);
+    if (!entryId) return res.status(400).json({ error: "Thiếu entry_id" });
+    const senses = parseSenses(req.body?.senses);
+    const { found, deleted } = await dictStore.updateEntrySenses(entryId, senses);
+    if (!found) return res.status(404).json({ error: "Không tìm thấy nguồn nghĩa" });
+    res.json({ ok: true, deleted });
+  }),
+);
+
+// Thêm một ảnh minh hoạ cho từ (admin dán URL).
+dictRoutes.post(
+  "/term/image",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const wordId = asId(req.body?.word_id);
+    const url = String(req.body?.url ?? "").trim();
+    if (!wordId) return res.status(400).json({ error: "Thiếu word_id" });
+    if (!/^https?:\/\//.test(url)) return res.status(400).json({ error: "URL ảnh không hợp lệ" });
+    try {
+      const image = await dictStore.addWordImage(wordId, url);
+      if (!image) return res.status(404).json({ error: "Không tìm thấy từ" });
+      res.json(image);
+    } catch {
+      // FK gãy khi word_id không tồn tại — báo 404 thay vì 500.
+      res.status(404).json({ error: "Không tìm thấy từ" });
+    }
+  }),
+);
+
+// Gỡ một ảnh minh hoạ.
+dictRoutes.delete(
+  "/term/image",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const id = asId(req.body?.id);
+    if (!id) return res.status(400).json({ error: "Thiếu id ảnh" });
+    const found = await dictStore.deleteWordImage(id);
+    if (!found) return res.status(404).json({ error: "Không tìm thấy ảnh" });
+    res.json({ ok: true });
+  }),
+);
+
+// Gỡ một bình luận cộng đồng.
+dictRoutes.delete(
+  "/term/comment",
+  requireAdmin,
+  wrap(async (req, res) => {
+    const id = asId(req.body?.id);
+    if (!id) return res.status(400).json({ error: "Thiếu id bình luận" });
+    const found = await dictStore.deleteWordComment(id);
+    if (!found) return res.status(404).json({ error: "Không tìm thấy bình luận" });
     res.json({ ok: true });
   }),
 );

@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
+import { setTermVerified } from "../data/dictAdmin";
 import { reasonLabel } from "../domain/deinflect";
 import { Definitions } from "./Definitions";
 import { ImageGallery, CommentList } from "./Media";
@@ -37,6 +38,10 @@ interface Props {
   onMarkForgotten?: (entry: VocabEntry) => void;
   /** Delete the word (tombstone). */
   onDelete?: (entry: VocabEntry) => void;
+  /** Admin từ điển: hiện nút Duyệt/Sửa trên kết quả server. */
+  isAdmin?: boolean;
+  /** Mở trình quản lý từ điển tại đúng từ đang xem (chỉ admin). */
+  onAdminEdit?: (term: string) => void;
 }
 
 export function DetailPanel({
@@ -50,6 +55,8 @@ export function DetailPanel({
   onMarkKnown,
   onMarkForgotten,
   onDelete,
+  isAdmin,
+  onAdminEdit,
 }: Props) {
   const [custom, setCustom] = useState("");
 
@@ -76,7 +83,13 @@ export function DetailPanel({
               {res.fuzzy && !results[i - 1]?.fuzzy && (
                 <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
               )}
-              <ResultView res={res} onLookup={onLookup} onAdd={onAddResult} />
+              <ResultView
+                res={res}
+                onLookup={onLookup}
+                onAdd={onAddResult}
+                isAdmin={isAdmin}
+                onAdminEdit={onAdminEdit}
+              />
             </div>
           ))}
         </div>
@@ -144,20 +157,48 @@ function ResultView({
   res,
   onLookup,
   onAdd,
+  isAdmin,
+  onAdminEdit,
 }: {
   res: TermResult;
   onLookup?: (term: string) => void;
   onAdd?: (res: TermResult) => void;
+  isAdmin?: boolean;
+  onAdminEdit?: (term: string) => void;
 }) {
   const { entry } = res;
   // Local-only: once added we flip to a checkmark so the click reads as done.
   const [added, setAdded] = useState(false);
+  // Cờ kiểm duyệt đến từ server; admin toggle tại chỗ nên giữ state cục bộ.
+  const [verified, setVerified] = useState(entry.verified === true);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  // Chỉ kết quả từ nguồn server mới có wordId — nguồn local (Yomitan) không duyệt được.
+  const canModerate = isAdmin === true && Boolean(entry.wordId);
+
+  async function toggleVerified() {
+    if (!entry.wordId) return;
+    setVerifyBusy(true);
+    setAdminError(null);
+    try {
+      const resp = await setTermVerified(entry.wordId, !verified);
+      setVerified(resp.verified);
+    } catch (err) {
+      setAdminError((err as Error).message);
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
+
   return (
     <section className="result">
       <div className="result-head">
         <span className="headword">
           <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
         </span>
+        {verified && (
+          <span className="verified-badge" title="Từ đã được kiểm duyệt">✓</span>
+        )}
         {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
         {onAdd && (
           <button
@@ -176,6 +217,19 @@ function ResultView({
       </div>
 
       <HeadwordBadges hanViet={entry.hanViet} jlpt={entry.jlpt} />
+
+      {/* Kiểm duyệt nội dung — chỉ admin, chỉ kết quả server. */}
+      {canModerate && (
+        <div className="admin-actions">
+          <button className="link" disabled={verifyBusy} onClick={toggleVerified}>
+            {verified ? "Bỏ duyệt" : "✓ Duyệt từ này"}
+          </button>
+          {onAdminEdit && (
+            <button className="link" onClick={() => onAdminEdit(entry.term)}>Sửa từ</button>
+          )}
+          {adminError && <span className="danger">{adminError}</span>}
+        </div>
+      )}
 
       <AddToListButton
         word={{

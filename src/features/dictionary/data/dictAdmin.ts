@@ -5,7 +5,7 @@
 // surface backend errors to the caller instead of returning null.
 
 import { DictEntry } from "@/shared/db";
-import type { EditableTerm, TermEditState } from "@/shared/dictionary";
+import type { EditableImage, EditableSense, EditableTerm, TermEditState } from "@/shared/dictionary";
 import { authToken } from "@/features/auth/data/auth";
 
 const BASE = "/api";
@@ -138,5 +138,54 @@ export function deleteTerm(
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ term, term_lang, native_lang }),
+  });
+}
+
+/** Bật/tắt cờ kiểm duyệt của một từ (tích xanh cạnh từ khi tra). */
+export function setTermVerified(wordId: string, verified: boolean): Promise<{ ok: true; verified: boolean }> {
+  return request<{ ok: true; verified: boolean }>("/dict/term/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ word_id: wordId, verified }),
+  });
+}
+
+/**
+ * Ghi đè nghĩa của MỘT nguồn đã nhập (một dòng entry). Senses rỗng = gỡ nguồn
+ * đó khỏi từ; `deleted` báo lại để UI biết nguồn đã biến mất.
+ */
+export function saveEntrySenses(
+  entryId: string,
+  senses: EditableSense[],
+): Promise<{ ok: true; deleted: boolean }> {
+  return request<{ ok: true; deleted: boolean }>("/dict/term/entry", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ entry_id: entryId, senses }),
+  });
+}
+
+/** Thêm một ảnh minh hoạ cho từ (dán URL). Trả về ảnh đã lưu (kèm id để gỡ). */
+export function addTermImage(wordId: string, url: string): Promise<EditableImage> {
+  return request<EditableImage>("/dict/term/image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ word_id: wordId, url }),
+  });
+}
+
+export function deleteTermImage(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/dict/term/image", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ id }),
+  });
+}
+
+export function deleteTermComment(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>("/dict/term/comment", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ id }),
   });
 }

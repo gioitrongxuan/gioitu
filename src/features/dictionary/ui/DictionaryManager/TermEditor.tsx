@@ -49,6 +49,7 @@ export function TermEditor({
     <li className="term-row">
       <div className="term-head">
         <b>{row.term}</b>
+        {row.verified && <span className="verified-badge" title="Từ đã được kiểm duyệt">✓</span>}
         {row.reading && <span className="reading">{row.reading}</span>}
         <span className="term-actions">
           {state ? (
