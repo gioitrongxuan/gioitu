@@ -79,7 +79,7 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
   return (
     <div className="searchbar">
       <form onSubmit={onSubmit} autoComplete="off" className="search-row">
-        <PairMenu pair={pair} onChange={onPairChange} />
+        <ScopeMenu pair={pair} source={source} onPairChange={onPairChange} onSourceChange={onSourceChange} />
         <input
           ref={inputRef}
           className="search-input"
@@ -89,21 +89,6 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
           onFocus={() => suggestions.length && setOpen(true)}
           aria-label="Ô tìm kiếm"
         />
-        <div className="source-toggle" role="tablist" aria-label="Nguồn từ điển">
-          {SOURCE_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              role="tab"
-              aria-selected={o.value === source}
-              className={o.value === source ? "active" : ""}
-              onClick={() => onSourceChange(o.value)}
-              title={o.value === "local" ? "Từ điển đã nhập trên máy (IndexedDB)" : "Từ điển trên máy chủ (Cloud)"}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
         {open && suggestions.length > 0 && (
           <ul className="suggestions" role="listbox">
             {suggestions.map((s) => (
@@ -122,13 +107,31 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
   );
 }
 
-/** Dropdown chọn cặp ngôn ngữ, gắn liền hàng tìm kiếm. */
-function PairMenu({ pair, onChange }: { pair: LangPair; onChange: (pair: LangPair) => void }) {
+/**
+ * Một dropdown gộp toàn bộ phạm vi tra cứu — cặp ngôn ngữ + nguồn (Trên máy /
+ * Server) — để hàng tìm kiếm chỉ còn đúng một nút + ô nhập, kể cả trên mobile.
+ */
+function ScopeMenu({
+  pair,
+  source,
+  onPairChange,
+  onSourceChange,
+}: {
+  pair: LangPair;
+  source: DictSource;
+  onPairChange: (pair: LangPair) => void;
+  onSourceChange: (source: DictSource) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label ?? source;
 
-  const pick = (p: LangPair) => {
+  const pickPair = (p: LangPair) => {
     setOpen(false);
-    onChange(p);
+    onPairChange(p);
+  };
+  const pickSource = (s: DictSource) => {
+    setOpen(false);
+    onSourceChange(s);
   };
 
   return (
@@ -136,31 +139,52 @@ function PairMenu({ pair, onChange }: { pair: LangPair; onChange: (pair: LangPai
       <button
         type="button"
         className="pair-menu-button"
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         {pair.label}
+        <span className="scope-source">{sourceLabel}</span>
         <span className="caret" aria-hidden>▾</span>
       </button>
       {open && (
         <>
           <div className="menu-backdrop" onClick={() => setOpen(false)} />
-          <ul className="pair-menu-panel" role="listbox" aria-label="Chọn từ điển">
-            {LANG_PAIRS.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={p.id === pair.id}
-                  className={p.id === pair.id ? "active" : ""}
-                  onClick={() => pick(p)}
-                >
-                  {p.label}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="pair-menu-panel" role="menu">
+            <p className="menu-group-label">Từ điển</p>
+            <ul role="listbox" aria-label="Chọn từ điển">
+              {LANG_PAIRS.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={p.id === pair.id}
+                    className={p.id === pair.id ? "active" : ""}
+                    onClick={() => pickPair(p)}
+                  >
+                    {p.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="menu-group-label">Nguồn</p>
+            <ul role="listbox" aria-label="Nguồn từ điển">
+              {SOURCE_OPTIONS.map((o) => (
+                <li key={o.value}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={o.value === source}
+                    className={o.value === source ? "active" : ""}
+                    title={o.value === "local" ? "Từ điển đã nhập trên máy (IndexedDB)" : "Từ điển trên máy chủ (Cloud)"}
+                    onClick={() => pickSource(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </>
       )}
     </div>

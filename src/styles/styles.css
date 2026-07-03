@@ -39,7 +39,13 @@
 body { margin: 0; color: var(--fg); background: var(--bg); }
 :lang(ja) { font-family: var(--font-ja); }
 
-.app { max-width: 960px; margin: 0 auto; padding: 16px; }
+/* env(safe-area-inset-*): khi chạy như app cài từ màn hình chính (standalone,
+   viewport-fit=cover) nội dung không chui dưới tai thỏ / thanh home iOS. */
+.app {
+  max-width: 960px; margin: 0 auto;
+  padding: 16px max(16px, env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
 
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -66,12 +72,23 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 .pair-menu-button:hover { border-color: var(--accent); }
 .pair-menu-button .caret { color: var(--muted); font-size: 11px; }
+/* Nguồn hiện tại nép trong nút phạm vi, tách khỏi cặp ngôn ngữ bằng vách mảnh. */
+.pair-menu-button .scope-source {
+  color: var(--muted); font-size: 12px;
+  border-left: 1px solid var(--line); padding-left: 7px;
+}
 .pair-menu-panel {
   position: absolute; top: 100%; left: 0; z-index: 30; margin: 6px 0 0;
-  min-width: 180px; list-style: none; padding: 6px; display: grid; gap: 2px;
+  min-width: 190px; padding: 6px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
+.pair-menu-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.menu-group-label {
+  margin: 8px 6px 4px; font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pair-menu-panel .menu-group-label:first-child { margin-top: 2px; }
 .pair-menu-panel button {
   width: 100%; text-align: left; border: none; background: none; cursor: pointer;
   padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--fg);
@@ -93,29 +110,16 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .pair-toggle button.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 
 .search-input {
-  flex: 1 1 220px; min-width: 0; height: 46px; padding: 0 14px; font-size: 16px;
+  /* basis nhỏ để nút phạm vi + ô tìm luôn chung MỘT hàng, kể cả 390px. */
+  flex: 1 1 130px; min-width: 0; height: 46px; padding: 0 14px; font-size: 16px;
   border: 1px solid var(--line); border-radius: 12px; outline: none;
   background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
-
-.source-toggle {
-  flex: none; display: inline-flex; align-items: stretch; gap: 2px;
-  height: 46px; padding: 4px; border: 1px solid var(--line); border-radius: 12px;
-  background: var(--surface);
-}
-.source-toggle button {
-  border: none; background: none; padding: 0 13px; border-radius: 9px;
-  font-size: 13px; color: var(--muted); cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-.source-toggle button.active { background: var(--accent); color: #fff; }
-
-/* Màn hẹp: cặp + nguồn lên hàng đầu, ô tìm full hàng dưới. */
-@media (max-width: 559px) {
-  .pair-menu { order: 1; }
-  .source-toggle { order: 2; margin-left: auto; }
-  .search-input { order: 3; flex-basis: 100%; }
+@media (max-width: 419px) {
+  /* Màn rất hẹp: nút phạm vi bớt đệm để nhường chỗ cho ô tìm. */
+  .pair-menu-button { padding: 0 10px; gap: 5px; }
+  .pair-menu-button .scope-source { padding-left: 5px; }
 }
 
 .suggestions {
@@ -133,8 +137,22 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .sug-reading { color: var(--muted); font-size: 12px; }
 .sug-def { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Filter bar */
-.filter-bar { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
+/* Filter bar — desktop trải phẳng (display: contents), màn hẹp gom vào popover. */
+.filter-bar { position: relative; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-toggle { display: none; align-items: center; gap: 6px; }
+.filter-toggle .caret { font-size: 10px; }
+.filter-controls { display: contents; }
+@media (max-width: 759px) {
+  .filter-toggle { display: inline-flex; }
+  .filter-controls { display: none; }
+  .filter-controls.open {
+    display: grid; gap: 10px; justify-items: start;
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+    min-width: 230px; padding: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+}
 .sort-select { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .sort-select select { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 13px; color: var(--fg); background: var(--surface); cursor: pointer; }
 
@@ -213,6 +231,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   border-radius: 12px 12px 0 0; padding: 14px;
   /* dvh: trừ đúng phần thanh địa chỉ mobile co giãn; vh là fallback. */
   max-height: 75vh; max-height: 75dvh; overflow: auto;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 24px rgba(0,0,0,0.16);
 }
 @media (min-width: 760px) {
@@ -593,7 +612,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 
 @media (max-width: 759px) {
-  .app { padding: 12px; }
+  .app {
+    padding: 12px max(12px, env(safe-area-inset-right))
+      calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
   /* Ẩn phần đếm cạnh nút nhập từ điển cho gọn. */
   .dict-count, .dict-status { display: none; }
 }
@@ -607,7 +629,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 
 /* Toasts */
-.toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
+.toasts { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
 .toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
 .toast.info { background: #334155; }
 .toast.success { background: var(--ok); }

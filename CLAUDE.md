@@ -56,9 +56,10 @@ server/src/    core/ (db) + features/{dictionary,sync}
 
 ## Dữ liệu
 
-- **Hai nguồn từ điển, người dùng tự chọn** bằng toggle trên SearchBar
-  (*Trên máy* / *Server*) — **không** auto client-first/server-fallback nữa: nguồn
-  nào được chọn thì tra đúng nguồn đó. Logic chọn nguồn tách riêng: interface
+- **Hai nguồn từ điển, người dùng tự chọn** trong dropdown phạm vi trên
+  SearchBar (nút gộp cặp ngôn ngữ + nguồn *Trên máy* / *Server*) — **không**
+  auto client-first/server-fallback nữa: nguồn nào được chọn thì tra đúng
+  nguồn đó. Logic chọn nguồn tách riêng: interface
   `DictionarySource` (`dictionary/data/sources.ts`) có 2 cài đặt (IndexedDB và
   server Postgres); `search.ts` chỉ là facade mỏng. Lựa chọn lưu ở localStorage
   (`gioitu.dictSource.v1`). IndexedDB vẫn nhanh nhất / offline-first: store
