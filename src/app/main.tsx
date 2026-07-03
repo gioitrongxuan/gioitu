@@ -9,6 +9,14 @@ import "../styles/styles.css";
 // default colours; the provider keeps it in sync afterwards.
 applyTheme(loadTheme());
 
+// App-shell offline (public/sw.js) — chỉ bản build: dev server không có asset
+// hash và HMR sẽ đánh nhau với cache. Đăng ký hỏng thì thôi, offline là phụ.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
