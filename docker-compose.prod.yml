@@ -21,6 +21,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
 
   app:
     # Cho phép ghim tag cụ thể qua GIOITU_IMAGE để rollback; mặc định :latest.
