@@ -115,20 +115,8 @@ export function SearchBar({ pair, source, onResult }: Props) {
   return (
     <div className="searchbar">
       <form onSubmit={onSubmit} autoComplete="off" className="search-row">
-        <input
-          ref={inputRef}
-          className="search-input"
-          placeholder={`Tra từ (${pair.label})…`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => tool === "none" && suggestions.length && setOpen(true)}
-          aria-label="Ô tìm kiếm"
-        />
-        {query && (
-          <button type="button" className="search-icon-btn" aria-label="Xóa" onClick={onClear}>
-            ✕
-          </button>
-        )}
+        {/* Thứ tự kiểu jisho: công cụ (viết tay, bộ thủ) bên trái ô nhập; xóa,
+            tìm bên phải. */}
         {supportsTools && (
           <>
             <button
@@ -154,6 +142,20 @@ export function SearchBar({ pair, source, onResult }: Props) {
             </button>
           </>
         )}
+        <input
+          ref={inputRef}
+          className="search-input"
+          placeholder={`Tra từ (${pair.label})…`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => tool === "none" && suggestions.length && setOpen(true)}
+          aria-label="Ô tìm kiếm"
+        />
+        {/* Nút xóa luôn hiện (layout cố định, không nhảy nút); ô rỗng bấm chỉ
+            focus lại như jisho. */}
+        <button type="button" className="search-icon-btn" aria-label="Xóa" onClick={onClear}>
+          ✕
+        </button>
         <button type="submit" className="search-icon-btn search-submit" aria-label="Tìm kiếm">
           🔍
         </button>
