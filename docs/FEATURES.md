@@ -35,10 +35,10 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 
 | Chức năng | Mô tả | Nơi cài đặt |
 |---|---|---|
-| Chọn cặp ngôn ngữ | Dãy nút chuyển 6 cặp thuận (Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt, Việt→Anh); nút đang chọn `active` | `SearchBar.tsx`, `languages.ts` |
-| Ô tra cứu | Placeholder `Tra từ (<cặp>)… Enter để xác nhận`; Enter để xác nhận | `SearchBar.tsx` |
+| Chọn cặp ngôn ngữ | Dropdown ở nút "Từ điển" trên header, chuyển 6 cặp thuận (Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt, Việt→Anh); mục đang chọn `active` | `DictionaryImport.tsx`, `languages.ts` |
+| Ô tra cứu | Placeholder `Tra từ (<cặp>)…`; nút 🔍 hoặc Enter để xác nhận, nút ✕ để xóa | `SearchBar.tsx` |
 | Gợi ý live | Vừa gõ vừa gợi ý (debounce ~120ms): từ + cách đọc + nghĩa đầu. **Không** tính lượt tra | `SearchBar.tsx`, `searchSuggest` |
-| Chọn nguồn từ điển | Toggle *Trên máy* / *Server*; nguồn được chọn tra trực tiếp (không auto-fallback), lưu ở localStorage | `SearchBar.tsx`, `domain/source.ts`, `data/sources.ts` |
+| Chọn nguồn từ điển | Toggle *Trên máy* / *Server* trong cùng dropdown ở nút "Từ điển"; nguồn được chọn tra trực tiếp (không auto-fallback), lưu ở localStorage | `DictionaryImport.tsx`, `domain/source.ts`, `data/sources.ts` |
 | Định tuyến tìm | `search.ts` chỉ `getSource(source)` rồi uỷ thác; 2 nguồn sau interface `DictionarySource` | `dictionary/data/search.ts`, `data/sources.ts` |
 | Deinflection | Tự đưa từ biến cách về dạng từ điển; SRS theo dõi **lemma** | `domain/deinflect.ts`, [LOGIC §6](./LOGIC.md) |
 | Tra mờ (fuzzy) | Gõ sai/nhớ lộn vẫn ra: near-miss theo khoảng cách Levenshtein (cả term lẫn reading), chạy nền và **bổ sung** sau kết quả khớp đúng (*Có phải bạn muốn tìm:*) | `domain/fuzzy.ts`, `fuzzyTerms`/`serverFuzzy`, `findFuzzyRouted` |
@@ -114,13 +114,15 @@ Hai cấp độ, phản ánh kiến trúc từ điển hai nguồn:
 
 ### 4.1 Từ điển cục bộ (IndexedDB — nguồn chính, dùng được cho guest)
 
-Nút **Từ điển** trên header (`DictionaryImport.tsx`):
+Nút **Từ điển** trên header (`DictionaryImport.tsx`), nhãn hiện cặp ngôn ngữ +
+nguồn đang chọn (vd. "Nhật → Việt · Server"). Mở dropdown gồm:
 
+- **Chọn cặp ngôn ngữ** và **chọn nguồn** (*Trên máy* / *Server*) — phạm vi tra
+  cứu dùng chung cho `SearchBar`.
 - **Nhập `.zip` Yomitan** cho cặp đang chọn → parse và nạp vào IndexedDB.
 - **Nhập từ URL** `.zip` (CORS cho phép).
 - **Liệt kê & xoá** từ điển cục bộ (registry `dictionaries`), kèm số từ / số phát
   âm đóng góp.
-- Trạng thái nút hiện số từ của cặp hiện tại, hoặc "server" nếu chưa có cục bộ.
 
 Đường nhập này giữ **đầy đủ** structured content, tag, rule, term-meta (IPA/pitch/
 freq). (`dictionary/data/yomitan.ts`, [LOGIC §8](./LOGIC.md))

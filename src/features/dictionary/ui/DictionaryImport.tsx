@@ -1,6 +1,8 @@
 // Dictionary import control (SPEC 2.A) — Yomitan-style: import a `.zip` from a
 // file OR a URL into IndexedDB (tagged with the selected language pair), and
-// manage the list of locally installed dictionaries.
+// manage the list of locally installed dictionaries. Cũng là nơi chọn phạm vi
+// tra cứu (cặp ngôn ngữ + nguồn Trên máy/Server) — gộp vào đây thay vì tách
+// riêng trên SearchBar, để hàng tìm kiếm chỉ còn ô nhập + nút bấm.
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -11,20 +13,25 @@ import {
   localTermCount,
 } from "../data/yomitan";
 import { LocalDictionary } from "@/shared/db";
-import { LangPair } from "@/shared/languages";
+import { LANG_PAIRS, LangPair } from "@/shared/languages";
+import { DictSource, SOURCE_OPTIONS } from "../domain/source";
 
 interface Props {
   pair: LangPair;
+  onPairChange: (pair: LangPair) => void;
+  source: DictSource;
+  onSourceChange: (source: DictSource) => void;
   onImported: () => void;
 }
 
-export function DictionaryImport({ pair, onImported }: Props) {
+export function DictionaryImport({ pair, onPairChange, source, onSourceChange, onImported }: Props) {
   const [count, setCount] = useState(0);
   const [dicts, setDicts] = useState<LocalDictionary[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
+  const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label ?? source;
 
   const refresh = useCallback(() => {
     localTermCount(pair.source, pair.target).then(setCount).catch(() => undefined);
@@ -78,47 +85,93 @@ export function DictionaryImport({ pair, onImported }: Props) {
   }
 
   return (
-    <div className="dict-import">
-      <button className="link" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        Từ điển ({count > 0 ? `${count} từ` : "server"})
+    <div className="dict-import pair-menu">
+      <button
+        type="button"
+        className="pair-menu-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {pair.label}
+        <span className="scope-source">{sourceLabel}</span>
+        <span className="caret" aria-hidden>▾</span>
       </button>
 
       {open && (
-        <div className="dict-import-panel">
-          <label className="import-label">
-            {busy ? "Đang xử lý…" : `Nhập file .zip (${pair.label})`}
-            <input type="file" accept=".zip" hidden disabled={busy} onChange={onFile} />
-          </label>
-
-          <div className="url-row">
-            <input
-              className="url-input"
-              type="url"
-              placeholder="…hoặc dán URL .zip Yomitan"
-              value={url}
-              disabled={busy}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onUrl()}
-            />
-            <button className="primary" disabled={busy || !url.trim()} onClick={onUrl}>
-              Tải
-            </button>
-          </div>
-
-          {status && <p className="dict-status">{status}</p>}
-
-          {dicts.length > 0 && (
-            <ul className="local-dict-list">
-              {dicts.map((d) => (
-                <li key={d.id}>
-                  <span className="ld-title">{d.title}</span>
-                  <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
-                  <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
+        <>
+          <div className="menu-backdrop" onClick={() => setOpen(false)} />
+          <div className="dict-import-panel">
+            <p className="menu-group-label">Từ điển</p>
+            <ul className="scope-list" role="listbox" aria-label="Chọn từ điển">
+              {LANG_PAIRS.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={p.id === pair.id}
+                    className={p.id === pair.id ? "active" : ""}
+                    onClick={() => onPairChange(p)}
+                  >
+                    {p.label}
+                  </button>
                 </li>
               ))}
             </ul>
-          )}
-        </div>
+            <p className="menu-group-label">Nguồn</p>
+            <ul className="scope-list" role="listbox" aria-label="Nguồn từ điển">
+              {SOURCE_OPTIONS.map((o) => (
+                <li key={o.value}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={o.value === source}
+                    className={o.value === source ? "active" : ""}
+                    title={o.value === "local" ? "Từ điển đã nhập trên máy (IndexedDB)" : "Từ điển trên máy chủ (Cloud)"}
+                    onClick={() => onSourceChange(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <p className="menu-group-label">Quản lý ({count > 0 ? `${count} từ trên máy` : "chưa có từ điển trên máy"})</p>
+            <label className="import-label">
+              {busy ? "Đang xử lý…" : `Nhập file .zip (${pair.label})`}
+              <input type="file" accept=".zip" hidden disabled={busy} onChange={onFile} />
+            </label>
+
+            <div className="url-row">
+              <input
+                className="url-input"
+                type="url"
+                placeholder="…hoặc dán URL .zip Yomitan"
+                value={url}
+                disabled={busy}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onUrl()}
+              />
+              <button className="primary" disabled={busy || !url.trim()} onClick={onUrl}>
+                Tải
+              </button>
+            </div>
+
+            {status && <p className="dict-status">{status}</p>}
+
+            {dicts.length > 0 && (
+              <ul className="local-dict-list">
+                {dicts.map((d) => (
+                  <li key={d.id}>
+                    <span className="ld-title">{d.title}</span>
+                    <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
+                    <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

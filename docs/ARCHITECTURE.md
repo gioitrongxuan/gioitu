@@ -249,8 +249,9 @@ hàm trả `null` và cache cục bộ đứng vững một mình.
 
 ## 7. Từ điển hai nguồn (Search Router)
 
-Có **6 cặp ngôn ngữ thuận** (`src/shared/languages.ts`), người dùng chọn ở thanh
-tìm kiếm: Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt, Việt→Anh. Mỗi
+Có **6 cặp ngôn ngữ thuận** (`src/shared/languages.ts`), người dùng chọn ở nút
+"Từ điển" trên header: Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt,
+Việt→Anh. Mỗi
 tra cứu là truy vấn thuận `term → meaning` trong phạm vi cặp `(term_lang,
 native_lang)` — không có chế độ "đảo chiều" riêng; "Việt → Anh" đơn giản là từ
 điển `vi → en`.
@@ -259,7 +260,8 @@ native_lang)` — không có chế độ "đảo chiều" riêng; "Việt → An
 > còn ghi "bốn" (4) cặp — đó là chữ cũ; mã thực tế khai báo **6** cặp trong
 > `LANG_PAIRS`. `DEFAULT_PAIR` là `en-vi` (Anh → Việt).
 
-Người dùng chọn nguồn bằng **toggle trên SearchBar** (*Trên máy* / *Server*);
+Người dùng chọn nguồn bằng **toggle ở nút "Từ điển" trên header** (*Trên máy* /
+*Server*);
 `findTermsRouted` chỉ `getSource(source)` rồi uỷ thác. **Không** auto-fallback —
 nguồn nào được chọn thì tra đúng nguồn đó:
 

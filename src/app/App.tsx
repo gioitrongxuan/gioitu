@@ -181,7 +181,13 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           Gioitu
         </h1>
         <div className="header-actions">
-          <DictionaryImport pair={pair} onImported={() => undefined} />
+          <DictionaryImport
+            pair={pair}
+            onPairChange={setPair}
+            source={dictSource}
+            onSourceChange={chooseSource}
+            onImported={() => undefined}
+          />
           <HeaderMenu items={menuItems} email={email} />
         </div>
       </header>
@@ -199,13 +205,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
         </div>
       ) : (
         <div {...behindSheet}>
-          <SearchBar
-            pair={pair}
-            onPairChange={setPair}
-            source={dictSource}
-            onSourceChange={chooseSource}
-            onResult={onResult}
-          />
+          <SearchBar pair={pair} source={dictSource} onResult={onResult} />
 
           <FilterBar
             dueCount={store.dueEntries.length}

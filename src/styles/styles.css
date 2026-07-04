@@ -60,10 +60,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 .header-actions { display: flex; align-items: center; gap: 12px; }
 
-/* Search bar — một hàng kiểu jisho: [cặp ngôn ngữ ▾][ô tìm][nguồn]. */
+/* Search bar — chỉ còn ô nhập + nút xóa/tìm; phạm vi (cặp ngôn ngữ + nguồn)
+   chọn ở nút "Từ điển" trên header, xem .pair-menu bên dưới. */
 .searchbar { position: relative; margin-bottom: 12px; }
 .search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
+/* Nút phạm vi (cặp ngôn ngữ + nguồn) — dùng trên header, trong nút "Từ điển". */
 .pair-menu { position: relative; flex: none; }
 .pair-menu-button {
   height: 38px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;
@@ -77,24 +79,18 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   color: var(--muted); font-size: 11px;
   border-left: 1px solid var(--line); padding-left: 5px;
 }
-.pair-menu-panel {
-  position: absolute; top: 100%; left: 0; z-index: 30; margin: 6px 0 0;
-  min-width: 190px; padding: 6px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-.pair-menu-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .menu-group-label {
   margin: 8px 6px 4px; font-size: 11px; font-weight: 600; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
-.pair-menu-panel .menu-group-label:first-child { margin-top: 2px; }
-.pair-menu-panel button {
+.dict-import-panel .menu-group-label:first-child { margin-top: 2px; }
+.dict-import-panel .scope-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.dict-import-panel .scope-list button {
   width: 100%; text-align: left; border: none; background: none; cursor: pointer;
   padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--fg);
 }
-.pair-menu-panel button:hover { background: var(--surface-2); }
-.pair-menu-panel button.active {
+.dict-import-panel .scope-list button:hover { background: var(--surface-2); }
+.dict-import-panel .scope-list button.active {
   background: color-mix(in oklab, var(--accent) 12%, var(--surface));
   color: var(--accent); font-weight: 600;
 }
@@ -116,12 +112,13 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
-.search-submit {
+/* Nút vuông xóa/tìm — cùng kiểu bàn phím IME: viền mảnh, bo góc, icon giữa. */
+.search-icon-btn {
   flex: none; height: 46px; width: 46px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
   color: var(--fg); font-size: 16px; cursor: pointer;
 }
-.search-submit:hover { border-color: var(--accent); }
+.search-icon-btn:hover { border-color: var(--accent); }
 @media (max-width: 419px) {
   /* Màn rất hẹp: nút phạm vi bớt đệm để nhường chỗ cho ô tìm. */
   .pair-menu-button { padding: 0 8px; gap: 4px; }
