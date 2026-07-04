@@ -1,8 +1,8 @@
 // Search Bar with live suggestions, scoped to a chosen language-pair dictionary
 // (SPEC 3, 4.1). Forward-only: type a term in the source language → meaning.
 // Phạm vi tra cứu (cặp ngôn ngữ + nguồn) chọn ở nút "Từ điển" trên header
-// (DictionaryImport.tsx) — hàng này chỉ còn ô nhập cùng hai nút vuông (xóa,
-// tìm), giống thanh nhập kiểu bàn phím IME.
+// (DictionaryImport.tsx) — hàng này còn ô nhập, hai nút vuông (xóa, tìm), và khi
+// tra tiếng Nhật thì thêm hai công cụ nhập kiểu jisho: viết tay và bộ thủ.
 
 import { useEffect, useRef, useState } from "react";
 import { DictEntry } from "@/shared/db";
@@ -10,6 +10,11 @@ import { findTermsRouted, searchSuggest, TermResult } from "../data/search";
 import { DictSource } from "../domain/source";
 import { glossToText } from "@/shared/structured-content";
 import { LangPair } from "@/shared/languages";
+import { HandwritingPad } from "./HandwritingPad";
+import { RadicalPicker } from "./RadicalPicker";
+
+/** Công cụ nhập đang mở dưới ô tìm; chỉ một cái mở tại một thời điểm. */
+type Tool = "none" | "draw" | "radicals";
 
 interface Props {
   pair: LangPair;
@@ -23,6 +28,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<DictEntry[]>([]);
   const [open, setOpen] = useState(false);
+  const [tool, setTool] = useState<Tool>("none");
   const debounceRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   // confirm() phải dập được gợi ý ở CẢ ba pha, kẻo dropdown mở lại đè lên kết
@@ -31,9 +37,17 @@ export function SearchBar({ pair, source, onResult }: Props) {
   // kết quả — so epoch trước khi áp kết quả.
   const skipSuggestRef = useRef(false);
   const suggestEpochRef = useRef(0);
+  // Chỉ tra tiếng Nhật mới có viết tay / bộ thủ (giống jisho — nhập kanji/kana).
+  const supportsTools = pair.source === "ja";
 
-  // Live suggestions — does NOT increment lookup_count.
+  // Live suggestions — does NOT increment lookup_count. Khi một công cụ (viết
+  // tay / bộ thủ) đang mở, panel công cụ thay cho dropdown gợi ý nên tắt gợi ý.
   useEffect(() => {
+    if (tool !== "none") {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
     if (skipSuggestRef.current) {
       skipSuggestRef.current = false;
       setSuggestions([]);
@@ -52,7 +66,12 @@ export function SearchBar({ pair, source, onResult }: Props) {
       setOpen(true);
     }, 120);
     return () => window.clearTimeout(debounceRef.current);
-  }, [query, pair, source]);
+  }, [query, pair, source, tool]);
+
+  // Đổi cặp ngôn ngữ sang hướng không phải tiếng Nhật thì đóng công cụ đang mở.
+  useEffect(() => {
+    if (!supportsTools) setTool("none");
+  }, [supportsTools]);
 
   async function confirm(term: string) {
     suggestEpochRef.current++;
@@ -82,6 +101,17 @@ export function SearchBar({ pair, source, onResult }: Props) {
     inputRef.current?.focus();
   }
 
+  // Công cụ viết tay / bộ thủ chèn ký tự vào ô tìm (nối thêm), rồi để người dùng
+  // tự bấm tìm — giống jisho, dựng dần cụm từ. Giữ panel mở để chèn tiếp.
+  function insert(char: string) {
+    setQuery((q) => q + char);
+    inputRef.current?.focus();
+  }
+
+  function toggleTool(next: Tool) {
+    setTool((cur) => (cur === next ? "none" : next));
+  }
+
   return (
     <div className="searchbar">
       <form onSubmit={onSubmit} autoComplete="off" className="search-row">
@@ -91,7 +121,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
           placeholder={`Tra từ (${pair.label})…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => suggestions.length && setOpen(true)}
+          onFocus={() => tool === "none" && suggestions.length && setOpen(true)}
           aria-label="Ô tìm kiếm"
         />
         {query && (
@@ -99,10 +129,35 @@ export function SearchBar({ pair, source, onResult }: Props) {
             ✕
           </button>
         )}
+        {supportsTools && (
+          <>
+            <button
+              type="button"
+              className={`search-icon-btn search-tool${tool === "draw" ? " active" : ""}`}
+              aria-label="Viết tay"
+              aria-pressed={tool === "draw"}
+              title="Viết tay"
+              onClick={() => toggleTool("draw")}
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              className={`search-icon-btn search-tool${tool === "radicals" ? " active" : ""}`}
+              aria-label="Bộ thủ"
+              aria-pressed={tool === "radicals"}
+              title="Bộ thủ"
+              lang="ja"
+              onClick={() => toggleTool("radicals")}
+            >
+              部
+            </button>
+          </>
+        )}
         <button type="submit" className="search-icon-btn search-submit" aria-label="Tìm kiếm">
           🔍
         </button>
-        {open && suggestions.length > 0 && (
+        {open && tool === "none" && suggestions.length > 0 && (
           <ul className="suggestions" role="listbox">
             {suggestions.map((s) => (
               <li key={s.term} role="option" aria-selected={false}>
@@ -116,6 +171,9 @@ export function SearchBar({ pair, source, onResult }: Props) {
           </ul>
         )}
       </form>
+
+      {tool === "draw" && <HandwritingPad onInsert={insert} />}
+      {tool === "radicals" && <RadicalPicker onInsert={insert} />}
     </div>
   );
 }

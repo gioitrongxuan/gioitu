@@ -142,6 +142,63 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .sug-reading { color: var(--muted); font-size: 12px; }
 .sug-def { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Công cụ nhập kiểu jisho (viết tay / bộ thủ) — nút bật/tắt trong hàng search,
+   panel bung ra ngay dưới hàng. Chỉ hiện khi tra tiếng Nhật. */
+.search-tool.active { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+
+/* Bảng viết tay: canvas vuông + cột nút xoá/ứng viên bên phải. */
+.handwriting-pad {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch;
+  margin-top: 8px; padding: 10px; width: min(100%, 26em);
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.handwriting-canvas-wrap {
+  position: relative; aspect-ratio: 1; border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden; background: var(--surface);
+}
+.handwriting-canvas { display: block; width: 100%; height: 100%; color: var(--fg); touch-action: none; cursor: crosshair; }
+.handwriting-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--disabled); font-size: 20px; pointer-events: none;
+}
+.handwriting-side { display: grid; grid-template-rows: repeat(6, 1fr); gap: 6px; }
+.hw-clear, .hw-candidate {
+  min-width: 46px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  color: var(--fg); font-size: 22px; cursor: pointer;
+}
+.hw-clear { font-size: 16px; }
+.hw-candidate:hover:not(:disabled), .hw-clear:hover { border-color: var(--accent); }
+.hw-candidate:disabled { color: var(--disabled); cursor: default; }
+
+/* Bảng chọn bộ thủ: hàng kết quả kanji ở trên, lưới bộ nhóm theo số nét ở dưới. */
+.radical-picker {
+  margin-top: 8px; padding: 10px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--surface);
+}
+.radical-picker.loading { color: var(--muted); font-size: 14px; }
+.radical-results {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-start;
+  min-height: 40px; max-height: 116px; overflow-y: auto;
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.radical-hint { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+.radical-kanji {
+  min-width: 38px; height: 38px; font-size: 22px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg);
+}
+.radical-kanji:hover { border-color: var(--accent); }
+.radical-grid { display: flex; flex-direction: column; gap: 6px; max-height: 42vh; overflow-y: auto; }
+.radical-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.radical-strokes { flex: none; width: 1.8em; text-align: right; color: var(--muted); font-size: 12px; }
+.radical-btn {
+  min-width: 34px; height: 34px; font-size: 18px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg);
+}
+.radical-btn:hover:not(:disabled) { border-color: var(--accent); }
+.radical-btn.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+.radical-btn:disabled { color: var(--disabled); border-color: var(--line); background: var(--surface); cursor: default; opacity: 0.5; }
+
 /* Filter bar — desktop trải phẳng (display: contents), màn hẹp gom vào popover. */
 .filter-bar { position: relative; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .filter-toggle { display: none; align-items: center; gap: 6px; }
