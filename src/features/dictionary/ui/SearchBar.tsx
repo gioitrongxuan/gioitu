@@ -1,27 +1,25 @@
 // Search Bar with live suggestions, scoped to a chosen language-pair dictionary
 // (SPEC 3, 4.1). Forward-only: type a term in the source language → meaning.
-// Kiểu jisho: mọi lựa chọn gắn vào một hàng tìm kiếm — cặp ngôn ngữ là dropdown
-// bên trái, nguồn (Trên máy / Server) là segmented control bên phải — thay cho
-// hai hàng pill chiếm đất phía trên ô tìm.
+// Phạm vi tra cứu (cặp ngôn ngữ + nguồn) chọn ở nút "Từ điển" trên header
+// (DictionaryImport.tsx) — hàng này chỉ còn ô nhập cùng hai nút vuông (xóa,
+// tìm), giống thanh nhập kiểu bàn phím IME.
 
 import { useEffect, useRef, useState } from "react";
 import { DictEntry } from "@/shared/db";
 import { findTermsRouted, searchSuggest, TermResult } from "../data/search";
-import { DictSource, SOURCE_OPTIONS } from "../domain/source";
+import { DictSource } from "../domain/source";
 import { glossToText } from "@/shared/structured-content";
-import { LANG_PAIRS, LangPair } from "@/shared/languages";
+import { LangPair } from "@/shared/languages";
 
 interface Props {
   pair: LangPair;
-  onPairChange: (pair: LangPair) => void;
   /** Which dictionary database look-ups run against (Trên máy / Server). */
   source: DictSource;
-  onSourceChange: (source: DictSource) => void;
   /** A term's detail is shown/confirmed → counts as a lookup (SPEC 4.1). */
   onResult: (results: TermResult[], term: string, pair: LangPair) => void;
 }
 
-export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult }: Props) {
+export function SearchBar({ pair, source, onResult }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<DictEntry[]>([]);
   const [open, setOpen] = useState(false);
@@ -76,10 +74,17 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
     if (q) await confirm(q);
   }
 
+  function onClear() {
+    suggestEpochRef.current++;
+    setQuery("");
+    setSuggestions([]);
+    setOpen(false);
+    inputRef.current?.focus();
+  }
+
   return (
     <div className="searchbar">
       <form onSubmit={onSubmit} autoComplete="off" className="search-row">
-        <ScopeMenu pair={pair} source={source} onPairChange={onPairChange} onSourceChange={onSourceChange} />
         <input
           ref={inputRef}
           className="search-input"
@@ -89,7 +94,12 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
           onFocus={() => suggestions.length && setOpen(true)}
           aria-label="Ô tìm kiếm"
         />
-        <button type="submit" className="search-submit" aria-label="Tìm kiếm">
+        {query && (
+          <button type="button" className="search-icon-btn" aria-label="Xóa" onClick={onClear}>
+            ✕
+          </button>
+        )}
+        <button type="submit" className="search-icon-btn search-submit" aria-label="Tìm kiếm">
           🔍
         </button>
         {open && suggestions.length > 0 && (
@@ -106,90 +116,6 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
           </ul>
         )}
       </form>
-    </div>
-  );
-}
-
-/**
- * Một dropdown gộp toàn bộ phạm vi tra cứu — cặp ngôn ngữ + nguồn (Trên máy /
- * Server) — để hàng tìm kiếm chỉ còn đúng một nút + ô nhập, kể cả trên mobile.
- */
-function ScopeMenu({
-  pair,
-  source,
-  onPairChange,
-  onSourceChange,
-}: {
-  pair: LangPair;
-  source: DictSource;
-  onPairChange: (pair: LangPair) => void;
-  onSourceChange: (source: DictSource) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label ?? source;
-
-  const pickPair = (p: LangPair) => {
-    setOpen(false);
-    onPairChange(p);
-  };
-  const pickSource = (s: DictSource) => {
-    setOpen(false);
-    onSourceChange(s);
-  };
-
-  return (
-    <div className="pair-menu">
-      <button
-        type="button"
-        className="pair-menu-button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {pair.label}
-        <span className="scope-source">{sourceLabel}</span>
-        <span className="caret" aria-hidden>▾</span>
-      </button>
-      {open && (
-        <>
-          <div className="menu-backdrop" onClick={() => setOpen(false)} />
-          <div className="pair-menu-panel" role="menu">
-            <p className="menu-group-label">Từ điển</p>
-            <ul role="listbox" aria-label="Chọn từ điển">
-              {LANG_PAIRS.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={p.id === pair.id}
-                    className={p.id === pair.id ? "active" : ""}
-                    onClick={() => pickPair(p)}
-                  >
-                    {p.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="menu-group-label">Nguồn</p>
-            <ul role="listbox" aria-label="Nguồn từ điển">
-              {SOURCE_OPTIONS.map((o) => (
-                <li key={o.value}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={o.value === source}
-                    className={o.value === source ? "active" : ""}
-                    title={o.value === "local" ? "Từ điển đã nhập trên máy (IndexedDB)" : "Từ điển trên máy chủ (Cloud)"}
-                    onClick={() => pickSource(o.value)}
-                  >
-                    {o.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
     </div>
   );
 }
