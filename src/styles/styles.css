@@ -58,15 +58,17 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   border-radius: 9px; background: var(--accent); color: #fff;
   font-size: 18px; font-weight: 600; line-height: 1;
 }
-.header-actions { display: flex; align-items: center; gap: 12px; }
+/* position: relative để dict-import-panel neo theo mép phải của CẢ hàng
+   header-actions (khớp mép phải màn hình), không phải mép phải riêng nút
+   "Từ điển" — nút đó nằm giữa hàng nên neo theo nó sẽ tràn màn hình. */
+.header-actions { position: relative; display: flex; align-items: center; gap: 12px; }
 
 /* Search bar — chỉ còn ô nhập + nút xóa/tìm; phạm vi (cặp ngôn ngữ + nguồn)
-   chọn ở nút "Từ điển" trên header, xem .pair-menu bên dưới. */
+   chọn ở nút "Từ điển" trên header, xem .pair-menu-button bên dưới. */
 .searchbar { position: relative; margin-bottom: 12px; }
 .search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* Nút phạm vi (cặp ngôn ngữ + nguồn) — dùng trên header, trong nút "Từ điển". */
-.pair-menu { position: relative; flex: none; }
 .pair-menu-button {
   height: 38px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
@@ -300,7 +302,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .link { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; }
 
 /* Dictionary import */
-.dict-import { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dict-import { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .import-label { border: 1px dashed var(--line); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
 .dict-count, .dict-status { font-size: 12px; color: var(--muted); }
 .dict-import-panel {
