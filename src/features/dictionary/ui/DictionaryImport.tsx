@@ -85,7 +85,7 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
   }
 
   return (
-    <div className="dict-import pair-menu">
+    <div className="dict-import">
       <button
         type="button"
         className="pair-menu-button"
