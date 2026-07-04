@@ -62,20 +62,20 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Search bar — một hàng kiểu jisho: [cặp ngôn ngữ ▾][ô tìm][nguồn]. */
 .searchbar { position: relative; margin-bottom: 12px; }
-.search-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 .pair-menu { position: relative; flex: none; }
 .pair-menu-button {
-  height: 46px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
-  color: var(--fg); font-size: 14px; cursor: pointer; white-space: nowrap;
+  height: 38px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  color: var(--fg); font-size: 12px; cursor: pointer; white-space: nowrap;
 }
 .pair-menu-button:hover { border-color: var(--accent); }
-.pair-menu-button .caret { color: var(--muted); font-size: 11px; }
+.pair-menu-button .caret { color: var(--muted); font-size: 10px; }
 /* Nguồn hiện tại nép trong nút phạm vi, tách khỏi cặp ngôn ngữ bằng vách mảnh. */
 .pair-menu-button .scope-source {
-  color: var(--muted); font-size: 12px;
-  border-left: 1px solid var(--line); padding-left: 7px;
+  color: var(--muted); font-size: 11px;
+  border-left: 1px solid var(--line); padding-left: 5px;
 }
 .pair-menu-panel {
   position: absolute; top: 100%; left: 0; z-index: 30; margin: 6px 0 0;
@@ -116,10 +116,16 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
+.search-submit {
+  flex: none; height: 46px; width: 46px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  color: var(--fg); font-size: 16px; cursor: pointer;
+}
+.search-submit:hover { border-color: var(--accent); }
 @media (max-width: 419px) {
   /* Màn rất hẹp: nút phạm vi bớt đệm để nhường chỗ cho ô tìm. */
-  .pair-menu-button { padding: 0 10px; gap: 5px; }
-  .pair-menu-button .scope-source { padding-left: 5px; }
+  .pair-menu-button { padding: 0 8px; gap: 4px; }
+  .pair-menu-button .scope-source { padding-left: 4px; }
 }
 
 .suggestions {

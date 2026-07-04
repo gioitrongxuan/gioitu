@@ -89,6 +89,9 @@ export function SearchBar({ pair, onPairChange, source, onSourceChange, onResult
           onFocus={() => suggestions.length && setOpen(true)}
           aria-label="Ô tìm kiếm"
         />
+        <button type="submit" className="search-submit" aria-label="Tìm kiếm">
+          🔍
+        </button>
         {open && suggestions.length > 0 && (
           <ul className="suggestions" role="listbox">
             {suggestions.map((s) => (
