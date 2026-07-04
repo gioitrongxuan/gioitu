@@ -434,14 +434,6 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .pos-tag[data-category=name],       .term-tag[data-category=name]       { --tag-color: #b6327a; }
 .pos-tag[data-category=dictionary], .term-tag[data-category=dictionary] { --tag-color: #aa66cc; }
 
-/* Tag phổ biến mang hai nhãn (TagChip): màn hẹp hiện ký hiệu từ điển Việt
-   (d., đg., ★…), màn rộng hiện mã gốc — tên đầy đủ vẫn ở title khi hover. */
-.tag-abbr { display: none; }
-@media (max-width: 759px) {
-  .tag-abbr { display: inline; }
-  .tag-code { display: none; }
-}
-
 /* Chip tần suất corpus (kiểu jisho: mỗi nguồn một màu, hạng nhỏ = thông dụng).
    Dữ liệu tham khảo ngoài — khác "Số lần tra" cá nhân trong srs-stats. */
 .freq-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }

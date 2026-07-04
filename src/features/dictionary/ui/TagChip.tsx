@@ -4,25 +4,14 @@
 
 import { ResolvedTag } from "@/shared/structured-content";
 import { TermFrequency } from "@/shared/term-meta";
-import { tagSymbol } from "../domain/tags";
 
 /** A part-of-speech / term tag chip: compact code label, full name on hover. */
 export function TagChip({ code, meta, kind = "pos" }: { code: string; meta?: ResolvedTag; kind?: "pos" | "term" }) {
   const category = meta?.category ?? (kind === "term" ? "default" : "partOfSpeech");
   const title = meta?.name ?? code;
-  // Tag phổ biến mang hai nhãn: ký hiệu kiểu từ điển Việt (d., đg.…) cho màn
-  // hẹp, mã gốc cho màn rộng — CSS (.tag-abbr/.tag-code) quyết định bên nào hiện.
-  const symbol = tagSymbol(code);
   return (
     <span className={kind === "term" ? "term-tag" : "pos-tag"} data-category={category} title={title}>
-      {symbol && symbol !== code ? (
-        <>
-          <span className="tag-abbr">{symbol}</span>
-          <span className="tag-code" aria-hidden>{code}</span>
-        </>
-      ) : (
-        code
-      )}
+      {code}
     </span>
   );
 }
