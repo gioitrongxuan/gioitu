@@ -40,6 +40,17 @@ export function RadicalPicker({ onInsert }: Props) {
   return (
     <div className="radical-picker">
       <div className="radical-results" lang="ja">
+        {selected.length > 0 && (
+          <button
+            type="button"
+            className="radical-reset"
+            aria-label="Bỏ chọn tất cả bộ"
+            title="Bỏ chọn tất cả"
+            onClick={() => setSelected([])}
+          >
+            ✕
+          </button>
+        )}
         {selected.length === 0 ? (
           <span className="radical-hint">Chọn các bộ để lọc kanji</span>
         ) : matches.length === 0 ? (
