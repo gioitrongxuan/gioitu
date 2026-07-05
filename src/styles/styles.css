@@ -128,7 +128,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 
 .suggestions {
-  position: absolute; z-index: 10; left: 0; right: 0; margin: 4px 0 0;
+  /* top: 100% ghim dropdown ngay dưới cả hàng search. Thiếu nó, phần tử absolute
+     nằm trong .search-row (flex-wrap, align-items:center) rơi về vị trí tĩnh —
+     đè lên ô nhập và tràn xuống che luôn bộ lọc bên dưới. */
+  position: absolute; z-index: 10; top: 100%; left: 0; right: 0; margin: 4px 0 0;
   list-style: none; padding: 4px; background: var(--surface); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); max-height: 320px; overflow: auto;
 }
