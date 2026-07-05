@@ -15,7 +15,6 @@ import { PitchView, Pronunciations } from "./PitchView";
 import { TagChip, HeadwordBadges, FrequencyTags } from "./TagChip";
 import { Furigana } from "@/shared/ui/Furigana";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
-import { formatInterval, formatRelative } from "@/shared/ui/format";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { KanjiBreakdown } from "./KanjiPanel";
@@ -73,7 +72,11 @@ export function DetailPanel({
     };
   }, [isSheet]);
 
-  const savedLines = !results.length && entry ? meaningToLines(entry.meaning) : [];
+  // Nghĩa cá nhân đã lưu và định nghĩa từ điển không còn loại trừ nhau: bấm một
+  // thẻ cho ra dữ liệu cá nhân trước, rồi tới dữ liệu trong các từ điển.
+  const savedLines = entry ? meaningToLines(entry.meaning) : [];
+  const hasSaved = savedLines.length > 0;
+  const hasResults = results.length > 0;
 
   return (
     <>
@@ -92,8 +95,53 @@ export function DetailPanel({
           <button className="link close" onClick={onClose}>✕</button>
         </header>
 
-        {results.length > 0 ? (
+        {/* Thanh SRS một hàng ngay đầu panel: trạng thái (tag màu) + số lần tra,
+            kèm nút Đã nhớ/Đã quên và Xoá — thấy và thao tác được mà không phải
+            cuộn xuống cuối, dù định nghĩa dài đến đâu. */}
+        {entry && (
+          <div className="srs-bar">
+            <span className={`srs-status ${statusVariant(entry)}`}>{statusLabel(entry)}</span>
+            <span className="srs-count" title="Số lần tra">tra <b>{entry.lookup_count}</b></span>
+            <span className="srs-acts">
+              {entry.status === "LEARNED"
+                ? onMarkForgotten && (
+                    <button className="srs-act" title="Đánh dấu đã quên" aria-label="Đã quên"
+                      onClick={() => onMarkForgotten(entry)}>↺</button>
+                  )
+                : onMarkKnown && (
+                    <button className="srs-act" title="Đánh dấu đã nhớ" aria-label="Đã nhớ"
+                      onClick={() => onMarkKnown(entry)}>✓</button>
+                  )}
+              {onDelete && (
+                <button
+                  className="srs-act danger"
+                  title="Xoá từ"
+                  aria-label="Xoá"
+                  onClick={() => {
+                    if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
+                  }}
+                >
+                  🗑
+                </button>
+              )}
+            </span>
+          </div>
+        )}
+
+        {/* Dữ liệu cá nhân: nghĩa người dùng đã lưu. Chỉ gắn nhãn khi có kèm
+            phần từ điển bên dưới, để màn tra thường không bị rối. */}
+        {hasSaved && entry && (
+          <div className="saved-meaning">
+            {hasResults && <p className="section-label">Ghi chú của bạn</p>}
+            {/* key theo từ: đổi thẻ thì trạng thái "Xem thêm" reset lại. */}
+            <MeaningView key={entry.term} pos={entry.pos} meaning={entry.meaning} example={entry.example} compact />
+          </div>
+        )}
+
+        {/* Dữ liệu trong các từ điển. */}
+        {hasResults ? (
           <div className="results">
+            {hasSaved && <p className="section-label">Trong từ điển</p>}
             {results.map((res, i) => (
               <div key={i}>
                 {/* Separate near-misses from the real matches above them. */}
@@ -110,9 +158,7 @@ export function DetailPanel({
               </div>
             ))}
           </div>
-        ) : entry && savedLines.length > 0 ? (
-          <MeaningView pos={entry.pos} meaning={entry.meaning} example={entry.example} />
-        ) : (
+        ) : hasSaved ? null : (
           <div className="custom-def">
             <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
             <textarea
@@ -127,45 +173,6 @@ export function DetailPanel({
           </div>
         )}
 
-        {entry && (
-          <>
-            <div className="srs-stats">
-              <div><span>Số lần tra</span><b>{entry.lookup_count}</b></div>
-              <div><span>Trạng thái</span><b>{statusLabel(entry)}</b></div>
-              <div>
-                <span>Thẻ SRS</span>
-                <b>{entry.card_state ?? "chưa tạo"}</b>
-              </div>
-              {entry.card_state && (
-                <>
-                  <div><span>Chu kỳ</span><b>{formatInterval(entry.srs_interval)}</b></div>
-                  <div><span>Ôn tiếp</span><b>{formatRelative(entry.next_review)}</b></div>
-                  <div><span>EF / lapses</span><b>{entry.ease_factor.toFixed(2)} / {entry.lapses}</b></div>
-                </>
-              )}
-            </div>
-
-            <div className="detail-actions">
-              {entry.status === "LEARNED"
-                ? onMarkForgotten && (
-                    <button className="link" onClick={() => onMarkForgotten(entry)}>Đã quên</button>
-                  )
-                : onMarkKnown && (
-                    <button className="link" onClick={() => onMarkKnown(entry)}>Đã nhớ</button>
-                  )}
-              {onDelete && (
-                <button
-                  className="link danger"
-                  onClick={() => {
-                    if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
-                  }}
-                >
-                  Xoá
-                </button>
-              )}
-            </div>
-          </>
-        )}
       </aside>
     </>
   );
@@ -302,8 +309,15 @@ function ResultView({
 
 function statusLabel(entry: VocabEntry): string {
   // A word with no card yet has only been seen, not committed to the queue.
-  if (entry.card_state == null) return "Chưa vào ôn tập";
+  if (entry.card_state == null) return "Chưa ôn";
   const s = entry.status;
-  return s === "LEARNED" ? "Đã thuộc" : s === "RELAPSED" ? "Tái quên !" : "Đang học";
+  return s === "LEARNED" ? "Đã thuộc" : s === "RELAPSED" ? "Tái quên" : "Đang học";
+}
+
+/** Màu của tag trạng thái — nhìn màu là biết tình trạng, đỡ phải đọc chữ. */
+function statusVariant(entry: VocabEntry): string {
+  if (entry.card_state == null) return "neutral";
+  const s = entry.status;
+  return s === "LEARNED" ? "learned" : s === "RELAPSED" ? "relapsed" : "learning";
 }
 

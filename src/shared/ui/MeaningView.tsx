@@ -7,8 +7,11 @@
 //
 // Stored meanings are plain gloss lines (a JSON string[] — see
 // review/domain/lookup and the Yomitan sync), so the glossary is text-only;
-// live dictionary search keeps its richer renderer in StructuredContent.
+// live dictionary search keeps its richer renderer in StructuredContent. Example
+// sentences are stored the same way (a JSON string[]) so a word can gather
+// several contexts as it is re-added from Yomitan.
 
+import { useState } from "react";
 import { Furigana } from "./Furigana";
 
 interface Props {
@@ -20,9 +23,16 @@ interface Props {
   pos?: string;
   /** Stored meaning (JSON string[] or plain text). */
   meaning: string;
-  /** Example sentence, shown apart from the numbered glosses. */
+  /** Stored example sentence(s) (JSON string[] or legacy plain text). */
   example?: string;
+  /** Rút gọn định nghĩa dài: chỉ hiện vài dòng đầu, phần còn lại sau "Xem thêm". */
+  compact?: boolean;
 }
+
+// Compact mode (ghi chú cá nhân trong panel): chỉ hiện ngần này dòng nghĩa, phần
+// còn lại ẩn sau nút mở rộng để thẻ không quá dài — định nghĩa từ điển đầy đủ đã
+// nằm ngay bên dưới.
+const COMPACT_GLOSS_LINES = 3;
 
 /** Parse a stored `meaning` (JSON string[] or plain text) into gloss lines. */
 export function meaningToLines(meaning: string): string[] {
@@ -35,12 +45,31 @@ export function meaningToLines(meaning: string): string[] {
   return meaning ? [meaning] : [];
 }
 
-export function MeaningView({ term, reading, pos, meaning, example }: Props) {
+/** Parse a stored `example` (JSON string[] or legacy plain text) into sentences. */
+export function exampleToLines(example: string | undefined): string[] {
+  if (!example) return [];
+  try {
+    const parsed = JSON.parse(example);
+    if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
+  } catch {
+    /* legacy plain text, not JSON */
+  }
+  const text = example.trim();
+  return text ? [text] : [];
+}
+
+export function MeaningView({ term, reading, pos, meaning, example, compact }: Props) {
   const lines = meaningToLines(meaning);
+  const examples = exampleToLines(example);
   const posTags = pos ? pos.split(/[,、;；]/).map((t) => t.trim()).filter(Boolean) : [];
 
+  const [expanded, setExpanded] = useState(false);
+  const hasOverflow = lines.length > COMPACT_GLOSS_LINES;
+  const collapsed = compact === true && !expanded && hasOverflow;
+  const shownLines = collapsed ? lines.slice(0, COMPACT_GLOSS_LINES) : lines;
+
   return (
-    <div className="meaning-view">
+    <div className={`meaning-view${collapsed ? " collapsed" : ""}`}>
       {term && (
         <div className="meaning-headword">
           <Furigana term={term} reading={reading} />
@@ -57,7 +86,7 @@ export function MeaningView({ term, reading, pos, meaning, example }: Props) {
 
       {lines.length > 0 && (
         <ol className="senses">
-          {lines.map((line, i) => (
+          {shownLines.map((line, i) => (
             <li className="sense" key={i}>
               <div className="sense-body">
                 <div className="gloss">{line}</div>
@@ -67,7 +96,19 @@ export function MeaningView({ term, reading, pos, meaning, example }: Props) {
         </ol>
       )}
 
-      {example && <p className="meaning-example">{example}</p>}
+      {compact && hasOverflow && (
+        <button type="button" className="link meaning-more" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "Thu gọn" : `Xem thêm (${lines.length - COMPACT_GLOSS_LINES})`}
+        </button>
+      )}
+
+      {examples.length > 0 && (
+        <div className="meaning-examples">
+          {examples.map((ex, i) => (
+            <p className="meaning-example" key={i}>{ex}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,12 +2,14 @@
 // view state and the three ways a detail opens:
 //   • onResult    — a confirmed search result (counts as a lookup)
 //   • lookup      — following an internal dictionary link (counts as a lookup)
-//   • onSelectTag — clicking a Word-Cloud tag (read-only, does NOT count)
+//   • onSelectTag — clicking a Word-Cloud tag: shows the saved personal data and
+//                   the dictionary definitions side by side (read-only, does NOT
+//                   count as a lookup)
 // Kept out of <App> so the shell stays a thin composition root.
 
 import { useState } from "react";
 import { VocabEntry } from "@/shared/types";
-import { LangPair } from "@/shared/languages";
+import { LangPair, pairById, pairId } from "@/shared/languages";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
 import { TermResult, findTermsRouted, findFuzzyRouted } from "@/features/dictionary/data/search";
 import { DictSource } from "@/features/dictionary/domain/source";
@@ -101,8 +103,11 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // The saved definition shows immediately via the learning entry's meaning.
   }
 
-  // Selecting a cloud tag opens a read-only detail (does NOT count as a lookup).
-  function onSelectTag(entry: VocabEntry) {
+  // Selecting a cloud tag maps the word to its meaning: the saved personal data
+  // shows at once, then the dictionary definitions load alongside it. We search
+  // under the entry's *own* language pair — a card can belong to a pair other
+  // than the one currently selected — and this never counts as a lookup.
+  async function onSelectTag(entry: VocabEntry) {
     setView({
       kind: "detail",
       term: entry.term,
@@ -111,6 +116,15 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
       term_lang: entry.term_lang,
       native_lang: entry.native_lang,
     });
+    const tagPair = pairById(pairId(entry.term_lang, entry.native_lang));
+    const results = await findTermsRouted(entry.term, tagPair, source);
+    // Attach the results only if the user is still on this exact tag (they may
+    // have opened another card while the search ran).
+    setView((prev) =>
+      prev?.kind === "detail" && prev.term === entry.term && prev.results.length === 0
+        ? { ...prev, results }
+        : prev,
+    );
   }
 
   return { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null) };

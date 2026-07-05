@@ -351,11 +351,23 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .definitions li { margin: 4px 0; }
 .custom-def textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
 
-.srs-stats { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; }
-.srs-stats > div { display: flex; justify-content: space-between; font-size: 13px; }
-.srs-stats span { color: var(--muted); }
-
-.detail-actions { display: flex; gap: 16px; margin-top: 10px; }
+/* Thanh SRS một hàng ngay đầu panel: xem trạng thái + thao tác mà không phải
+   cuộn. Ngăn với nội dung bên dưới bằng một đường kẻ. */
+.srs-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+/* Tag trạng thái có màu — nhìn màu là biết tình trạng (theo mẫu .reason-chip). */
+.srs-status { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.srs-status.neutral { background: var(--surface-2); color: var(--muted); }
+.srs-status.learning { background: color-mix(in oklab, var(--accent) 13%, var(--surface)); color: color-mix(in oklab, var(--accent) 60%, var(--fg)); }
+.srs-status.learned { background: color-mix(in oklab, var(--ok) 14%, var(--surface)); color: color-mix(in oklab, var(--ok) 60%, var(--fg)); }
+.srs-status.relapsed { background: color-mix(in oklab, var(--warn) 14%, var(--surface)); color: color-mix(in oklab, var(--warn) 60%, var(--fg)); }
+.srs-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.srs-count b { color: var(--fg); font-weight: 600; }
+/* Nút thao tác dạng icon, đẩy về cuối hàng. */
+.srs-acts { margin-left: auto; display: flex; gap: 2px; }
+.srs-act { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 4px 7px; border-radius: 7px; color: var(--fg); }
+.srs-act:hover { background: var(--surface-2); }
+.srs-act.danger { color: var(--warn); }
+.srs-act.danger:hover { background: color-mix(in oklab, var(--warn) 14%, var(--surface)); }
 
 /* "Đã thuộc" achievement page */
 .learned-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 8px 0 4px; }
@@ -389,6 +401,11 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 /* minmax(0,…): mặc định track grid không co dưới min-content, nên một gloss /
    bảng dài trong kết quả fuzzy sẽ banh cột rộng hơn panel và chữ hết wrap. */
 .detail-panel .results { display: grid; gap: 16px; margin: 10px 0; grid-template-columns: minmax(0, 1fr); }
+
+/* Bấm một thẻ: nghĩa cá nhân đã lưu ở trên, định nghĩa từ điển ở dưới. Nhãn nhỏ
+   và đường kẻ tách hai vùng khi cùng xuất hiện. */
+.detail-panel .section-label { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.detail-panel .saved-meaning + .results { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .result { border-top: 1px solid var(--line); padding-top: 12px; }
 .result:first-child { border-top: none; padding-top: 0; }
 .result-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -499,7 +516,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .pos-tag[data-category=dictionary], .term-tag[data-category=dictionary] { --tag-color: #aa66cc; }
 
 /* Chip tần suất corpus (kiểu jisho: mỗi nguồn một màu, hạng nhỏ = thông dụng).
-   Dữ liệu tham khảo ngoài — khác "Số lần tra" cá nhân trong srs-stats. */
+   Dữ liệu tham khảo ngoài — khác "Số lần tra" cá nhân trên thanh SRS. */
 .freq-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
 .freq-tag {
   --freq-color: #64748b;
@@ -719,7 +736,22 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .meaning-headword { font-size: 24px; font-weight: 600; line-height: 1.4; }
 .meaning-pos { display: flex; gap: 4px; flex-wrap: wrap; }
 .meaning-view .senses { margin: 0; }
-.meaning-example { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* Rút gọn ghi chú cá nhân: khi thu gọn, mỗi dòng nghĩa chỉ hiện tối đa 2 dòng
+   hình để một gloss dài không kéo thẻ dài ra. Bấm "Xem thêm" mới bung hết. */
+.meaning-view.collapsed .gloss {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.meaning-more { align-self: start; padding: 0; margin-top: 2px; font-size: 13px; }
+
+/* Câu ví dụ — nổi bật hơn phần định nghĩa: viền nhấn + nền dịu, một khối mỗi câu
+   (một từ có thể tích nhiều câu từ Yomitan). */
+.meaning-examples { display: grid; gap: 6px; margin-top: 8px; }
+.meaning-example {
+  margin: 0; padding: 8px 12px; border-left: 3px solid var(--accent);
+  background: var(--surface-2); border-radius: 0 8px 8px 0;
+  color: var(--fg); font-size: 14px; line-height: 1.6;
+}
 
 /* Ảnh minh hoạ giờ lấy từ từ điển (Mazii) — xem .word-images ở trên. */
 
@@ -766,7 +798,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 @media (pointer: coarse) {
   .pair-toggle button, .source-toggle button { padding: 9px 15px; }
   .suggestions li button { padding: 12px 10px; }
-  .kanji-toggles .link, .detail-actions .link { padding: 6px 0; }
+  .kanji-toggles .link { padding: 6px 0; }
+  .srs-act { padding: 8px 10px; }
   .header-menu-panel .link { padding: 12px 10px; }
 }
 
