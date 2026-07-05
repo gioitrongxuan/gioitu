@@ -13,18 +13,27 @@ interface BreakdownProps {
   src: string;
   tgt: string;
   onLookup?: (term: string) => void;
+  /** Báo số kanji tra được sau khi tải, để nơi gọi quyết định bố cục. */
+  onResolved?: (count: number) => void;
+  /** Tự mở phần "từ ví dụ" khi từ chỉ gồm đúng một chữ Hán (tra riêng một kanji:
+      những từ chứa nó chính là thứ người dùng cần thấy ngay). */
+  autoExamples?: boolean;
 }
 
-export function KanjiBreakdown({ term, src, tgt, onLookup }: BreakdownProps) {
+export function KanjiBreakdown({ term, src, tgt, onLookup, onResolved, autoExamples }: BreakdownProps) {
   const [kanji, setKanji] = useState<KanjiEntry[]>([]);
 
   useEffect(() => {
     let alive = true;
-    fetchKanjiBreakdown(term, src, tgt).then((k) => alive && setKanji(k));
+    fetchKanjiBreakdown(term, src, tgt).then((k) => {
+      if (!alive) return;
+      setKanji(k);
+      onResolved?.(k.length);
+    });
     return () => {
       alive = false;
     };
-  }, [term, src, tgt]);
+  }, [term, src, tgt, onResolved]);
 
   if (kanji.length === 0) return null;
 
@@ -32,7 +41,14 @@ export function KanjiBreakdown({ term, src, tgt, onLookup }: BreakdownProps) {
     <section className="kanji-breakdown">
       <h4>Chữ Hán</h4>
       {kanji.map((k) => (
-        <KanjiCard key={k.literal} kanji={k} src={src} tgt={tgt} onLookup={onLookup} />
+        <KanjiCard
+          key={k.literal}
+          kanji={k}
+          src={src}
+          tgt={tgt}
+          onLookup={onLookup}
+          defaultOpenExamples={autoExamples === true && kanji.length === 1}
+        />
       ))}
     </section>
   );
@@ -43,16 +59,28 @@ function KanjiCard({
   src,
   tgt,
   onLookup,
+  defaultOpenExamples = false,
 }: {
   kanji: KanjiEntry;
   src: string;
   tgt: string;
   onLookup?: (term: string) => void;
+  defaultOpenExamples?: boolean;
 }) {
   const [examples, setExamples] = useState<KanjiExampleWord[] | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpenExamples);
   // Sơ đồ nét chỉ mount khi mở — KanjiStrokeDiagram tự tải (và cache) KanjiVG.
   const [showStrokes, setShowStrokes] = useState(false);
+
+  // Mở sẵn (tra riêng một kanji): tải từ ví dụ ngay khi mount, vì `toggle` mới là
+  // nơi tải lười nên trạng thái mở ban đầu sẽ không tự kéo dữ liệu về.
+  useEffect(() => {
+    if (defaultOpenExamples) {
+      fetchKanji(kanji.literal, src, tgt).then((r) => setExamples(r?.examples ?? []));
+    }
+    // Chỉ chạy một lần khi mount; đổi kanji sẽ remount do key theo literal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = () => {
     const next = !open;

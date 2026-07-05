@@ -135,6 +135,8 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   const detailPanel = view?.kind === "detail" && (
     <DetailPanel
       term={view.term}
+      term_lang={view.term_lang}
+      native_lang={view.native_lang}
       results={view.results}
       entry={entryFor(view.primaryTerm, view.term_lang)}
       onSaveCustom={onSaveCustom}

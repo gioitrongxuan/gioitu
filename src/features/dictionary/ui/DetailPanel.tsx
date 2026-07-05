@@ -22,6 +22,10 @@ import { KanjiBreakdown } from "./KanjiPanel";
 interface Props {
   /** The text the user searched (surface form). */
   term: string;
+  /** Ngôn ngữ của truy vấn (để biết có thể phân tích chữ Hán hay không). */
+  term_lang: string;
+  /** Ngôn ngữ nghĩa (đích), truyền cho phân tích chữ Hán. */
+  native_lang: string;
   /** Dictionary results (deinflected + ranked). May be empty. */
   results: TermResult[];
   /** The user's learning entry for the primary term, if any. */
@@ -46,6 +50,8 @@ interface Props {
 
 export function DetailPanel({
   term,
+  term_lang,
+  native_lang,
   results,
   entry,
   onSaveCustom,
@@ -58,8 +64,6 @@ export function DetailPanel({
   isAdmin,
   onAdminEdit,
 }: Props) {
-  const [custom, setCustom] = useState("");
-
   // Mobile: panel là bottom sheet phủ lên cloud — khoá cuộn body để kéo trong
   // sheet không cuộn luôn nội dung phía sau (desktop panel nằm cạnh, không khoá).
   const isSheet = useMediaQuery(MOBILE_MEDIA_QUERY);
@@ -163,21 +167,83 @@ export function DetailPanel({
             ))}
           </div>
         ) : hasSaved ? null : (
-          <div className="custom-def">
-            <p className="muted">Không tìm thấy. Tự định nghĩa từ này:</p>
-            <textarea
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              placeholder="Nhập nghĩa của bạn…"
-              rows={4}
-            />
-            <button className="primary" disabled={!custom.trim()} onClick={() => onSaveCustom(custom.trim())}>
-              Lưu định nghĩa
-            </button>
-          </div>
+          // key theo từ: đổi truy vấn thì trạng thái tra kanji reset sạch, không
+          // để số kanji cũ chớp lên trước khi tra lại.
+          <NoMatch
+            key={term}
+            term={term}
+            termLang={term_lang}
+            nativeLang={native_lang}
+            onLookup={onLookup}
+            onSaveCustom={onSaveCustom}
+          />
         )}
 
       </aside>
+    </>
+  );
+}
+
+/**
+ * Không có mục từ vựng nào khớp. Với truy vấn tiếng Nhật, chữ Hán trong truy vấn
+ * vẫn có thể tra được (kanji nằm ở CSDL riêng, độc lập với nguồn từ điển): hiện
+ * phân tích chữ Hán kèm từ ví dụ (những từ CHỨA kanji) thay vì chỉ báo "không tìm
+ * thấy". Chỉ khi không có kanji nào (từ thuần kana, tiếng Anh, offline…) mới mời
+ * người dùng tự định nghĩa.
+ */
+function NoMatch({
+  term,
+  termLang,
+  nativeLang,
+  onLookup,
+  onSaveCustom,
+}: {
+  term: string;
+  termLang: string;
+  nativeLang: string;
+  onLookup?: (term: string) => void;
+  onSaveCustom: (meaning: string) => void;
+}) {
+  const isJapanese = termLang === "ja";
+  // null = đang tra kanji (chưa biết); số = số kanji tìm được. Truy vấn không phải
+  // tiếng Nhật thì chắc chắn không có phần chữ Hán → coi như 0 ngay.
+  const [kanjiCount, setKanjiCount] = useState<number | null>(isJapanese ? null : 0);
+  const [custom, setCustom] = useState("");
+
+  const resolvingKanji = isJapanese && kanjiCount === null;
+  const hasKanji = (kanjiCount ?? 0) > 0;
+
+  return (
+    <>
+      {isJapanese && (
+        <KanjiBreakdown
+          term={term}
+          src={termLang}
+          tgt={nativeLang}
+          onLookup={onLookup}
+          onResolved={setKanjiCount}
+          autoExamples
+        />
+      )}
+
+      {/* Chờ tra kanji xong mới quyết định lời mời, tránh chớp "không tìm thấy"
+          rồi mới hiện chữ Hán. Còn tự định nghĩa vẫn luôn khả dụng. */}
+      {!resolvingKanji && (
+        <div className="custom-def">
+          <p className="muted">
+            {hasKanji ? "Chưa có mục từ vựng. Tự định nghĩa từ này:" : "Không tìm thấy. Tự định nghĩa từ này:"}
+          </p>
+          <textarea
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Nhập nghĩa của bạn…"
+            rows={4}
+          />
+          <button className="primary" disabled={!custom.trim()} onClick={() => onSaveCustom(custom.trim())}>
+            Lưu định nghĩa
+          </button>
+        </div>
+      )}
     </>
   );
 }
