@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  appendExample,
   applyManualAdd,
   detectTermLang,
   fieldsToExample,
@@ -97,7 +98,28 @@ describe("applyManualAdd", () => {
     expect(entry.deleted_at).toBeNull();
     expect(entry.reading).toBe("ねこ");
     expect(entry.pos).toBe("noun");
-    expect(entry.example).toBe("猫が好きです。");
+    // Examples are stored as a JSON array so a word can gather several contexts.
+    expect(JSON.parse(entry.example!)).toEqual(["猫が好きです。"]);
+  });
+
+  it("accumulates a new example sentence on re-add, keeping the past ones", () => {
+    const existing = makeEntry({
+      term: "猫",
+      term_lang: "ja",
+      example: JSON.stringify(["猫が好きです。"]),
+    });
+    const entry = applyManualAdd(existing, { ...input, example: "猫はかわいい。" }, NOW);
+    expect(JSON.parse(entry.example!)).toEqual(["猫が好きです。", "猫はかわいい。"]);
+  });
+
+  it("does not duplicate an example already stored on the word", () => {
+    const existing = makeEntry({
+      term: "猫",
+      term_lang: "ja",
+      example: JSON.stringify(["猫が好きです。"]),
+    });
+    const entry = applyManualAdd(existing, input, NOW);
+    expect(JSON.parse(entry.example!)).toEqual(["猫が好きです。"]);
   });
 
   it("counts a re-add and refreshes the meaning without resetting progress", () => {
@@ -137,6 +159,34 @@ describe("applyManualAdd", () => {
     const existing = makeEntry({ term: "猫", term_lang: "ja", lookup_count: 2 });
     applyManualAdd(existing, input, NOW);
     expect(existing.lookup_count).toBe(2);
+  });
+});
+
+describe("appendExample (accumulating sentences)", () => {
+  it("wraps a first sentence as a JSON array", () => {
+    expect(JSON.parse(appendExample(undefined, "猫が好きです。"))).toEqual(["猫が好きです。"]);
+  });
+
+  it("appends a new sentence, keeping the previous ones in order", () => {
+    const merged = appendExample(appendExample(undefined, "A。"), "B。");
+    expect(JSON.parse(merged)).toEqual(["A。", "B。"]);
+  });
+
+  it("ignores a duplicate sentence", () => {
+    expect(JSON.parse(appendExample(appendExample(undefined, "A。"), "A。"))).toEqual(["A。"]);
+  });
+
+  it("migrates a legacy plain-text example into the array", () => {
+    expect(JSON.parse(appendExample("旧い例文。", "新しい例文。"))).toEqual(["旧い例文。", "新しい例文。"]);
+  });
+
+  it("caps the list, keeping the most recent sentences", () => {
+    let acc: string | undefined;
+    for (let i = 0; i < 25; i++) acc = appendExample(acc, `文${i}`);
+    const lines = JSON.parse(acc!);
+    expect(lines).toHaveLength(20);
+    expect(lines[0]).toBe("文5");
+    expect(lines.at(-1)).toBe("文24");
   });
 });
 

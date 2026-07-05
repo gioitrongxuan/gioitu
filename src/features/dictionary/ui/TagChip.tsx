@@ -39,7 +39,7 @@ function freqColorIndex(name = ""): number {
 /**
  * Hàng chip tần suất corpus kiểu jisho (Anime 200, News 12k…). Đây là dữ liệu
  * tham khảo từ từ điển tần suất bên ngoài — khác hẳn "Số lần tra" cá nhân
- * trong srs-stats, vốn là tín hiệu của sự quên.
+ * trên thanh SRS, vốn là tín hiệu của sự quên.
  */
 export function FrequencyTags({ frequencies }: { frequencies?: TermFrequency[] }) {
   if (!frequencies || frequencies.length === 0) return null;

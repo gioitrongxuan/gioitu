@@ -139,6 +139,33 @@ export function fieldsToExample(fields: NoteFields): string {
   return typeof fields.Sentence === "string" ? cleanText(fields.Sentence) : "";
 }
 
+// A word gathers several example sentences over time: each Yomitan "+" that
+// carries a new {sentence} appends it instead of overwriting the last one — the
+// collected contexts help recall. Stored as a JSON string[] in `example`
+// (mirroring `meaning`); the frontend decodes the same shape. Capped so a habit
+// of re-adding the same word cannot grow the entry without bound.
+const MAX_EXAMPLES = 20;
+
+function parseExamples(example: string | undefined): string[] {
+  if (!example) return [];
+  try {
+    const parsed = JSON.parse(example);
+    if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
+  } catch {
+    /* legacy plain-text example (pre-accumulation) */
+  }
+  const text = example.trim();
+  return text ? [text] : [];
+}
+
+/** Append a new sentence to a word's stored examples, dedup and capped. */
+export function appendExample(existing: string | undefined, sentence: string): string {
+  const next = sentence.trim();
+  const lines = parseExamples(existing);
+  if (next && !lines.includes(next)) lines.push(next);
+  return JSON.stringify(lines.slice(-MAX_EXAMPLES));
+}
+
 /** The fields of a freshly-created SRS card (mirror of srs.ts newCardState). */
 function newCard(now: number) {
   return {
@@ -182,7 +209,7 @@ export function applyManualAdd(
       meaning: input.meaning,
       reading: input.reading,
       pos: input.pos,
-      example: input.example,
+      example: input.example ? appendExample(undefined, input.example) : undefined,
       // External (Yomitan) definition: mark custom so it always displays as-is
       // instead of waiting for a matching gioitu dictionary entry.
       is_custom: true,
@@ -205,7 +232,8 @@ export function applyManualAdd(
   }
   if (input.reading) entry.reading = input.reading;
   if (input.pos) entry.pos = input.pos;
-  if (input.example) entry.example = input.example;
+  // Accumulate: keep past sentences, add the new one (see appendExample).
+  if (input.example) entry.example = appendExample(entry.example, input.example);
   if (entry.card_state == null) Object.assign(entry, newCard(now));
   return entry;
 }
