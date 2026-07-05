@@ -7,6 +7,8 @@ export interface Session {
   email: string;
   /** Server-decided: may this user manage the shared server dictionary? */
   is_admin?: boolean;
+  /** Đã kích hoạt Premium (mở khoá đồng bộ từ điển cá nhân, #70). */
+  is_premium?: boolean;
 }
 
 const KEY = "gioitu_session";
@@ -39,6 +41,12 @@ function setSession(s: Session) {
 
 export function clearSession() {
   storage()?.removeItem(KEY);
+}
+
+/** Đánh dấu phiên hiện tại là Premium sau khi đổi mã (cập nhật cache localStorage). */
+export function markSessionPremium() {
+  const s = getSession();
+  if (s) setSession({ ...s, is_premium: true });
 }
 
 export function authToken(): string | null {

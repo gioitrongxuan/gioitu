@@ -30,6 +30,7 @@ authRoutes.post(
       user_id: user.id,
       email: user.email,
       is_admin: isAdminEmail(user.email),
+      is_premium: user.is_premium,
     });
   }),
 );
@@ -54,6 +55,7 @@ authRoutes.post(
       user_id: user.id,
       email: user.email,
       is_admin: isAdminEmail(user.email),
+      is_premium: user.is_premium,
     });
   }),
 );
@@ -62,13 +64,18 @@ authRoutes.get(
   "/me",
   requireAuth,
   wrap(async (req: AuthedRequest, res) => {
-    const { rows } = await pool.query<{ id: string; email: string }>(
-      "SELECT id, email FROM users WHERE id = $1",
+    const { rows } = await pool.query<{ id: string; email: string; is_premium: boolean }>(
+      "SELECT id, email, is_premium FROM users WHERE id = $1",
       [req.userId],
     );
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "Không tìm thấy người dùng" });
-    res.json({ user_id: row.id, email: row.email, is_admin: isAdminEmail(row.email) });
+    res.json({
+      user_id: row.id,
+      email: row.email,
+      is_admin: isAdminEmail(row.email),
+      is_premium: row.is_premium === true,
+    });
   }),
 );
 

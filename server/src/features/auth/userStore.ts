@@ -8,6 +8,7 @@ import { GoogleIdentity } from "./google.js";
 export interface AccountUser {
   id: string;
   email: string;
+  is_premium: boolean;
 }
 
 /**
@@ -17,22 +18,22 @@ export interface AccountUser {
  * subject and email are kept current.
  */
 export async function upsertGoogleUser({ sub, email }: GoogleIdentity): Promise<AccountUser> {
-  const bySub = await pool.query<{ id: string }>(
-    "SELECT id FROM users WHERE google_sub = $1",
+  const bySub = await pool.query<{ id: string; is_premium: boolean }>(
+    "SELECT id, is_premium FROM users WHERE google_sub = $1",
     [sub],
   );
   if (bySub.rows[0]) {
     await pool.query("UPDATE users SET email = $1 WHERE id = $2", [email, bySub.rows[0].id]);
-    return { id: bySub.rows[0].id, email };
+    return { id: bySub.rows[0].id, email, is_premium: bySub.rows[0].is_premium === true };
   }
 
-  const byEmail = await pool.query<{ id: string }>(
-    "SELECT id FROM users WHERE email = $1",
+  const byEmail = await pool.query<{ id: string; is_premium: boolean }>(
+    "SELECT id, is_premium FROM users WHERE email = $1",
     [email],
   );
   if (byEmail.rows[0]) {
     await pool.query("UPDATE users SET google_sub = $1 WHERE id = $2", [sub, byEmail.rows[0].id]);
-    return { id: byEmail.rows[0].id, email };
+    return { id: byEmail.rows[0].id, email, is_premium: byEmail.rows[0].is_premium === true };
   }
 
   const id = newUserId();
@@ -40,7 +41,7 @@ export async function upsertGoogleUser({ sub, email }: GoogleIdentity): Promise<
     "INSERT INTO users (id, email, google_sub, created_at) VALUES ($1, $2, $3, $4)",
     [id, email, sub, Date.now()],
   );
-  return { id, email };
+  return { id, email, is_premium: false };
 }
 
 /**
@@ -48,12 +49,24 @@ export async function upsertGoogleUser({ sub, email }: GoogleIdentity): Promise<
  * đăng nhập dev; giữ nguyên tài khoản cũ nếu email đã tồn tại.
  */
 export async function upsertUserByEmail(email: string): Promise<AccountUser> {
-  const found = await pool.query<{ id: string }>("SELECT id FROM users WHERE email = $1", [email]);
-  if (found.rows[0]) return { id: found.rows[0].id, email };
+  const found = await pool.query<{ id: string; is_premium: boolean }>(
+    "SELECT id, is_premium FROM users WHERE email = $1",
+    [email],
+  );
+  if (found.rows[0]) return { id: found.rows[0].id, email, is_premium: found.rows[0].is_premium === true };
 
   const id = newUserId();
   await pool.query("INSERT INTO users (id, email, created_at) VALUES ($1, $2, $3)", [id, email, Date.now()]);
-  return { id, email };
+  return { id, email, is_premium: false };
+}
+
+/** Cờ Premium hiện tại của một user (nguồn gác cổng sync — luôn đọc tươi từ DB). */
+export async function isPremium(userId: string): Promise<boolean> {
+  const { rows } = await pool.query<{ is_premium: boolean }>(
+    "SELECT is_premium FROM users WHERE id = $1",
+    [userId],
+  );
+  return rows[0]?.is_premium === true;
 }
 
 /** The user's Yomitan API key, generating and persisting one on first request. */

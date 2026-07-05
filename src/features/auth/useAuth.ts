@@ -25,5 +25,8 @@ export function useAuth() {
     setSession(null);
   }, []);
 
-  return { session, loginWithGoogle, devLogin, logout };
+  // Đọc lại phiên từ localStorage — dùng sau khi đổi mã Premium để UI phản ánh ngay.
+  const refresh = useCallback(() => setSession(getSession()), []);
+
+  return { session, loginWithGoogle, devLogin, logout, refresh };
 }
