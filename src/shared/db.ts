@@ -84,6 +84,13 @@ export interface LocalDictionary {
   description?: string;
   /** Chủ đề / lĩnh vực (chỉ dùng cho từ điển cá nhân). */
   topic?: string;
+  /**
+   * Dấu thời gian cho đồng bộ từ điển cá nhân (LWW, #70). Mặc định = importedAt
+   * khi vắng. Chỉ có ý nghĩa với từ điển `custom`.
+   */
+  updatedAt?: number;
+  /** Tombstone: đã xoá — giữ lại registry để lan truyền việc xoá qua sync. */
+  deletedAt?: number;
 }
 
 interface GioituDB extends DBSchema {
