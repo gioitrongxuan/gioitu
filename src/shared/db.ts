@@ -78,6 +78,12 @@ export interface LocalDictionary {
   metaCount?: number;
   importedAt: number;
   revision?: string;
+  /** True for dictionaries the user builds by hand (Từ điển cá nhân, Issue #69). */
+  custom?: boolean;
+  /** Mô tả tự do (chỉ dùng cho từ điển cá nhân). */
+  description?: string;
+  /** Chủ đề / lĩnh vực (chỉ dùng cho từ điển cá nhân). */
+  topic?: string;
 }
 
 interface GioituDB extends DBSchema {

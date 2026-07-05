@@ -58,7 +58,7 @@ export interface ImportResult {
   native_lang: string;
 }
 
-function uuid(): string {
+export function uuid(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c?.randomUUID) return c.randomUUID();
   return "dict-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
