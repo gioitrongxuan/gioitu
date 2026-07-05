@@ -86,7 +86,11 @@ export function DetailPanel({
       <aside className="detail-panel" aria-label="Chi tiết từ">
         <header>
           <h2>
-            {!results.length && entry?.reading ? (
+            {/* Hiện furigana khi từ trên tiêu đề đúng là từ của entry (bấm thẻ,
+                hoặc tra trúng dạng gốc). Không phụ thuộc results để tránh "lật"
+                mất furigana khi định nghĩa từ điển tra xong về sau. Khi tra một
+                dạng chia (term bề mặt khác entry.term) thì hiện nguyên chữ đã gõ. */}
+            {entry?.reading && entry.term === term ? (
               <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
             ) : (
               term
