@@ -48,6 +48,10 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // whole dictionary can take a moment, so we never make the exact results
     // wait on it. When it resolves we append, but only if the user is still
     // looking at this exact result set (no newer search/append has replaced it).
+    // A one-character query has no meaningful typo near-miss (its "near-misses"
+    // are just longer words that contain it — a single kanji lands on its Chữ Hán
+    // page instead, which lists those words as examples), so we skip fuzzy there.
+    if ([...term].length <= 1) return;
     const exclude = new Set(results.map((r) => JSON.stringify([r.entry.term, r.entry.reading ?? ""])));
     void findFuzzyRouted(term, p, exclude, source).then((fuzzy) => {
       if (!fuzzy.length) return;
