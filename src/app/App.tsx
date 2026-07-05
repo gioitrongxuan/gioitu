@@ -18,6 +18,7 @@ import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
+import { CustomDictionary } from "@/features/dictionary/ui/CustomDictionary";
 import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
@@ -115,6 +116,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
   const [manageEditQuery, setManageEditQuery] = useState<string | null>(null);
   const [theming, setTheming] = useState(false);
+  const [customDict, setCustomDict] = useState(false);
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
   const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
@@ -160,6 +162,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
     ...(store.learnedEntries.length > 0
       ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
       : []),
+    { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
     { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
     ...(email
@@ -275,6 +278,22 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
           onClose={() => {
             setManaging(false);
             setManageEditQuery(null);
+          }}
+        />
+      )}
+
+      {customDict && (
+        <CustomDictionary
+          pair={pair}
+          loggedIn={email != null}
+          onRequestLogin={() => {
+            setCustomDict(false);
+            onRequestLogin();
+          }}
+          onClose={() => setCustomDict(false)}
+          onSaved={() => {
+            // Nếu đang mở chi tiết một từ, tra lại để từ vừa lưu (nguồn Trên máy) hiện ra.
+            if (view?.kind === "detail") lookup(view.term);
           }}
         />
       )}

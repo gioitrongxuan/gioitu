@@ -12,6 +12,7 @@ import { handwritingRoutes } from "./features/dictionary/handwritingRoutes.js";
 import { syncRoutes } from "./features/sync/syncRoutes.js";
 import { studyListRoutes } from "./features/studylist/studyListRoutes.js";
 import { ankiConnectRoutes, ankiRoutes } from "./features/anki/ankiRoutes.js";
+import { aiRoutes } from "./features/ai/aiRoutes.js";
 
 export function createApp() {
   const app = express();
@@ -25,6 +26,7 @@ export function createApp() {
   app.use("/api/handwriting", handwritingRoutes);
   app.use("/api/sync", syncRoutes);
   app.use("/api/studylist", studyListRoutes);
+  app.use("/api/ai", aiRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
   app.use("/api/yomitan-sync", ankiRoutes);
   // Same fake AnkiConnect server, but replies wrapped in the real AnkiConnect

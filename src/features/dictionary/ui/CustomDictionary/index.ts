@@ -1,0 +1,1 @@
+export { CustomDictionary } from "./CustomDictionary";
