@@ -33,8 +33,13 @@ export interface LookupResult {
   };
 }
 
-/** Build a fresh entry for a term never looked up before. */
-function createEntry(input: LookupInput, now: number): VocabEntry {
+/**
+ * Build a fresh entry for a term never looked up before. Pressing "+" commits
+ * the word to the review queue immediately — the first add is itself the signal
+ * of forgetting, so we skip the old "prove it forgettable twice" gating and give
+ * it a card (status LEARNING, card_state NEW, due now) from the start.
+ */
+function createEntry(input: LookupInput, now: number, cfg: SrsConfig): VocabEntry {
   return {
     user_id: input.user_id,
     term: input.term,
@@ -46,18 +51,10 @@ function createEntry(input: LookupInput, now: number): VocabEntry {
     is_custom: input.is_custom ?? false,
     lookup_count: 1,
     last_lookup_at: now,
-    status: "LEARNING",
-    card_state: null,
-    learning_step: 0,
-    ease_factor: DEFAULT_SRS_CONFIG.initialEaseFactor,
-    reps: 0,
-    lapses: 0,
-    is_relearning: false,
-    srs_interval: 0,
-    next_review: null,
     deleted_at: null,
     created_at: now,
     updated_at: now,
+    ...newCardState(now, cfg),
   };
 }
 
@@ -77,11 +74,11 @@ export function registerLookup(
   // tombstone, so the resurrection wins the last-write-wins sync.
   if (existing && existing.deleted_at != null) existing = undefined;
 
-  // --- First-ever lookup of this term: created, but not yet on the SRS queue
-  // (it must prove "forgettable" by being looked up again — see gating below). ---
+  // --- First-ever lookup of this term: created AND carded straight away, so it
+  // enters the review queue on the very first "+" (no gating). ---
   if (!existing) {
-    const entry = createEntry(input, now);
-    return { entry, events: { created: true, counted: true, cardCreated: false, relapsed: false } };
+    const entry = createEntry(input, now, cfg);
+    return { entry, events: { created: true, counted: true, cardCreated: true, relapsed: false } };
   }
 
   // --- Debounce: same term re-opened within the window does not re-count ---
@@ -111,7 +108,8 @@ export function registerLookup(
     Object.assign(entry, relapse(existing, now, cfg));
     relapsed = true;
   } else if (entry.card_state == null) {
-    // --- Gating: create the SRS card once it has proven "forgettable" ---
+    // --- Legacy heal: entries created before cards-on-first-add still lack a
+    // card. Give them one on the next lookup so they rejoin the queue. ---
     if (entry.lookup_count >= SRS_GATING_THRESHOLD) {
       Object.assign(entry, newCardState(now, cfg));
       cardCreated = true;

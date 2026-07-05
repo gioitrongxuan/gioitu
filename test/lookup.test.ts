@@ -13,13 +13,14 @@ const baseInput = {
 };
 
 describe("first lookup", () => {
-  it("creates an entry with count 1, on the cloud, but no SRS card (gating)", () => {
+  it("creates an entry with count 1 and an SRS card immediately (no gating)", () => {
     const { entry, events } = registerLookup(undefined, baseInput, NOW);
     expect(events.created).toBe(true);
     expect(entry.lookup_count).toBe(1);
     expect(entry.status).toBe("LEARNING");
-    expect(entry.card_state).toBeNull();
-    expect(events.cardCreated).toBe(false);
+    expect(entry.card_state).toBe("NEW");
+    expect(entry.next_review).toBe(NOW); // due immediately
+    expect(events.cardCreated).toBe(true);
   });
 });
 
@@ -39,8 +40,8 @@ describe("debounce (SPEC 4.1)", () => {
   });
 });
 
-describe("SRS gating threshold (constraint 2)", () => {
-  it(`creates the card once lookup_count reaches ${SRS_GATING_THRESHOLD}`, () => {
+describe("legacy heal for card-less entries", () => {
+  it(`gives a pre-existing card-less entry a card once lookup_count reaches ${SRS_GATING_THRESHOLD}`, () => {
     const existing = makeEntry({ last_lookup_at: NOW - 10_000, lookup_count: 1, card_state: null });
     const { entry, events } = registerLookup(existing, baseInput, NOW);
     expect(entry.lookup_count).toBe(2);
@@ -94,7 +95,7 @@ describe("resurrecting a deleted word by looking it up again", () => {
     expect(events.created).toBe(true);
     expect(entry.deleted_at).toBeNull();
     expect(entry.lookup_count).toBe(1); // fresh start, not 10
-    expect(entry.card_state).toBeNull();
+    expect(entry.card_state).toBe("NEW"); // re-added as a fresh learning card
     expect(entry.updated_at).toBe(NOW); // past the tombstone → wins the sync
   });
 });
