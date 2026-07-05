@@ -315,13 +315,20 @@ export async function listLocalDictionaries(
     term_lang && native_lang
       ? await db.getAllFromIndex("dictionaries", "by_pair", IDBKeyRange.only([term_lang, native_lang]))
       : await db.getAll("dictionaries");
-  return all.sort((a, b) => b.importedAt - a.importedAt);
+  // Bỏ tombstone (từ điển cá nhân đã xoá, giữ lại chỉ để lan truyền qua sync).
+  return all.filter((d) => !d.deletedAt).sort((a, b) => b.importedAt - a.importedAt);
 }
 
-/** Remove a locally imported dictionary and all of its terms and meta rows. */
+/**
+ * Xoá một từ điển local cùng toàn bộ term/meta của nó. Từ điển đã nhập: xoá hẳn
+ * (re-import được). Từ điển cá nhân: giữ registry làm tombstone (deletedAt) để
+ * việc xoá lan truyền qua đồng bộ thay vì bị máy khác hồi sinh (#70).
+ */
 export async function deleteLocalDictionary(id: string): Promise<void> {
   const db = await getDb();
   const tx = db.transaction(["terms", "dictionaries", "term_meta"], "readwrite");
+  const dictStore = tx.objectStore("dictionaries");
+  const dict = await dictStore.get(id);
   for (const store of ["terms", "term_meta"] as const) {
     const idx = tx.objectStore(store).index("by_dict");
     let cursor = await idx.openCursor(IDBKeyRange.only(id));
@@ -330,7 +337,12 @@ export async function deleteLocalDictionary(id: string): Promise<void> {
       cursor = await cursor.continue();
     }
   }
-  await tx.objectStore("dictionaries").delete(id);
+  if (dict?.custom) {
+    const now = Date.now();
+    await dictStore.put({ ...dict, termCount: 0, metaCount: 0, deletedAt: now, updatedAt: now });
+  } else {
+    await dictStore.delete(id);
+  }
   await tx.done;
 }
 

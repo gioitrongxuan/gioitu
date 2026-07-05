@@ -3,7 +3,7 @@
 // panel, the review session and dictionary import. Lookup orchestration lives
 // in useLookup; per-feature logic lives under src/features/*.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
@@ -19,6 +19,7 @@ import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
 import { CustomDictionary } from "@/features/dictionary/ui/CustomDictionary";
+import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
 import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
@@ -95,6 +96,15 @@ interface MainAppProps {
 
 function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
+
+  // Đồng bộ từ điển cá nhân (Premium): chạy khi load, khi vừa bật Premium, và sau
+  // mỗi lần soạn/xoá. Best-effort, không cản UI; SRS đồng bộ riêng trong store.
+  const syncDicts = useCallback(() => {
+    if (email && isPremium) void syncCustomDicts().catch((e) => console.error("dict sync failed", e));
+  }, [email, isPremium]);
+  useEffect(() => {
+    syncDicts();
+  }, [syncDicts]);
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
   // Which dictionary database look-ups hit. Persisted only once the user picks;
   // until then we default to the source that actually has data (local if a
@@ -178,7 +188,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true) },
     ...(email
       ? [
-          { label: "Đồng bộ", run: store.runSync },
+          { label: "Đồng bộ", run: async () => { await store.runSync(); syncDicts(); } },
           { label: "Đăng xuất", run: onLogout },
         ]
       : [{ label: "Đăng nhập", run: onRequestLogin }]),
@@ -200,7 +210,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             onPairChange={setPair}
             source={dictSource}
             onSourceChange={chooseSource}
-            onImported={() => undefined}
+            onImported={syncDicts}
           />
           <HeaderMenu items={menuItems} email={email} />
         </div>
@@ -305,6 +315,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           onSaved={() => {
             // Nếu đang mở chi tiết một từ, tra lại để từ vừa lưu (nguồn Trên máy) hiện ra.
             if (view?.kind === "detail") lookup(view.term);
+            syncDicts(); // đẩy từ điển vừa soạn lên (nếu Premium)
           }}
         />
       )}

@@ -1,0 +1,84 @@
+import "fake-indexeddb/auto";
+import { describe, it, expect } from "vitest";
+import {
+  mergeDictsByUpdatedAt,
+  localCustomDicts,
+  writeMergedDicts,
+} from "@/features/dictionary/data/customDictSync";
+import { SyncedDict } from "@/features/dictionary/data/dictSyncApi";
+import { getDb, LocalDictionary } from "@/shared/db";
+import { createLocalDictionary, upsertCustomEntries } from "@/features/dictionary/data/customDict";
+import { listLocalDictionaries } from "@/features/dictionary/data/yomitan";
+import { buildDictEntry, emptyDraft, type CustomDraft } from "@/features/dictionary/domain/customEntry";
+import { pairById } from "@/shared/languages";
+
+const JA_VI = pairById("ja-vi");
+
+function draft(over: Partial<CustomDraft>): CustomDraft {
+  return { ...emptyDraft(), ...over };
+}
+function reg(over: Partial<LocalDictionary>): LocalDictionary {
+  return { id: "d", title: "t", term_lang: "ja", native_lang: "vi", termCount: 0, importedAt: 0, custom: true, ...over };
+}
+function blob(over: Partial<LocalDictionary>, terms: SyncedDict["terms"] = []): SyncedDict {
+  return { registry: reg(over), terms };
+}
+
+describe("mergeDictsByUpdatedAt (thuần)", () => {
+  it("LWW: updatedAt mới hơn thắng", () => {
+    const merged = mergeDictsByUpdatedAt(
+      [blob({ id: "x", updatedAt: 10, title: "cũ" })],
+      [blob({ id: "x", updatedAt: 20, title: "mới" })],
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0].registry.title).toBe("mới");
+  });
+
+  it("tombstone mới hơn thắng bản live", () => {
+    const merged = mergeDictsByUpdatedAt(
+      [blob({ id: "x", updatedAt: 10 }, [{} as never])],
+      [blob({ id: "x", updatedAt: 20, deletedAt: 20 })],
+    );
+    expect(merged[0].registry.deletedAt).toBe(20);
+  });
+
+  it("thiếu updatedAt → dùng importedAt", () => {
+    const merged = mergeDictsByUpdatedAt(
+      [blob({ id: "x", importedAt: 3, updatedAt: undefined, title: "thấp" })],
+      [blob({ id: "x", importedAt: 5, updatedAt: undefined, title: "cao" })],
+    );
+    expect(merged[0].registry.title).toBe("cao");
+  });
+
+  it("id khác nhau → giữ cả hai", () => {
+    const merged = mergeDictsByUpdatedAt([blob({ id: "a" })], [blob({ id: "b" })]);
+    expect(merged.map((d) => d.registry.id).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("localCustomDicts + writeMergedDicts (IndexedDB)", () => {
+  it("đọc blob, dựng lại cache khi remote thắng, tombstone xoá term + ẩn khỏi danh sách", async () => {
+    const id = await createLocalDictionary({ title: "Sync RT", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Sync RT", JA_VI, [draft({ term: "水", reading: "みず", gloss: "nước" })]);
+
+    const mine = (await localCustomDicts()).find((d) => d.registry.id === id)!;
+    expect(mine.registry.custom).toBe(true);
+    expect(mine.terms).toHaveLength(1);
+
+    // Remote thêm một từ với updatedAt mới hơn → dựng lại cache thành 2 từ.
+    const newer = (mine.registry.updatedAt ?? 0) + 1000;
+    await writeMergedDicts([
+      {
+        registry: { ...mine.registry, updatedAt: newer, termCount: 2 },
+        terms: [...mine.terms, buildDictEntry(draft({ term: "火", reading: "ひ", gloss: "lửa" }), JA_VI, "Sync RT")],
+      },
+    ]);
+    const db = await getDb();
+    expect(await db.getAllFromIndex("terms", "by_dict", id)).toHaveLength(2);
+
+    // Tombstone: xoá hết term, và listLocalDictionaries không còn hiện.
+    await writeMergedDicts([{ registry: { ...mine.registry, updatedAt: newer + 1000, deletedAt: newer + 1000 }, terms: [] }]);
+    expect(await db.getAllFromIndex("terms", "by_dict", id)).toHaveLength(0);
+    expect((await listLocalDictionaries("ja", "vi")).find((d) => d.id === id)).toBeUndefined();
+  });
+});

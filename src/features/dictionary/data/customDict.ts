@@ -18,13 +18,15 @@ export async function createLocalDictionary(input: {
   topic?: string;
 }): Promise<string> {
   const id = uuid();
+  const now = Date.now();
   const dict: LocalDictionary = {
     id,
     title: input.title,
     term_lang: input.term_lang,
     native_lang: input.native_lang,
     termCount: 0,
-    importedAt: Date.now(),
+    importedAt: now,
+    updatedAt: now, // mốc LWW cho đồng bộ (#70)
     custom: true,
     ...(input.description?.trim() ? { description: input.description.trim() } : {}),
     ...(input.topic?.trim() ? { topic: input.topic.trim() } : {}),
@@ -74,7 +76,7 @@ export async function upsertCustomEntries(
   // ghi đè lên từ vốn thuộc dict khác.
   const count = await terms.index("by_dict").count(IDBKeyRange.only(dictId));
   const dict = await tx.objectStore("dictionaries").get(dictId);
-  if (dict) await tx.objectStore("dictionaries").put({ ...dict, termCount: count });
+  if (dict) await tx.objectStore("dictionaries").put({ ...dict, termCount: count, updatedAt: Date.now() });
   await tx.done;
 
   return drafts.length;

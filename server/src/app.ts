@@ -14,11 +14,13 @@ import { studyListRoutes } from "./features/studylist/studyListRoutes.js";
 import { ankiConnectRoutes, ankiRoutes } from "./features/anki/ankiRoutes.js";
 import { aiRoutes } from "./features/ai/aiRoutes.js";
 import { premiumRoutes } from "./features/premium/premiumRoutes.js";
+import { dictSyncRoutes } from "./features/dictsync/dictSyncRoutes.js";
 
 export function createApp() {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "5mb" }));
+  // Body có thể lớn: đẩy toàn bộ từ điển cá nhân (JSON chưa nén) lên /api/dict-sync.
+  app.use(express.json({ limit: "20mb" }));
 
   // Feature routers (each owns its sub-paths).
   app.use("/api/auth", authRoutes);
@@ -29,6 +31,7 @@ export function createApp() {
   app.use("/api/studylist", studyListRoutes);
   app.use("/api/ai", aiRoutes);
   app.use("/api/premium", premiumRoutes);
+  app.use("/api/dict-sync", dictSyncRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
   app.use("/api/yomitan-sync", ankiRoutes);
   // Same fake AnkiConnect server, but replies wrapped in the real AnkiConnect
