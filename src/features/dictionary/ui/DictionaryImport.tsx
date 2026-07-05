@@ -12,6 +12,7 @@ import {
   deleteLocalDictionary,
   localTermCount,
 } from "../data/yomitan";
+import { exportDictAsZip, triggerDownload } from "../data/yomitanZip";
 import { LocalDictionary } from "@/shared/db";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
@@ -82,6 +83,15 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
     await deleteLocalDictionary(d.id);
     refresh();
     onImported();
+  }
+
+  async function onExport(d: LocalDictionary) {
+    try {
+      const { blob, filename } = await exportDictAsZip(d.id);
+      triggerDownload(blob, filename);
+    } catch (err) {
+      setStatus(`Lỗi xuất: ${(err as Error).message}`);
+    }
   }
 
   return (
@@ -165,6 +175,7 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
                   <li key={d.id}>
                     <span className="ld-title">{d.title}</span>
                     <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
+                    <button className="link" onClick={() => onExport(d)} title="Tải file .zip Yomitan để lưu / chuyển máy">Tải ZIP</button>
                     <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
                   </li>
                 ))}
