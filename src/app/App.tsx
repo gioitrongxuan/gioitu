@@ -20,6 +20,10 @@ import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
 import { CustomDictionary } from "@/features/dictionary/ui/CustomDictionary";
 import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
+import { TermResult } from "@/features/dictionary/data/search";
+import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
+import { proposeWord } from "@/features/contribute/data/contribute";
+import { ContributionReview } from "@/features/contribute/ui/ContributionReview";
 import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
@@ -136,11 +140,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [customDict, setCustomDict] = useState(false);
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
+  const [contribReview, setContribReview] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
   const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
+
+  // Đề xuất một kết quả tra lên từ điển hệ thống (#70 — 6.1); admin duyệt sau.
+  const proposeResult = async (res: TermResult) => {
+    const e = res.entry;
+    const gloss = e.senses?.length ? sensesToLines(e.senses) : glossaryToLines(e.definitions);
+    const pos = [...new Set((e.senses ?? []).flatMap((s) => s.tags))];
+    try {
+      await proposeWord({ term: e.term, reading: e.reading, term_lang: e.term_lang, native_lang: e.native_lang, gloss, pos });
+      store.pushToast("Đã gửi đề xuất, chờ admin duyệt", "success");
+    } catch (err) {
+      store.pushToast((err as Error).message, "warn");
+    }
+  };
 
   // Mobile: panel chi tiết là bottom sheet phủ lên trang — nội dung nền bị
   // backdrop che chuột/chạm, còn inert + aria-hidden chặn nốt focus bàn phím
@@ -172,13 +190,20 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         setManageEditQuery(term);
         setManaging(true);
       }}
+      loggedIn={email != null}
+      onPropose={proposeResult}
     />
   );
 
   // Một danh sách action cho cả hai cách hiện: hàng nút (desktop) và menu ☰
   // (mobile). CSS theo breakpoint 760px quyết định bên nào hiển thị.
   const menuItems: MenuItem[] = [
-    ...(isAdmin ? [{ label: "Quản lý từ điển", run: () => setManaging(true) }] : []),
+    ...(isAdmin
+      ? [
+          { label: "Quản lý từ điển", run: () => setManaging(true) },
+          { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+        ]
+      : []),
     ...(store.learnedEntries.length > 0
       ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
       : []),
@@ -334,6 +359,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           onClose={() => setConnectingYomitan(false)}
         />
       )}
+
+      {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
 
       {premium && (
         <PremiumModal
