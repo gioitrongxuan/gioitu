@@ -46,6 +46,10 @@ interface Props {
   isAdmin?: boolean;
   /** Mở trình quản lý từ điển tại đúng từ đang xem (chỉ admin). */
   onAdminEdit?: (term: string) => void;
+  /** Người dùng đã đăng nhập (để hiện nút đề xuất lên từ điển chung). */
+  loggedIn?: boolean;
+  /** Đề xuất một kết quả lên từ điển hệ thống (#70 — 6.1). */
+  onPropose?: (res: TermResult) => void;
 }
 
 export function DetailPanel({
@@ -63,6 +67,8 @@ export function DetailPanel({
   onDelete,
   isAdmin,
   onAdminEdit,
+  loggedIn,
+  onPropose,
 }: Props) {
   // Mobile: panel là bottom sheet phủ lên cloud — khoá cuộn body để kéo trong
   // sheet không cuộn luôn nội dung phía sau (desktop panel nằm cạnh, không khoá).
@@ -162,6 +168,8 @@ export function DetailPanel({
                   onAdd={onAddResult}
                   isAdmin={isAdmin}
                   onAdminEdit={onAdminEdit}
+                  loggedIn={loggedIn}
+                  onPropose={onPropose}
                 />
               </div>
             ))}
@@ -254,12 +262,16 @@ function ResultView({
   onAdd,
   isAdmin,
   onAdminEdit,
+  loggedIn,
+  onPropose,
 }: {
   res: TermResult;
   onLookup?: (term: string) => void;
   onAdd?: (res: TermResult) => void;
   isAdmin?: boolean;
   onAdminEdit?: (term: string) => void;
+  loggedIn?: boolean;
+  onPropose?: (res: TermResult) => void;
 }) {
   const { entry } = res;
   // Local-only: once added we flip to a checkmark so the click reads as done.
@@ -268,6 +280,7 @@ function ResultView({
   const [verified, setVerified] = useState(entry.verified === true);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [proposed, setProposed] = useState(false);
   // Chỉ kết quả từ nguồn server mới có wordId — nguồn local (Yomitan) không duyệt được.
   const canModerate = isAdmin === true && Boolean(entry.wordId);
 
@@ -336,6 +349,20 @@ function ResultView({
           native_lang: entry.native_lang,
         }}
       />
+
+      {onPropose && loggedIn && (
+        <button
+          className="link propose-btn"
+          disabled={proposed}
+          title="Gợi ý từ này cho từ điển dùng chung (admin sẽ duyệt)"
+          onClick={() => {
+            onPropose(res);
+            setProposed(true);
+          }}
+        >
+          {proposed ? "Đã đề xuất ✓" : "Đề xuất lên hệ thống"}
+        </button>
+      )}
 
       {res.reasons.length > 0 && (
         <div className="reasons" title="Cách chia của từ gốc">

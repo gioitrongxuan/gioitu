@@ -442,6 +442,14 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 .share-countdown { color: var(--muted); font-variant-numeric: tabular-nums; }
 
+.proposal-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.proposal { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-radius: 8px; background: var(--surface-2); }
+.proposal-body { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.proposal-head { font-weight: 600; }
+.proposal-gloss { font-size: 13px; }
+.proposal-acts { display: flex; flex-direction: column; gap: 4px; white-space: nowrap; }
+.propose-btn { margin-top: 4px; }
+
 /* Yomitan-style definition view */
 /* minmax(0,…): mặc định track grid không co dưới min-content, nên một gloss /
    bảng dài trong kết quả fuzzy sẽ banh cột rộng hơn panel và chữ hết wrap. */
