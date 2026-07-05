@@ -211,6 +211,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             source={dictSource}
             onSourceChange={chooseSource}
             onImported={syncDicts}
+            loggedIn={email != null}
+            onRequestLogin={onRequestLogin}
           />
           <HeaderMenu items={menuItems} email={email} />
         </div>

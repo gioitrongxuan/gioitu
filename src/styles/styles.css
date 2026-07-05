@@ -440,6 +440,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .premium-code-list code { font-family: monospace; letter-spacing: 0.5px; }
 .premium-code-list code.used { text-decoration: line-through; color: var(--muted); }
 
+.share-countdown { color: var(--muted); font-variant-numeric: tabular-nums; }
+
 /* Yomitan-style definition view */
 /* minmax(0,…): mặc định track grid không co dưới min-content, nên một gloss /
    bảng dài trong kết quả fuzzy sẽ banh cột rộng hơn panel và chữ hết wrap. */

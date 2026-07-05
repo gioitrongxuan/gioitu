@@ -10,6 +10,7 @@ import { migration as m0005 } from "./0005_drop_dict.js";
 import { migration as m0006 } from "./0006_word_verified.js";
 import { migration as m0007 } from "./0007_premium.js";
 import { migration as m0008 } from "./0008_user_dictionaries.js";
+import { migration as m0009 } from "./0009_shares.js";
 
 export interface Migration {
   /** Mã phiên bản, vd "0001". Dùng làm khoá trong schema_migrations. */
@@ -18,7 +19,7 @@ export interface Migration {
   sql: string;
 }
 
-export const migrations: Migration[] = [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008];
+export const migrations: Migration[] = [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008, m0009];
 
 /** Các migration chưa áp dụng, giữ nguyên thứ tự. Thuần → test được không cần DB. */
 export function pendingMigrations(applied: Set<string>, all: Migration[] = migrations): Migration[] {

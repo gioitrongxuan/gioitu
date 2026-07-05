@@ -15,6 +15,7 @@ import { ankiConnectRoutes, ankiRoutes } from "./features/anki/ankiRoutes.js";
 import { aiRoutes } from "./features/ai/aiRoutes.js";
 import { premiumRoutes } from "./features/premium/premiumRoutes.js";
 import { dictSyncRoutes } from "./features/dictsync/dictSyncRoutes.js";
+import { shareRoutes } from "./features/share/shareRoutes.js";
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,8 @@ export function createApp() {
   app.use("/api/ai", aiRoutes);
   app.use("/api/premium", premiumRoutes);
   app.use("/api/dict-sync", dictSyncRoutes);
+  // Link chia sẻ tạm: định nghĩa /share (POST) và /dl/:id (GET) dưới /api.
+  app.use("/api", shareRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
   app.use("/api/yomitan-sync", ankiRoutes);
   // Same fake AnkiConnect server, but replies wrapped in the real AnkiConnect

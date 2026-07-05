@@ -13,6 +13,7 @@ import {
   localTermCount,
 } from "../data/yomitan";
 import { exportDictAsZip, triggerDownload } from "../data/yomitanZip";
+import { ShareDialog } from "@/features/share/ui/ShareDialog";
 import { LocalDictionary } from "@/shared/db";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
@@ -23,15 +24,18 @@ interface Props {
   source: DictSource;
   onSourceChange: (source: DictSource) => void;
   onImported: () => void;
+  loggedIn: boolean;
+  onRequestLogin: () => void;
 }
 
-export function DictionaryImport({ pair, onPairChange, source, onSourceChange, onImported }: Props) {
+export function DictionaryImport({ pair, onPairChange, source, onSourceChange, onImported, loggedIn, onRequestLogin }: Props) {
   const [count, setCount] = useState(0);
   const [dicts, setDicts] = useState<LocalDictionary[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
+  const [sharing, setSharing] = useState<LocalDictionary | null>(null);
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label ?? source;
 
   const refresh = useCallback(() => {
@@ -176,6 +180,7 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
                     <span className="ld-title">{d.title}</span>
                     <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
                     <button className="link" onClick={() => onExport(d)} title="Tải file .zip Yomitan để lưu / chuyển máy">Tải ZIP</button>
+                    <button className="link" onClick={() => { setSharing(d); setOpen(false); }} title="Tạo link chia sẻ tạm (5 phút)">Chia sẻ</button>
                     <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
                   </li>
                 ))}
@@ -183,6 +188,18 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
             )}
           </div>
         </>
+      )}
+
+      {sharing && (
+        <ShareDialog
+          loggedIn={loggedIn}
+          dict={{ id: sharing.id, title: sharing.title }}
+          onRequestLogin={() => {
+            setSharing(null);
+            onRequestLogin();
+          }}
+          onClose={() => setSharing(null)}
+        />
       )}
     </div>
   );
