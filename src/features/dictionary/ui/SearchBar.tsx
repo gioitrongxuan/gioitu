@@ -12,6 +12,7 @@ import { glossToText } from "@/shared/structured-content";
 import { LangPair } from "@/shared/languages";
 import { HandwritingPad } from "./HandwritingPad";
 import { RadicalPicker } from "./RadicalPicker";
+import { InstantActions } from "./InstantActions";
 
 /** Công cụ nhập đang mở dưới ô tìm; chỉ một cái mở tại một thời điểm. */
 type Tool = "none" | "draw" | "radicals";
@@ -174,8 +175,18 @@ export function SearchBar({ pair, source, onResult }: Props) {
         )}
       </form>
 
-      {tool === "draw" && <HandwritingPad onInsert={insert} />}
-      {tool === "radicals" && <RadicalPicker onInsert={insert} />}
+      {/* Khi một công cụ nhập đang mở, dropdown gợi ý dưới ô tìm bị tắt (tránh
+          đè lên panel công cụ). Thay vào đó, trên desktop lấp khoảng trống bên
+          phải panel công cụ bằng "Instant Action" — danh sách từ khớp nội dung ô
+          tìm (kể cả ký tự vừa chèn qua viết tay / bộ thủ), bấm là tra ngay.
+          .search-tool-row xếp ngang; .instant-actions ẩn trên mobile (không chỗ). */}
+      {tool !== "none" && (
+        <div className="search-tool-row">
+          {tool === "draw" && <HandwritingPad onInsert={insert} />}
+          {tool === "radicals" && <RadicalPicker onInsert={insert} />}
+          <InstantActions query={query} pair={pair} source={source} onPick={confirm} />
+        </div>
+      )}
     </div>
   );
 }
