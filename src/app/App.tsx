@@ -23,6 +23,7 @@ import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
 import { YomitanSync } from "@/features/auth/ui/YomitanSync";
+import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, getSession } from "@/features/auth/data/auth";
 import { Toasts } from "@/shared/ui/Toasts";
@@ -38,7 +39,7 @@ import { HeaderMenu, MenuItem } from "./HeaderMenu";
  * a guest is migrated to the new account so nothing is lost.
  */
 export default function App() {
-  const { session, loginWithGoogle, devLogin, logout } = useAuth();
+  const { session, loginWithGoogle, devLogin, logout, refresh } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
   // Sau khi đăng nhập (Google hoặc dev), gom dữ liệu học của phiên khách về tài khoản.
@@ -67,6 +68,8 @@ export default function App() {
         userId={userId}
         email={session?.email ?? null}
         isAdmin={session?.is_admin === true}
+        isPremium={session?.is_premium === true}
+        onPremiumActivated={refresh}
         onLogout={logout}
         onRequestLogin={() => setShowAuth(true)}
       />
@@ -82,11 +85,15 @@ interface MainAppProps {
   email: string | null;
   /** Only an admin may import/edit the shared server dictionary. */
   isAdmin: boolean;
+  /** Đã kích hoạt Premium (mở khoá đồng bộ từ điển cá nhân). */
+  isPremium: boolean;
+  /** Đọc lại phiên sau khi kích hoạt Premium để UI cập nhật ngay. */
+  onPremiumActivated: () => void;
   onLogout: () => void;
   onRequestLogin: () => void;
 }
 
-function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppProps) {
+function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
   // Which dictionary database look-ups hit. Persisted only once the user picks;
@@ -118,6 +125,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
   const [theming, setTheming] = useState(false);
   const [customDict, setCustomDict] = useState(false);
   const [connectingYomitan, setConnectingYomitan] = useState(false);
+  const [premium, setPremium] = useState(false);
   const [page, setPage] = useState<"home" | "learned">("home");
   const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
 
@@ -167,6 +175,7 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
     { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
+    { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true) },
     ...(email
       ? [
           { label: "Đồng bộ", run: store.runSync },
@@ -310,6 +319,20 @@ function MainApp({ userId, email, isAdmin, onLogout, onRequestLogin }: MainAppPr
             onRequestLogin();
           }}
           onClose={() => setConnectingYomitan(false)}
+        />
+      )}
+
+      {premium && (
+        <PremiumModal
+          loggedIn={email != null}
+          isAdmin={isAdmin}
+          isPremium={isPremium}
+          onActivated={onPremiumActivated}
+          onRequestLogin={() => {
+            setPremium(false);
+            onRequestLogin();
+          }}
+          onClose={() => setPremium(false)}
         />
       )}
 

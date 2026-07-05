@@ -434,6 +434,12 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .ld-title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ld-meta { color: var(--muted); font-size: 12px; }
 
+.premium-status { color: var(--ok); font-weight: 600; }
+.premium-code-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.premium-code-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.premium-code-list code { font-family: monospace; letter-spacing: 0.5px; }
+.premium-code-list code.used { text-decoration: line-through; color: var(--muted); }
+
 /* Yomitan-style definition view */
 /* minmax(0,…): mặc định track grid không co dưới min-content, nên một gloss /
    bảng dài trong kết quả fuzzy sẽ banh cột rộng hơn panel và chữ hết wrap. */
