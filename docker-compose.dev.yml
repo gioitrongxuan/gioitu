@@ -39,6 +39,8 @@ services:
       GIOITU_JWT_SECRET: ${GIOITU_JWT_SECRET:-dev-insecure-secret-change-me}
       # Bật đăng nhập dev (không cần Google) — CHỈ ở stack dev này, prod không đặt.
       GIOITU_DEV_LOGIN: "1"
+      # Khoá Deepseek (tuỳ chọn) để thử tính năng sinh từ vựng bằng AI ở stack dev.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       PORT: "8787"
     volumes:
       - .:/app
