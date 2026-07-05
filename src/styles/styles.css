@@ -174,6 +174,43 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .hw-candidate:hover:not(:disabled), .hw-clear:hover { border-color: var(--accent); }
 .hw-candidate:disabled { color: var(--disabled); cursor: default; }
 
+/* Hàng chứa panel công cụ (viết tay / bộ thủ) + "Instant Action" bên cạnh.
+   Desktop: xếp ngang — panel công cụ giữ kích thước vốn có (width: min(100%,
+   26em) với viết tay), Instant Action chiếm khoảng trống bên phải. Mobile:
+   xếp dọc, Instant Action ẩn (không còn chỗ trống bên cạnh panel hẹp). */
+.search-tool-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.search-tool-row > :first-child { flex: 0 1 auto; min-width: 0; }
+
+/* Instant Action — danh sách từ gợi ý khớp nội dung ô tìm, bấm là tra ngay.
+   Chỉ hiện trên desktop (>= 760px); trên mobile dropdown suggestions dưới ô
+   tìm vẫn là nơi duy nhất hiện gợi ý khi công cụ đang đóng. */
+.instant-actions {
+  flex: 1 1 16em; min-width: 0; max-height: 360px; overflow-y: auto;
+  padding: 10px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.instant-actions-title { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.instant-actions-empty { margin: 0; padding: 10px 2px; color: var(--disabled); font-size: 13px; }
+.instant-actions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.instant-actions-list li button {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 8px;
+  width: 100%; text-align: left; background: none; border: none;
+  padding: 7px 8px; border-radius: 8px; cursor: pointer; font: inherit;
+}
+.instant-actions-list li button:hover { background: var(--surface-2); }
+.ia-term { grid-column: 1; font-weight: 600; }
+.ia-reading { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 12px; }
+.ia-def {
+  grid-column: 2; grid-row: 1 / span 2; color: var(--muted); font-size: 13px;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+@media (max-width: 759px) {
+  .search-tool-row { flex-direction: column; }
+  .instant-actions { display: none; }
+}
+
+
 /* Bảng chọn bộ thủ: hàng kết quả kanji ở trên, lưới bộ nhóm theo số nét ở dưới. */
 .radical-picker {
   margin-top: 8px; padding: 10px; border: 1px solid var(--line);
