@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildYomitanFiles,
   entryToRows,
+  extractExtras,
 } from "@/features/dictionary/domain/yomitanExport";
 import { DictEntry, LocalDictionary } from "@/shared/db";
 import { createLocalDictionary, upsertCustomEntries } from "@/features/dictionary/data/customDict";
@@ -66,6 +67,24 @@ describe("yomitanExport (thuần)", () => {
     expect(entryToRows(entry, 1)).toHaveLength(1);
   });
 
+  it("nhúng ví dụ + info vào glossary rồi tách lại được (encode/decode)", () => {
+    const entry: DictEntry = {
+      term: "行く",
+      reading: "いく",
+      definitions: [],
+      senses: [{ tags: ["v5k"], glossary: ["đi"], examples: [{ ja: "学校に行く", vi: "đi học" }], info: ["ghi chú"] }],
+      term_lang: "ja",
+      native_lang: "vi",
+    };
+    const [row] = entryToRows(entry, 1);
+    const glossary = row[5];
+    expect(glossary).toHaveLength(3); // "đi" + node ví dụ + node info
+    const extracted = extractExtras(glossary);
+    expect(extracted.glossary).toEqual(["đi"]);
+    expect(extracted.examples).toEqual([{ ja: "学校に行く", vi: "đi học" }]);
+    expect(extracted.info).toEqual(["ghi chú"]);
+  });
+
   it("buildYomitanFiles: metadata index + sequence chạy từ 1 theo từng entry", () => {
     const entries: DictEntry[] = [
       { term: "a", definitions: ["x"], senses: [{ tags: [], glossary: ["x"] }], term_lang: "ja", native_lang: "vi" },
@@ -81,10 +100,18 @@ describe("yomitanExport (thuần)", () => {
 });
 
 describe("exportDictAsZip → importYomitanZip (round-trip qua IndexedDB)", () => {
-  it("xuất một từ điển cá nhân rồi nhập lại giữ nguyên term/reading/tag/nghĩa", async () => {
+  it("xuất rồi nhập lại giữ đủ term/reading/tag/nghĩa + ví dụ + giải thích + liên quan", async () => {
     const id = await createLocalDictionary({ title: "Xuất RT", term_lang: "ja", native_lang: "vi" });
     await upsertCustomEntries(id, "Xuất RT", JA_VI, [
-      draft({ term: "空", reading: "そら", pos: "n", gloss: "bầu trời; không gian" }),
+      draft({
+        term: "空",
+        reading: "そら",
+        pos: "n",
+        gloss: "bầu trời; không gian",
+        example: "空を見る :: ngắm trời",
+        note: "thơ ca hay dùng",
+        related: "宇宙",
+      }),
     ]);
 
     const { blob, filename } = await exportDictAsZip(id);
@@ -96,7 +123,10 @@ describe("exportDictAsZip → importYomitanZip (round-trip qua IndexedDB)", () =
 
     const sora = await lookupTerm("空", "ja", "vi");
     expect(sora?.reading).toBe("そら");
+    // Nghĩa vẫn sạch (không lẫn ví dụ/ghi chú), còn ví dụ + info được khôi phục đúng trường.
     expect(sora?.definitions).toEqual(["bầu trời", "không gian"]);
     expect(sora?.senses?.[0].tags).toEqual(["n"]);
+    expect(sora?.senses?.[0].examples).toEqual([{ ja: "空を見る", vi: "ngắm trời" }]);
+    expect(sora?.senses?.[0].info).toEqual(["thơ ca hay dùng", "Liên quan/dễ nhầm: 宇宙"]);
   });
 });
