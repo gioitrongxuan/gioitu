@@ -74,6 +74,7 @@ export function ReviewSession({ queue, onGrade, onClose }: Props) {
                 pos={card.pos}
                 meaning={card.meaning}
                 example={card.example}
+                analysis={card.sentence_analysis}
               />
             </div>
           )}
