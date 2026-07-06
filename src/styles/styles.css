@@ -614,9 +614,15 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 
 /* Review session */
 .review-overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 50; }
-.review-card { background: var(--surface); border-radius: 16px; padding: 24px; width: min(520px, 92vw); }
+/* Form cố định theo viewport: cột flex với cao tối đa 90dvh. Header (tiến độ) và
+   footer (nút chấm / kết thúc) luôn nằm trong khung nhìn; phần thẻ (flashcard) là
+   vùng cuộn duy nhất khi nội dung dài — không bị tràn khỏi màn hình. */
+.review-card { background: var(--surface); border-radius: 16px; padding: 24px; width: min(520px, 92vw); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; }
 .review-progress { color: var(--muted); font-size: 13px; display: flex; gap: 10px; align-items: center; }
-.flashcard { border: 1px solid var(--line); border-radius: 12px; padding: 28px; margin: 14px 0; min-height: 160px; cursor: pointer; }
+/* flex: 1 để chiếm phần còn lại của cột; min-height: 160px là sàn thị giác (cho
+   mặt trước chỉ có term) VÀ là giá trị tường minh thay cho min-height:auto mặc
+   định — nhờ đó flex-item co dưới kích thước nội dung được, overflow-y chạy. */
+.flashcard { border: 1px solid var(--line); border-radius: 12px; padding: 28px; margin: 14px 0; min-height: 160px; cursor: pointer; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
 .flashcard .front { font-size: 26px; font-weight: 600; text-align: center; }
 .flashcard .back { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 16px; }
 .flashcard .hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 16px; }
