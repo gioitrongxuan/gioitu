@@ -83,31 +83,39 @@ export function DetailPanel({
     };
   }, [isSheet]);
 
-  // Desktop: panel là `position: sticky; top: 16px` và cuộn nội bộ (overflow:
-  // auto). Trình duyệt mặc định để phần tử cuộn được dưới con trỏ "nuốt" sự kiện
-  // wheel, nên khi trỏ vào panel thì cả trang (word cloud) không cuộn được — khó
-  // thao tác khi panel còn nằm dưới đường sticky. Chuyển cuộn cho cả trang cho tới
-  // khi panel dính lên mép trên; sau đó để cuộn nội bộ (overscroll sẽ chuyền tiếp
-  // sang trang nhờ `overscroll-behavior: auto` trong CSS desktop).
+  // Desktop: panel là `position: sticky; top: 16px`. Yêu cầu: cuộn cả trang
+  // trước, khi panel dính lên mép trên mới cuộn nội bộ. Trước đây ta chặn sự kiện
+  // wheel rồi tự `window.scrollBy` — nhưng chặn wheel rồi cuộn thủ công lệch pha
+  // với cuộn native, đặc biệt momentum trackpad macOS, gây giật. Cách này không
+  // chặn wheel: panel KHÔNG phải scroll container khi chưa dính (CSS overflow:
+  // visible) nên wheel native cuộn trang mượt; khi panel dính (top ≤ 16px) ta bật
+  // class `stuck` → CSS giới hạn chiều cao + overflow: auto → cuộn nội bộ, overscroll
+  // chuyền tiếp ra trang. Theo dõi trạng thái dính bằng scroll/resize passive + rAF.
   useEffect(() => {
     if (isSheet) return; // chỉ cho panel desktop (sticky), không áp dụng cho sheet mobile
     const panel = panelRef.current;
     if (!panel) return;
     // Khớp `top: 16px` trong styles.css (.detail-panel ở breakpoint desktop).
     const STICKY_TOP = 16;
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY === 0) return; // chỉ xử lý cuộn dọc
-      // Panel đã dính lên mép trên (top ≤ 16px) → để cuộn nội bộ như mặc định.
-      if (panel.getBoundingClientRect().top <= STICKY_TOP + 1) return;
-      // Chưa dính: chuyển cuộn cho cả trang để kéo panel lên vị trí sticky.
-      e.preventDefault();
-      let amount = e.deltaY;
-      if (e.deltaMode === 1) amount *= 16; // DOM_DELTA_LINE ≈ 16px/dòng
-      else if (e.deltaMode === 2) amount *= window.innerHeight; // DOM_DELTA_PAGE
-      window.scrollBy(0, amount);
+    let raf = 0;
+    const sync = () => {
+      raf = 0;
+      panel.classList.toggle("stuck", panel.getBoundingClientRect().top <= STICKY_TOP + 0.5);
     };
-    panel.addEventListener("wheel", onWheel, { passive: false });
-    return () => panel.removeEventListener("wheel", onWheel);
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(sync); };
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    // Nội dung panel đổi (đổi từ tra) cũng đổi chiều cao → cần cập nhật lại trạng
+    // thái dính, ví dụ khi panel vừa ngắn đi thì có thể hết dính.
+    const ro = new ResizeObserver(schedule);
+    ro.observe(panel);
+    sync();
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [isSheet]);
 
   // Nghĩa cá nhân đã lưu và định nghĩa từ điển không còn loại trừ nhau: bấm một
