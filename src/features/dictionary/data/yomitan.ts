@@ -22,6 +22,7 @@ import {
   frequencyRanks,
   ipaPronunciations,
 } from "@/shared/term-meta";
+import { extractExtras } from "../domain/yomitanExport";
 import { candidates, rulesMatchEntry } from "../domain/deinflect";
 import { fuzzyMatchDistance, fuzzyThreshold } from "../domain/fuzzy";
 import { TagBankEntry, TagInfo, buildTagBank, resolveTags } from "../domain/tags";
@@ -146,7 +147,9 @@ async function parseArchive(
       const definitionTags = splitTags(row[2]);
       const rules = row[3] || undefined;
       const score = typeof row[4] === "number" ? row[4] : 0;
-      const glossary = (row[5] ?? []) as GlossaryNode[];
+      // Tách ví dụ + info do gioitu nhúng (nếu có) ra khỏi phần nghĩa; từ điển
+      // Yomitan thường không có nhãn này nên glossary giữ nguyên.
+      const { glossary, examples, info } = extractExtras((row[5] ?? []) as GlossaryNode[]);
       const termTags = splitTags(row[7]);
 
       if (!term || glossaryToLines(glossary).length === 0) continue;
@@ -170,7 +173,13 @@ async function parseArchive(
         target = byTerm.get(term)?.[0];
       }
 
-      const sense: Sense = { tags: definitionTags, glossary, dictionary: title };
+      const sense: Sense = {
+        tags: definitionTags,
+        glossary,
+        dictionary: title,
+        ...(examples.length ? { examples } : {}),
+        ...(info.length ? { info } : {}),
+      };
       if (target) {
         target.senses!.push(sense);
         target.definitions.push(...glossary);
