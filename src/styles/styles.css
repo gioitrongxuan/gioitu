@@ -375,6 +375,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
     border-radius: 12px; box-shadow: none;
     max-height: calc(100vh - 32px);
     animation: none;
+    /* Desktop: panel nằm cạnh nội dung (không phải bottom sheet) — khi cuộn nội
+       bộ tới giới hạn, chuyền tiếp cho trang để tiếp tục xem word cloud. (Base
+       .detail-panel đặt `contain` cho sheet mobile; ở đây ghi đè thành auto.) */
+    overscroll-behavior: auto;
   }
   /* Desktop: panel nằm cạnh nội dung, không phủ — không cần lớp che. */
   .detail-backdrop { display: none; }
