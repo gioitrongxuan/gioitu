@@ -67,16 +67,15 @@ export function DictConfig({
         </label>
       </div>
 
-      {isExisting ? (
+      {isExisting && !selected!.custom ? (
         <p className="cd-existing-note muted">
-          Bổ sung vào “{selected!.title}”.
-          {selected!.description ? ` ${selected!.description}` : ""}
+          Bổ sung vào “{selected!.title}” (từ điển đã nhập).
           {selected!.topic ? ` · ${selected!.topic}` : ""}
         </p>
       ) : (
         <>
           <label className="form-field">
-            <span className="field-label">Tên từ điển mới</span>
+            <span className="field-label">{isExisting ? "Tên từ điển" : "Tên từ điển mới"}</span>
             <input value={title} onChange={(e) => onTitleChange(e.target.value)} placeholder="vd: Sổ tay của tôi" />
           </label>
           <div className="form-row">

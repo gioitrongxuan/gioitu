@@ -8,8 +8,14 @@ import { useCallback, useEffect, useState } from "react";
 import { LocalDictionary } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
 import { listLocalDictionaries } from "../../data/yomitan";
-import { createLocalDictionary, existingTermKeys, upsertCustomEntries } from "../../data/customDict";
-import { CustomDraft, dedupe, emptyDraft, isDraftFilled } from "../../domain/customEntry";
+import {
+  createLocalDictionary,
+  existingTermKeys,
+  upsertCustomEntries,
+  listCustomEntries,
+  saveCustomDict,
+} from "../../data/customDict";
+import { CustomDraft, dedupe, dictEntryToDraft, emptyDraft, isDraftFilled } from "../../domain/customEntry";
 import { DictConfig } from "./DictConfig";
 import { ManualGrid } from "./ManualGrid";
 import { AiPanel } from "./AiPanel";
@@ -40,12 +46,44 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
   const [rows, setRows] = useState<CustomDraft[]>([emptyDraft()]);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [conflict, setConflict] = useState<{ fresh: CustomDraft[]; duplicates: CustomDraft[] } | null>(null);
 
   const refreshDicts = useCallback(() => {
     listLocalDictionaries(pair.source, pair.target).then(setDicts).catch(() => undefined);
   }, [pair]);
   useEffect(refreshDicts, [refreshDicts]);
+
+  // Chọn một từ điển TỰ SOẠN → nạp toàn bộ từ của nó vào lưới để xem & sửa tại
+  // chỗ (chế độ sửa). Chọn "Tạo mới" hoặc từ điển ĐÃ NHẬP → lưới trống (chế độ
+  // thêm). `dicts` trong deps để sau khi lưu (refreshDicts) lưới đồng bộ lại.
+  useEffect(() => {
+    let alive = true;
+    const sel = dicts.find((d) => d.id === existingDictId);
+    if (sel?.custom) {
+      setLoading(true);
+      listCustomEntries(sel.id)
+        .then((entries) => {
+          if (!alive) return;
+          setRows([...entries.map(dictEntryToDraft), emptyDraft()]);
+          setTitle(sel.title);
+          setDescription(sel.description ?? "");
+          setTopic(sel.topic ?? "");
+          setLoading(false);
+        })
+        .catch(() => alive && setLoading(false));
+    } else {
+      setRows([emptyDraft()]);
+      if (!existingDictId) {
+        setTitle("");
+        setDescription("");
+        setTopic("");
+      }
+    }
+    return () => {
+      alive = false;
+    };
+  }, [existingDictId, dicts]);
 
   const changePair = (p: LangPair) => {
     setPair(p);
@@ -62,11 +100,36 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
 
   // Metadata đưa vào prompt AI: lấy từ dict đang chọn, hoặc các ô "tạo mới".
   const selectedDict = dicts.find((d) => d.id === existingDictId);
+  // Từ điển tự soạn đang chọn → chế độ XEM & SỬA (lưới đã nạp từ của nó); ngược
+  // lại (tạo mới / từ điển đã nhập) → chế độ THÊM như cũ.
+  const editMode = selectedDict?.custom === true;
   const promptTitle = selectedDict ? selectedDict.title : title;
   const promptDescription = selectedDict ? selectedDict.description ?? "" : description;
   const promptTopic = selectedDict ? selectedDict.topic ?? "" : topic;
 
+  // Chế độ sửa: lưu "khớp đúng" (thêm/sửa/xoá từng từ + metadata) — không qua
+  // dedupe/conflict vì lưới CHÍNH là toàn bộ nội dung từ điển.
+  async function saveEdit() {
+    if (!title.trim()) {
+      setStatus("Tên từ điển không được để trống.");
+      return;
+    }
+    setSaving(true);
+    setStatus("");
+    try {
+      const n = await saveCustomDict(existingDictId, pair, { title, description, topic }, rows);
+      setStatus(`Đã lưu · ${n} từ.`);
+      refreshDicts();
+      onSaved?.();
+    } catch (err) {
+      setStatus((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function onSaveClick() {
+    if (editMode) return saveEdit();
     setStatus("");
     if (!existingDictId && !title.trim()) {
       setStatus("Hãy đặt tên cho từ điển mới.");
@@ -155,9 +218,15 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
           {tab === "manual" ? (
             <>
               <p className="cd-help muted">
-                Tab để sang ô kế, Enter để tạo hàng mới. Nghĩa nhiều nét ngăn bằng “;”. Ví dụ dạng “câu :: bản dịch”.
+                {editMode
+                  ? "Sửa trực tiếp trong lưới; xoá từ bằng nút × cuối hàng; Enter để thêm hàng."
+                  : "Tab để sang ô kế, Enter để tạo hàng mới. Nghĩa nhiều nét ngăn bằng “;”. Ví dụ dạng “câu :: bản dịch”."}
               </p>
-              <ManualGrid rows={rows} onChange={setRows} isJa={pair.source === "ja"} />
+              {loading ? (
+                <p className="muted">Đang tải…</p>
+              ) : (
+                <ManualGrid rows={rows} onChange={setRows} isJa={pair.source === "ja"} />
+              )}
             </>
           ) : (
             <AiPanel
@@ -175,9 +244,13 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
         </div>
 
         <footer className="cd-footer">
-          <span className="muted">{filledCount} từ sẵn sàng lưu</span>
-          <button className="primary" disabled={saving || filledCount === 0} onClick={onSaveClick}>
-            {saving ? "Đang lưu…" : "Lưu vào từ điển"}
+          <span className="muted">{editMode ? `${filledCount} từ` : `${filledCount} từ sẵn sàng lưu`}</span>
+          <button
+            className="primary"
+            disabled={saving || loading || (!editMode && filledCount === 0)}
+            onClick={onSaveClick}
+          >
+            {saving ? "Đang lưu…" : editMode ? "Lưu thay đổi" : "Lưu vào từ điển"}
           </button>
         </footer>
 
