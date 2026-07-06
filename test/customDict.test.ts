@@ -4,6 +4,8 @@ import {
   createLocalDictionary,
   existingTermKeys,
   upsertCustomEntries,
+  listCustomEntries,
+  saveCustomDict,
 } from "@/features/dictionary/data/customDict";
 import { lookupTerm, listLocalDictionaries } from "@/features/dictionary/data/yomitan";
 import { emptyDraft, termReadingKey, type CustomDraft } from "@/features/dictionary/domain/customEntry";
@@ -63,5 +65,29 @@ describe("custom dictionary (IndexedDB)", () => {
 
     const after = (await listLocalDictionaries("ja", "vi")).find((d) => d.id === id)!.termCount;
     expect(after).toBe(before); // vẫn 1 mục cho 水/みず
+  });
+});
+
+describe("saveCustomDict (xem/sửa)", () => {
+  it("listCustomEntries + lưu khớp đúng lưới: sửa nghĩa, xoá từ, đổi tên", async () => {
+    const id = await createLocalDictionary({ title: "Sửa", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Sửa", JA_VI, [
+      draft({ term: "星", reading: "ほし", gloss: "sao" }),
+      draft({ term: "月", reading: "つき", gloss: "trăng" }),
+    ]);
+    expect(await listCustomEntries(id)).toHaveLength(2);
+
+    // Lưới chỉ còn 星 (đã sửa nghĩa); 月 bị bỏ → phải xoá. Đổi tên từ điển.
+    const n = await saveCustomDict(id, JA_VI, { title: "Tên mới" }, [
+      draft({ term: "星", reading: "ほし", gloss: "ngôi sao" }),
+    ]);
+    expect(n).toBe(1);
+
+    expect((await lookupTerm("星", "ja", "vi"))?.definitions).toContain("ngôi sao");
+    expect(await lookupTerm("月", "ja", "vi")).toBeUndefined(); // đã xoá thật
+
+    const mine = (await listLocalDictionaries("ja", "vi")).find((d) => d.id === id)!;
+    expect(mine.title).toBe("Tên mới");
+    expect(mine.termCount).toBe(1);
   });
 });

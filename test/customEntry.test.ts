@@ -3,6 +3,7 @@ import {
   buildDictEntry,
   buildAiPrompt,
   dedupe,
+  dictEntryToDraft,
   emptyDraft,
   parseAiResponse,
   termReadingKey,
@@ -237,5 +238,27 @@ describe("parseAiResponse", () => {
     );
     expect(rows[0].note).toBe("vật nuôi");
     expect(rows[0].related).toBe("犬; 虎");
+  });
+});
+
+describe("dictEntryToDraft", () => {
+  it("đảo buildDictEntry — round-trip đủ trường", () => {
+    const original = draft({
+      term: "食べる",
+      reading: "たべる",
+      pos: "v1, vt",
+      gloss: "ăn; xơi",
+      example: "ご飯を食べる :: ăn cơm",
+      note: "lịch sự dùng 召し上がる",
+      related: "飲む",
+    });
+    const back = dictEntryToDraft(buildDictEntry(original, JA_VI, "Test"));
+    expect(back.term).toBe("食べる");
+    expect(back.reading).toBe("たべる");
+    expect(back.pos).toBe("v1, vt");
+    expect(back.gloss).toBe("ăn; xơi");
+    expect(back.example).toBe("ご飯を食べる :: ăn cơm");
+    expect(back.note).toBe("lịch sự dùng 召し上がる");
+    expect(back.related).toBe("飲む");
   });
 });
