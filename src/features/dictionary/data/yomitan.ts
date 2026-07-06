@@ -320,9 +320,10 @@ export async function listLocalDictionaries(
 }
 
 /**
- * Xoá một từ điển local cùng toàn bộ term/meta của nó. Từ điển đã nhập: xoá hẳn
- * (re-import được). Từ điển cá nhân: giữ registry làm tombstone (deletedAt) để
- * việc xoá lan truyền qua đồng bộ thay vì bị máy khác hồi sinh (#70).
+ * Xoá một từ điển local cùng toàn bộ term/meta của nó. Giữ registry làm tombstone
+ * (deletedAt) thay vì xoá hẳn, để việc xoá lan truyền qua đồng bộ — nay cả bản
+ * nhập nhỏ cũng đồng bộ, nên tombstone cho mọi loại để máy khác không hồi sinh
+ * (#70). Re-import tạo id mới nên tombstone cũ không gây vướng.
  */
 export async function deleteLocalDictionary(id: string): Promise<void> {
   const db = await getDb();
@@ -337,11 +338,9 @@ export async function deleteLocalDictionary(id: string): Promise<void> {
       cursor = await cursor.continue();
     }
   }
-  if (dict?.custom) {
+  if (dict) {
     const now = Date.now();
     await dictStore.put({ ...dict, termCount: 0, metaCount: 0, deletedAt: now, updatedAt: now });
-  } else {
-    await dictStore.delete(id);
   }
   await tx.done;
 }

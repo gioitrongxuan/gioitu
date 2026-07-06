@@ -124,12 +124,15 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     if (email && isPremium) {
       const r = await syncCustomDicts();
       setSyncTick((t) => t + 1);
-      store.pushToast(
-        r.ok ? `Đã đồng bộ · ${r.count} từ điển cá nhân` : "Đã đồng bộ dữ liệu học · chưa kết nối được từ điển",
-        r.ok ? "success" : "warn",
-      );
+      if (!r.ok) {
+        store.pushToast("Đã đồng bộ dữ liệu học · chưa kết nối được từ điển", "warn");
+      } else if (!r.pushed) {
+        store.pushToast(`Đã nhận ${r.count} từ điển · chưa đẩy lên được (có thể vượt hạn mức)`, "warn");
+      } else {
+        store.pushToast(`Đã đồng bộ · ${r.count} từ điển`, "success");
+      }
     } else if (email) {
-      store.pushToast("Đã đồng bộ dữ liệu học. Cần Premium để đồng bộ từ điển cá nhân.", "info");
+      store.pushToast("Đã đồng bộ dữ liệu học. Cần Premium để đồng bộ từ điển.", "info");
     } else {
       store.pushToast("Đã đồng bộ", "success");
     }
