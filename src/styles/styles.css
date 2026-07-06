@@ -288,7 +288,9 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 /* Content layout */
 .content { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 760px) {
-  .content:has(.detail-panel) { grid-template-columns: 1fr 320px; }
+  /* align-items: start để cloud không bị kéo căng theo chiều cao panel khi panel
+     nội dung dài; mỗi cột giữ chiều cao theo nội dung riêng. */
+  .content:has(.detail-panel) { grid-template-columns: 1fr 320px; align-items: start; }
 }
 
 /* Word cloud — nằm trong một thẻ surface để nổi khối trên nền xám nhẹ. */
@@ -373,11 +375,20 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
     position: sticky; top: 16px; bottom: auto; left: auto; right: auto;
     z-index: auto; align-self: start;
     border-radius: 12px; box-shadow: none;
-    max-height: calc(100vh - 32px);
     animation: none;
-    /* Desktop: panel nằm cạnh nội dung (không phải bottom sheet) — khi cuộn nội
-       bộ tới giới hạn, chuyền tiếp cho trang để tiếp tục xem word cloud. (Base
-       .detail-panel đặt `contain` cho sheet mobile; ở đây ghi đè thành auto.) */
+    /* Chưa dính: KHÔNG giới hạn chiều cao, KHÔNG cuộn nội bộ (overflow visible
+       ghi đè `overflow: auto` của base sheet mobile). Vì không phải scroll container,
+       wheel native cuộn cả trang mượt — không bị panel "nuốt" sự kiện. Khi dính,
+       class `.stuck` (do DetailPanel toggle) mới bật max-height + overflow: auto. */
+    max-height: none;
+    overflow: visible;
+  }
+  /* Panel đã dính lên mép trên: giới hạn chiều cao theo viewport và bật cuộn nội
+     bộ. overscroll chuyền tiếp ra trang để khi cuộn hết định nghĩa thì tiếp tục
+     xem word cloud (ghi đè `contain` của base sheet mobile). */
+  .detail-panel.stuck {
+    max-height: calc(100vh - 32px);
+    overflow: auto;
     overscroll-behavior: auto;
   }
   /* Desktop: panel nằm cạnh nội dung, không phủ — không cần lớp che. */
