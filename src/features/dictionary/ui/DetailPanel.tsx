@@ -4,7 +4,7 @@
 // structured-content glossary grouped by sense. Falls back to a Custom
 // Definition editor when nothing is found, and surfaces the SRS stats.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { setTermVerified } from "../data/dictAdmin";
@@ -73,6 +73,7 @@ export function DetailPanel({
   // Mobile: panel là bottom sheet phủ lên cloud — khoá cuộn body để kéo trong
   // sheet không cuộn luôn nội dung phía sau (desktop panel nằm cạnh, không khoá).
   const isSheet = useMediaQuery(MOBILE_MEDIA_QUERY);
+  const panelRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!isSheet) return;
     const previous = document.body.style.overflow;
@@ -80,6 +81,33 @@ export function DetailPanel({
     return () => {
       document.body.style.overflow = previous;
     };
+  }, [isSheet]);
+
+  // Desktop: panel là `position: sticky; top: 16px` và cuộn nội bộ (overflow:
+  // auto). Trình duyệt mặc định để phần tử cuộn được dưới con trỏ "nuốt" sự kiện
+  // wheel, nên khi trỏ vào panel thì cả trang (word cloud) không cuộn được — khó
+  // thao tác khi panel còn nằm dưới đường sticky. Chuyển cuộn cho cả trang cho tới
+  // khi panel dính lên mép trên; sau đó để cuộn nội bộ (overscroll sẽ chuyền tiếp
+  // sang trang nhờ `overscroll-behavior: auto` trong CSS desktop).
+  useEffect(() => {
+    if (isSheet) return; // chỉ cho panel desktop (sticky), không áp dụng cho sheet mobile
+    const panel = panelRef.current;
+    if (!panel) return;
+    // Khớp `top: 16px` trong styles.css (.detail-panel ở breakpoint desktop).
+    const STICKY_TOP = 16;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return; // chỉ xử lý cuộn dọc
+      // Panel đã dính lên mép trên (top ≤ 16px) → để cuộn nội bộ như mặc định.
+      if (panel.getBoundingClientRect().top <= STICKY_TOP + 1) return;
+      // Chưa dính: chuyển cuộn cho cả trang để kéo panel lên vị trí sticky.
+      e.preventDefault();
+      let amount = e.deltaY;
+      if (e.deltaMode === 1) amount *= 16; // DOM_DELTA_LINE ≈ 16px/dòng
+      else if (e.deltaMode === 2) amount *= window.innerHeight; // DOM_DELTA_PAGE
+      window.scrollBy(0, amount);
+    };
+    panel.addEventListener("wheel", onWheel, { passive: false });
+    return () => panel.removeEventListener("wheel", onWheel);
   }, [isSheet]);
 
   // Nghĩa cá nhân đã lưu và định nghĩa từ điển không còn loại trừ nhau: bấm một
@@ -93,7 +121,7 @@ export function DetailPanel({
       {/* Lớp che sau sheet (chỉ hiện trên mobile — desktop ẩn qua CSS): chặn
           chạm xuyên xuống cloud/filter, chạm vào thì đóng panel. */}
       <div className="detail-backdrop" aria-hidden="true" onClick={onClose} />
-      <aside className="detail-panel" aria-label="Chi tiết từ">
+      <aside ref={panelRef} className="detail-panel" aria-label="Chi tiết từ">
         <header>
           <h2>
             {/* Hiện furigana khi từ trên tiêu đề đúng là từ của entry (bấm thẻ,
