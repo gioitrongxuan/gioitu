@@ -26,9 +26,11 @@ interface Props {
   onImported: () => void;
   loggedIn: boolean;
   onRequestLogin: () => void;
+  /** Đổi giá trị này để buộc đọc lại danh sách (vd sau khi đồng bộ kéo dict mới về). */
+  reloadToken?: number;
 }
 
-export function DictionaryImport({ pair, onPairChange, source, onSourceChange, onImported, loggedIn, onRequestLogin }: Props) {
+export function DictionaryImport({ pair, onPairChange, source, onSourceChange, onImported, loggedIn, onRequestLogin, reloadToken }: Props) {
   const [count, setCount] = useState(0);
   const [dicts, setDicts] = useState<LocalDictionary[]>([]);
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,8 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
     listLocalDictionaries().then(setDicts).catch(() => undefined);
   }, [pair]);
 
-  useEffect(refresh, [refresh]);
+  // Đọc lại khi đổi cặp ngôn ngữ (refresh) hoặc khi reloadToken đổi (sau sync).
+  useEffect(refresh, [refresh, reloadToken]);
 
   async function run(
     label: string,

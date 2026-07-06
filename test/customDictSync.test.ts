@@ -1,11 +1,19 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   mergeDictsByUpdatedAt,
   localCustomDicts,
   writeMergedDicts,
+  syncCustomDicts,
 } from "@/features/dictionary/data/customDictSync";
-import { SyncedDict } from "@/features/dictionary/data/dictSyncApi";
+import { SyncedDict, pullCustomDicts } from "@/features/dictionary/data/dictSyncApi";
+
+// Mock lớp mạng: các test khác không đụng pull/push, chỉ nhóm syncCustomDicts dùng.
+vi.mock("@/features/dictionary/data/dictSyncApi", () => ({
+  pullCustomDicts: vi.fn(),
+  pushCustomDicts: vi.fn(async () => null),
+}));
+const mockPull = pullCustomDicts as unknown as ReturnType<typeof vi.fn>;
 import { getDb, LocalDictionary } from "@/shared/db";
 import { createLocalDictionary, upsertCustomEntries } from "@/features/dictionary/data/customDict";
 import { listLocalDictionaries } from "@/features/dictionary/data/yomitan";
@@ -80,5 +88,21 @@ describe("localCustomDicts + writeMergedDicts (IndexedDB)", () => {
     await writeMergedDicts([{ registry: { ...mine.registry, updatedAt: newer + 1000, deletedAt: newer + 1000 }, terms: [] }]);
     expect(await db.getAllFromIndex("terms", "by_dict", id)).toHaveLength(0);
     expect((await listLocalDictionaries("ja", "vi")).find((d) => d.id === id)).toBeUndefined();
+  });
+});
+
+describe("syncCustomDicts (kết quả để phản hồi)", () => {
+  it("offline (pull null) → ok:false, không ném lỗi", async () => {
+    mockPull.mockResolvedValueOnce(null);
+    expect(await syncCustomDicts()).toEqual({ ok: false, count: 0 });
+  });
+
+  it("pull được → ok:true, đếm số từ điển không tính tombstone", async () => {
+    const id = await createLocalDictionary({ title: "Đếm", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Đếm", JA_VI, [draft({ term: "山", reading: "やま", gloss: "núi" })]);
+    mockPull.mockResolvedValueOnce([]);
+    const r = await syncCustomDicts();
+    expect(r.ok).toBe(true);
+    expect(r.count).toBeGreaterThanOrEqual(1); // "Đếm" còn sống (tombstone không tính)
   });
 });
