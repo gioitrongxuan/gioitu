@@ -4,10 +4,15 @@
 // thấy ngay mà KHÔNG cần đổi schema. Logic dựng entry/khử trùng là hàm thuần ở
 // domain/customEntry; ở đây chỉ có phần chạm IndexedDB.
 
-import { getDb, LocalDictionary } from "@/shared/db";
+import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
-import { CustomDraft, buildDictEntry, termReadingKey } from "../domain/customEntry";
+import { CustomDraft, buildDictEntry, isDraftFilled, termReadingKey } from "../domain/customEntry";
 import { uuid } from "./yomitan";
+
+/** Khoá store `terms` của một entry — để so khớp khi thay thế nội dung dict. */
+function termKey(e: { term_lang: string; native_lang: string; term: string; reading?: string }): string {
+  return JSON.stringify([e.term_lang, e.native_lang, e.term, e.reading ?? ""]);
+}
 
 /** Tạo một từ điển cá nhân rỗng trong registry và trả về id của nó. */
 export async function createLocalDictionary(input: {
@@ -80,4 +85,57 @@ export async function upsertCustomEntries(
   await tx.done;
 
   return drafts.length;
+}
+
+/** Mọi từ thuộc một từ điển (theo chỉ mục `by_dict`) — để mở màn xem/sửa. */
+export async function listCustomEntries(dictId: string): Promise<DictEntry[]> {
+  const db = await getDb();
+  return db.getAllFromIndex("terms", "by_dict", dictId);
+}
+
+/**
+ * Lưu toàn bộ một từ điển cá nhân sau khi sửa: nội dung của nó khớp ĐÚNG với
+ * `drafts` (thêm/sửa/xoá từng từ, kể cả đổi khoá term/reading) và cập nhật
+ * metadata. Xoá đúng các từ của dict này không còn trong `drafts`; ghi lại phần
+ * còn lại; tính lại `termCount` và `updatedAt` (để đồng bộ nhận thay đổi).
+ */
+export async function saveCustomDict(
+  dictId: string,
+  pair: LangPair,
+  meta: { title: string; description?: string; topic?: string },
+  drafts: CustomDraft[],
+): Promise<number> {
+  const title = meta.title.trim() || "Từ điển cá nhân";
+  const desired = drafts
+    .filter(isDraftFilled)
+    .map((d) => ({ ...buildDictEntry(d, pair, title), dictId }));
+  const desiredKeys = new Set(desired.map(termKey));
+
+  const db = await getDb();
+  const tx = db.transaction(["terms", "dictionaries"], "readwrite");
+  const terms = tx.objectStore("terms");
+
+  // Xoá các từ của chính dict này không còn trong bản sửa (kể cả từ bị đổi khoá).
+  let cursor = await terms.index("by_dict").openCursor(IDBKeyRange.only(dictId));
+  while (cursor) {
+    if (!desiredKeys.has(termKey(cursor.value))) await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  for (const entry of desired) await terms.put(entry);
+
+  const count = await terms.index("by_dict").count(IDBKeyRange.only(dictId));
+  const dictStore = tx.objectStore("dictionaries");
+  const dict = await dictStore.get(dictId);
+  if (dict) {
+    await dictStore.put({
+      ...dict,
+      title,
+      termCount: count,
+      updatedAt: Date.now(),
+      description: meta.description?.trim() || undefined,
+      topic: meta.topic?.trim() || undefined,
+    });
+  }
+  await tx.done;
+  return count;
 }

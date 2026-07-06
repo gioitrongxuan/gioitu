@@ -14,6 +14,7 @@ import {
 } from "../data/yomitan";
 import { exportDictAsZip, triggerDownload } from "../data/yomitanZip";
 import { ShareDialog } from "@/features/share/ui/ShareDialog";
+import { EditCustomDict } from "./CustomDictionary/EditCustomDict";
 import { LocalDictionary } from "@/shared/db";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
@@ -38,6 +39,7 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState<LocalDictionary | null>(null);
+  const [editing, setEditing] = useState<LocalDictionary | null>(null);
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label ?? source;
 
   const refresh = useCallback(() => {
@@ -182,6 +184,9 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
                   <li key={d.id}>
                     <span className="ld-title">{d.title}</span>
                     <span className="ld-meta">{d.term_lang}→{d.native_lang} · {importSummary(d)}</span>
+                    {d.custom && (
+                      <button className="link" onClick={() => { setEditing(d); setOpen(false); }} title="Xem và sửa từ điển cá nhân">Sửa</button>
+                    )}
                     <button className="link" onClick={() => onExport(d)} title="Tải file .zip Yomitan để lưu / chuyển máy">Tải ZIP</button>
                     <button className="link" onClick={() => { setSharing(d); setOpen(false); }} title="Tạo link chia sẻ tạm (5 phút)">Chia sẻ</button>
                     <button className="link danger" onClick={() => onDelete(d)}>Xóa</button>
@@ -202,6 +207,17 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
             onRequestLogin();
           }}
           onClose={() => setSharing(null)}
+        />
+      )}
+
+      {editing && (
+        <EditCustomDict
+          dict={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            refresh();
+            onImported();
+          }}
         />
       )}
     </div>

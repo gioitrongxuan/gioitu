@@ -4,9 +4,11 @@
 // tay, lúc phân tích kết quả AI lẫn lúc lưu.
 
 import { DictEntry } from "@/shared/db";
-import { GlossaryNode, Sense } from "@/shared/structured-content";
+import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
 import { LangPair } from "@/shared/languages";
 import { resolveTags } from "./tags";
+
+const RELATED_PREFIX = "Liên quan/dễ nhầm: ";
 
 /**
  * Một dòng đang soạn trong lưới. Mỗi trường là văn bản một dòng để hợp với thao
@@ -80,7 +82,7 @@ export function buildDictEntry(draft: CustomDraft, pair: LangPair, dictTitle: st
   const related = draft.related.trim();
   const info: string[] = [];
   if (note) info.push(note);
-  if (related) info.push(`Liên quan/dễ nhầm: ${related}`);
+  if (related) info.push(`${RELATED_PREFIX}${related}`);
 
   const glossary: GlossaryNode[] = glossLines;
   const sense: Sense = {
@@ -103,6 +105,29 @@ export function buildDictEntry(draft: CustomDraft, pair: LangPair, dictTitle: st
     dictionary: dictTitle,
     term_lang: pair.source,
     native_lang: pair.target,
+  };
+}
+
+/**
+ * Đảo `buildDictEntry`: một `DictEntry` (từ điển cá nhân) → dòng nháp để mở lại
+ * trong lưới sửa. Lấy sense đầu; gộp glossary thành "nghĩa 1; nghĩa 2"; tách ghi
+ * chú và dòng "Liên quan/dễ nhầm:" khỏi `info`. Round-trip với buildDictEntry.
+ */
+export function dictEntryToDraft(entry: DictEntry): CustomDraft {
+  const sense = entry.senses?.[0];
+  const glossLines = glossaryToLines(sense?.glossary ?? entry.definitions);
+  const info = sense?.info ?? [];
+  const relatedLine = info.find((line) => line.startsWith(RELATED_PREFIX));
+  const note = info.filter((line) => line !== relatedLine).join("\n");
+  const example = sense?.examples?.[0];
+  return {
+    term: entry.term,
+    reading: entry.reading ?? "",
+    pos: (sense?.tags ?? []).join(", "),
+    gloss: glossLines.join("; "),
+    example: example ? (example.vi ? `${example.ja} ${EXAMPLE_SEP} ${example.vi}` : example.ja) : "",
+    note,
+    related: relatedLine ? relatedLine.slice(RELATED_PREFIX.length) : "",
   };
 }
 
