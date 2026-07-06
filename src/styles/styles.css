@@ -775,6 +775,15 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .custom-grid input:focus { border-color: var(--accent); outline: none; }
 .custom-grid .row-x { padding: 0 4px; }
 
+/* Chế độ sửa: nhãn "Mới" + nền nhạt cho dòng vừa thêm trong phiên này. */
+.custom-grid .cd-status { width: 1%; white-space: nowrap; padding: 2px 4px; text-align: center; }
+.custom-grid .cd-new-badge {
+  display: inline-block; font-size: 10px; font-weight: 600; line-height: 1.4;
+  padding: 1px 6px; border-radius: 999px; color: var(--bg); background: var(--accent);
+  letter-spacing: 0.02em;
+}
+.custom-grid tr.is-new { background: color-mix(in oklab, var(--accent) 8%, var(--surface)); }
+
 .ai-panel { display: grid; gap: 10px; }
 .ai-checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .ai-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

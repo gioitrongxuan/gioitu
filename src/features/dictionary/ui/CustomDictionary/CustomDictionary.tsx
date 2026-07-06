@@ -17,7 +17,7 @@ import {
 } from "../../data/customDict";
 import { CustomDraft, dedupe, dictEntryToDraft, emptyDraft, isDraftFilled } from "../../domain/customEntry";
 import { DictConfig } from "./DictConfig";
-import { ManualGrid } from "./ManualGrid";
+import { GridRow, ManualGrid } from "./ManualGrid";
 import { AiPanel } from "./AiPanel";
 
 interface Props {
@@ -43,7 +43,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
   const [description, setDescription] = useState("");
   const [topic, setTopic] = useState("");
   const [tab, setTab] = useState<Tab>("manual");
-  const [rows, setRows] = useState<CustomDraft[]>([emptyDraft()]);
+  const [rows, setRows] = useState<GridRow[]>([{ ...emptyDraft(), isNew: true }]);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,10 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
       listCustomEntries(sel.id)
         .then((entries) => {
           if (!alive) return;
-          setRows([...entries.map(dictEntryToDraft), emptyDraft()]);
+          setRows([
+            ...entries.map((e) => ({ ...dictEntryToDraft(e), isNew: false })),
+            { ...emptyDraft(), isNew: true },
+          ]);
           setTitle(sel.title);
           setDescription(sel.description ?? "");
           setTopic(sel.topic ?? "");
@@ -73,7 +76,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
         })
         .catch(() => alive && setLoading(false));
     } else {
-      setRows([emptyDraft()]);
+      setRows([{ ...emptyDraft(), isNew: true }]);
       if (!existingDictId) {
         setTitle("");
         setDescription("");
@@ -92,7 +95,11 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
 
   // Kết quả AI/parse đổ vào cùng tập `rows`, rồi hiện lưới để rà soát.
   const addRows = (incoming: CustomDraft[]) => {
-    setRows((prev) => [...prev.filter((d) => !isBlankRow(d)), ...incoming, emptyDraft()]);
+    setRows((prev) => [
+      ...prev.filter((d) => !isBlankRow(d)),
+      ...incoming.map((d) => ({ ...d, isNew: true })),
+      { ...emptyDraft(), isNew: true },
+    ]);
     setTab("manual");
   };
 
@@ -172,7 +179,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
         dictTitle = dicts.find((d) => d.id === dictId)?.title ?? "Từ điển cá nhân";
       }
       const n = await upsertCustomEntries(dictId, dictTitle, pair, drafts);
-      setRows([emptyDraft()]);
+      setRows([{ ...emptyDraft(), isNew: true }]);
       setStatus(`Đã lưu ${n} từ vào “${dictTitle}”.`);
       refreshDicts();
       onSaved?.();
@@ -225,7 +232,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
               {loading ? (
                 <p className="muted">Đang tải…</p>
               ) : (
-                <ManualGrid rows={rows} onChange={setRows} isJa={pair.source === "ja"} />
+                <ManualGrid rows={rows} onChange={setRows} isJa={pair.source === "ja"} markNew={editMode} />
               )}
             </>
           ) : (
