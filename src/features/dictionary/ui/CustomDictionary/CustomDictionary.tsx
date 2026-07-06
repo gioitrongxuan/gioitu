@@ -93,13 +93,21 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
     setExistingDictId(""); // danh sách từ điển đổi theo cặp — bỏ lựa chọn cũ
   };
 
-  // Kết quả AI/parse đổ vào cùng tập `rows`, rồi hiện lưới để rà soát.
+  // Kết quả AI/parse đổ vào cùng tập `rows`, rồi hiện lưới để rà soát. Từ mới
+  // thêm lên ĐẦU lưới (trên từ đã có sẵn) để người dùng thấy ngay vừa thêm gì;
+  // ô trống cuối giữ nguyên để tiếp tục nhập. Phân vùng ổn định theo `isNew`:
+  // giữ thứ tự trong mỗi nhóm (mới trước, cũ sau).
   const addRows = (incoming: CustomDraft[]) => {
-    setRows((prev) => [
-      ...prev.filter((d) => !isBlankRow(d)),
-      ...incoming.map((d) => ({ ...d, isNew: true })),
-      { ...emptyDraft(), isNew: true },
-    ]);
+    setRows((prev) => {
+      const fresh = incoming.map((d) => ({ ...d, isNew: true }));
+      const rest = prev.filter((d) => !isBlankRow(d));
+      return [
+        ...fresh,
+        ...rest.filter((d) => d.isNew),
+        ...rest.filter((d) => !d.isNew),
+        { ...emptyDraft(), isNew: true },
+      ];
+    });
     setTab("manual");
   };
 
