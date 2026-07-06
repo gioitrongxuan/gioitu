@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import {
   mergeDictsByUpdatedAt,
-  localCustomDicts,
+  localSyncableDicts,
   writeMergedDicts,
   syncCustomDicts,
 } from "@/features/dictionary/data/customDictSync";
@@ -11,7 +11,7 @@ import { SyncedDict, pullCustomDicts } from "@/features/dictionary/data/dictSync
 // Mock lớp mạng: các test khác không đụng pull/push, chỉ nhóm syncCustomDicts dùng.
 vi.mock("@/features/dictionary/data/dictSyncApi", () => ({
   pullCustomDicts: vi.fn(),
-  pushCustomDicts: vi.fn(async () => null),
+  pushCustomDicts: vi.fn(async () => []),
 }));
 const mockPull = pullCustomDicts as unknown as ReturnType<typeof vi.fn>;
 import { getDb, LocalDictionary } from "@/shared/db";
@@ -64,12 +64,12 @@ describe("mergeDictsByUpdatedAt (thuần)", () => {
   });
 });
 
-describe("localCustomDicts + writeMergedDicts (IndexedDB)", () => {
+describe("localSyncableDicts + writeMergedDicts (IndexedDB)", () => {
   it("đọc blob, dựng lại cache khi remote thắng, tombstone xoá term + ẩn khỏi danh sách", async () => {
     const id = await createLocalDictionary({ title: "Sync RT", term_lang: "ja", native_lang: "vi" });
     await upsertCustomEntries(id, "Sync RT", JA_VI, [draft({ term: "水", reading: "みず", gloss: "nước" })]);
 
-    const mine = (await localCustomDicts()).find((d) => d.registry.id === id)!;
+    const mine = (await localSyncableDicts()).find((d) => d.registry.id === id)!;
     expect(mine.registry.custom).toBe(true);
     expect(mine.terms).toHaveLength(1);
 
@@ -91,18 +91,31 @@ describe("localCustomDicts + writeMergedDicts (IndexedDB)", () => {
   });
 });
 
+describe("localSyncableDicts — cỡ từ điển nhập", () => {
+  it("bản nhập nhỏ được đồng bộ, bản nhập lớn thì không", async () => {
+    const db = await getDb();
+    // custom vắng = từ điển nhập; chỉ termCount quyết định (không cần nạp term).
+    await db.put("dictionaries", { id: "imp-small", title: "Nhỏ", term_lang: "ja", native_lang: "vi", termCount: 50, importedAt: 1 });
+    await db.put("dictionaries", { id: "imp-big", title: "Lớn", term_lang: "ja", native_lang: "vi", termCount: 999999, importedAt: 1 });
+    const ids = (await localSyncableDicts()).map((d) => d.registry.id);
+    expect(ids).toContain("imp-small");
+    expect(ids).not.toContain("imp-big");
+  });
+});
+
 describe("syncCustomDicts (kết quả để phản hồi)", () => {
   it("offline (pull null) → ok:false, không ném lỗi", async () => {
     mockPull.mockResolvedValueOnce(null);
-    expect(await syncCustomDicts()).toEqual({ ok: false, count: 0 });
+    expect(await syncCustomDicts()).toEqual({ ok: false, count: 0, pushed: false });
   });
 
-  it("pull được → ok:true, đếm số từ điển không tính tombstone", async () => {
+  it("pull được → ok:true, pushed:true, đếm dict không tính tombstone", async () => {
     const id = await createLocalDictionary({ title: "Đếm", term_lang: "ja", native_lang: "vi" });
     await upsertCustomEntries(id, "Đếm", JA_VI, [draft({ term: "山", reading: "やま", gloss: "núi" })]);
     mockPull.mockResolvedValueOnce([]);
     const r = await syncCustomDicts();
     expect(r.ok).toBe(true);
-    expect(r.count).toBeGreaterThanOrEqual(1); // "Đếm" còn sống (tombstone không tính)
+    expect(r.pushed).toBe(true);
+    expect(r.count).toBeGreaterThanOrEqual(1);
   });
 });

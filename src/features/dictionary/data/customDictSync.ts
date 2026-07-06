@@ -6,20 +6,35 @@
 import { getDb, LocalDictionary } from "@/shared/db";
 import { SyncedDict, pullCustomDicts, pushCustomDicts } from "./dictSyncApi";
 
+/**
+ * Trần số từ để một từ điển ĐÃ NHẬP (.zip) được coi là "nhỏ" và tham gia đồng bộ.
+ * Từ điển tự soạn luôn đồng bộ bất kể cỡ. Đây chỉ là bộ lọc rẻ ở client (đọc
+ * `termCount` khỏi phải nạp cả dict lớn); trần dung lượng thật do server áp
+ * (MAX_SYNC_BYTES) — vượt thì push bị từ chối, bản local vẫn giữ.
+ */
+export const SYNCABLE_MAX_TERMS = 2000;
+
+/** Từ điển này có nằm trong diện đồng bộ không (tự soạn, hoặc bản nhập đủ nhỏ)? */
+export function isSyncable(registry: LocalDictionary): boolean {
+  return registry.custom === true || (registry.termCount ?? 0) <= SYNCABLE_MAX_TERMS;
+}
+
 /** Mốc thời gian LWW của một từ điển: updatedAt, hoặc importedAt khi vắng. */
 export function dictUpdatedAt(registry: LocalDictionary): number {
   return registry.updatedAt ?? registry.importedAt ?? 0;
 }
 
 /**
- * Đọc mọi từ điển cá nhân trên máy thành blob đồng bộ (kể cả tombstone, để lan
- * truyền việc xoá). KHÔNG bao gồm từ điển đã nhập.
+ * Đọc các từ điển trên máy thuộc diện đồng bộ thành blob (kể cả tombstone, để lan
+ * truyền xoá). Gồm từ điển tự soạn + bản nhập đủ nhỏ; bỏ bản nhập lớn (re-import
+ * được). Bản nhập lớn bị loại theo `termCount` nên không phải nạp term của nó.
  */
-export async function localCustomDicts(): Promise<SyncedDict[]> {
+export async function localSyncableDicts(): Promise<SyncedDict[]> {
   const db = await getDb();
-  const registries = (await db.getAll("dictionaries")).filter((d) => d.custom);
+  const registries = await db.getAll("dictionaries");
   const out: SyncedDict[] = [];
   for (const registry of registries) {
+    if (!isSyncable(registry)) continue;
     const terms = await db.getAllFromIndex("terms", "by_dict", registry.id);
     out.push({ registry, terms });
   }
@@ -70,8 +85,10 @@ export async function writeMergedDicts(merged: SyncedDict[]): Promise<void> {
 export interface SyncResult {
   /** Đã liên lạc được server (pull khác null) hay không (offline / chưa quyền). */
   ok: boolean;
-  /** Số từ điển cá nhân (không tính tombstone) sau khi merge. */
+  /** Số từ điển (không tính tombstone) sau khi merge. */
   count: number;
+  /** Đẩy lên server thành công? false khi vượt hạn mức / lỗi mạng lúc push. */
+  pushed: boolean;
 }
 
 /**
@@ -79,13 +96,13 @@ export interface SyncResult {
  * cache, (5) push. Không đổi cache (giữ local) khi offline / chưa Premium.
  */
 export async function syncCustomDicts(): Promise<SyncResult> {
-  const local = await localCustomDicts();
+  const local = await localSyncableDicts();
 
   const remote = await pullCustomDicts();
-  if (remote == null) return { ok: false, count: 0 }; // offline / chưa quyền — cache local đứng vững
+  if (remote == null) return { ok: false, count: 0, pushed: false }; // offline / chưa quyền
 
   const merged = mergeDictsByUpdatedAt(local, remote);
   await writeMergedDicts(merged);
-  await pushCustomDicts(merged);
-  return { ok: true, count: merged.filter((d) => !d.registry.deletedAt).length };
+  const pushed = (await pushCustomDicts(merged)) != null;
+  return { ok: true, count: merged.filter((d) => !d.registry.deletedAt).length, pushed };
 }
