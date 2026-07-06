@@ -3,7 +3,10 @@
 // app pulls). Ownership is forced to the authenticated user. SQL lives here;
 // the entry shaping is the pure domain in ankiNote.ts.
 import { pool } from "../../core/db.js";
-import type { VocabEntry } from "@/shared/types";
+import { canUseSentenceAi } from "../../core/entitlements.js";
+import { callDeepseek } from "../ai/aiClient.js";
+import { buildSentenceAnalysisPrompt, parseSentenceAnalysis } from "../ai/sentenceAnalysis.js";
+import type { SentenceAnalysis, VocabEntry } from "@/shared/types";
 import {
   NoteFields,
   SaveNoteOptions,
@@ -37,6 +40,22 @@ export async function saveNote(
   const example = fieldsToExample(fields);
   const now = Date.now();
 
+  // Phân tích câu bằng AI (CHỈ Premium, và chỉ khi note mang sentence). Chạy
+  // NGOÀI transaction vì chỉ phụ thuộc (term, sentence, cặp ngôn ngữ) — không cần
+  // dữ liệu sẵn có — và để không giữ row lock trong lúc chờ LLM. Best-effort: nếu
+  // AI thất bại/không cấu hình, vẫn lưu từ (phân tích chỉ là tiện ích thêm).
+  let analysis: SentenceAnalysis | undefined;
+  if (example && (await canUseSentenceAi(userId))) {
+    try {
+      const content = await callDeepseek(
+        buildSentenceAnalysisPrompt({ term, reading, sentence: example, term_lang, native_lang }),
+      );
+      analysis = parseSentenceAnalysis(content) ?? undefined;
+    } catch {
+      /* bỏ qua — lưu từ vẫn là hành động chính */
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -57,6 +76,7 @@ export async function saveNote(
         reading: reading || undefined,
         pos: pos || undefined,
         example: example || undefined,
+        analysis,
       },
       now,
     );

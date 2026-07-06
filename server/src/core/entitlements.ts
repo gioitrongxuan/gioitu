@@ -7,3 +7,8 @@ import { isPremium } from "../features/auth/userStore.js";
 export function canSyncDicts(userId: string): Promise<boolean> {
   return isPremium(userId);
 }
+
+/** Được phép phân tích câu ví dụ bằng AI khi thêm từ từ Yomitan? Hiện = Premium. */
+export function canUseSentenceAi(userId: string): Promise<boolean> {
+  return isPremium(userId);
+}

@@ -148,7 +148,14 @@ export function DetailPanel({
           <div className="saved-meaning">
             {hasResults && <p className="section-label">Ghi chú của bạn</p>}
             {/* key theo từ: đổi thẻ thì trạng thái "Xem thêm" reset lại. */}
-            <MeaningView key={entry.term} pos={entry.pos} meaning={entry.meaning} example={entry.example} compact />
+            <MeaningView
+              key={entry.term}
+              pos={entry.pos}
+              meaning={entry.meaning}
+              example={entry.example}
+              analysis={entry.sentence_analysis}
+              compact
+            />
           </div>
         )}
 

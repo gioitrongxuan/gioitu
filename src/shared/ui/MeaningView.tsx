@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import { Furigana } from "./Furigana";
+import { SentenceAnalysis } from "@/shared/types";
 
 interface Props {
   /** Headword; rendered with furigana when `reading` is given. Omit to hide it
@@ -25,6 +26,12 @@ interface Props {
   meaning: string;
   /** Stored example sentence(s) (JSON string[] or legacy plain text). */
   example?: string;
+  /**
+   * Phân tích AI (Premium) cho từng câu, lưu kèm entry (JSON `Record<câu,
+   * SentenceAnalysis>`). Mỗi câu có phân tích sẽ có một nút thả xuống để xem
+   * (mặc định đóng cho gọn). Tuỳ chọn — vắng thì không hiện nút.
+   */
+  analysis?: string;
   /** Rút gọn định nghĩa dài: chỉ hiện vài dòng đầu, phần còn lại sau "Xem thêm". */
   compact?: boolean;
 }
@@ -58,9 +65,37 @@ export function exampleToLines(example: string | undefined): string[] {
   return text ? [text] : [];
 }
 
-export function MeaningView({ term, reading, pos, meaning, example, compact }: Props) {
+/**
+ * Parse a stored `analysis` (JSON `Record<câu, SentenceAnalysis>`) thành bản đồ
+ * tra nhanh theo câu. Khoan dung: payload hỏng/kiểu lạ → bản đồ rỗng (UI chỉ ẩn
+ * nút phân tích, không lỗi).
+ */
+export function analysisToMap(analysis: string | undefined): Record<string, SentenceAnalysis> {
+  if (!analysis) return {};
+  try {
+    const parsed = JSON.parse(analysis);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const out: Record<string, SentenceAnalysis> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (v && typeof v === "object") {
+          const a = v as Record<string, unknown>;
+          const usage = typeof a.usage === "string" ? a.usage : "";
+          const meaning = typeof a.meaning === "string" ? a.meaning : "";
+          if (usage || meaning) out[k] = { usage, meaning };
+        }
+      }
+      return out;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return {};
+}
+
+export function MeaningView({ term, reading, pos, meaning, example, analysis, compact }: Props) {
   const lines = meaningToLines(meaning);
   const examples = exampleToLines(example);
+  const analysisMap = analysisToMap(analysis);
   const posTags = pos ? pos.split(/[,、;；]/).map((t) => t.trim()).filter(Boolean) : [];
 
   const [expanded, setExpanded] = useState(false);
@@ -104,9 +139,31 @@ export function MeaningView({ term, reading, pos, meaning, example, compact }: P
 
       {examples.length > 0 && (
         <div className="meaning-examples">
-          {examples.map((ex, i) => (
-            <p className="meaning-example" key={i}>{ex}</p>
-          ))}
+          {examples.map((ex, i) => {
+            const ai = analysisMap[ex];
+            return (
+              <div className="meaning-example" key={i}>
+                <p className="meaning-example-text">{ex}</p>
+                {ai && (
+                  <details className="meaning-ai">
+                    <summary>Phân tích AI</summary>
+                    <div className="meaning-ai-body">
+                      {ai.usage && (
+                        <p>
+                          <span className="meaning-ai-label">Cách dùng:</span> {ai.usage}
+                        </p>
+                      )}
+                      {ai.meaning && (
+                        <p>
+                          <span className="meaning-ai-label">Ý nghĩa câu:</span> {ai.meaning}
+                        </p>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -866,7 +866,26 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   margin: 0; padding: 8px 12px; border-left: 3px solid var(--accent);
   background: var(--surface-2); border-radius: 0 8px 8px 0;
   color: var(--fg); font-size: 14px; line-height: 1.6;
+  display: grid; gap: 6px;
 }
+.meaning-example-text { margin: 0; }
+
+/* Phân tích AI cho câu (Premium): nút thả xuống "Phân tích AI", mặc định đóng. */
+.meaning-ai { font-size: 13px; }
+.meaning-ai > summary {
+  cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600;
+  list-style: none; user-select: none;
+}
+.meaning-ai > summary::-webkit-details-marker { display: none; }
+.meaning-ai > summary::before { content: "▸ "; }
+.meaning-ai[open] > summary::before { content: "▾ "; }
+.meaning-ai-body {
+  display: grid; gap: 4px; margin-top: 4px; padding: 6px 10px;
+  background: var(--surface); border-radius: 8px;
+  font-size: 13px; line-height: 1.5; color: var(--fg);
+}
+.meaning-ai-body p { margin: 0; }
+.meaning-ai-label { font-weight: 600; color: var(--muted); }
 
 /* Ảnh minh hoạ giờ lấy từ từ điển (Mazii) — xem .word-images ở trên. */
 

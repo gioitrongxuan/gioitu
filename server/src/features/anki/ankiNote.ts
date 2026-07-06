@@ -7,7 +7,7 @@
 // (createEntry + newCardState). Kept as an independent copy because the backend
 // does not depend on frontend code — keep the two in sync.
 
-import type { VocabEntry } from "@/shared/types";
+import type { VocabEntry, SentenceAnalysis } from "@/shared/types";
 
 // Mirror of DEFAULT_SRS_CONFIG.initialEaseFactor (review/domain/constants.ts).
 const INITIAL_EASE_FACTOR = 2.5;
@@ -35,6 +35,13 @@ export interface ManualAddInput {
   pos?: string;
   /** Example sentence (kept apart from the glosses). */
   example?: string;
+  /**
+   * Phân tích AI (Premium) cho `example`: cách từ được dùng trong câu + ý nghĩa
+   * câu. Do ankiStore sinh trước khi lưu (best-effort — có thể vắng khi user
+   * không Premium hoặc AI thất bại). `applyManualAdd` gộp vào `sentence_analysis`
+   * theo khoá = câu (xem bên dưới).
+   */
+  analysis?: SentenceAnalysis;
 }
 
 /** Optional language-pair pin (from ?src=&tgt= on the endpoint URL). */
@@ -166,6 +173,29 @@ export function appendExample(existing: string | undefined, sentence: string): s
   return JSON.stringify(lines.slice(-MAX_EXAMPLES));
 }
 
+// Phân tích AI (Premium) cho từng câu: lưu cùng kiểu JSON string như `example`
+// (Record<câu, SentenceAnalysis>). Gộp phân tích mới vào bản đồ sẵn có — ghi đè
+// câu trùng (phân tích tươi hơn), giữ các câu khác.
+type AnalysisMap = Record<string, SentenceAnalysis>;
+function parseAnalysisMap(raw: string | undefined): AnalysisMap {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as AnalysisMap;
+  } catch {
+    /* payload hỏng — coi như rỗng */
+  }
+  return {};
+}
+
+/** Gộp một phân tích (cho `sentence`) vào bản đồ sẵn có, trả về JSON string. */
+export function mergeSentenceAnalysis(existing: string | undefined, sentence: string, analysis: SentenceAnalysis): string {
+  const key = sentence.trim();
+  const map = parseAnalysisMap(existing);
+  if (key) map[key] = analysis;
+  return JSON.stringify(map);
+}
+
 /** The fields of a freshly-created SRS card (mirror of srs.ts newCardState). */
 function newCard(now: number) {
   return {
@@ -200,8 +230,9 @@ export function applyManualAdd(
   // A previously deleted word is treated as never-seen (mirror registerLookup).
   if (existing && existing.deleted_at != null) existing = undefined;
 
+  let entry: VocabEntry;
   if (!existing) {
-    return {
+    entry = {
       user_id: input.user_id,
       term: input.term,
       term_lang: input.term_lang,
@@ -220,20 +251,27 @@ export function applyManualAdd(
       updated_at: now,
       ...newCard(now),
     };
+  } else {
+    entry = { ...existing };
+    entry.lookup_count += 1;
+    entry.last_lookup_at = now;
+    entry.updated_at = now;
+    if (input.meaning) {
+      entry.meaning = input.meaning;
+      entry.is_custom = true;
+    }
+    if (input.reading) entry.reading = input.reading;
+    if (input.pos) entry.pos = input.pos;
+    // Accumulate: keep past sentences, add the new one (see appendExample).
+    if (input.example) entry.example = appendExample(entry.example, input.example);
+    if (entry.card_state == null) Object.assign(entry, newCard(now));
   }
 
-  const entry: VocabEntry = { ...existing };
-  entry.lookup_count += 1;
-  entry.last_lookup_at = now;
-  entry.updated_at = now;
-  if (input.meaning) {
-    entry.meaning = input.meaning;
-    entry.is_custom = true;
+  // Phân tích AI (Premium) cho câu vừa thêm — gộp vào `sentence_analysis` (JSON
+  // string Record<câu, SentenceAnalysis>) theo khoá = câu. Giữ phân tích cũ của
+  // những câu khác; ghi đè câu hiện tại nếu thêm lại (phân tích tươi hơn cũ).
+  if (input.example && input.analysis) {
+    entry.sentence_analysis = mergeSentenceAnalysis(entry.sentence_analysis, input.example, input.analysis);
   }
-  if (input.reading) entry.reading = input.reading;
-  if (input.pos) entry.pos = input.pos;
-  // Accumulate: keep past sentences, add the new one (see appendExample).
-  if (input.example) entry.example = appendExample(entry.example, input.example);
-  if (entry.card_state == null) Object.assign(entry, newCard(now));
   return entry;
 }

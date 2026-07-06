@@ -162,6 +162,42 @@ describe("applyManualAdd", () => {
   });
 });
 
+describe("applyManualAdd — sentence_analysis (AI, Premium)", () => {
+  it("lưu phân tích cho câu mới, keyed bằng chính câu đó", () => {
+    const entry = applyManualAdd(
+      undefined,
+      { ...input, analysis: { usage: "chủ ngữ", meaning: "Tôi thích mèo." } },
+      NOW,
+    );
+    expect(JSON.parse(entry.sentence_analysis!)).toEqual({
+      "猫が好きです。": { usage: "chủ ngữ", meaning: "Tôi thích mèo." },
+    });
+  });
+
+  it("giữ phân tích của các câu cũ khi thêm câu mới", () => {
+    const existing = makeEntry({
+      term: "猫",
+      term_lang: "ja",
+      example: JSON.stringify(["猫が好きです。"]),
+      sentence_analysis: JSON.stringify({ "猫が好きです。": { usage: "u1", meaning: "m1" } }),
+    });
+    const entry = applyManualAdd(
+      existing,
+      { ...input, example: "猫はかわいい。", analysis: { usage: "u2", meaning: "m2" } },
+      NOW,
+    );
+    expect(JSON.parse(entry.sentence_analysis!)).toEqual({
+      "猫が好きです。": { usage: "u1", meaning: "m1" },
+      "猫はかわいい。": { usage: "u2", meaning: "m2" },
+    });
+  });
+
+  it("không đặt sentence_analysis khi không có analysis (user không Premium)", () => {
+    const entry = applyManualAdd(undefined, input, NOW);
+    expect(entry.sentence_analysis).toBeUndefined();
+  });
+});
+
 describe("appendExample (accumulating sentences)", () => {
   it("wraps a first sentence as a JSON array", () => {
     expect(JSON.parse(appendExample(undefined, "猫が好きです。"))).toEqual(["猫が好きです。"]);
