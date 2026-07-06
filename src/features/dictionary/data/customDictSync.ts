@@ -66,17 +66,26 @@ export async function writeMergedDicts(merged: SyncedDict[]): Promise<void> {
   await tx.done;
 }
 
+/** Kết quả một lần đồng bộ, đủ cho caller hiện phản hồi cho người dùng. */
+export interface SyncResult {
+  /** Đã liên lạc được server (pull khác null) hay không (offline / chưa quyền). */
+  ok: boolean;
+  /** Số từ điển cá nhân (không tính tombstone) sau khi merge. */
+  count: number;
+}
+
 /**
  * Đồng bộ hai chiều: (1) đọc local, (2) pull remote, (3) merge LWW, (4) ghi lại
- * cache, (5) push. Không làm gì (giữ local) khi offline / chưa Premium.
+ * cache, (5) push. Không đổi cache (giữ local) khi offline / chưa Premium.
  */
-export async function syncCustomDicts(): Promise<void> {
+export async function syncCustomDicts(): Promise<SyncResult> {
   const local = await localCustomDicts();
 
   const remote = await pullCustomDicts();
-  if (remote == null) return; // offline / chưa quyền — cache local đứng vững
+  if (remote == null) return { ok: false, count: 0 }; // offline / chưa quyền — cache local đứng vững
 
   const merged = mergeDictsByUpdatedAt(local, remote);
   await writeMergedDicts(merged);
   await pushCustomDicts(merged);
+  return { ok: true, count: merged.filter((d) => !d.registry.deletedAt).length };
 }

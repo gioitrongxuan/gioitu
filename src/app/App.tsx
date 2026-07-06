@@ -100,15 +100,40 @@ interface MainAppProps {
 
 function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin }: MainAppProps) {
   const store = useAppStore(userId);
+  // Tăng mỗi khi sync từ điển kéo dữ liệu về → buộc danh sách từ điển đọc lại
+  // (để dict mới hiện ngay, khỏi phải tải lại trang trên máy khác).
+  const [syncTick, setSyncTick] = useState(0);
 
-  // Đồng bộ từ điển cá nhân (Premium): chạy khi load, khi vừa bật Premium, và sau
-  // mỗi lần soạn/xoá. Best-effort, không cản UI; SRS đồng bộ riêng trong store.
+  // Đồng bộ từ điển cá nhân (Premium) ngầm: chạy khi load, khi vừa bật Premium,
+  // và sau mỗi lần soạn/xoá. Best-effort, không cản UI, không toast (chỉ làm mới
+  // danh sách); SRS đồng bộ riêng trong store.
   const syncDicts = useCallback(() => {
-    if (email && isPremium) void syncCustomDicts().catch((e) => console.error("dict sync failed", e));
+    if (email && isPremium)
+      void syncCustomDicts()
+        .then((r) => { if (r.ok) setSyncTick((t) => t + 1); })
+        .catch((e) => console.error("dict sync failed", e));
   }, [email, isPremium]);
   useEffect(() => {
     syncDicts();
   }, [syncDicts]);
+
+  // Nút "Đồng bộ": chạy cả SRS lẫn từ điển cá nhân, có tiến độ + phản hồi rõ.
+  const runFullSync = async () => {
+    store.pushToast("Đang đồng bộ…", "info");
+    await store.runSync();
+    if (email && isPremium) {
+      const r = await syncCustomDicts();
+      setSyncTick((t) => t + 1);
+      store.pushToast(
+        r.ok ? `Đã đồng bộ · ${r.count} từ điển cá nhân` : "Đã đồng bộ dữ liệu học · chưa kết nối được từ điển",
+        r.ok ? "success" : "warn",
+      );
+    } else if (email) {
+      store.pushToast("Đã đồng bộ dữ liệu học. Cần Premium để đồng bộ từ điển cá nhân.", "info");
+    } else {
+      store.pushToast("Đã đồng bộ", "success");
+    }
+  };
   const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
   // Which dictionary database look-ups hit. Persisted only once the user picks;
   // until then we default to the source that actually has data (local if a
@@ -213,7 +238,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true) },
     ...(email
       ? [
-          { label: "Đồng bộ", run: async () => { await store.runSync(); syncDicts(); } },
+          { label: "Đồng bộ", run: runFullSync },
           { label: "Đăng xuất", run: onLogout },
         ]
       : [{ label: "Đăng nhập", run: onRequestLogin }]),
@@ -238,6 +263,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             onImported={syncDicts}
             loggedIn={email != null}
             onRequestLogin={onRequestLogin}
+            reloadToken={syncTick}
           />
           <HeaderMenu items={menuItems} email={email} />
         </div>

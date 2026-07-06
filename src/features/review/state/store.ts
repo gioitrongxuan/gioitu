@@ -134,11 +134,12 @@ export function useAppStore(userId: string) {
     [entries],
   );
 
+  // Đồng bộ dữ liệu học (SRS). Không tự toast — App gộp phản hồi cho cả SRS lẫn
+  // từ điển cá nhân trong một luồng "Đồng bộ" duy nhất.
   const runSync = useCallback(async () => {
     const merged = await syncUserData(userId);
     setEntries(merged.filter((e) => !isDeleted(e)));
-    pushToast("Đã đồng bộ", "success");
-  }, [userId, pushToast]);
+  }, [userId]);
 
   return {
     userId,
