@@ -171,7 +171,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
   const [page, setPage] = useState<"home" | "learned" | "kanji">("home");
-  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
+  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -353,6 +353,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         <ReviewSession
           queue={store.dueEntries}
           onGrade={store.gradeReview}
+          onLookupDetails={lookupDetails}
           onClose={() => setReviewing(false)}
         />
       )}
