@@ -420,10 +420,45 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .srs-act:hover { background: var(--surface-2); }
 .srs-act.danger { color: var(--warn); }
 .srs-act.danger:hover { background: color-mix(in oklab, var(--warn) 14%, var(--surface)); }
+/* "Đánh dấu đã biết" cho kanji chưa học (không có entry) — nút chính, dồn phải. */
+.srs-mark-known { margin-left: auto; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 13px; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+.srs-mark-known:hover { filter: brightness(1.05); }
 
 /* "Đã thuộc" achievement page */
 .learned-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 8px 0 4px; }
 .learned-head h2 { margin: 0; font-size: 20px; }
+
+/* Kanji stats (features/kanjistats) — a heatmap coverage grid. */
+.kanji-stats { display: flex; flex-direction: column; gap: 14px; }
+.kanji-controls { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.kanji-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.kanji-summary { margin: 0; font-size: 15px; }
+.kanji-quick-hint { margin: 0; font-size: 13px; }
+.kanji-legend { display: flex; align-items: center; gap: 8px; }
+.kanji-legend-bar { flex: 1; max-width: 220px; height: 10px; border-radius: 999px; border: 1px solid var(--line); }
+/* Dense grid of fixed-size tiles that reflows to the container width (like the
+   add-on's auto-fit grid). */
+.kanji-grid { display: grid; grid-template-columns: repeat(auto-fill, 34px); gap: 4px; justify-content: start; }
+.kanji-cell {
+  width: 34px; height: 34px; border: none; border-radius: 6px; cursor: pointer;
+  font-size: 20px; line-height: 1; display: grid; place-items: center;
+  padding: 0; transition: transform 0.05s ease;
+}
+.kanji-cell:hover { transform: translateY(-1px); }
+/* Chế độ đánh dấu nhanh: mỗi ô là một nút "ghi nhận đã biết" — con trỏ + viền
+   nhấn khi rê để thấy rõ bấm vào là có hành động. */
+.kanji-cell.quick { cursor: copy; }
+.kanji-cell.quick:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Kanji in a grouping the user hasn't learnt yet: weakest heatmap shade (0%),
+   marked with a dashed border so it still reads as "not in your vocab yet". */
+.kanji-cell.missing { border: 1px dashed var(--line); }
+.kanji-group { display: flex; flex-direction: column; gap: 8px; }
+.kanji-group-head { display: flex; align-items: baseline; gap: 10px; }
+.kanji-group-head h3 { margin: 0; font-size: 15px; }
+.kanji-group-count { font-size: 13px; }
+.kanji-progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; max-width: 320px; }
+.kanji-progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.kanji-source-note { font-size: 12px; overflow-wrap: anywhere; }
 
 /* Buttons */
 .primary { background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin-top: 8px; }

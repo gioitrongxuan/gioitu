@@ -1,0 +1,1 @@
+export { KanjiStats } from "./KanjiStats";

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { Toast } from "@/shared/ui/Toasts";
-import { registerLookup, LookupInput } from "../domain/lookup";
+import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
 import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
@@ -93,6 +93,27 @@ export function useAppStore(userId: string) {
     [pushToast, upsertLocal],
   );
 
+  /**
+   * "Đánh dấu đã biết" cho một từ CHƯA có trong lịch sử (điển hình: một kanji bấm
+   * từ trang thống kê). Nếu đã có entry thì graduate luôn (như nút "Đã nhớ"); nếu
+   * chưa, tạo mới thẳng ở trạng thái đã thuộc. Kiểm tra existing để một entry cũ
+   * không bị ghi đè mất tiến độ khi có tình huống chạy đua.
+   */
+  const markKnownByTerm = useCallback(
+    async (term: string, term_lang: string, native_lang: string) => {
+      const now = Date.now();
+      const existing = await getEntry(userId, term, term_lang);
+      const next: VocabEntry = existing
+        ? { ...existing, ...markKnown(now), updated_at: now }
+        : newKnownEntry({ user_id: userId, term, term_lang, native_lang, meaning: "" }, now);
+      await putEntry(next);
+      upsertLocal(next);
+      pushToast(`“${term}” đã thuộc 🎉`, "success");
+      return next;
+    },
+    [userId, pushToast, upsertLocal],
+  );
+
   /** "Đã quên" — relapse a learned word back into the review queue. */
   const markForgottenEntry = useCallback(
     async (entry: VocabEntry) => {
@@ -151,6 +172,7 @@ export function useAppStore(userId: string) {
     recordLookup,
     gradeReview,
     markKnownEntry,
+    markKnownByTerm,
     markForgottenEntry,
     deleteEntry,
     runSync,

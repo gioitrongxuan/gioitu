@@ -3,7 +3,7 @@
 // SRS card gating, and the relapse trigger — all as pure functions.
 
 import { DEFAULT_SRS_CONFIG, LOOKUP_DEBOUNCE_MS, SRS_GATING_THRESHOLD, SrsConfig } from "./constants";
-import { newCardState, relapse } from "./srs";
+import { markKnown, newCardState, relapse } from "./srs";
 import { VocabEntry } from "@/shared/types";
 
 export interface LookupInput {
@@ -56,6 +56,16 @@ function createEntry(input: LookupInput, now: number, cfg: SrsConfig): VocabEntr
     updated_at: now,
     ...newCardState(now, cfg),
   };
+}
+
+/**
+ * Build a fresh entry the user asserts they already know outright — e.g. ticking
+ * a kanji "đã biết" from the stats grid without ever looking it up. It is created
+ * straight in the mature/LEARNED state (no queue time), and `lookup_count` stays
+ * 0 to stay honest: no lookup — the signal of forgetting — actually happened.
+ */
+export function newKnownEntry(input: LookupInput, now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): VocabEntry {
+  return { ...createEntry(input, now, cfg), lookup_count: 0, ...markKnown(now, cfg), updated_at: now };
 }
 
 /**

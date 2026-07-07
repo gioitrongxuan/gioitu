@@ -10,6 +10,7 @@ import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
+import { KanjiStats } from "@/features/kanjistats/ui";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -169,8 +170,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
-  const [page, setPage] = useState<"home" | "learned">("home");
-  const { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
+  const [page, setPage] = useState<"home" | "learned" | "kanji">("home");
+  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -208,6 +209,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       onLookup={lookup}
       onAddResult={addResult}
       onMarkKnown={store.markKnownEntry}
+      onMarkKnownNew={store.markKnownByTerm}
       onMarkForgotten={store.markForgottenEntry}
       onDelete={async (e) => {
         await store.deleteEntry(e);
@@ -235,6 +237,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     ...(store.learnedEntries.length > 0
       ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
       : []),
+    { label: "Thống kê kanji", run: () => setPage("kanji") },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
     { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
@@ -283,6 +286,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             onGroupingChange={setGrouping}
           />
         </div>
+      ) : page === "kanji" ? (
+        <div className="learned-head" {...behindSheet}>
+          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <h2>Thống kê Kanji <span lang="ja" aria-hidden>漢</span></h2>
+        </div>
       ) : (
         <div {...behindSheet}>
           <SearchBar pair={pair} source={dictSource} onResult={onResult} />
@@ -316,6 +324,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               lang={cloudLang}
               grouping={grouping}
               onSelect={onSelectTag}
+            />
+          ) : page === "kanji" ? (
+            <KanjiStats
+              entries={store.entries}
+              onSelectKanji={lookupKanji}
+              onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
             />
           ) : (
             <WordCloud
