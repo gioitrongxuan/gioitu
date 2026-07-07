@@ -11,6 +11,7 @@ import { gradeCard } from "../domain/srs";
 import { formatInterval } from "@/shared/ui/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Definitions } from "@/features/dictionary/ui/Definitions";
+import { KanjiBreakdown } from "@/features/dictionary/ui/KanjiPanel";
 import { TermResult } from "@/features/dictionary/data/search";
 
 interface Props {
@@ -150,6 +151,13 @@ export function ReviewSession({ queue, onGrade, onClose, onLookupDetails }: Prop
                     ))
                   )}
                 </div>
+              )}
+
+              {/* Phân tích chữ Hán — chỉ với từ tiếng Nhật (kanji là dữ liệu server,
+                  kiểu jisho). Tải lười ngay khi mở; không truyền onLookup nên link
+                  từ ví dụ không rời phiên ôn. */}
+              {card.term_lang === "ja" && (
+                <KanjiBreakdown term={card.term} src={card.term_lang} tgt={card.native_lang} />
               )}
             </div>
           )}
