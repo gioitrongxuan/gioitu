@@ -146,5 +146,14 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     );
   }
 
-  return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null) };
+  // Fetch dictionary definitions for a saved entry without opening the detail
+  // panel — used by the review card's "Xem định nghĩa từ điển" button. Searches
+  // under the entry's *own* language pair (a card may belong to a pair other than
+  // the one currently selected) and never counts as a lookup.
+  async function lookupDetails(entry: VocabEntry): Promise<TermResult[]> {
+    const tagPair = pairById(pairId(entry.term_lang, entry.native_lang));
+    return findTermsRouted(entry.term, tagPair, source);
+  }
+
+  return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null), lookupDetails };
 }

@@ -687,6 +687,17 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .review-card .close { margin-top: 12px; display: block; }
 .review-card.done { text-align: center; }
 
+/* Định nghĩa từ điển bật ra trong mặt sau thẻ ôn (lazy, sau nút "Xem định nghĩa").
+   Tái dùng .result/.dict-name/.senses đã có của DetailPanel cho cùng kiểu hiển thị. */
+.review-dict-toggle { margin-top: 10px; }
+.review-dict-status { margin: 8px 0 0; font-size: 13px; }
+.review-dict { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.review-dict-label { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+/* Bỏ đường kẻ đầu của .result đầu tiên (vùng đã có đường kẻ phía trên); các kết
+   quả sau vẫn phân tách bằng đường kẻ như trong DetailPanel. */
+.review-dict .result:first-child { border-top: none; padding-top: 0; }
+.review-dict .result + .result { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+
 /* Auth */
 .user-email { font-size: 12px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--surface-2); }
