@@ -23,6 +23,14 @@ export interface SrsConfig {
   relearningSteps: number[];
   /** Interval (minutes) at/above which a word graduates to LEARNED ("mature"). */
   matureThreshold: number;
+  /**
+   * Interval (minutes) granted when the user asserts they already know a word
+   * outright ("Đã nhớ" / "Đánh dấu đã biết"). Deliberately far above
+   * `matureThreshold`: the user is vouching they know it cold, so it reads as
+   * (near-)fully mastered on the kanji-stats heatmap and won't resurface for a
+   * long time — unlike a word that merely *reached* maturity through reviews.
+   */
+  knownInterval: number;
   /** Ease penalty for "Again". */
   againEaseDelta: number;
   /** Ease penalty for "Hard". */
@@ -41,6 +49,8 @@ export const DEFAULT_SRS_CONFIG: SrsConfig = {
   easyBonus: 1.3,
   relearningSteps: [10 * MINUTE],
   matureThreshold: 21 * DAY,
+  knownInterval: 365 * DAY, // "thuộc lòng": ~1 năm → gần trần thang thành thạo
+
   againEaseDelta: -0.2,
   hardEaseDelta: -0.15,
   easyEaseDelta: 0.15,

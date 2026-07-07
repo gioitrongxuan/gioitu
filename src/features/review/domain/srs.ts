@@ -212,10 +212,12 @@ export function relapse(
 }
 
 /**
- * Mark a word as already known ("Đã nhớ"): graduate it straight to a mature
- * REVIEW card so it counts as LEARNED — hidden from the cloud and out of the
- * review queue, but proudly shown on the "Đã thuộc" map. Looking it up again
- * later relapses it like any other mature word (SPEC 4.2).
+ * Mark a word as already known ("Đã nhớ"): the user is vouching they know it
+ * cold, so it graduates straight to a REVIEW card at the `knownInterval` — far
+ * past mere maturity. It counts as LEARNED (hidden from the cloud, out of the
+ * queue), reads as (near-)fully mastered on the kanji-stats heatmap, and won't
+ * resurface for a long time. Looking it up again later relapses it like any
+ * other mature word (SPEC 4.2).
  */
 export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): SrsState {
   return {
@@ -226,8 +228,8 @@ export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): Srs
     reps: 0,
     lapses: 0,
     is_relearning: false,
-    srs_interval: cfg.matureThreshold,
-    next_review: now + cfg.matureThreshold * 60_000,
+    srs_interval: cfg.knownInterval,
+    next_review: now + cfg.knownInterval * 60_000,
   };
 }
 

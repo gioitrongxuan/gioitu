@@ -16,12 +16,14 @@ describe("newCardState (gating)", () => {
 });
 
 describe("markKnown ('Đã nhớ')", () => {
-  it("graduates straight to a mature LEARNED card (hidden, out of queue)", () => {
+  it("graduates straight to a well-mastered LEARNED card (hidden, out of queue)", () => {
     const s = markKnown(NOW);
     expect(s.status).toBe("LEARNED");
     expect(s.card_state).toBe("REVIEW");
-    expect(s.srs_interval).toBe(CFG.matureThreshold);
-    expect(s.next_review).toBe(NOW + CFG.matureThreshold * 60_000);
+    // Asserted known cold → the long "known" interval, well past mere maturity.
+    expect(s.srs_interval).toBe(CFG.knownInterval);
+    expect(s.srs_interval).toBeGreaterThan(CFG.matureThreshold);
+    expect(s.next_review).toBe(NOW + CFG.knownInterval * 60_000);
     expect(isDue({ card_state: s.card_state, next_review: s.next_review }, NOW)).toBe(false);
   });
 });

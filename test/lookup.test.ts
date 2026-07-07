@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { registerLookup } from "@/features/review/domain/lookup";
-import { LOOKUP_DEBOUNCE_MS, SRS_GATING_THRESHOLD } from "@/features/review/domain/constants";
+import { registerLookup, newKnownEntry } from "@/features/review/domain/lookup";
+import { DEFAULT_SRS_CONFIG, LOOKUP_DEBOUNCE_MS, SRS_GATING_THRESHOLD } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 const NOW = 5_000_000;
@@ -11,6 +11,20 @@ const baseInput = {
   native_lang: "vi",
   meaning: JSON.stringify(["nghĩa"]),
 };
+
+describe("newKnownEntry", () => {
+  it("creates a mature LEARNED entry with no lookups (asserted known outright)", () => {
+    const entry = newKnownEntry({ ...baseInput, term: "日", term_lang: "ja", meaning: "" }, NOW);
+    expect(entry.term).toBe("日");
+    expect(entry.status).toBe("LEARNED");
+    expect(entry.card_state).toBe("REVIEW");
+    expect(entry.lookup_count).toBe(0); // never looked up
+    expect(entry.srs_interval).toBe(DEFAULT_SRS_CONFIG.knownInterval);
+    expect(entry.deleted_at).toBeNull();
+    expect(entry.created_at).toBe(NOW);
+    expect(entry.updated_at).toBe(NOW);
+  });
+});
 
 describe("first lookup", () => {
   it("creates an entry with count 1 and an SRS card immediately (no gating)", () => {

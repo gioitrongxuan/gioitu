@@ -107,6 +107,21 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // The saved definition shows immediately via the learning entry's meaning.
   }
 
+  // Open a single kanji's Chữ Hán page (from the kanji-stats grid). Kanji live
+  // in their own database, independent of the chosen dictionary source/pair, so
+  // we always resolve under Nhật→Việt: the empty results render the KanjiBreakdown,
+  // and a kanji that is also a headword still shows its entry. Not a lookup.
+  async function lookupKanji(kanji: string) {
+    const jaPair = pairById(pairId("ja", "vi"));
+    setView({ kind: "detail", term: kanji, primaryTerm: kanji, results: [], term_lang: "ja", native_lang: "vi" });
+    const results = await findTermsRouted(kanji, jaPair, source);
+    setView((prev) =>
+      prev?.kind === "detail" && prev.term === kanji && prev.results.length === 0
+        ? { ...prev, results }
+        : prev,
+    );
+  }
+
   // Selecting a cloud tag maps the word to its meaning: the saved personal data
   // shows at once, then the dictionary definitions load alongside it. We search
   // under the entry's *own* language pair — a card can belong to a pair other
@@ -131,5 +146,5 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     );
   }
 
-  return { view, onResult, lookup, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null) };
+  return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null) };
 }

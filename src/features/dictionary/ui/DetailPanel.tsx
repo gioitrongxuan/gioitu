@@ -14,6 +14,7 @@ import { ImageGallery, CommentList } from "./Media";
 import { PitchView, Pronunciations } from "./PitchView";
 import { TagChip, HeadwordBadges, FrequencyTags } from "./TagChip";
 import { Furigana } from "@/shared/ui/Furigana";
+import { isCodePointKanji } from "@/shared/japanese";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
@@ -38,6 +39,12 @@ interface Props {
   onAddResult?: (res: TermResult) => void;
   /** Mark the word as already known → LEARNED. */
   onMarkKnown?: (entry: VocabEntry) => void;
+  /**
+   * Mark a term that has no learning entry yet as already known — used for a
+   * single kanji opened from the stats grid, so it can join "đã thuộc" without a
+   * prior lookup. Creates the entry straight in the LEARNED state.
+   */
+  onMarkKnownNew?: (term: string, term_lang: string, native_lang: string) => void;
   /** Mark a learned word as forgotten → relapse into the review queue. */
   onMarkForgotten?: (entry: VocabEntry) => void;
   /** Delete the word (tombstone). */
@@ -63,6 +70,7 @@ export function DetailPanel({
   onLookup,
   onAddResult,
   onMarkKnown,
+  onMarkKnownNew,
   onMarkForgotten,
   onDelete,
   isAdmin,
@@ -124,6 +132,12 @@ export function DetailPanel({
   const hasSaved = savedLines.length > 0;
   const hasResults = results.length > 0;
 
+  // Một kanji đơn (tra từ lưới thống kê hoặc gõ thẳng) chưa có trong lịch sử: cho
+  // đánh dấu "đã biết" ngay tại chỗ để nó vào "đã thuộc" mà không cần tra trước.
+  const isLoneKanji =
+    term_lang === "ja" && [...term].length === 1 && isCodePointKanji(term.codePointAt(0) ?? 0);
+  const canMarkKnownNew = !entry && isLoneKanji && onMarkKnownNew != null;
+
   return (
     <>
       {/* Lớp che sau sheet (chỉ hiện trên mobile — desktop ẩn qua CSS): chặn
@@ -175,6 +189,19 @@ export function DetailPanel({
                 </button>
               )}
             </span>
+          </div>
+        )}
+
+        {/* Kanji chưa học: một hàng gọn cho phép ghi nhận "đã biết" ngay. */}
+        {canMarkKnownNew && (
+          <div className="srs-bar">
+            <span className="srs-status neutral">Chưa học</span>
+            <button
+              className="srs-mark-known"
+              onClick={() => onMarkKnownNew!(term, term_lang, native_lang)}
+            >
+              ✓ Đánh dấu đã biết
+            </button>
           </div>
         )}
 
