@@ -1,0 +1,1 @@
+export { VocabStudy } from "./VocabStudy";

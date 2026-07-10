@@ -23,6 +23,10 @@ export interface StudyListWordView {
   base: string;
   reading?: string;
   furigana?: string;
+  /** Cặp ngôn ngữ của từ (lấy từ word) — cần để frontend ghép entry SRS theo
+   *  (term, term_lang) khi overlay tiến độ học lên danh sách. */
+  term_lang: string;
+  native_lang: string;
   addedAt: number;
 }
 export interface StudyListDetail extends StudyListSummary {
@@ -116,8 +120,14 @@ export async function getList(listId: string, userId: string): Promise<StudyList
   if (!list) return null;
   if (list.creator_id !== userId && !list.is_public) return null;
 
-  const words = await pool.query<{ word_id: string; added_at: string; headings: { base: string; reading?: string; furigana?: string }[] }>(
-    `SELECT slw.word_id, slw.added_at, w.headings
+  const words = await pool.query<{
+    word_id: string;
+    added_at: string;
+    term_lang: string;
+    native_lang: string;
+    headings: { base: string; reading?: string; furigana?: string }[];
+  }>(
+    `SELECT slw.word_id, slw.added_at, w.term_lang, w.native_lang, w.headings
        FROM study_list_word slw JOIN word w ON w.id = slw.word_id
       WHERE slw.list_id = $1
       ORDER BY slw.ord NULLS LAST, slw.added_at`,
@@ -127,7 +137,15 @@ export async function getList(listId: string, userId: string): Promise<StudyList
     ...rowToSummary(list),
     words: words.rows.map((r) => {
       const h = r.headings?.[0];
-      return { wordId: r.word_id, base: h?.base ?? "", reading: h?.reading, furigana: h?.furigana, addedAt: Number(r.added_at) };
+      return {
+        wordId: r.word_id,
+        base: h?.base ?? "",
+        reading: h?.reading,
+        furigana: h?.furigana,
+        term_lang: r.term_lang,
+        native_lang: r.native_lang,
+        addedAt: Number(r.added_at),
+      };
     }),
   };
 }

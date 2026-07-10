@@ -18,6 +18,9 @@ export interface StudyListWordView {
   base: string;
   reading?: string;
   furigana?: string;
+  /** Cặp ngôn ngữ của từ (lấy từ word) — để overlay tiến độ SRS theo (term, term_lang). */
+  term_lang: string;
+  native_lang: string;
   addedAt: number;
 }
 export interface StudyListDetail extends StudyListSummary {
