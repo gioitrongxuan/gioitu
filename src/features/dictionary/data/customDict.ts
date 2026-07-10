@@ -92,6 +92,14 @@ export async function listCustomEntries(dictId: string): Promise<DictEntry[]> {
   const db = await getDb();
   return db.getAllFromIndex("terms", "by_dict", dictId);
 }
+/** Các từ điển cá nhân trong registry (custom: true). Tuỳ chọn lọc theo cặp. */
+export async function listCustomDictionaries(pair?: LangPair): Promise<LocalDictionary[]> {
+  const db = await getDb();
+  const dicts = await db.getAllFromIndex("dictionaries", "by_pair", pair ? IDBKeyRange.only([pair.source, pair.target]) : undefined);
+  return dicts.filter((d) => d.custom).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+}
+
+
 
 /**
  * Lưu toàn bộ một từ điển cá nhân sau khi sửa: nội dung của nó khớp ĐÚNG với

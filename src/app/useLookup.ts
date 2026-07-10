@@ -122,28 +122,34 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     );
   }
 
-  // Selecting a cloud tag maps the word to its meaning: the saved personal data
-  // shows at once, then the dictionary definitions load alongside it. We search
-  // under the entry's *own* language pair — a card can belong to a pair other
-  // than the one currently selected — and this never counts as a lookup.
-  async function onSelectTag(entry: VocabEntry) {
+  // Mở chi tiết một từ ở chế độ chỉ-đọc (KHÔNG đếm lượt tra). Dùng chung cho: bấm
+  // một thẻ Word Cloud, và bấm một ô ở trang học từ vựng — xem nghĩa mà không làm
+  // "quên" từ đó. Tra dưới cặp ngôn ngữ của chính từ đó (thẻ/list có thể thuộc cặp
+  // khác với cặp đang chọn trên header).
+  async function openWord(w: { term: string; term_lang: string; native_lang: string }) {
     setView({
       kind: "detail",
-      term: entry.term,
-      primaryTerm: entry.term,
+      term: w.term,
+      primaryTerm: w.term,
       results: [],
-      term_lang: entry.term_lang,
-      native_lang: entry.native_lang,
+      term_lang: w.term_lang,
+      native_lang: w.native_lang,
     });
-    const tagPair = pairById(pairId(entry.term_lang, entry.native_lang));
-    const results = await findTermsRouted(entry.term, tagPair, source);
-    // Attach the results only if the user is still on this exact tag (they may
+    const tagPair = pairById(pairId(w.term_lang, w.native_lang));
+    const results = await findTermsRouted(w.term, tagPair, source);
+    // Attach the results only if the user is still on this exact word (they may
     // have opened another card while the search ran).
     setView((prev) =>
-      prev?.kind === "detail" && prev.term === entry.term && prev.results.length === 0
+      prev?.kind === "detail" && prev.term === w.term && prev.results.length === 0
         ? { ...prev, results }
         : prev,
     );
+  }
+
+  // Selecting a cloud tag maps the word to its meaning (read-only) — một trường
+  // hợp đặt biệt của openWord, vì entry mang sẵn đủ trường.
+  async function onSelectTag(entry: VocabEntry) {
+    await openWord(entry);
   }
 
   // Fetch dictionary definitions for a saved entry without opening the detail
@@ -155,5 +161,5 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     return findTermsRouted(entry.term, tagPair, source);
   }
 
-  return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView: () => setView(null), lookupDetails };
+  return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView: () => setView(null), lookupDetails };
 }

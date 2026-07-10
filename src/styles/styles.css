@@ -460,6 +460,42 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .kanji-progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
 .kanji-source-note { font-size: 12px; overflow-wrap: anywhere; }
 
+/* Vocab study (features/vocabstudy) — lưới ô từ kiểu kanji grid, duyệt từ điển
+   local để đánh dấu nhanh biết/không biết. Tái dùng thang màu heatmap. */
+.vocab-study { display: flex; flex-direction: column; gap: 14px; }
+.vocab-pair { align-self: start; }
+.vocab-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.vocab-head h2 { margin: 0; font-size: 20px; }
+.vocab-list-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.vocab-list-item { display: inline-flex; align-items: baseline; gap: 4px; }
+.vocab-list-name { font-size: 16px; }
+.vocab-prefix {
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px;
+  font-size: 14px; min-width: 160px; background: var(--surface); color: var(--fg);
+}
+.vocab-mode-hint { font-size: 13px; }
+/* Lưới ô từ — ô rộng hơn kanji (chứa cả reading), tự reflow theo chiều ngang. */
+.vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.vocab-cell {
+  position: relative; border: 1px solid transparent; border-radius: 8px; cursor: pointer;
+  padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transition: transform 0.05s ease; min-height: 48px; text-align: center;
+  user-select: none; /* click đúp không select chữ */
+}
+.vocab-cell:hover { transform: translateY(-1px); }
+.vocab-cell.missing { border: 1px dashed var(--line); }
+/* Ô đã thuộc: viền accent nhẹ + dấu ✓ góc trên-phải để nhận biết nhanh khi lướt. */
+.vocab-cell.known { border-color: var(--accent); }
+.vocab-known-mark {
+  position: absolute; top: 2px; right: 4px; font-size: 11px; line-height: 1; opacity: 0.85;
+}
+.vocab-term { font-size: 17px; line-height: 1.1; }
+.vocab-reading { font-size: 11px; opacity: 0.8; line-height: 1; }
+/* Phân trang. */
+.vocab-pager { display: flex; align-items: center; gap: 14px; justify-content: center; }
+
+
+
 /* Buttons */
 .primary { background: var(--accent); color: #fff; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin-top: 8px; }
 .primary:disabled { background: var(--disabled); }

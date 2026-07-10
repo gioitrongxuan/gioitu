@@ -11,6 +11,7 @@ import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { KanjiStats } from "@/features/kanjistats/ui";
+import { VocabStudy } from "@/features/vocabstudy/ui";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -170,8 +171,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
-  const [page, setPage] = useState<"home" | "learned" | "kanji">("home");
-  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
+  const [page, setPage] = useState<"home" | "learned" | "kanji" | "vocabstudy">("home");
+  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -238,6 +239,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
       : []),
     { label: "Thống kê kanji", run: () => setPage("kanji") },
+    { label: "Học từ vựng", run: () => setPage("vocabstudy") },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
     { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
@@ -291,6 +293,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
           <h2>Thống kê Kanji <span lang="ja" aria-hidden>漢</span></h2>
         </div>
+      ) : page === "vocabstudy" ? (
+        <div className="learned-head" {...behindSheet}>
+          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <h2>Học từ vựng</h2>
+        </div>
       ) : (
         <div {...behindSheet}>
           <SearchBar pair={pair} source={dictSource} onResult={onResult} />
@@ -330,6 +337,20 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               entries={store.entries}
               onSelectKanji={lookupKanji}
               onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
+            />
+          ) : page === "vocabstudy" ? (
+            <VocabStudy
+              entries={store.entries}
+              pair={pair}
+              onPairChange={setPair}
+              onSelect={(w) => openWord(w)}
+              onToggle={(w, entry) => {
+                // Click đúp: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược lại
+                // → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
+                if (entry?.status === "LEARNED") store.markForgottenEntry(entry);
+                else store.markKnownByTerm(w.term, w.term_lang, w.native_lang);
+              }}
+              onRequestLogin={onRequestLogin}
             />
           ) : (
             <WordCloud
