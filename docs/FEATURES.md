@@ -9,25 +9,27 @@
 
 ## 0. Bố cục màn hình chính
 
-`src/app/App.tsx` lắp ráp một màn hình duy nhất: **Header → Search Bar → Filter
-Bar → Word Cloud**, cộng các lớp phủ (overlay) mở theo nhu cầu: Detail Panel,
-Review Session, Dictionary Manager, Theme Settings, Auth.
+`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** chuyển bằng state
+nội bộ (`page`: home / learned / kanji / vocabstudy — chưa có URL/route), cộng
+các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
+Dictionary Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
+Contribution Review, Auth.
 
 ```
 ┌ Header ─────────────────────────────────────────────────────────┐
-│ Gioitu   [Từ điển] [Quản lý từ điển] [Giao diện]  [Đồng bộ] email│
-│                                                    [Đăng xuất]   │
-│                                       (hoặc)  Khách [Đăng nhập]  │
-├ Search Bar — chọn cặp ngôn ngữ + ô tra cứu + gợi ý live ─────────┤
+│ 語 Gioitu                [Từ điển ▾ (cặp + nguồn + import)]  [☰] │
+├ Search Bar — ô tra cứu + gợi ý live + viết tay/bộ thủ ───────────┤
 ├ Filter Bar — sắp xếp · nổi bật/chỉ-hiện từ cần ôn · [Ôn tập hôm nay]│
 ├ Word Cloud — bản đồ nhiệt các từ đang học ──────────┐            │
 │                                          Detail Panel │ (khi mở) │
 └──────────────────────────────────────────────────────┴──────────┘
-        Toasts (góc) · Review/Manager/Theme/Auth là overlay
+        Toasts (góc) · các màn còn lại là mục trong menu ☰
 ```
 
-Header thay đổi theo trạng thái đăng nhập: đã đăng nhập hiện **Đồng bộ**, email
-và **Đăng xuất**; chưa đăng nhập hiện **Khách** và **Đăng nhập**.
+Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nhập/quyền):
+Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
+Kết nối Yomitan · Premium · Đồng bộ · Đăng nhập/Đăng xuất; admin thêm
+Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
 
 ## 1. Tra cứu từ điển
 
@@ -57,7 +59,8 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 - **Định nghĩa giàu (structured content)**: danh sách sense đánh số, mỗi sense có
   tag từ loại; render được list, nhấn mạnh, bảng (cuộn ngang), `<details>`, ảnh
   (xuống cấp thành `[alt]`).
-- **Link nội bộ `?query=…`**: bấm là tra tiếp từ đó (đếm như một lượt tra).
+- **Link nội bộ `?query=…`**: bấm là tra tiếp từ đó (**không** tính lượt tra —
+  tra thường không được ghi nhận, xem [LOGIC §3](./LOGIC.md)).
 - **Thống kê SRS** (khi từ đã có entry): số lần tra, trạng thái (Đang học / Đã
   thuộc / Tái quên), trạng thái thẻ, chu kỳ kế (`formatInterval`), thời điểm ôn
   tiếp (`formatRelative`), `EF / lapses`.
@@ -65,9 +68,10 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 ### Tự định nghĩa & thêm thủ công
 
 - **Không tìm thấy** → ô "Tự định nghĩa từ này" + nút **Lưu định nghĩa**; lưu là
-  một entry `is_custom`. (`DetailPanel.tsx` → `useLookup.onSaveCustom`)
-- **Thêm thủ công `[+]` (`manualAdd`)**: khẳng định ý định học → tạo thẻ SRS
-  **ngay**, bỏ qua cổng ≥ 2 lần tra. (`domain/lookup.ts`, [LOGIC §3](./LOGIC.md))
+  một entry `is_custom` (có ghi nhận lượt). (`DetailPanel.tsx` → `useLookup.onSaveCustom`)
+- **Nút `＋` (`manualAdd`)**: là **cách duy nhất** đưa một kết quả tra vào Word
+  Cloud/SRS — tạo entry kèm thẻ SRS **ngay lượt đầu** (không còn cổng ≥ 2 lần
+  tra; tra thường không được ghi nhận). (`domain/lookup.ts`, [LOGIC §3](./LOGIC.md))
 
 ## 2. Word Cloud (bản đồ từ)
 
@@ -167,8 +171,9 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
 "__guest__"`). Đăng nhập là tuỳ chọn, chỉ thêm đồng bộ đa thiết bị.
 (`auth/ui/AuthScreen.tsx`, `auth/useAuth.ts`)
 
-- **Đăng nhập / Đăng ký** (email + mật khẩu ≥ 6 ký tự) trong một modal có thể bỏ
-  qua ("Tiếp tục với tư cách khách").
+- **Đăng nhập bằng Google** (Google-only, không có email + mật khẩu) trong một
+  modal có thể bỏ qua ("Tiếp tục với tư cách khách"). (`AuthScreen.tsx`,
+  `GoogleSignInButton.tsx`)
 - **Di trú tiến trình guest**: lần đăng nhập đầu, mọi entry `__guest__` được
   chuyển sang tài khoản mới (last-write-wins từng term) → không mất gì đã học khi
   dùng thử. (`App.tsx` `migrateThen` → `reassignEntries`)
@@ -186,7 +191,7 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
 | Sự kiện | Loại | Nội dung |
 |---|---|---|
 | Tra lại một từ đã thuộc (relapse) | warn | `Bạn đã quên lại từ "<từ>"` |
-| Từ vào hàng đợi ôn tập (đạt gating) | success | `"<từ>" đã vào hàng đợi ôn tập` |
+| Từ vào hàng đợi ôn tập (khi bấm `＋`) | success | `"<từ>" đã vào hàng đợi ôn tập` |
 | Từ tốt nghiệp → đã thuộc | success | `"<từ>" đã thuộc 🎉` |
 | Đồng bộ xong | success | `Đã đồng bộ` |
 
@@ -201,7 +206,26 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   `null`/`[]` và cache cục bộ vẫn phục vụ.
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
 
-## 9. Bản đồ chức năng → tài liệu
+## 9. Các tính năng bổ sung (2026) — kiểm kê
+
+> Các màn/tính năng mọc sau bản SPEC gốc. Mỗi dòng: lối vào · mục đích · nơi
+> cài đặt. Chi tiết UX chưa được viết đầy đủ (nợ tài liệu — xem BACKLOG).
+
+| Tính năng | Lối vào | Mô tả ngắn | Nơi cài đặt |
+|---|---|---|---|
+| Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian (hiện theo `last_lookup_at`) | `review/ui/LearnedCloud.tsx` |
+| Thống kê kanji | ☰ | Lưới độ phủ kanji theo JLPT/cấp lớp + progress + "Đánh dấu nhanh" (tạo entry LEARNED 1 chữ) | `features/kanjistats/` |
+| Học từ vựng | ☰ | Lưới từ vựng kiểu kanji-grid; nguồn: study list hoặc từ điển cá nhân; click xem nghĩa, double-click toggle nhớ↔quên | `features/vocabstudy/` |
+| Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB: lưới nhập tay + sinh bằng AI (Deepseek); xuất zip Yomitan; sync đa thiết bị cần Premium | `dictionary/ui/CustomDictionary/`, `data/customDict.ts`, `data/customDictSync.ts` |
+| Study list | Nút "＋ Danh sách" trên kết quả tra (cần đăng nhập) | Danh sách từ lưu server; hiện chỉ tạo + thêm (chưa có UI xem/sửa/xoá — xem BACKLOG) | `features/studylist/` |
+| Chia sẻ từ điển | Nút "Chia sẻ" trong dropdown Từ điển (cần đăng nhập) | Link tải .zip sống ~5 phút để chuyển từ điển giữa hai máy | `features/share/` |
+| Premium | ☰ | Kích hoạt bằng mã (admin sinh); mở khoá sync từ điển cá nhân; SRS sync vẫn miễn phí | `features/premium/` |
+| Đóng góp & duyệt | Nút "Đề xuất" trên kết quả (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | `features/contribute/` |
+| Kết nối Yomitan | ☰ (cần đăng nhập) | Xuất cấu hình để trình duyệt dùng server này làm nguồn Yomitan | `auth/ui/YomitanSync.tsx`, `yomitan-api/` |
+| Viết tay & bộ thủ | Nút ✏️ cạnh ô tra | Vẽ kanji (nhận dạng qua server/Google — cần mạng) + lọc theo bộ thủ (client, offline) + panel gợi ý khớp | `dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx` |
+| Skin nền anime | Giao diện → preset | 4 backdrop trang trí lazy-load (panda/buu/cell/akatsuki), tôn trọng reduced-motion | `theme/presets/` |
+
+## 10. Bản đồ chức năng → tài liệu
 
 | Nhóm chức năng | Quy tắc nghiệp vụ | Lưu trữ |
 |---|---|---|

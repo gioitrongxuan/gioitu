@@ -10,18 +10,25 @@
 
 ## 1. Triết lý & 9 ràng buộc SPEC
 
-Triết lý: *một lần tra cứu là tín hiệu của sự quên.* Một từ chỉ "đáng học" và vào
-hàng đợi SRS sau khi bị tra **lại** (≥ 2 lần). Bảng dưới ánh xạ 9 ràng buộc §6
-của SPEC vào mã:
+Triết lý gốc: *một lần tra cứu là tín hiệu của sự quên* — một từ chỉ "đáng
+học" sau khi bị tra **lại** (≥ 2 lần).
+
+> **⚠️ Hành vi hiện tại (07/2026) đã rời SPEC ở điểm này**: tra cứu thường
+> (Enter / chọn gợi ý / link nội bộ `?query=`) **không được ghi nhận**; chỉ nút
+> **`＋`** (và lưu định nghĩa tự tạo) mới gọi `registerLookup`, và lượt `＋`
+> đầu tiên tạo entry **kèm thẻ SRS ngay** — không còn cổng ≥ 2.
+> `SRS_GATING_THRESHOLD` chỉ còn "heal" entry cũ chưa có thẻ. Việc có khôi
+> phục đếm lượt tra thụ động hay không là **quyết định mở** — xem
+> [BACKLOG.md](./BACKLOG.md). Bảng dưới đánh dấu ⚠️ những hàng đã lệch.
 
 | # | Ràng buộc | Nơi cài đặt |
 |---|---|---|
-| 1 | `lookup_count` chỉ tăng khi xác nhận (không theo từng phím), debounce 2s | `review/domain/lookup.ts`, `LOOKUP_DEBOUNCE_MS` |
-| 2 | Word Cloud từ lần tra đầu; thẻ SRS chỉ tạo khi `lookup_count ≥ 2` (bypass khi `manualAdd`) | `lookup.ts` gating, `SRS_GATING_THRESHOLD` |
+| 1 | ⚠️ `lookup_count` chỉ tăng qua `＋`/lưu tự định nghĩa (tra thường không đếm), debounce 2s | `app/useLookup.ts`, `review/domain/lookup.ts`, `LOOKUP_DEBOUNCE_MS` |
+| 2 | ⚠️ Thẻ SRS tạo ngay lượt `＋` đầu ("no gating"); `SRS_GATING_THRESHOLD` chỉ heal entry legacy | `lookup.ts` |
 | 3 | Màu tag = log-normalized `lookup_count`, độc lập SRS | `wordcloud.computeShade` |
 | 4 | Hiển thị theo `status`: `LEARNED` ẩn, `LEARNING`/`RELAPSED` hiện | `wordcloud.isVisibleOnCloud` |
 | 5 | `RELAPSED` = logic `LEARNING` + huy hiệu cảnh báo | `srs.ts`, `WordCloud.tsx` |
-| 6 | Relapse khi tra lại từ `LEARNED`; reset như "Again" | `lookup.ts` + `srs.relapse` |
+| 6 | ⚠️ Relapse chỉ khi `＋` lại một từ `LEARNED` (tra thường không kích hoạt); reset như "Again" | `lookup.ts` + `srs.relapse` |
 | 7 | Tốt nghiệp `→ LEARNED` theo ngưỡng `srs_interval ≥ 21 ngày`, không bằng nút bấm | `srs.gradeCard` |
 | 8 | `ease_factor` kẹp `≥ 1.3` | `srs.clampEase` |
 | 9 | Cloud DB là chân lý; IndexedDB cache; last-write-wins theo `updated_at` | `repository.ts`, `syncStore.ts` |
@@ -85,31 +92,38 @@ quy đổi sang đơn vị thân thiện. `is_relearning` không có trong bản
 `undefined`), input và `now`; trả entry kế + tập **sự kiện** để UI hiện toast.
 Không bao giờ mutate input.
 
+**Ai gọi (quan trọng):** chỉ hai đường trong `app/useLookup.ts` gọi
+`recordLookup` → `registerLookup`: nút **`＋`** trên một kết quả
+(`addResult`) và **lưu định nghĩa tự tạo** (`onSaveCustom`). Tra cứu thường
+(`onResult` khi Enter/chọn gợi ý, và `lookup()` cho link nội bộ `?query=`)
+**không** ghi nhận gì. Xem lại từ trên cloud (`onSelectTag`) cũng không.
+
 ```
 registerLookup(existing, input, now):
 
  ┌─ existing == undefined? (lần đầu thấy term) ────────────────────┐
- │   tạo entry mới: lookup_count = 1, status = LEARNING,            │
- │   card_state = null (chưa có thẻ)                                │
- │   nếu input.manualAdd → tạo thẻ ngay (newCardState), card=✓      │
- │   → events: { created:✓, counted:✓, cardCreated:?, relapsed:✗ } │
+ │   tạo entry mới KÈM THẺ NGAY: lookup_count = 1, status = LEARNING│
+ │   + newCardState(now)  ("no gating" — không chờ lượt thứ 2)      │
+ │   → events: { created:✓, counted:✓, cardCreated:✓, relapsed:✗ } │
  └──────────────────────────────────────────────────────────────────┘
  ┌─ debounce: now - last_lookup_at < 2000ms  và KHÔNG manualAdd? ──┐
- │   → no-op, KHÔNG đếm                                             │
+ │   → no-op, KHÔNG đếm (kể cả cập nhật meaning)                    │
  │   → events: tất cả false                                        │
  └──────────────────────────────────────────────────────────────────┘
- ┌─ ngược lại (đếm lượt tra) ───────────────────────────────────────┐
+ ┌─ ngược lại (đếm lượt) ───────────────────────────────────────────┐
  │   lookup_count += 1; last_lookup_at = now; updated_at = now      │
  │   cập nhật meaning/is_custom nếu input có                        │
  │                                                                  │
  │   • nếu status == LEARNED  → relapse(entry, now)  (relapsed=✓)   │
- │   • else nếu chưa có thẻ và (lookup_count ≥ 2 hoặc manualAdd)    │
- │            → newCardState(now)  (cardCreated=✓)                  │
+ │   • else nếu chưa có thẻ (entry legacy) và                       │
+ │     (lookup_count ≥ SRS_GATING_THRESHOLD hoặc manualAdd)         │
+ │            → newCardState(now)  (cardCreated=✓)  ["legacy heal"] │
  └──────────────────────────────────────────────────────────────────┘
 ```
 
-`manualAdd` (người dùng bấm `[+]`) khẳng định ý định học → tạo thẻ ngay, bỏ qua
-cổng `lookup_count ≥ 2`, và **không** bị debounce.
+`manualAdd` (người dùng bấm `＋`) khẳng định ý định học và **không** bị
+debounce. Vì entry mới nào cũng có thẻ ngay, nhánh gating ≥ 2 chỉ còn tác
+dụng "heal" entry cũ tồn tại từ trước khi bỏ gating.
 
 Sự kiện trả về (`LookupResult.events`):
 

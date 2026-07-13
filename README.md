@@ -4,11 +4,17 @@ A webapp that turns passive dictionary look-ups into an active, measured
 review habit. It combines a **Word Cloud** that visualizes how often you forget
 a word with a **Spaced Repetition System (SRS)** modeled on Anki/SM‑2.
 
-> Core philosophy: *a look-up is a signal of forgetting.* A word must be looked
-> up **again (≥ 2×)** before it is considered "worth learning" and enters the
-> review queue. This keeps the SRS queue clean and focused.
+> Core philosophy: *a look-up is a signal of forgetting.*
+>
+> **Current behavior (07/2026):** a plain look-up is *not* recorded on its
+> own — the user confirms intent with the **`＋` button**, which creates the
+> entry *and* its SRS card immediately (no ≥ 2× gating; see
+> `review/domain/lookup.ts`). The original SPEC gating ("looked up again
+> (≥ 2×) before entering the review queue") is currently **not** what the code
+> does; whether to restore passive lookup counting is an open decision — see
+> `docs/BACKLOG.md`.
 
-Implements the v2 SPEC (PRD), including all nine logic constraints in §6.
+Implements the v2 SPEC (PRD); constraint deviations are flagged in §6 below.
 
 ## Quick start (Docker — everything in one command)
 
@@ -158,14 +164,16 @@ test/                  ← Vitest suites covering the SPEC's logic constraints
 
 ### Dictionaries & Search Router (SPEC 2.A)
 
-There are **four forward dictionaries**, one per language pair, chosen from the
-search bar: **Nhật → Việt**, **Việt → Nhật**, **Anh → Việt**, **Việt → Anh**
+There are **six forward dictionaries**, one per language pair, chosen from the
+**Từ điển dropdown in the header**: **Nhật → Việt**, **Việt → Nhật**,
+**Nhật → Anh**, **Anh → Nhật**, **Anh → Việt**, **Việt → Anh**
 (`src/shared/languages.ts`). Each look-up is a forward `term → meaning` query
 scoped to the selected pair `(term_lang, native_lang)` — there is no separate
 reverse-index mode; "Việt → Anh" is simply a `vi → en` dictionary.
 
-The user chooses which database answers via a **source toggle** in the search
-bar (*Trên máy* / *Server*) — there is **no** automatic client→server fallback;
+The user chooses which database answers via a **source toggle** in that same
+header dropdown (*Trên máy* / *Server*) — there is **no** automatic
+client→server fallback;
 the chosen source answers outright (first-load default follows wherever data
 actually is). The two sources sit behind one `DictionarySource` interface
 (`dictionary/data/sources.ts`), with `search.ts` a thin facade over them:
@@ -235,13 +243,13 @@ at once, see/delete dictionaries, and add or edit meanings. Read endpoints
 
 | # | Constraint | Where |
 |---|------------|-------|
-| 1 | `lookup_count` increments on confirm only (not per keystroke), with a 2s debounce | `review/domain/lookup.ts`, `constants.LOOKUP_DEBOUNCE_MS` |
-| 2 | Word Cloud on first look-up; SRS card only at `lookup_count ≥ 2` (the `manualAdd` bypass remains in the domain layer) | `review/domain/lookup.ts` gating, `constants.SRS_GATING_THRESHOLD` |
+| 1 | ⚠️ **Deviated**: only the `＋` button (and saving a custom definition) records a lookup — plain search confirms record nothing. 2s debounce still applies | `app/useLookup.ts`, `review/domain/lookup.ts`, `constants.LOOKUP_DEBOUNCE_MS` |
+| 2 | ⚠️ **Deviated**: SRS card is created on the *first* `＋` (no `≥ 2` gating); `SRS_GATING_THRESHOLD` only heals legacy card-less entries | `review/domain/lookup.ts` ("no gating"), `constants.SRS_GATING_THRESHOLD` |
 | 3 | Tag colour = log-normalized `lookup_count`, independent of SRS | `review/domain/wordcloud.computeShade` |
 | 4 | Visibility depends on `status`: `LEARNED` hidden, `LEARNING`/`RELAPSED` shown | `review/domain/wordcloud.isVisibleOnCloud` |
 | 5 | `RELAPSED` = `LEARNING` logic + warning badge | `review/domain/srs.ts`, `review/ui/WordCloud.tsx` |
-| 6 | Relapse triggers when re-looking-up a `LEARNED` word; resets like `Again` | `review/domain/lookup.ts` + `srs.relapse` |
-| 7 | Graduate `→ LEARNED` by threshold `srs_interval ≥ 21 days`, not by a button | `review/domain/srs.gradeCard` |
+| 6 | ⚠️ **Deviated**: relapse of a `LEARNED` word only triggers via an explicit `＋` re-add (plain look-ups aren't recorded); resets like `Again` | `review/domain/lookup.ts` + `srs.relapse` |
+| 7 | Graduate `→ LEARNED` by threshold `srs_interval ≥ 21 days` via reviews. ⚠️ Partially deviated: three "mark as known" shortcuts (DetailPanel ✓, KanjiStats quick-mark, VocabStudy double-click) jump straight to `LEARNED` via `srs.markKnown` | `review/domain/srs.gradeCard`, `srs.markKnown` |
 | 8 | `ease_factor` clamped `≥ 1.3` | `review/domain/srs.clampEase` |
 | 9 | Cloud DB is source of truth (per authenticated account); IndexedDB caches; last-write-wins by `updated_at` | `review/data/repository.ts`, `server/src/features/sync/syncStore.ts` |
 
