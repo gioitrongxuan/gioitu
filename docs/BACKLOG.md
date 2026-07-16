@@ -31,11 +31,6 @@
 
 Vòng lặp học đúng + dữ liệu an toàn + hết báo sai cho người dùng.
 
-- [ ] **DB_VERSION xoá store `terms` = xoá từ điển cá nhân** (critical): upgrade
-  đang `deleteObjectStore("terms")` vô điều kiện với giả định "cache" — sai từ
-  khi custom dict ghi vào cùng store. Migrate row có dictId thuộc registry
-  custom thay vì xoá; sửa lời bình + CLAUDE.md. `db.ts:145-153 ·
-  customDict.ts:74-75`
 - [ ] **Persistent storage + backup cho guest** (critical): gọi
   `navigator.storage.persist()` khi có entry đầu tiên; banner nhẹ khi guest
   nhiều từ; nút xuất/nhập backup JSON dữ liệu học. Hiện grep = 0 kết quả.
