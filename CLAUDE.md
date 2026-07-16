@@ -89,9 +89,11 @@ server/src/    core/ (db) + features/{auth,dictionary,sync}
   `terms` gồm cả `reading` để không gộp đồng âm.
 - **CẢNH BÁO — bất biến "terms là cache" đã đổ**: từ khi có Từ điển cá nhân
   (CustomDictionary), store `terms` chứa cả từ người dùng tự soạn — KHÔNG tạo
-  lại được bằng re-import. Hàm upgrade trong `src/shared/db.ts` hiện xoá store
-  này mỗi lần bump version (mục critical, BACKLOG GĐ0). Trước khi bump
-  `DB_VERSION`, phải bảo toàn row có `dictId` thuộc registry custom.
+  lại được bằng re-import. Hàm upgrade trong `src/shared/db.ts` giờ migrate
+  theo version và KHÔNG xoá `terms` khi bump (row custom chỉ tồn tại từ v5, mà
+  từ v5 trở đi ta không recreate store nên chúng luôn sống sót). Nếu buộc phải
+  đổi lại keyPath của `terms`, PHẢI bảo toàn trước các row có `dictId` thuộc
+  registry custom rồi mới recreate.
 - **`user_data`** (dữ liệu học/SRS) trong IndexedDB: với người đăng nhập là
   cache của Cloud DB; với **guest là bản duy nhất** (chưa có backup/persistent
   storage — xem BACKLOG GĐ0). Bump `DB_VERSION` khi đổi schema.
