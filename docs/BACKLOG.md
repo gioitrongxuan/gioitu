@@ -31,17 +31,6 @@
 
 Vòng lặp học đúng + dữ liệu an toàn + hết báo sai cho người dùng.
 
-- [ ] **Bug nhảy cóc thẻ trong phiên ôn** (critical): ReviewSession nhận
-  `queue={store.dueEntries}` sống, chấm 1 thẻ là mảng co lại nhưng index vẫn
-  tăng → bỏ sót cách thẻ một, "Hoàn thành" khi mới ôn ~nửa. Snapshot queue lúc
-  mở phiên (`useState(() => queue)`), tự quản con trỏ; nhân tiện sort theo
-  next_review + shuffle. `App.tsx:375 · ReviewSession.tsx:45,77-82 ·
-  store.ts:144-147`
-- [ ] **Re-queue thẻ "Again" trong phiên**: sau Again thẻ biến mất (next_review
-  = now+1'), learning steps 1/10' không thực thi được — chèn lại cuối phiên
-  hoặc khi đến giờ. `ReviewSession.tsx:33-82 · srs.ts:97-101,182`
-- [ ] **Undo trong phiên ôn**: giữ snapshot entry trước grade, nút Hoàn tác
-  (gradeCard thuần nên rẻ). `ReviewSession.tsx:77-82 · store.ts:69-81`
 - [ ] **DB_VERSION xoá store `terms` = xoá từ điển cá nhân** (critical): upgrade
   đang `deleteObjectStore("terms")` vô điều kiện với giả định "cache" — sai từ
   khi custom dict ghi vào cùng store. Migrate row có dictId thuộc registry

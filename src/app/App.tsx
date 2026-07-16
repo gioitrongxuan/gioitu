@@ -374,6 +374,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         <ReviewSession
           queue={store.dueEntries}
           onGrade={store.gradeReview}
+          onUndo={store.undoReview}
           onLookupDetails={lookupDetails}
           onClose={() => setReviewing(false)}
         />

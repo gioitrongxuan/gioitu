@@ -720,7 +720,10 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .grade.hard { background: var(--caution); }
 .grade.good { background: var(--ok); }
 .grade.easy { background: var(--accent); }
-.review-card .close { margin-top: 12px; display: block; }
+.review-footer { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+/* Kết thúc phiên luôn nằm bên phải, dù nút Hoàn tác có hiện hay không. */
+.review-footer .close { margin-left: auto; }
+.review-footer .link[disabled] { opacity: 0.45; cursor: default; }
 .review-card.done { text-align: center; }
 
 /* Định nghĩa từ điển bật ra trong mặt sau thẻ ôn (lazy, sau nút "Xem định nghĩa").

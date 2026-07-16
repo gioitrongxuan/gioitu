@@ -80,6 +80,21 @@ export function useAppStore(userId: string) {
     [pushToast, upsertLocal],
   );
 
+  /**
+   * Hoàn tác một lượt chấm trong phiên ôn: ghi lại thẻ ở trạng thái *trước khi
+   * chấm*. Bump `updated_at` để bản khôi phục thắng LWW trước bản vừa chấm đã ghi
+   * (nếu không, đồng bộ sau đó sẽ resurrect bản đã chấm và nuốt mất thao tác undo).
+   */
+  const undoReview = useCallback(
+    async (prev: VocabEntry) => {
+      const restored: VocabEntry = { ...prev, updated_at: Date.now() };
+      await putEntry(restored);
+      upsertLocal(restored);
+      return restored;
+    },
+    [upsertLocal],
+  );
+
   /** "Đã nhớ" — graduate a word straight to LEARNED (already known). */
   const markKnownEntry = useCallback(
     async (entry: VocabEntry) => {
@@ -171,6 +186,7 @@ export function useAppStore(userId: string) {
     loaded,
     recordLookup,
     gradeReview,
+    undoReview,
     markKnownEntry,
     markKnownByTerm,
     markForgottenEntry,
