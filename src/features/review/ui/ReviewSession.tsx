@@ -8,7 +8,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard } from "../domain/srs";
-import { startSession, currentCard, applyGrade, undoGrade, canUndo } from "../domain/session";
+import {
+  startSession,
+  currentCard,
+  applyGrade,
+  undoGrade,
+  canUndo,
+  hasNextBatch,
+  nextBatchSize,
+  loadNextBatch,
+} from "../domain/session";
 import { formatInterval } from "@/shared/ui/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Definitions } from "@/features/dictionary/ui/Definitions";
@@ -69,7 +78,26 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     return out;
   }, [card]);
 
+  // Hết lô hiện tại: nếu còn thẻ chờ thì mời ôn tiếp lô kế (điểm dừng tự nhiên),
+  // ngược lại là màn tổng kết phiên. Tái dùng khung `.review-card done`.
   if (!card) {
+    if (hasNextBatch(session)) {
+      const remaining = nextBatchSize(session);
+      return (
+        <div className="review-overlay" role="dialog" aria-modal="true">
+          <div className="review-card done">
+            <h2>Xong một lô! 🎉</h2>
+            <p>Đã ôn {session.reviewed} thẻ. Còn {session.pending.length} thẻ đến hạn.</p>
+            <button className="primary" onClick={() => setSession((s) => loadNextBatch(s))}>
+              Ôn tiếp {remaining} thẻ nữa
+            </button>
+            <div className="review-footer">
+              <button className="link close" onClick={onClose}>Kết thúc phiên</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="review-overlay" role="dialog" aria-modal="true">
         <div className="review-card done">

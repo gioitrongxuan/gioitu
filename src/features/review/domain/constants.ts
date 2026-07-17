@@ -97,3 +97,11 @@ export const LOOKUP_DEBOUNCE_MS = 2000;
 
 /** Minimum lookups before an SRS card is auto-created (SPEC 4.4 gating). */
 export const SRS_GATING_THRESHOLD = 2;
+
+/**
+ * Số thẻ phục vụ trong MỘT lô của phiên ôn. Hàng đợi đến hạn có thể phình lên
+ * hàng trăm thẻ; chia thành lô ~20 để mỗi chặng có điểm dừng tự nhiên ("Ôn tiếp
+ * 20 thẻ nữa?") thay vì một phiên dài vô tận làm nản. Các thẻ quá hạn lâu nhất
+ * được xếp trước rồi mới chia lô, nên lô đầu luôn là phần cấp thiết nhất.
+ */
+export const REVIEW_BATCH_SIZE = 20;

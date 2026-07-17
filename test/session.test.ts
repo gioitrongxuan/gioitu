@@ -7,7 +7,11 @@ import {
   undoGrade,
   canUndo,
   shouldRequeue,
+  hasNextBatch,
+  nextBatchSize,
+  loadNextBatch,
 } from "@/features/review/domain/session";
+import { REVIEW_BATCH_SIZE } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 const NOW = 5_000_000;
@@ -40,6 +44,76 @@ describe("startSession", () => {
     expect(s.reviewed).toBe(0);
     expect(canUndo(s)).toBe(false);
     expect(currentCard(s)?.term).toBe("b");
+  });
+});
+
+// c0 is the most overdue, c(n-1) the least — so the deterministic sorted order
+// is c0, c1, …, c(n-1) and slicing into batches is easy to assert.
+function dueBatch(n: number) {
+  return Array.from({ length: n }, (_, i) => due(`c${i}`, (n - i) * 1000));
+}
+
+describe("batching", () => {
+  it("serves the whole queue in one batch when due count ≤ batch size (no prompt)", () => {
+    const s = startSession(dueBatch(REVIEW_BATCH_SIZE));
+    expect(s.queue).toHaveLength(REVIEW_BATCH_SIZE);
+    expect(s.pending).toHaveLength(0);
+    expect(hasNextBatch(s)).toBe(false);
+  });
+
+  it("splits a queue larger than the batch size into a first batch + pending", () => {
+    const s = startSession(dueBatch(REVIEW_BATCH_SIZE + 5));
+    expect(s.queue).toHaveLength(REVIEW_BATCH_SIZE);
+    expect(hasNextBatch(s)).toBe(true);
+    expect(s.pending).toHaveLength(5);
+    expect(nextBatchSize(s)).toBe(5); // last partial batch
+  });
+
+  it("puts the most-overdue cards in the first batch (priority before batching)", () => {
+    const s = startSession(dueBatch(REVIEW_BATCH_SIZE + 3));
+    expect(currentCard(s)?.term).toBe("c0"); // most overdue served first
+    expect(s.queue.map((e) => e.term)).toEqual(
+      Array.from({ length: REVIEW_BATCH_SIZE }, (_, i) => `c${i}`),
+    );
+    // the least-overdue tail waits in pending
+    expect(s.pending.map((e) => e.term)).toEqual(
+      Array.from({ length: 3 }, (_, i) => `c${REVIEW_BATCH_SIZE + i}`),
+    );
+  });
+
+  it("loadNextBatch serves the next slice with no overlap or gap", () => {
+    let s = startSession(dueBatch(7), Math.random, 3);
+    expect(s.queue.map((e) => e.term)).toEqual(["c0", "c1", "c2"]);
+
+    s = loadNextBatch(s);
+    expect(s.queue.map((e) => e.term)).toEqual(["c3", "c4", "c5"]);
+    expect(hasNextBatch(s)).toBe(true);
+    expect(nextBatchSize(s)).toBe(1); // one card left
+
+    s = loadNextBatch(s);
+    expect(s.queue.map((e) => e.term)).toEqual(["c6"]);
+    expect(hasNextBatch(s)).toBe(false);
+  });
+
+  it("accumulates reviewed across batches; undo does not cross a batch boundary", () => {
+    let s = startSession(dueBatch(4), Math.random, 2);
+    // Graduate both cards of batch 1 to REVIEW so they drop out of the queue.
+    s = applyGrade(s, { ...currentCard(s)!, card_state: "REVIEW", next_review: NOW + 999 });
+    s = applyGrade(s, { ...currentCard(s)!, card_state: "REVIEW", next_review: NOW + 999 });
+    expect(currentCard(s)).toBeUndefined();
+    expect(hasNextBatch(s)).toBe(true);
+    expect(s.reviewed).toBe(2);
+
+    s = loadNextBatch(s);
+    expect(canUndo(s)).toBe(false); // fresh batch — nothing to undo across the seam
+    s = applyGrade(s, { ...currentCard(s)!, card_state: "REVIEW", next_review: NOW + 999 });
+    expect(s.reviewed).toBe(3); // cumulative, not reset per batch
+  });
+
+  it("batchSize ≤ 0 keeps everything in a single batch", () => {
+    const s = startSession(dueBatch(30), Math.random, 0);
+    expect(s.queue).toHaveLength(30);
+    expect(hasNextBatch(s)).toBe(false);
   });
 });
 
