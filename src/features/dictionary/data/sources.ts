@@ -9,14 +9,19 @@
 import { DictEntry } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
 import { candidates } from "../domain/deinflect";
+import { found, lookupFailed, LookupResult } from "../domain/lookupError";
 import { DictSource } from "../domain/source";
 import { findTerms, fuzzyTerms, suggestTerms, TermResult } from "./yomitan";
-import { serverFuzzy, serverLookup, serverSuggest } from "./serverDict";
+import { DictionaryNetworkError, serverFuzzy, serverLookup, serverSuggest } from "./serverDict";
 
 /** Forward, per-pair look-up against one database. No cross-source fallback. */
 export interface DictionarySource {
-  /** Yomitan-style: deinflect the query and return ranked matches. */
-  findTerms(text: string, pair: LangPair): Promise<TermResult[]>;
+  /**
+   * Yomitan-style: deinflect the query and return ranked matches. Bọc trong
+   * LookupResult để phân biệt "không có từ" (results rỗng, error null) với "không
+   * gọi được máy chủ" (error "network") — UI báo hai trường hợp khác nhau.
+   */
+  findTerms(text: string, pair: LangPair): Promise<LookupResult<TermResult>>;
   /** Prefix suggestions while typing. */
   suggest(prefix: string, pair: LangPair): Promise<DictEntry[]>;
   /** Near-misses by edit distance, skipping the `exclude`d (term, reading) keys. */
@@ -24,7 +29,8 @@ export interface DictionarySource {
 }
 
 const localSource: DictionarySource = {
-  findTerms: (text, pair) => findTerms(text, pair.source, pair.target),
+  // Nguồn Trên máy chạy hoàn toàn từ IndexedDB (offline) nên không có lỗi mạng.
+  findTerms: async (text, pair) => found(await findTerms(text, pair.source, pair.target)),
   suggest: (prefix, pair) => suggestTerms(prefix, pair.source, pair.target),
   fuzzy: (text, pair, exclude) => fuzzyTerms(text, pair.source, pair.target, exclude),
 };
@@ -40,25 +46,34 @@ function termReadingKey(entry: DictEntry): string {
 const serverSource: DictionarySource = {
   async findTerms(text, pair) {
     const query = text.trim();
-    if (!query) return [];
+    if (!query) return found([]);
     // The server can't deinflect, so look each candidate form up. A form can map
     // to several entries (homographs sharing a reading: さくら → 桜, 櫻); key by
     // (term, reading) so they surface separately, keeping the closest match.
     const cands = candidates(query, pair.source).slice(0, MAX_SERVER_CANDIDATES);
     const byKey = new Map<string, TermResult>();
-    for (const cand of cands) {
-      const entries = await serverLookup(cand.term, pair.source, pair.target);
-      for (const entry of entries) {
-        const key = JSON.stringify([entry.term, entry.reading ?? ""]);
-        const prev = byKey.get(key);
-        if (!prev || cand.reasons.length < prev.reasons.length) {
-          byKey.set(key, { entry, reasons: cand.reasons, source: query });
+    try {
+      for (const cand of cands) {
+        const entries = await serverLookup(cand.term, pair.source, pair.target);
+        for (const entry of entries) {
+          const key = JSON.stringify([entry.term, entry.reading ?? ""]);
+          const prev = byKey.get(key);
+          if (!prev || cand.reasons.length < prev.reasons.length) {
+            byKey.set(key, { entry, reasons: cand.reasons, source: query });
+          }
         }
       }
+    } catch (err) {
+      // Mất mạng / máy chủ lỗi: KHÔNG trả rỗng-im-lặng (UI sẽ tưởng "không tìm
+      // thấy"). Báo cờ lỗi để UI hiện thông điệp riêng + gợi ý chuyển nguồn.
+      if (err instanceof DictionaryNetworkError) return lookupFailed("network");
+      throw err;
     }
     // Exact (fewest reasons) first, then most common (score) — như nguồn local.
-    return [...byKey.values()].sort(
-      (a, b) => a.reasons.length - b.reasons.length || (b.entry.score ?? 0) - (a.entry.score ?? 0),
+    return found(
+      [...byKey.values()].sort(
+        (a, b) => a.reasons.length - b.reasons.length || (b.entry.score ?? 0) - (a.entry.score ?? 0),
+      ),
     );
   },
 

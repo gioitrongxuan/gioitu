@@ -9,6 +9,7 @@ import { TermResult } from "../data/search";
 import { VocabEntry } from "@/shared/types";
 import { setTermVerified } from "../data/dictAdmin";
 import { reasonLabel } from "../domain/deinflect";
+import { describeLookupError, LookupErrorKind } from "../domain/lookupError";
 import { Definitions } from "./Definitions";
 import { ImageGallery, CommentList } from "./Media";
 import { PitchView, Pronunciations } from "./PitchView";
@@ -30,6 +31,11 @@ interface Props {
   native_lang: string;
   /** Dictionary results (deinflected + ranked). May be empty. */
   results: TermResult[];
+  /**
+   * Lỗi khi tra (mất mạng / máy chủ lỗi), null khi tra được. Khi có lỗi, results
+   * rỗng KHÔNG có nghĩa "không tìm thấy" — panel báo lỗi riêng.
+   */
+  error?: LookupErrorKind | null;
   /** The user's learning entry for the primary term, if any. */
   entry?: VocabEntry;
   onSaveCustom: (meaning: string) => void;
@@ -69,6 +75,7 @@ export function DetailPanel({
   term_lang,
   native_lang,
   results,
+  error,
   entry,
   onSaveCustom,
   onClose,
@@ -265,6 +272,7 @@ export function DetailPanel({
             term={term}
             termLang={term_lang}
             nativeLang={native_lang}
+            error={error}
             onLookup={onLookup}
             onSaveCustom={onSaveCustom}
           />
@@ -289,37 +297,48 @@ export function DetailPanel({
 }
 
 /**
- * Không có mục từ vựng nào khớp. Với truy vấn tiếng Nhật, chữ Hán trong truy vấn
- * vẫn có thể tra được (kanji nằm ở CSDL riêng, độc lập với nguồn từ điển): hiện
- * phân tích chữ Hán kèm từ ví dụ (những từ CHỨA kanji) thay vì chỉ báo "không tìm
- * thấy". Chỉ khi không có kanji nào (từ thuần kana, tiếng Anh, offline…) mới mời
- * người dùng tự định nghĩa.
+ * Không có mục từ vựng nào khớp. Ba tình huống, ba lời mời khác nhau:
+ *  • Lỗi mạng/máy chủ (error): KHÔNG kết luận "không tìm thấy" — báo đúng nguyên
+ *    nhân + gợi ý chuyển nguồn "Trên máy". Bỏ qua phân tích chữ Hán (kanji cũng
+ *    nằm sau máy chủ nên sẽ lỗi tiếp).
+ *  • Truy vấn tiếng Nhật có chữ Hán: hiện phân tích chữ Hán kèm từ ví dụ (kanji ở
+ *    CSDL riêng, độc lập nguồn từ điển) thay vì chỉ báo "không tìm thấy".
+ *  • Còn lại (kana thuần, tiếng Anh…): mời người dùng tự định nghĩa.
+ * Tự định nghĩa luôn khả dụng — lưu vào máy được kể cả khi offline.
  */
 function NoMatch({
   term,
   termLang,
   nativeLang,
+  error,
   onLookup,
   onSaveCustom,
 }: {
   term: string;
   termLang: string;
   nativeLang: string;
+  error?: LookupErrorKind | null;
   onLookup?: (term: string) => void;
   onSaveCustom: (meaning: string) => void;
 }) {
-  const isJapanese = termLang === "ja";
-  // null = đang tra kanji (chưa biết); số = số kanji tìm được. Truy vấn không phải
-  // tiếng Nhật thì chắc chắn không có phần chữ Hán → coi như 0 ngay.
-  const [kanjiCount, setKanjiCount] = useState<number | null>(isJapanese ? null : 0);
+  const errorMessage = error ? describeLookupError(error) : null;
+  // Lỗi mạng thì bỏ tra chữ Hán (cùng máy chủ → cũng lỗi); còn lại chỉ tra khi ja.
+  const showKanji = termLang === "ja" && !errorMessage;
+  // null = đang tra kanji (chưa biết); số = số kanji tìm được.
+  const [kanjiCount, setKanjiCount] = useState<number | null>(showKanji ? null : 0);
   const [custom, setCustom] = useState("");
 
-  const resolvingKanji = isJapanese && kanjiCount === null;
+  const resolvingKanji = showKanji && kanjiCount === null;
   const hasKanji = (kanjiCount ?? 0) > 0;
+  const invite = errorMessage
+    ? errorMessage.hint
+    : hasKanji
+      ? "Chưa có mục từ vựng. Tự định nghĩa từ này:"
+      : "Không tìm thấy. Tự định nghĩa từ này:";
 
   return (
     <>
-      {isJapanese && (
+      {showKanji && (
         <KanjiBreakdown
           term={term}
           src={termLang}
@@ -334,9 +353,8 @@ function NoMatch({
           rồi mới hiện chữ Hán. Còn tự định nghĩa vẫn luôn khả dụng. */}
       {!resolvingKanji && (
         <div className="custom-def">
-          <p className="muted">
-            {hasKanji ? "Chưa có mục từ vựng. Tự định nghĩa từ này:" : "Không tìm thấy. Tự định nghĩa từ này:"}
-          </p>
+          {errorMessage && <p className="danger">{errorMessage.title}</p>}
+          <p className="muted">{invite}</p>
           <textarea
             value={custom}
             onChange={(e) => setCustom(e.target.value)}

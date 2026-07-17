@@ -11,7 +11,7 @@ import { useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, pairById, pairId } from "@/shared/languages";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
-import { TermResult, findTermsRouted, findFuzzyRouted } from "@/features/dictionary/data/search";
+import { TermResult, LookupErrorKind, findTermsRouted, findFuzzyRouted } from "@/features/dictionary/data/search";
 import { DictSource } from "@/features/dictionary/domain/source";
 import { LookupInput } from "@/features/review/domain/lookup";
 
@@ -24,6 +24,11 @@ export type DetailView = {
   results: TermResult[];
   term_lang: string;
   native_lang: string;
+  /**
+   * Lỗi khi tra (mất mạng / máy chủ lỗi), null khi tra được. Để UI hiện thông
+   * điệp riêng thay vì "Không tìm thấy" khi results rỗng chỉ vì mất mạng.
+   */
+  error: LookupErrorKind | null;
 } | null;
 
 /** The slice of the app store this hook needs (interface segregation). */
@@ -37,12 +42,21 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
   // A search result was confirmed. Like Yomitan, we track the *dictionary form*
   // of a deinflected match (not the inflected surface typed) so the SRS and word
   // cloud key on the lemma.
-  async function onResult(results: TermResult[], term: string, p: LangPair) {
+  async function onResult(
+    results: TermResult[],
+    term: string,
+    p: LangPair,
+    error: LookupErrorKind | null = null,
+  ) {
     const primary = results[0]?.entry;
     const term_lang = primary?.term_lang ?? p.source;
     const native_lang = primary?.native_lang ?? p.target;
     const primaryTerm = primary?.term ?? term;
-    setView({ kind: "detail", term, primaryTerm, results, term_lang, native_lang });
+    setView({ kind: "detail", term, primaryTerm, results, term_lang, native_lang, error });
+
+    // Lỗi mạng thì bỏ qua near-miss: cùng máy chủ nên cũng sẽ lỗi, và ta không
+    // muốn phủ thêm gợi ý lên thông điệp lỗi.
+    if (error) return;
 
     // Fuzzy near-misses ("did you mean…") run off the hot path: scanning the
     // whole dictionary can take a moment, so we never make the exact results
@@ -91,8 +105,8 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
 
   // Navigate to another term from an internal dictionary link.
   async function lookup(term: string) {
-    const results = await findTermsRouted(term, pair, source);
-    await onResult(results, term, pair);
+    const { results, error } = await findTermsRouted(term, pair, source);
+    await onResult(results, term, pair, error);
   }
 
   async function onSaveCustom(meaning: string) {
@@ -113,11 +127,11 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
   // and a kanji that is also a headword still shows its entry. Not a lookup.
   async function lookupKanji(kanji: string) {
     const jaPair = pairById(pairId("ja", "vi"));
-    setView({ kind: "detail", term: kanji, primaryTerm: kanji, results: [], term_lang: "ja", native_lang: "vi" });
-    const results = await findTermsRouted(kanji, jaPair, source);
+    setView({ kind: "detail", term: kanji, primaryTerm: kanji, results: [], term_lang: "ja", native_lang: "vi", error: null });
+    const { results, error } = await findTermsRouted(kanji, jaPair, source);
     setView((prev) =>
       prev?.kind === "detail" && prev.term === kanji && prev.results.length === 0
-        ? { ...prev, results }
+        ? { ...prev, results, error }
         : prev,
     );
   }
@@ -134,14 +148,15 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
       results: [],
       term_lang: w.term_lang,
       native_lang: w.native_lang,
+      error: null,
     });
     const tagPair = pairById(pairId(w.term_lang, w.native_lang));
-    const results = await findTermsRouted(w.term, tagPair, source);
+    const { results, error } = await findTermsRouted(w.term, tagPair, source);
     // Attach the results only if the user is still on this exact word (they may
     // have opened another card while the search ran).
     setView((prev) =>
       prev?.kind === "detail" && prev.term === w.term && prev.results.length === 0
-        ? { ...prev, results }
+        ? { ...prev, results, error }
         : prev,
     );
   }
@@ -158,7 +173,9 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
   // the one currently selected) and never counts as a lookup.
   async function lookupDetails(entry: VocabEntry): Promise<TermResult[]> {
     const tagPair = pairById(pairId(entry.term_lang, entry.native_lang));
-    return findTermsRouted(entry.term, tagPair, source);
+    // Thẻ ôn chỉ hiện phần định nghĩa; lỗi mạng ở đây coi như không có định nghĩa.
+    const { results } = await findTermsRouted(entry.term, tagPair, source);
+    return results;
   }
 
   return { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView: () => setView(null), lookupDetails };
