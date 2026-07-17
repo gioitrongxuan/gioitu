@@ -19,7 +19,7 @@ phải bảo toàn → IndexedDB chỉ là bản sao của Cloud DB.
 
 ## 2. IndexedDB (client) — `src/shared/db.ts`
 
-`DB_NAME = "gioitu"`, `DB_VERSION = 6`. **Bump `DB_VERSION` khi đổi schema.**
+`DB_NAME = "gioitu"`, `DB_VERSION = 8`. **Bump `DB_VERSION` khi đổi schema.**
 
 Lịch sử version (trong `upgrade()`):
 
@@ -29,16 +29,22 @@ Lịch sử version (trong `upgrade()`):
 | v4 | Thêm `tagMeta` (phân giải từ `tag_bank`) |
 | v5 | Thêm `reading` vào **khoá** của `terms` → đồng âm không đè nhau |
 | v6 | Thêm store `term_meta` (IPA/pitch/freq) |
+| v7 | Thêm index `by_reading` cho `terms` (tra bằng cách đọc ra được từ keyed theo kanji) |
+| v8 | Thêm store `review_log` (append-only, một dòng/lượt chấm thẻ) |
 
-> Khi nâng cấp, `terms` bị **xoá và tạo lại sạch** (cache, không phải chân lý);
-> store cũ `reverse_tokens` cũng bị xoá. Người dùng re-import từ điển.
+> Migration **theo version, không phá huỷ, idempotent**: `terms` KHÔNG còn bị
+> xoá khi bump (từ v5 nó chứa cả từ điển cá nhân — không tái tạo được bằng
+> re-import; xem cảnh báo trong `db.ts`). Thêm một object store mới (như
+> `review_log` ở v8) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
+> không đụng store cũ. Store cũ `reverse_tokens` (nếu còn) bị xoá.
 
-### 2.1 Bốn object store
+### 2.1 Năm object store
 
 ```
 terms          khoá [term_lang, native_lang, term, reading]
-               index by_pair [term_lang, native_lang]
-               index by_dict  dictId
+               index by_pair    [term_lang, native_lang]
+               index by_dict     dictId
+               index by_reading [term_lang, native_lang, reading]
                value DictEntry
 
 dictionaries   khoá id (string)
@@ -54,6 +60,10 @@ user_data      khoá [user_id, term, term_lang]
                index by_next_review next_review
                index by_status      status
                value VocabEntry
+
+review_log     khoá id (số, autoIncrement) — append-only
+               index by_user_ts [user_id, ts]
+               value ReviewLogEntry
 ```
 
 **Vì sao `reading` nằm trong khoá `terms`:** đồng âm khác cách đọc (辛い からい
@@ -118,6 +128,28 @@ Mô hình lõi, dùng chung client/server (payload sync). Xem chi tiết từng 
 [LOGIC.md §2](./LOGIC.md). Khoá duy nhất `(user_id, term, term_lang)`; guest dùng
 `user_id = "__guest__"`. Hai index `by_next_review`, `by_status` phục vụ lọc thẻ
 đến hạn và Word Cloud.
+
+### 2.6 `ReviewLogEntry` (value của `review_log`)
+
+Nhật ký **append-only**: mỗi lượt chấm thẻ trong phiên ôn (`store.gradeReview`)
+ghi đúng một dòng, không bao giờ sửa/xoá — điều kiện tiên quyết cho thống kê
+(retention/forecast) và FSRS. Chỉ log lượt chấm trong phiên ôn (chưa log
+relapse-do-tra-cứu/markKnown). **Cục bộ, chưa đồng bộ lên cloud** (để dành cho
+giai đoạn thống kê). `interval_before/after` cùng đơn vị **phút** với
+`VocabEntry.srs_interval`.
+
+```ts
+interface ReviewLogEntry {
+  id?: number;            // khoá tự tăng do IndexedDB cấp
+  user_id: string;
+  term: string;
+  term_lang: string;
+  grade: ReviewGrade;     // "again" | "hard" | "good" | "easy"
+  ts: number;             // epoch ms lúc chấm
+  interval_before: number; // phút, trước khi chấm
+  interval_after: number;  // phút, sau khi chấm
+}
+```
 
 ## 3. PostgreSQL (server) — `server/src/core/db.ts`
 

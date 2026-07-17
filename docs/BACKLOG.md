@@ -39,9 +39,6 @@ Evolution UI + engine SRS chuẩn, không đổi IA. Chi tiết token: [DESIGN.m
 
 ### Engine SRS (`review/domain/`)
 - [ ] Chia phiên thành lô ~20 thẻ ("Ôn tiếp 20 thẻ nữa?") + ưu tiên quá hạn lâu.
-- [ ] Ghi `review_log` append-only (term, grade, ts, interval trước/sau) — điều
-  kiện tiên quyết cho thống kê + FSRS; mỗi ngày chưa log là dữ liệu mất vĩnh
-  viễn. Bump DB_VERSION (sau khi sửa mục migrate ở GĐ0!). `store.ts:69-81`
 - [ ] Xử lý leech: ngưỡng lapses (~8) → huy hiệu + gợi ý hành động.
   `srs.ts:134-141,206-207`
 

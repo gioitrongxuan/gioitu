@@ -11,6 +11,8 @@ import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
 import { createSyncScheduler } from "../domain/syncScheduler";
 import { SyncStatus } from "../domain/syncStatus";
 import { getAllEntries, putEntry, getEntry, syncUserData, SyncReport } from "../data/repository";
+import { appendReviewLog } from "../data/reviewLog";
+import { buildReviewLogEntry } from "../domain/reviewLog";
 import { readLastSync, writeLastSync } from "../data/lastSync";
 import {
   exportBackup as exportBackupFile,
@@ -183,6 +185,14 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       }
       await putEntry(next);
       upsertLocal(next);
+      // Ghi review_log append-only (interval trước/sau, grade, thời điểm) —
+      // best-effort: lỗi ghi log KHÔNG được làm hỏng luồng chấm thẻ, nên bắt
+      // riêng và console.error (không nuốt im lặng) rồi vẫn đi tiếp.
+      try {
+        await appendReviewLog(buildReviewLogEntry(entry, next, grade, now));
+      } catch (e) {
+        console.error("append review_log failed", e);
+      }
       scheduleSync();
       return next;
     },
@@ -193,6 +203,11 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
    * Hoàn tác một lượt chấm trong phiên ôn: ghi lại thẻ ở trạng thái *trước khi
    * chấm*. Bump `updated_at` để bản khôi phục thắng LWW trước bản vừa chấm đã ghi
    * (nếu không, đồng bộ sau đó sẽ resurrect bản đã chấm và nuốt mất thao tác undo).
+   *
+   * KHÔNG đụng tới `review_log`: nhật ký là append-only, mà lượt chấm vừa rồi ĐÃ
+   * thực sự xảy ra (người dùng đã bấm nút). Undo hiếm; để nguyên dòng đã ghi là
+   * cách đơn giản và trung thực nhất — append một dòng "đảo" sẽ đếm trùng, còn
+   * xoá thì phá vỡ tính append-only. Thống kê về sau có thể tự đối soát nếu cần.
    */
   const undoReview = useCallback(
     async (prev: VocabEntry) => {
