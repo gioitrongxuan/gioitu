@@ -161,6 +161,8 @@ lapseMinInterval       = 1 ngày (1440 phút)    ← sàn interval khôi phục 
 againEaseDelta         = -0.20
 hardEaseDelta          = -0.15
 easyEaseDelta          = +0.15
+fuzzRatio              = 0.05         ← biên ±5% xê dịch interval REVIEW (rải ngày đến hạn)
+minFuzzInterval        = 1 ngày (1440 phút)    ← sàn để fuzz; step nhỏ hơn không xê dịch
 ```
 
 ### 4.2 Thẻ mới — `newCardState(now)`
@@ -171,7 +173,7 @@ ease_factor = 2.5, reps = 0, lapses = 0, is_relearning = false,
 srs_interval = 0, next_review = now   (xếp lịch ngay)
 ```
 
-### 4.3 Chấm thẻ — `gradeCard(entry, grade, now)`
+### 4.3 Chấm thẻ — `gradeCard(entry, grade, now, rng?)`
 
 Ném lỗi nếu `card_state == null` (chưa có thẻ). Trình tự:
 
@@ -215,7 +217,14 @@ ease**, sau đó `ef = max(ef, 1.3)` (kẹp sàn):
 **Bước C — chuẩn hoá & trạng thái vòng đời:**
 
 ```
-interval = min(interval, maxInterval)        // trần cứng (chỉ cắn khi REVIEW nở)
+// Fuzz (chỉ khi caller truyền rng và thẻ vào REVIEW): interval tất định khiến
+// thẻ tạo/ôn cùng ngày cứ due cùng ngày → xê dịch ±fuzzRatio quanh giá trị gốc
+// để tản phiên ôn. rng()∈[0,1), map 0.5→giữ nguyên. Chỉ interval ≥ minFuzzInterval
+// mới fuzz (bỏ qua learning/relearning step). KHÔNG rng → tất định như cũ.
+if (rng && card_state == REVIEW && interval ≥ minFuzzInterval)
+    interval *= 1 + (rng() - 0.5) × 2 × fuzzRatio
+
+interval = min(interval, maxInterval)        // trần cứng (fuzz xong vẫn ≤ trần)
 interval = max(1, round(interval))           // tối thiểu 1 phút khi đã có thẻ
 next_review = now + interval × 60000          // ms
 

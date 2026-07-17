@@ -54,6 +54,20 @@ export interface SrsConfig {
   hardEaseDelta: number;
   /** Ease bonus for "Easy". */
   easyEaseDelta: number;
+  /**
+   * Biên fuzz tương đối (±) áp cho interval REVIEW để rải ngày đến hạn. Interval
+   * REVIEW tất định (`prev × ef …`) khiến các thẻ tạo/ôn cùng ngày cứ đến hạn
+   * cùng ngày → phiên ôn phình rồi rỗng xen kẽ. Xê dịch ngẫu nhiên trong ±biên
+   * này phá thế đồng bộ đó (giống "fuzz" của Anki). Giữ ở đầu thấp của khoảng
+   * 5–10%: đủ tách lô thẻ nhưng lệch tối thiểu so với thời điểm SM-2 tối ưu.
+   */
+  fuzzRatio: number;
+  /**
+   * Sàn (phút) để một interval được fuzz. Chỉ interval REVIEW đủ lớn (≥ 1 ngày)
+   * mới xê dịch; fuzz vài phút quanh một learning/relearning step (1, 10 phút)
+   * vừa vô nghĩa vừa gây nhiễu, nên các step luôn giữ nguyên.
+   */
+  minFuzzInterval: number;
 }
 
 export const DEFAULT_SRS_CONFIG: SrsConfig = {
@@ -74,6 +88,8 @@ export const DEFAULT_SRS_CONFIG: SrsConfig = {
   againEaseDelta: -0.2,
   hardEaseDelta: -0.15,
   easyEaseDelta: 0.15,
+  fuzzRatio: 0.05, // ±5% — đầu thấp của khoảng 5–10%, tách lô mà ít lệch SM-2
+  minFuzzInterval: 1 * DAY, // chỉ fuzz interval REVIEW ≥ 1 ngày, bỏ qua các step phút
 };
 
 /** Debounce window for counting a repeated lookup of the same term (SPEC 4.1). */
