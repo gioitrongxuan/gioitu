@@ -10,6 +10,7 @@ import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
+import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { KanjiStats } from "@/features/kanjistats/ui";
 import { VocabStudy } from "@/features/vocabstudy/ui";
 import { reassignEntries } from "@/features/review/data/repository";
@@ -247,6 +248,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: "Giao diện", run: () => setTheming(true) },
     { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
     { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true) },
+    { label: "Xuất dữ liệu học", run: store.exportBackup },
+    { label: "Nhập dữ liệu học", run: store.importBackup },
     ...(email
       ? [
           { label: "Đồng bộ", run: runFullSync },
@@ -303,6 +306,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         </div>
       ) : (
         <div {...behindSheet}>
+          <GuestBackupBanner
+            isGuest={userId === GUEST_USER_ID}
+            wordCount={store.entries.length}
+            onLogin={onRequestLogin}
+            onExport={store.exportBackup}
+          />
           <SearchBar pair={pair} source={dictSource} onResult={onResult} />
 
           <FilterBar

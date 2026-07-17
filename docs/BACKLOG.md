@@ -31,10 +31,6 @@
 
 Vòng lặp học đúng + dữ liệu an toàn + hết báo sai cho người dùng.
 
-- [ ] **Persistent storage + backup cho guest** (critical): gọi
-  `navigator.storage.persist()` khi có entry đầu tiên; banner nhẹ khi guest
-  nhiều từ; nút xuất/nhập backup JSON dữ liệu học. Hiện grep = 0 kết quả.
-  `main.tsx · repository.ts:85-89`
 - [ ] **Sync trung thực**: syncUserData trả `{pulled, pushed}`; toast warn khi
   fail (hiện "Đã đồng bộ" vô điều kiện); xử lý 401 (JWT TTL 30 ngày) →
   clearSession + mời đăng nhập lại; hiện "đồng bộ lần cuối hh:mm".
