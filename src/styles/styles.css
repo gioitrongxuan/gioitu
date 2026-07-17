@@ -173,6 +173,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .hw-clear { font-size: 16px; }
 .hw-candidate:hover:not(:disabled), .hw-clear:hover { border-color: var(--accent); }
 .hw-candidate:disabled { color: var(--disabled); cursor: default; }
+/* Lời giải thích khi nhận dạng thất bại vì mạng — trải hết bề ngang dưới lưới. */
+.handwriting-error { grid-column: 1 / -1; margin: 4px 0 0; color: var(--warn); font-size: 13px; }
 
 /* Hàng chứa panel công cụ (viết tay / bộ thủ) + "Instant Action" bên cạnh.
    Desktop: xếp ngang — panel công cụ giữ kích thước vốn có (width: min(100%,
@@ -402,6 +404,8 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .definitions { padding-left: 18px; margin: 10px 0; }
 .definitions li { margin: 4px 0; }
 .custom-def textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+/* Tiêu đề lỗi mạng trong ô "không có kết quả" — báo đỏ, phân biệt với lời mời. */
+.custom-def .danger { color: var(--warn); margin: 0 0 4px; }
 
 /* Thanh SRS một hàng ngay đầu panel: xem trạng thái + thao tác mà không phải
    cuộn. Ngăn với nội dung bên dưới bằng một đường kẻ. */

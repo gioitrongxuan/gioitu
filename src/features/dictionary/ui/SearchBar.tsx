@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DictEntry } from "@/shared/db";
-import { findTermsRouted, searchSuggest, TermResult } from "../data/search";
+import { findTermsRouted, searchSuggest, LookupErrorKind, TermResult } from "../data/search";
 import { DictSource } from "../domain/source";
 import { glossToText } from "@/shared/structured-content";
 import { LangPair } from "@/shared/languages";
@@ -22,7 +22,7 @@ interface Props {
   /** Which dictionary database look-ups run against (Trên máy / Server). */
   source: DictSource;
   /** A term's detail is shown/confirmed → counts as a lookup (SPEC 4.1). */
-  onResult: (results: TermResult[], term: string, pair: LangPair) => void;
+  onResult: (results: TermResult[], term: string, pair: LangPair, error: LookupErrorKind | null) => void;
 }
 
 export function SearchBar({ pair, source, onResult }: Props) {
@@ -84,8 +84,8 @@ export function SearchBar({ pair, source, onResult }: Props) {
     setQuery(term);
     // Trên màn cảm ứng, thu bàn phím lại để kết quả (bottom sheet) không bị che.
     if (window.matchMedia?.("(pointer: coarse)").matches) inputRef.current?.blur();
-    const results = await findTermsRouted(term, pair, source);
-    onResult(results, term, pair);
+    const { results, error } = await findTermsRouted(term, pair, source);
+    onResult(results, term, pair, error);
   }
 
   async function onSubmit(e: React.FormEvent) {

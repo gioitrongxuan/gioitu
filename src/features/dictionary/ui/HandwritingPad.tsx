@@ -30,6 +30,8 @@ export function HandwritingPad({ onInsert }: Props) {
   const [results, setResults] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
   const [empty, setEmpty] = useState(true);
+  // Lỗi mạng ở lần nhận dạng gần nhất: hiện lời giải thích thay vì ô trống trơn.
+  const [failed, setFailed] = useState(false);
 
   function draw() {
     const canvas = canvasRef.current;
@@ -60,6 +62,7 @@ export function HandwritingPad({ onInsert }: Props) {
     const strokes = strokesRef.current;
     if (strokes.length === 0) {
       setResults([]);
+      setFailed(false);
       return;
     }
     timerRef.current = window.setTimeout(async () => {
@@ -67,8 +70,11 @@ export function HandwritingPad({ onInsert }: Props) {
       const payload: Stroke[] = strokes.map((s) => [s.map((p) => p.x), s.map((p) => p.y), s.map((p) => p.t)]);
       setWorking(true);
       try {
-        const candidates = await recognizeHandwriting(payload);
-        if (epoch === epochRef.current) setResults(candidates);
+        const { candidates, error } = await recognizeHandwriting(payload);
+        if (epoch === epochRef.current) {
+          setResults(candidates);
+          setFailed(error);
+        }
       } finally {
         if (epoch === epochRef.current) setWorking(false);
       }
@@ -139,6 +145,7 @@ export function HandwritingPad({ onInsert }: Props) {
     setResults([]);
     setWorking(false);
     setEmpty(true);
+    setFailed(false);
     draw();
   }
 
@@ -168,6 +175,10 @@ export function HandwritingPad({ onInsert }: Props) {
           );
         })}
       </div>
+      {/* Vẽ xong mà mất mạng: nói rõ vì sao trống, đừng để người dùng đoán. */}
+      {failed && (
+        <p className="handwriting-error">Không nhận dạng được — kiểm tra kết nối mạng.</p>
+      )}
     </div>
   );
 }

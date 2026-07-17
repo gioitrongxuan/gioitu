@@ -6,18 +6,23 @@
 
 import { DictEntry } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
+import { LookupErrorKind, LookupResult } from "../domain/lookupError";
 import { DictSource } from "../domain/source";
 import { hasLocalDictionary, TermResult } from "./yomitan";
 import { getSource } from "./sources";
 
 export type { TermResult };
+export type { LookupErrorKind, LookupResult };
 
-/** Yomitan-style multi-result look-up against the chosen source. */
+/**
+ * Yomitan-style multi-result look-up against the chosen source. Trả LookupResult
+ * (results + cờ lỗi) để caller phân biệt "không có từ" với "không gọi được máy chủ".
+ */
 export function findTermsRouted(
   text: string,
   pair: LangPair,
   source: DictSource,
-): Promise<TermResult[]> {
+): Promise<LookupResult<TermResult>> {
   return getSource(source).findTerms(text, pair);
 }
 

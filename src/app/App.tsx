@@ -205,6 +205,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       term_lang={view.term_lang}
       native_lang={view.native_lang}
       results={view.results}
+      error={view.error}
       entry={entryFor(view.primaryTerm, view.term_lang)}
       onSaveCustom={onSaveCustom}
       onClose={closeView}
