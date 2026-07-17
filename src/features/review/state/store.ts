@@ -174,7 +174,10 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
   const gradeReview = useCallback(
     async (entry: VocabEntry, grade: ReviewGrade) => {
       const now = Date.now();
-      const next: VocabEntry = { ...entry, ...gradeCard(entry, grade, now), updated_at: now };
+      // Bơm Math.random để fuzz interval REVIEW (rải ngày đến hạn). Đây là nơi
+      // DUY NHẤT được dùng Math.random cho SRS — domain (srs.ts) thuần, ngẫu
+      // nhiên là phụ thuộc do tầng state này inject.
+      const next: VocabEntry = { ...entry, ...gradeCard(entry, grade, now, Math.random), updated_at: now };
       if (entry.status !== "LEARNED" && next.status === "LEARNED") {
         pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
       }

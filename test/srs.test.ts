@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gradeCard, newCardState, relapse, markKnown, isDue } from "@/features/review/domain/srs";
+import { gradeCard, newCardState, relapse, markKnown, isDue, applyFuzz } from "@/features/review/domain/srs";
 import { DAY, DEFAULT_SRS_CONFIG as CFG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
@@ -86,6 +86,47 @@ describe("interval ceiling (maxInterval)", () => {
     // knownInterval shares the ceiling, so a naturally maxed card and "đã thuộc"
     // land at the same top of the scale.
     expect(CFG.maxInterval).toBe(CFG.knownInterval);
+  });
+});
+
+describe("interval fuzz (rải ngày đến hạn)", () => {
+  // "good" trong REVIEW từ 1 ngày, ease 2.5 → interval tất định trước khi fuzz.
+  const baseInterval = Math.round(1 * DAY * 2.5);
+  const reviewCard = () =>
+    makeEntry({ card_state: "REVIEW", srs_interval: 1 * DAY, ease_factor: 2.5, status: "LEARNING" });
+
+  it("applyFuzz với rng() = 0.5 giữ nguyên interval (điểm giữa)", () => {
+    expect(applyFuzz(30 * DAY, () => 0.5, CFG)).toBe(30 * DAY);
+  });
+
+  it("rng() = 0.5 truyền qua gradeCard cho đúng interval tất định cũ", () => {
+    expect(gradeCard(reviewCard(), "good", NOW, () => 0.5).srs_interval).toBe(baseInterval);
+  });
+
+  it("rng khác nhau cho interval khác nhau, đều nằm trong ±biên quanh gốc", () => {
+    const low = gradeCard(reviewCard(), "good", NOW, () => 0).srs_interval; // -fuzzRatio
+    const high = gradeCard(reviewCard(), "good", NOW, () => 0.99).srs_interval; // ~ +fuzzRatio
+    expect(low).toBeLessThan(baseInterval);
+    expect(high).toBeGreaterThan(baseInterval);
+    expect(low).not.toBe(high);
+    expect(low).toBeGreaterThanOrEqual(baseInterval * (1 - CFG.fuzzRatio));
+    expect(high).toBeLessThanOrEqual(baseInterval * (1 + CFG.fuzzRatio));
+  });
+
+  it("KHÔNG fuzz interval nhỏ (learning step) dù có rng", () => {
+    // NEW + Good → step learning 10 phút, vẫn ở LEARNING → không fuzz.
+    const s = gradeCard(makeEntry({ card_state: "NEW" }), "good", NOW, () => 0);
+    expect(s.card_state).toBe("LEARNING");
+    expect(s.srs_interval).toBe(10);
+    // applyFuzz cũng bỏ qua interval dưới ngưỡng.
+    expect(applyFuzz(CFG.minFuzzInterval - 1, () => 0, CFG)).toBe(CFG.minFuzzInterval - 1);
+  });
+
+  it("fuzz không vượt maxInterval (kẹp trần sau khi xê dịch)", () => {
+    // Good từ trần × ease rồi fuzz dương → phải bị kẹp về maxInterval.
+    const maxed = makeEntry({ card_state: "REVIEW", srs_interval: CFG.maxInterval, ease_factor: 2.5 });
+    const s = gradeCard(maxed, "good", NOW, () => 0.99);
+    expect(s.srs_interval).toBe(CFG.maxInterval);
   });
 });
 

@@ -23,6 +23,25 @@ export interface SrsState {
 const clampEase = (ef: number, cfg: SrsConfig) => Math.max(ef, cfg.minEaseFactor);
 
 /**
+ * Xê dịch một interval REVIEW quanh giá trị tất định của nó để các thẻ đến hạn
+ * cùng ngày tản ra — nếu không, thẻ tạo/ôn cùng ngày cứ due cùng ngày mãi
+ * (phiên ôn phình rồi rỗng). Đây là "fuzz" kiểu Anki.
+ *
+ * Hàm THUẦN: ngẫu nhiên là một phụ thuộc, do `rng: () => number` (trả [0,1))
+ * bơm từ ngoài — KHÔNG gọi Math.random() ở đây. Map rng sao cho **0.5 → offset
+ * 0** (điểm giữa, giữ nguyên interval): `() => 0.5` cho kết quả tất định, hai
+ * đầu [0,1) chạm ±`fuzzRatio`.
+ *
+ * Chỉ fuzz interval ≥ `minFuzzInterval` (REVIEW đủ lớn); các learning/relearning
+ * step nhỏ hơn ngưỡng trả về nguyên vẹn — fuzz vài phút vô nghĩa và gây nhiễu.
+ */
+export function applyFuzz(interval: number, rng: () => number, cfg: SrsConfig): number {
+  if (interval < cfg.minFuzzInterval) return interval;
+  const offset = (rng() - 0.5) * 2 * cfg.fuzzRatio; // ∈ [-fuzzRatio, +fuzzRatio)
+  return interval * (1 + offset);
+}
+
+/**
  * Interval (phút) một thẻ nhận khi tốt nghiệp khỏi phase learning/relearning để
  * vào REVIEW.
  *
@@ -68,6 +87,10 @@ export function newCardState(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): 
  * Apply a self-grade to a card and return the next SRS state.
  * Implements the grading table in SPEC 4.4 plus threshold-based graduation
  * to LEARNED (fix point 6) and badge/relapse status transitions (fix point 1).
+ *
+ * `rng` (tuỳ chọn) bơm nguồn ngẫu nhiên để fuzz interval REVIEW (rải ngày đến
+ * hạn — xem applyFuzz). KHÔNG truyền → KHÔNG fuzz (tất định), giữ hàm thuần và
+ * để mọi lượt chấm không có rng ra đúng interval cũ.
  */
 export function gradeCard(
   entry: Pick<
@@ -84,6 +107,7 @@ export function gradeCard(
   >,
   grade: ReviewGrade,
   now: number,
+  rng?: () => number,
   cfg: SrsConfig = DEFAULT_SRS_CONFIG,
 ): SrsState {
   if (entry.card_state == null) {
@@ -180,6 +204,12 @@ export function gradeCard(
     }
     ef = clampEase(ef, cfg);
   }
+
+  // Fuzz chỉ áp cho thẻ vào REVIEW (again trong REVIEW quay về LEARNING nên
+  // không dính); applyFuzz tự bỏ qua interval < minFuzzInterval, còn ở đây thêm
+  // điều kiện cardState để "chỉ fuzz interval REVIEW" tường minh. Đặt TRƯỚC khi
+  // kẹp/chuẩn hoá bên dưới nên trần maxInterval và sàn 1 phút vẫn siết kết quả.
+  if (rng && cardState! === "REVIEW") interval = applyFuzz(interval!, rng, cfg);
 
   // Whole minutes, floored at 1, capped at maxInterval. The cap only bites in
   // REVIEW growth (learning/relearning intervals sit far below it).
