@@ -121,9 +121,10 @@ describe("user-data repository + offline sync", () => {
     expect((await getAllEntries("alice")).length).toBeGreaterThanOrEqual(1);
   });
 
-  it("syncUserData returns local data when backend is unreachable", async () => {
-    const merged = await syncUserData("alice");
-    expect(merged.some((x) => x.term === "hello")).toBe(true);
+  it("syncUserData reports offline and keeps local data when backend is unreachable", async () => {
+    const report = await syncUserData("alice");
+    expect(report.status).toBe("offline");
+    expect(report.entries.some((x) => x.term === "hello")).toBe(true);
   });
 });
 

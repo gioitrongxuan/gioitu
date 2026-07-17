@@ -199,6 +199,18 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
   thuộc/quên, xoá) được gộp lại rồi đẩy lên sau ~2,5s ngừng thao tác; rời tab hoặc
   đóng trang thì đẩy ngay — không cần bấm nút. (`repository.syncUserData`,
   `review/domain/syncScheduler.ts`, [LOGIC §12](./LOGIC.md))
+- **Phản hồi trung thực**: `syncUserData` trả `{ entries, status, pulled, pushed }`
+  với `status` = `ok` / `offline` / `unauthorized` (`review/domain/syncStatus.ts`
+  `classifyResponse`; `syncApi` phân biệt 401 vs lỗi mạng vs OK, không nuốt thành
+  `null`). Nút Đồng bộ báo đúng kết cục: thành công thật mới "Đã đồng bộ", offline
+  thì cảnh báo "Chưa kết nối được máy chủ · dữ liệu đã lưu trên máy".
+- **Phiên hết hạn** (JWT sống 30 ngày): gặp **401** khi đồng bộ — kể cả từ luồng
+  ngầm — thì đăng xuất (bỏ token đã vô hiệu), toast báo, và mở màn đăng nhập kèm
+  banner "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại". (`store.applySyncReport`
+  → `App.handleSessionExpired`; `AuthScreen` prop `notice`)
+- **"Đồng bộ lần cuối hh:mm"**: mốc đồng bộ thành công gần nhất lưu theo user_id
+  (`review/data/lastSync.ts`, localStorage `gioitu.lastSync.v1:<uid>`), hiện gọn
+  ngay trên nhãn mục "Đồng bộ" trong menu (`syncStatus.formatLastSync`).
 - **Bảo mật**: `user_id` rút từ JWT phía server, client không giả mạo được. (xem
   [DB_SCHEMA §6](./DB_SCHEMA.md))
 
@@ -232,7 +244,9 @@ cloud). Ba lớp bảo vệ giảm rủi ro mất trắng:
 | Tra lại một từ đã thuộc (relapse) | warn | `Bạn đã quên lại từ "<từ>"` |
 | Từ vào hàng đợi ôn tập (khi bấm `＋`) | success | `"<từ>" đã vào hàng đợi ôn tập` |
 | Từ tốt nghiệp → đã thuộc | success | `"<từ>" đã thuộc 🎉` |
-| Đồng bộ xong | success | `Đã đồng bộ` |
+| Đồng bộ thành công | success | `Đã đồng bộ` (kèm số từ điển nếu Premium) |
+| Đồng bộ khi offline | warn | `Chưa kết nối được máy chủ · dữ liệu đã lưu trên máy` |
+| Phiên hết hạn (401) | warn | `Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại` |
 
 Nhập/xoá từ điển cũng phát toast/thông báo trạng thái tương ứng (thành công kèm
 số từ · số phát âm · cặp; lỗi kèm mô tả).
@@ -241,8 +255,10 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 
 - Tra cứu, Word Cloud và ôn tập SRS đều chạy **hoàn toàn cục bộ** trên IndexedDB,
   kể cả khi không có mạng hoặc không có tài khoản.
-- Mọi lời gọi mạng (sync, server dict) là **best-effort**: thất bại thì trả
-  `null`/`[]` và cache cục bộ vẫn phục vụ.
+- Mọi lời gọi mạng là **best-effort**, cache cục bộ luôn phục vụ khi lỗi — nhưng
+  **không nuốt lỗi im lặng**: tra server phân biệt lỗi mạng vs không tìm thấy
+  (`lookupError`); đồng bộ dữ liệu học phân biệt offline vs 401 và báo lên UI
+  (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
 
 ## 9. Các tính năng bổ sung (2026) — kiểm kê

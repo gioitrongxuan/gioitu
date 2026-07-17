@@ -11,9 +11,11 @@ interface Props {
   onDevLogin?: () => Promise<void>;
   /** When provided, the screen renders as a dismissible modal (guest flow). */
   onClose?: () => void;
+  /** Lý do mở màn đăng nhập (vd phiên hết hạn) — hiện như banner nhắc nhở. */
+  notice?: string | null;
 }
 
-export function AuthScreen({ onCredential, onDevLogin, onClose }: Props) {
+export function AuthScreen({ onCredential, onDevLogin, onClose, notice }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [devEnabled, setDevEnabled] = useState(false);
   const isModal = onClose != null;
@@ -57,6 +59,8 @@ export function AuthScreen({ onCredential, onDevLogin, onClose }: Props) {
         )}
         <h1>Gioitu</h1>
         <p className="muted">Từ điển cá nhân hóa + ôn tập lặp lại ngắt quãng</p>
+
+        {notice && <p className="auth-notice">{notice}</p>}
 
         <div className="auth-google-wrap">
           <GoogleSignInButton onCredential={handleCredential} />

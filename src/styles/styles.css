@@ -764,6 +764,14 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .auth-dev-login { display: block; width: 100%; margin: 6px 0 0; padding: 8px; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font: inherit; color: var(--muted); }
 .auth-dev-login:hover { border-color: var(--fg); color: var(--fg); }
 .auth-error { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
+/* Nhắc nhở (vd phiên hết hạn) — dùng --caution như banner sao lưu: đây là lời
+   mời hành động, không phải lỗi. */
+.auth-notice {
+  margin: 12px 0 0; padding: 10px 14px; font-size: 13px; color: var(--fg);
+  border: 1px solid color-mix(in oklab, var(--caution) 35%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--caution) 10%, var(--surface));
+}
 
 /* Auth as a dismissible modal (guest flow) */
 .auth-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--overlay); }
