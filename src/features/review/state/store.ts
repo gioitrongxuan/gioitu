@@ -4,10 +4,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { Toast } from "@/shared/ui/Toasts";
+import { GUEST_USER_ID } from "@/features/auth/data/auth";
 import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
+import { createSyncScheduler } from "../domain/syncScheduler";
 import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
+
+// Đồng bộ tự động sau khi ngừng thao tác một nhịp: đủ ngắn để không mất dữ liệu
+// nếu đóng app đột ngột, đủ dài để gộp cả tràng chấm thẻ trong một phiên ôn
+// thành ít lần đẩy. Rời tab thì flush ngay, không đợi hết nhịp này.
+const AUTO_SYNC_DELAY_MS = 2500;
 
 /** Drives the app for an authenticated user (id comes from the session). */
 export function useAppStore(userId: string) {
@@ -46,6 +53,44 @@ export function useAppStore(userId: string) {
     });
   }, []);
 
+  // Đồng bộ dữ liệu học (SRS). Không tự toast — App gộp phản hồi cho cả SRS lẫn
+  // từ điển cá nhân trong một luồng "Đồng bộ" duy nhất.
+  const runSync = useCallback(async () => {
+    const merged = await syncUserData(userId);
+    setEntries(merged.filter((e) => !isDeleted(e)));
+  }, [userId]);
+
+  // Guest không có cloud (không token → syncUserData chỉ đọc cache), nên khỏi
+  // hẹn giờ cho phí. Người đăng nhập thì mọi thay đổi tự đẩy lên sau một nhịp.
+  const isGuest = userId === GUEST_USER_ID;
+  const scheduler = useMemo(
+    () =>
+      createSyncScheduler(() => {
+        void runSync().catch((e) => console.error("auto-sync failed", e));
+      }, AUTO_SYNC_DELAY_MS),
+    [runSync],
+  );
+  const scheduleSync = useCallback(() => {
+    if (!isGuest) scheduler.schedule();
+  }, [isGuest, scheduler]);
+
+  // Rời tab / đóng trang: đẩy ngay phần đang chờ thay vì để cả buổi học nằm
+  // local. Dọn lịch chờ khi đổi tài khoản (component remount theo userId).
+  useEffect(() => {
+    if (isGuest) return;
+    const flush = () => scheduler.flush();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      scheduler.cancel();
+    };
+  }, [isGuest, scheduler]);
+
   /** Register a confirmed lookup (SPEC 4.1) and surface relapse/gating events. */
   const recordLookup = useCallback(
     async (input: Omit<LookupInput, "user_id">) => {
@@ -59,10 +104,11 @@ export function useAppStore(userId: string) {
       if (events.counted || events.created || events.cardCreated) {
         await putEntry(entry);
         upsertLocal(entry);
+        scheduleSync();
       }
       return entry;
     },
-    [userId, pushToast, upsertLocal],
+    [userId, pushToast, upsertLocal, scheduleSync],
   );
 
   /** Grade a card in a review session (SPEC 4.4). */
@@ -75,9 +121,10 @@ export function useAppStore(userId: string) {
       }
       await putEntry(next);
       upsertLocal(next);
+      scheduleSync();
       return next;
     },
-    [pushToast, upsertLocal],
+    [pushToast, upsertLocal, scheduleSync],
   );
 
   /**
@@ -90,9 +137,10 @@ export function useAppStore(userId: string) {
       const restored: VocabEntry = { ...prev, updated_at: Date.now() };
       await putEntry(restored);
       upsertLocal(restored);
+      scheduleSync();
       return restored;
     },
-    [upsertLocal],
+    [upsertLocal, scheduleSync],
   );
 
   /** "Đã nhớ" — graduate a word straight to LEARNED (already known). */
@@ -102,10 +150,11 @@ export function useAppStore(userId: string) {
       const next: VocabEntry = { ...entry, ...markKnown(now), updated_at: now };
       await putEntry(next);
       upsertLocal(next);
+      scheduleSync();
       pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
       return next;
     },
-    [pushToast, upsertLocal],
+    [pushToast, upsertLocal, scheduleSync],
   );
 
   /**
@@ -123,10 +172,11 @@ export function useAppStore(userId: string) {
         : newKnownEntry({ user_id: userId, term, term_lang, native_lang, meaning: "" }, now);
       await putEntry(next);
       upsertLocal(next);
+      scheduleSync();
       pushToast(`“${term}” đã thuộc 🎉`, "success");
       return next;
     },
-    [userId, pushToast, upsertLocal],
+    [userId, pushToast, upsertLocal, scheduleSync],
   );
 
   /** "Đã quên" — relapse a learned word back into the review queue. */
@@ -136,10 +186,11 @@ export function useAppStore(userId: string) {
       const next: VocabEntry = { ...entry, ...relapse(entry, now), updated_at: now };
       await putEntry(next);
       upsertLocal(next);
+      scheduleSync();
       pushToast(`“${entry.term}” đã chuyển về ôn lại`, "info");
       return next;
     },
-    [pushToast, upsertLocal],
+    [pushToast, upsertLocal, scheduleSync],
   );
 
   /** "Xoá" — tombstone the word: persist the deletion (so it syncs) but drop it
@@ -151,9 +202,10 @@ export function useAppStore(userId: string) {
       setEntries((list) =>
         list.filter((e) => !(e.term === entry.term && e.term_lang === entry.term_lang)),
       );
+      scheduleSync();
       pushToast(`Đã xoá “${entry.term}”`, "info");
     },
-    [pushToast],
+    [pushToast, scheduleSync],
   );
 
   const dueEntries = useMemo(() => {
@@ -169,13 +221,6 @@ export function useAppStore(userId: string) {
         .sort((a, b) => b.updated_at - a.updated_at),
     [entries],
   );
-
-  // Đồng bộ dữ liệu học (SRS). Không tự toast — App gộp phản hồi cho cả SRS lẫn
-  // từ điển cá nhân trong một luồng "Đồng bộ" duy nhất.
-  const runSync = useCallback(async () => {
-    const merged = await syncUserData(userId);
-    setEntries(merged.filter((e) => !isDeleted(e)));
-  }, [userId]);
 
   return {
     userId,

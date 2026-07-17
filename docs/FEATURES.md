@@ -177,9 +177,12 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
 - **Di trú tiến trình guest**: lần đăng nhập đầu, mọi entry `__guest__` được
   chuyển sang tài khoản mới (last-write-wins từng term) → không mất gì đã học khi
   dùng thử. (`App.tsx` `migrateThen` → `reassignEntries`)
-- **Đồng bộ** (nút **Đồng bộ**, và tự chạy khi mở app): hai chiều, last-write-wins
-  theo `updated_at`; offline/guest thì cache cục bộ tự đứng. (`repository.syncUserData`,
-  [LOGIC §12](./LOGIC.md))
+- **Đồng bộ** (nút **Đồng bộ**, tự chạy khi mở app, và **tự động theo sự kiện**):
+  hai chiều, last-write-wins theo `updated_at`; offline/guest thì cache cục bộ tự
+  đứng. Với người đăng nhập, mọi thay đổi dữ liệu học (tra, chấm thẻ, đánh dấu
+  thuộc/quên, xoá) được gộp lại rồi đẩy lên sau ~2,5s ngừng thao tác; rời tab hoặc
+  đóng trang thì đẩy ngay — không cần bấm nút. (`repository.syncUserData`,
+  `review/domain/syncScheduler.ts`, [LOGIC §12](./LOGIC.md))
 - **Bảo mật**: `user_id` rút từ JWT phía server, client không giả mạo được. (xem
   [DB_SCHEMA §6](./DB_SCHEMA.md))
 

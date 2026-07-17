@@ -158,9 +158,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   trường `learned_at` để trang Đã thuộc nhóm đúng theo thời điểm thuộc (hiện
   nhóm theo last_lookup_at — kể sai câu chuyện). `App.tsx:238-240 ·
   LearnedCloud.tsx:66`
-- [ ] Sync theo sự kiện: debounce sau loạt putEntry, khi đóng phiên ôn,
-  visibilitychange (hiện chỉ lúc mở app + nút bấm → cả buổi ôn nằm local).
-  `store.ts:27-35`
 - [ ] Merge theo field: lookup_count = max, lapses = max, LWW phần thẻ SM-2
   (hiện LWW nguyên entry → 2 thiết bị cùng học 1 từ là mất lượt của bên thua).
   `repository.ts:62-72 · syncStore.ts:31-36`
