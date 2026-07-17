@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
-import { gradeCard } from "../domain/srs";
+import { gradeCard, isLeech } from "../domain/srs";
 import {
   startSession,
   currentCard,
@@ -163,6 +163,17 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
           Còn {session.queue.length} · đã ôn {session.reviewed}
           {card.status === "RELAPSED" && <span className="badge inline">! tái quên</span>}
         </div>
+
+        {/* Thẻ leech (khó nhằn): rớt quá nhiều lần → chỉ cảnh báo + gợi ý, KHÔNG
+            tự hoãn/xoá (để người dùng quyết). Huy hiệu đi kèm gợi ý hành động. */}
+        {isLeech(card) && (
+          <div className="leech-note" role="note">
+            <span className="leech-badge">Khó nhằn</span>
+            <span className="leech-hint">
+              Bạn hay quên từ này — cân nhắc sửa lại nghĩa cho dễ nhớ hơn, hoặc tạm gác để học riêng.
+            </span>
+          </div>
+        )}
 
         <div className="flashcard" onClick={() => setFlipped(true)}>
           <div className="front">{card.term}</div>

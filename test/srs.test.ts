@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gradeCard, newCardState, relapse, markKnown, isDue, applyFuzz } from "@/features/review/domain/srs";
+import { gradeCard, newCardState, relapse, markKnown, isDue, applyFuzz, isLeech } from "@/features/review/domain/srs";
 import { DAY, DEFAULT_SRS_CONFIG as CFG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
@@ -262,5 +262,43 @@ describe("isDue", () => {
     expect(isDue(makeEntry({ card_state: null, next_review: null }), NOW)).toBe(false);
     expect(isDue(makeEntry({ card_state: "REVIEW", next_review: NOW - 1 }), NOW)).toBe(true);
     expect(isDue(makeEntry({ card_state: "REVIEW", next_review: NOW + 1 }), NOW)).toBe(false);
+  });
+});
+
+describe("leech detection (isLeech)", () => {
+  const threshold = CFG.leechLapseThreshold;
+
+  it("dưới ngưỡng → không phải leech", () => {
+    expect(isLeech(makeEntry({ lapses: 0 }))).toBe(false);
+    expect(isLeech(makeEntry({ lapses: threshold - 1 }))).toBe(false);
+  });
+
+  it("đúng ngưỡng → là leech (biên)", () => {
+    expect(isLeech(makeEntry({ lapses: threshold }))).toBe(true);
+  });
+
+  it("vượt ngưỡng → là leech", () => {
+    expect(isLeech(makeEntry({ lapses: threshold + 5 }))).toBe(true);
+  });
+
+  it("tôn trọng ngưỡng tiêm qua config (dependency injection)", () => {
+    const strict = { ...CFG, leechLapseThreshold: 2 };
+    expect(isLeech(makeEntry({ lapses: 2 }), strict)).toBe(true);
+    expect(isLeech(makeEntry({ lapses: 2 }), CFG)).toBe(false); // mặc định 8
+  });
+
+  it("lapses tích luỹ qua các lần Again trong REVIEW rồi vượt ngưỡng", () => {
+    // Mỗi vòng mô phỏng một lần rớt thật: REVIEW → Again (lapse +1, về relearning)
+    // → Good (tốt nghiệp lại REVIEW). Kiểm tra `lapses` đếm tăng đúng và isLeech chỉ
+    // lật khi đủ số lần rớt.
+    let e = makeEntry({ card_state: "REVIEW", srs_interval: 30 * DAY, status: "LEARNED", lapses: 0 });
+    for (let i = 0; i < threshold; i++) {
+      expect(e.lapses).toBe(i);
+      expect(isLeech(e)).toBe(false);
+      e = { ...e, ...gradeCard(e, "again", NOW) }; // lapse: lapses += 1, về relearning
+      e = { ...e, ...gradeCard(e, "good", NOW) }; // tốt nghiệp khỏi relearning về REVIEW
+    }
+    expect(e.lapses).toBe(threshold);
+    expect(isLeech(e)).toBe(true);
   });
 });

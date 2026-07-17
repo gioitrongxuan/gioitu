@@ -301,3 +301,17 @@ export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): Srs
 export function isDue(entry: Pick<VocabEntry, "card_state" | "next_review">, now: number): boolean {
   return entry.card_state != null && entry.next_review != null && entry.next_review <= now;
 }
+
+/**
+ * Một thẻ là "leech" (khó nhằn) khi số lần rớt tích luỹ đạt/vượt ngưỡng cấu hình:
+ * ôn đi ôn lại vẫn quên nên đốt thời gian của cả phiên. Suy thẳng từ `lapses` sẵn
+ * có (tăng ở mỗi "Again" trong REVIEW và mỗi relapse-do-tra-cứu) nên KHÔNG cần
+ * thêm trường model. Đây chỉ là PHÁT HIỆN để UI cảnh báo + gợi ý — engine không
+ * tự hoãn/xoá thẻ hay đổi lịch biểu SM-2.
+ */
+export function isLeech(
+  entry: Pick<VocabEntry, "lapses">,
+  cfg: SrsConfig = DEFAULT_SRS_CONFIG,
+): boolean {
+  return entry.lapses >= cfg.leechLapseThreshold;
+}
