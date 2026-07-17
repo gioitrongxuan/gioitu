@@ -592,6 +592,19 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .admin-actions { display: flex; align-items: center; gap: 12px; }
 .admin-actions .danger { color: var(--warn); font-size: 12px; }
 
+/* Bình luận / góp ý của người dùng cho từ (#23) — cuối panel, dưới phần nghĩa. */
+.word-comments { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; display: grid; gap: 10px; }
+.comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
+.comment-author { font-weight: 600; color: var(--fg); }
+.comment-del { margin-left: auto; font-size: 13px; padding: 0 4px; }
+.comment-body { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-form { display: grid; gap: 8px; }
+.comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+.comment-form .primary { justify-self: start; }
+.comment-error { font-size: 12px; margin: 0; }
+
 .headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
 .jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
 .hanviet, .kanji-badges .han-viet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }

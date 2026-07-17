@@ -223,6 +223,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       }}
       loggedIn={email != null}
       onPropose={proposeResult}
+      currentUserId={userId}
+      onRequireLogin={onRequestLogin}
     />
   );
 
