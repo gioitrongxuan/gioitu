@@ -10,6 +10,13 @@ import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
 import { createSyncScheduler } from "../domain/syncScheduler";
 import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
+import {
+  exportBackup as exportBackupFile,
+  importBackup as importBackupData,
+  readBackupFile,
+  pickBackupFile,
+} from "../data/backup";
+import { requestPersistentStorage } from "@/shared/persist";
 
 // Đồng bộ tự động sau khi ngừng thao tác một nhịp: đủ ngắn để không mất dữ liệu
 // nếu đóng app đột ngột, đủ dài để gộp cả tràng chấm thẻ trong một phiên ôn
@@ -41,6 +48,14 @@ export function useAppStore(userId: string) {
     })().catch((e) => console.error("load failed", e));
   }, [userId]);
 
+  // Có từ đầu tiên thì xin trình duyệt lưu trữ bền: với khách, IndexedDB là bản
+  // duy nhất của dữ liệu học nên cần trình duyệt cam kết không tự thu hồi. Helper
+  // tự nhớ kết quả — gọi lại (kể cả khi tải trang mà đã sẵn có dữ liệu) là vô hại.
+  const hasEntries = entries.length > 0;
+  useEffect(() => {
+    if (hasEntries) void requestPersistentStorage();
+  }, [hasEntries]);
+
   const upsertLocal = useCallback((entry: VocabEntry) => {
     setEntries((list) => {
       const i = list.findIndex(
@@ -58,6 +73,12 @@ export function useAppStore(userId: string) {
   const runSync = useCallback(async () => {
     const merged = await syncUserData(userId);
     setEntries(merged.filter((e) => !isDeleted(e)));
+  }, [userId]);
+
+  // Đọc lại danh sách từ cache — dùng sau khi nhập backup ghi thẳng vào IndexedDB.
+  const reload = useCallback(async () => {
+    const local = await getAllEntries(userId);
+    setEntries(local.filter((e) => !isDeleted(e)));
   }, [userId]);
 
   // Guest không có cloud (không token → syncUserData chỉ đọc cache), nên khỏi
@@ -208,6 +229,37 @@ export function useAppStore(userId: string) {
     [pushToast, scheduleSync],
   );
 
+  /** Xuất toàn bộ dữ liệu học ra file JSON tải về. */
+  const exportBackup = useCallback(async () => {
+    try {
+      const count = await exportBackupFile(userId);
+      pushToast(`Đã xuất ${count} từ ra tệp sao lưu`, "success");
+    } catch (e) {
+      console.error("export backup failed", e);
+      pushToast("Không xuất được tệp sao lưu", "warn");
+    }
+  }, [userId, pushToast]);
+
+  /**
+   * Nhập dữ liệu học từ một file backup JSON: chọn file → trộn last-write-wins
+   * vào kho hiện tại → đọc lại danh sách. Người đăng nhập thì hẹn đẩy bản đã trộn
+   * lên cloud. Bấm Huỷ ở hộp thoại chọn file thì lặng lẽ không làm gì.
+   */
+  const importBackup = useCallback(async () => {
+    const file = await pickBackupFile();
+    if (!file) return;
+    try {
+      const backup = await readBackupFile(file);
+      const count = await importBackupData(userId, backup);
+      await reload();
+      scheduleSync();
+      pushToast(`Đã nhập ${count} từ từ tệp sao lưu`, "success");
+    } catch (e) {
+      console.error("import backup failed", e);
+      pushToast((e as Error).message ?? "Không nhập được tệp sao lưu", "warn");
+    }
+  }, [userId, reload, scheduleSync, pushToast]);
+
   const dueEntries = useMemo(() => {
     const now = Date.now();
     return entries.filter((e) => isReviewable(e, now));
@@ -237,6 +289,8 @@ export function useAppStore(userId: string) {
     markForgottenEntry,
     deleteEntry,
     runSync,
+    exportBackup,
+    importBackup,
     pushToast,
   };
 }

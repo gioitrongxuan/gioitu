@@ -28,8 +28,8 @@ Contribution Review, Auth.
 
 Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nhập/quyền):
 Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
-Kết nối Yomitan · Premium · Đồng bộ · Đăng nhập/Đăng xuất; admin thêm
-Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
+Kết nối Yomitan · Premium · Xuất/Nhập dữ liệu học · Đồng bộ · Đăng nhập/Đăng xuất;
+admin thêm Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
 
 ## 1. Tra cứu từ điển
 
@@ -196,6 +196,26 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
   `review/domain/syncScheduler.ts`, [LOGIC §12](./LOGIC.md))
 - **Bảo mật**: `user_id` rút từ JWT phía server, client không giả mạo được. (xem
   [DB_SCHEMA §6](./DB_SCHEMA.md))
+
+### An toàn dữ liệu cho khách (không đăng nhập)
+
+Với khách, IndexedDB `user_data` là **bản duy nhất** của dữ liệu học (chưa có
+cloud). Ba lớp bảo vệ giảm rủi ro mất trắng:
+
+- **Lưu trữ bền**: khi có từ đầu tiên, app gọi `navigator.storage.persist()` xin
+  trình duyệt đừng tự thu hồi IndexedDB khi thiếu dung lượng. Feature-detect, một
+  lần mỗi phiên, thất bại/không hỗ trợ thì lặng lẽ bỏ qua. (`shared/persist.ts`,
+  gọi từ `review/state/store.ts`)
+- **Lời nhắc sao lưu**: khi khách tích luỹ ≥ `GUEST_BACKUP_REMINDER_THRESHOLD`
+  (20) từ mà chưa đăng nhập, một banner nhẹ ngay trên ô tìm kiếm mời đăng nhập
+  hoặc xuất sao lưu; tắt được (nhớ qua localStorage). (`review/ui/GuestBackupBanner.tsx`,
+  `review/domain/backup.ts` `shouldRemindGuestBackup`)
+- **Xuất / nhập sao lưu JSON** (menu **Xuất/Nhập dữ liệu học**, mọi người dùng):
+  xuất toàn bộ `user_data` của người dùng hiện tại ra file `gioitu-backup-YYYY-MM-DD.json`;
+  nhập lại trộn last-write-wins theo `updated_at` (dùng lại `mergeByUpdatedAt`) và
+  gán entry về người đang dùng nên backup từ tài khoản/phiên khác vẫn hiện ra.
+  Serialize/parse/validate thuần ở `review/domain/backup.ts`; đọc/ghi file +
+  IndexedDB ở `review/data/backup.ts`.
 
 ## 7. Thông báo (Toasts)
 
