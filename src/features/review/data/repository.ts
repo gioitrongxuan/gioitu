@@ -4,6 +4,7 @@
 
 import { getDb } from "@/shared/db";
 import { pullUserData, pushUserData } from "./syncApi";
+import { SyncStatus } from "../domain/syncStatus";
 import { VocabEntry, keyOf } from "@/shared/types";
 
 /** Read all entries for a user from the local cache. */
@@ -72,29 +73,49 @@ export function mergeByUpdatedAt(a: VocabEntry[], b: VocabEntry[]): VocabEntry[]
 }
 
 /**
+ * Kết quả một lần đồng bộ, đủ để caller phản hồi TRUNG THỰC (không còn nuốt lỗi
+ * thành no-op im lặng rồi báo "Đã đồng bộ" vô điều kiện).
+ */
+export interface SyncReport {
+  /** Danh sách đã merge (LWW) để cập nhật UI — kể cả khi offline (chỉ có bản local). */
+  entries: VocabEntry[];
+  /** Kết cục liên lạc với server: ok / offline / token hết hạn. */
+  status: SyncStatus;
+  /** Số entry nhận từ server (0 khi không pull được). */
+  pulled: number;
+  /** Số entry đẩy lên server (0 khi không push được). */
+  pushed: number;
+}
+
+/**
  * Two-way sync with the cloud:
  *   1. pull remote changes,
  *   2. last-write-wins merge with the local cache,
  *   3. write the merged set back to the cache,
  *   4. push the merged set up.
- * Degrades gracefully to a local-only no-op when the backend is unreachable.
+ * Offline/token hết hạn thì bản local tự đứng, nhưng trạng thái được báo lên
+ * (không im lặng) để UI hiện đúng và mời đăng nhập lại khi token hết hạn.
  */
-export async function syncUserData(user_id: string): Promise<VocabEntry[]> {
+export async function syncUserData(user_id: string): Promise<SyncReport> {
   const local = await getAllEntries(user_id);
 
-  const remote = await pullUserData();
-  if (remote == null) {
-    // Offline / no backend — local cache stands on its own.
-    return local;
+  const pull = await pullUserData();
+  if (pull.status !== "ok") {
+    // Offline / token hết hạn / khách: bản local đứng vững, báo trạng thái thật.
+    return { entries: local, status: pull.status, pulled: 0, pushed: 0 };
   }
 
-  const merged = mergeByUpdatedAt(local, remote);
+  const merged = mergeByUpdatedAt(local, pull.entries);
 
   const db = await getDb();
   const tx = db.transaction("user_data", "readwrite");
   for (const e of merged) await tx.store.put(e);
   await tx.done;
 
-  await pushUserData(merged);
-  return merged;
+  // Đã kéo về và ghi cache; kết cục chung theo lượt push: push thất bại (offline
+  // hoặc 401 do token vừa hết hạn) nghĩa là thay đổi local CHƯA chắc lên server,
+  // nên chưa coi là đồng bộ trọn vẹn — báo đúng status của push.
+  const push = await pushUserData(merged);
+  const pushed = push.status === "ok" ? merged.length : 0;
+  return { entries: merged, status: push.status, pulled: pull.entries.length, pushed };
 }

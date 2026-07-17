@@ -15,6 +15,7 @@ import { KanjiStats } from "@/features/kanjistats/ui";
 import { VocabStudy } from "@/features/vocabstudy/ui";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
+import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
 import { hasLocalDict } from "@/features/dictionary/data/search";
 import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
@@ -49,6 +50,25 @@ import { HeaderMenu, MenuItem } from "./HeaderMenu";
 export default function App() {
   const { session, loginWithGoogle, devLogin, logout, refresh } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  // Lý do mở màn đăng nhập (vd token hết hạn) — hiện như banner trên AuthScreen.
+  // Nằm ở App gốc nên không mất khi cây MainApp remount lúc đăng xuất.
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+
+  const openLogin = (notice: string | null = null) => {
+    setAuthNotice(notice);
+    setShowAuth(true);
+  };
+  const closeAuth = () => {
+    setShowAuth(false);
+    setAuthNotice(null);
+  };
+
+  // Token hết hạn giữa chừng (401): đăng xuất (bỏ token đã vô hiệu) rồi mời đăng
+  // nhập lại kèm lý do. Gọi được từ cả đồng bộ ngầm lẫn nút "Đồng bộ" (qua store).
+  const handleSessionExpired = () => {
+    logout();
+    openLogin("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+  };
 
   // Gom dữ liệu học của phiên khách về tài khoản vừa đăng nhập. Chạy qua callback
   // của useAuth để hoàn tất TRƯỚC khi session (và userId) đổi — tránh đua với lần
@@ -59,12 +79,12 @@ export default function App() {
 
   const signInWithGoogle = async (credential: string) => {
     await loginWithGoogle(credential, migrateGuestData);
-    setShowAuth(false);
+    closeAuth();
   };
 
   const signInDev = async () => {
     await devLogin(undefined, migrateGuestData);
-    setShowAuth(false);
+    closeAuth();
   };
 
   const userId = session?.user_id ?? GUEST_USER_ID;
@@ -79,10 +99,11 @@ export default function App() {
         isPremium={session?.is_premium === true}
         onPremiumActivated={refresh}
         onLogout={logout}
-        onRequestLogin={() => setShowAuth(true)}
+        onRequestLogin={() => openLogin()}
+        onSessionExpired={handleSessionExpired}
       />
       {showAuth && !session && (
-        <AuthScreen onCredential={signInWithGoogle} onDevLogin={signInDev} onClose={() => setShowAuth(false)} />
+        <AuthScreen notice={authNotice} onCredential={signInWithGoogle} onDevLogin={signInDev} onClose={closeAuth} />
       )}
     </>
   );
@@ -99,10 +120,12 @@ interface MainAppProps {
   onPremiumActivated: () => void;
   onLogout: () => void;
   onRequestLogin: () => void;
+  /** Token hết hạn (401) khi đồng bộ: đăng xuất + mời đăng nhập lại. */
+  onSessionExpired: () => void;
 }
 
-function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin }: MainAppProps) {
-  const store = useAppStore(userId);
+function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin, onSessionExpired }: MainAppProps) {
+  const store = useAppStore(userId, onSessionExpired);
   // Tăng mỗi khi sync từ điển kéo dữ liệu về → buộc danh sách từ điển đọc lại
   // (để dict mới hiện ngay, khỏi phải tải lại trang trên máy khác).
   const [syncTick, setSyncTick] = useState(0);
@@ -120,10 +143,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     syncDicts();
   }, [syncDicts]);
 
-  // Nút "Đồng bộ": chạy cả SRS lẫn từ điển cá nhân, có tiến độ + phản hồi rõ.
+  // Nút "Đồng bộ": chạy cả SRS lẫn từ điển cá nhân, phản hồi TRUNG THỰC theo kết
+  // cục thật (không còn báo "Đã đồng bộ" vô điều kiện). Token hết hạn thì store
+  // đã toast + mời đăng nhập lại; offline thì dừng ở dữ liệu học, không giả vờ
+  // đồng bộ tiếp từ điển.
   const runFullSync = async () => {
     store.pushToast("Đang đồng bộ…", "info");
-    await store.runSync();
+    const status = await store.runSync();
+    if (status === "unauthorized") return; // store đã xử lý (toast + mời đăng nhập lại)
+    if (status === "offline") {
+      store.pushToast("Chưa kết nối được máy chủ · dữ liệu đã lưu trên máy", "warn");
+      return;
+    }
     if (email && isPremium) {
       const r = await syncCustomDicts();
       setSyncTick((t) => t + 1);
@@ -252,7 +283,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: "Nhập dữ liệu học", run: store.importBackup },
     ...(email
       ? [
-          { label: "Đồng bộ", run: runFullSync },
+          {
+            // Nhãn kèm "lần cuối hh:mm" khi đã đồng bộ thành công ít nhất một lần.
+            label: store.lastSyncedAt != null ? `Đồng bộ · ${formatLastSync(store.lastSyncedAt)}` : "Đồng bộ",
+            run: runFullSync,
+          },
           { label: "Đăng xuất", run: onLogout },
         ]
       : [{ label: "Đăng nhập", run: onRequestLogin }]),

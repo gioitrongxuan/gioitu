@@ -1,7 +1,7 @@
 // App store: a small React hook tying the domain logic to persistence.
 // Keeps the in-memory entry list in sync with IndexedDB and the cloud.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { Toast } from "@/shared/ui/Toasts";
 import { GUEST_USER_ID } from "@/features/auth/data/auth";
@@ -9,7 +9,9 @@ import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
 import { createSyncScheduler } from "../domain/syncScheduler";
-import { getAllEntries, putEntry, getEntry, syncUserData } from "../data/repository";
+import { SyncStatus } from "../domain/syncStatus";
+import { getAllEntries, putEntry, getEntry, syncUserData, SyncReport } from "../data/repository";
+import { readLastSync, writeLastSync } from "../data/lastSync";
 import {
   exportBackup as exportBackupFile,
   importBackup as importBackupData,
@@ -23,17 +25,52 @@ import { requestPersistentStorage } from "@/shared/persist";
 // thành ít lần đẩy. Rời tab thì flush ngay, không đợi hết nhịp này.
 const AUTO_SYNC_DELAY_MS = 2500;
 
-/** Drives the app for an authenticated user (id comes from the session). */
-export function useAppStore(userId: string) {
+/**
+ * Drives the app for an authenticated user (id comes from the session).
+ * `onSessionExpired` để App phản ứng khi token hết hạn (401) trong lúc đồng bộ —
+ * kể cả từ luồng ngầm: đăng xuất + mời đăng nhập lại. Phụ thuộc một chiều
+ * (store → App qua callback), store không biết gì về màn đăng nhập.
+ */
+export function useAppStore(userId: string, onSessionExpired?: () => void) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => readLastSync(userId));
 
   const pushToast = useCallback((message: string, kind: Toast["kind"] = "info") => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, message, kind }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
   }, []);
+
+  // Giữ callback mới nhất trong ref: nếu để các hàm đồng bộ phụ thuộc trực tiếp,
+  // mỗi lần App render lại chúng đổi định danh → scheduler bị dựng lại và huỷ mất
+  // nhịp đồng bộ đang chờ.
+  const onSessionExpiredRef = useRef(onSessionExpired);
+  useEffect(() => {
+    onSessionExpiredRef.current = onSessionExpired;
+  }, [onSessionExpired]);
+
+  // Xử lý kết quả một lần đồng bộ, dùng chung cho: nạp lúc mount, nút "Đồng bộ",
+  // và đồng bộ ngầm. Cập nhật danh sách (bỏ tombstone); ghi mốc "lần cuối" KHI
+  // thành công; token hết hạn (401) phải nổi lên NGAY — kể cả từ luồng ngầm —
+  // bằng toast + mời đăng nhập lại, không im lặng. Trả status để caller (App)
+  // quyết phần thông báo còn lại (đồng bộ từ điển cá nhân) mà không toast trùng.
+  const applySyncReport = useCallback(
+    (report: SyncReport): SyncStatus => {
+      setEntries(report.entries.filter((e) => !isDeleted(e)));
+      if (report.status === "ok") {
+        const now = Date.now();
+        writeLastSync(userId, now);
+        setLastSyncedAt(now);
+      } else if (report.status === "unauthorized") {
+        pushToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại", "warn");
+        onSessionExpiredRef.current?.();
+      }
+      return report.status;
+    },
+    [userId, pushToast],
+  );
 
   // Initial load: local cache first, then a best-effort cloud sync. Tombstones
   // (deleted entries) are kept in storage so they sync, but never surface to the
@@ -43,10 +80,9 @@ export function useAppStore(userId: string) {
       const local = await getAllEntries(userId);
       setEntries(local.filter((e) => !isDeleted(e)));
       setLoaded(true);
-      const merged = await syncUserData(userId);
-      setEntries(merged.filter((e) => !isDeleted(e)));
+      applySyncReport(await syncUserData(userId));
     })().catch((e) => console.error("load failed", e));
-  }, [userId]);
+  }, [userId, applySyncReport]);
 
   // Có từ đầu tiên thì xin trình duyệt lưu trữ bền: với khách, IndexedDB là bản
   // duy nhất của dữ liệu học nên cần trình duyệt cam kết không tự thu hồi. Helper
@@ -68,12 +104,14 @@ export function useAppStore(userId: string) {
     });
   }, []);
 
-  // Đồng bộ dữ liệu học (SRS). Không tự toast — App gộp phản hồi cho cả SRS lẫn
-  // từ điển cá nhân trong một luồng "Đồng bộ" duy nhất.
-  const runSync = useCallback(async () => {
-    const merged = await syncUserData(userId);
-    setEntries(merged.filter((e) => !isDeleted(e)));
-  }, [userId]);
+  // Đồng bộ dữ liệu học (SRS) rồi trả status. Không tự toast phản hồi thành
+  // công/offline — App gộp chúng cho cả SRS lẫn từ điển cá nhân trong một luồng
+  // "Đồng bộ" duy nhất; RIÊNG 401 (phiên hết hạn) thì applySyncReport nổi lên
+  // ngay tại đây vì luồng ngầm không có App trong vòng lặp.
+  const runSync = useCallback(
+    (): Promise<SyncStatus> => syncUserData(userId).then(applySyncReport),
+    [userId, applySyncReport],
+  );
 
   // Đọc lại danh sách từ cache — dùng sau khi nhập backup ghi thẳng vào IndexedDB.
   const reload = useCallback(async () => {
@@ -281,6 +319,7 @@ export function useAppStore(userId: string) {
     learnedEntries,
     toasts,
     loaded,
+    lastSyncedAt,
     recordLookup,
     gradeReview,
     undoReview,

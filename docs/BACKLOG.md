@@ -31,11 +31,6 @@
 
 Vòng lặp học đúng + dữ liệu an toàn + hết báo sai cho người dùng.
 
-- [ ] **Sync trung thực**: syncUserData trả `{pulled, pushed}`; toast warn khi
-  fail (hiện "Đã đồng bộ" vô điều kiện); xử lý 401 (JWT TTL 30 ngày) →
-  clearSession + mời đăng nhập lại; hiện "đồng bộ lần cuối hh:mm".
-  `repository.ts:85-99 · syncApi.ts:24-25,40-41 · App.tsx:123-141 · server
-  auth.ts:8,73`
 - [ ] **Chốt & thực thi quyết định mở #1** (gating) + cập nhật docs.
 
 ## Giai đoạn 1 — "Thay áo" (~1–2 tuần)

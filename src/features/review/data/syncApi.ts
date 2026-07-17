@@ -1,9 +1,11 @@
-// Cloud-sync client (SPEC 2.C). Best-effort: every call tolerates the backend
-// being absent or the user being signed out (returns null → local cache stands).
-// The server scopes data to the authenticated user, so no user_id is ever sent.
+// Cloud-sync client (SPEC 2.C). Không còn nuốt mọi lỗi thành null: mỗi lệnh phân
+// biệt ba kết cục — ok / offline (mất mạng, máy chủ lỗi) / unauthorized (token
+// hết hạn, 401) — để caller báo trung thực và mời đăng nhập lại khi cần. Server
+// scope dữ liệu theo người dùng qua bearer token, nên không bao giờ gửi user_id.
 
 import { VocabEntry } from "@/shared/types";
 import { authToken } from "@/features/auth/data/auth";
+import { SyncStatus, classifyResponse } from "../domain/syncStatus";
 
 const BASE = "/api";
 
@@ -12,35 +14,46 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** Kết quả pull: trạng thái liên lạc + entry nhận được (rỗng khi chưa ok). */
+export interface PullResult {
+  status: SyncStatus;
+  entries: VocabEntry[];
+}
+
 /**
- * Pull user entries changed since a timestamp. Returns null when not
- * authenticated or the backend is unreachable (offline → local cache stands).
+ * Pull user entries changed since a timestamp. Không có token = khách (chưa đăng
+ * nhập): không có cloud để tra nên coi như offline — bản local tự đứng. KHÔNG
+ * trả "unauthorized" ở đây: không được mời khách đăng nhập lại từ luồng đồng bộ.
  */
-export async function pullUserData(since = 0): Promise<VocabEntry[] | null> {
+export async function pullUserData(since = 0): Promise<PullResult> {
   const headers = authHeaders();
-  if (!headers.Authorization) return null;
+  if (!headers.Authorization) return { status: "offline", entries: [] };
   try {
     const res = await fetch(`${BASE}/sync?since=${since}`, { headers });
-    if (!res.ok) return null;
-    return (await res.json()) as VocabEntry[];
+    const status = classifyResponse(res);
+    if (status !== "ok") return { status, entries: [] };
+    return { status, entries: (await res.json()) as VocabEntry[] };
   } catch {
-    return null;
+    // fetch ném = không tới được máy chủ (mất mạng, CORS, DNS…).
+    return { status: "offline", entries: [] };
   }
 }
 
-/** Push local user entries to the cloud (last-write-wins resolved server-side). */
-export async function pushUserData(entries: VocabEntry[]): Promise<VocabEntry[] | null> {
+/**
+ * Push local user entries to the cloud (last-write-wins resolved server-side).
+ * Chỉ trả trạng thái: server tự merge, repo không dùng dữ liệu trả về.
+ */
+export async function pushUserData(entries: VocabEntry[]): Promise<{ status: SyncStatus }> {
   const headers = authHeaders();
-  if (!headers.Authorization) return null;
+  if (!headers.Authorization) return { status: "offline" };
   try {
     const res = await fetch(`${BASE}/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ entries }),
     });
-    if (!res.ok) return null;
-    return (await res.json()) as VocabEntry[];
+    return { status: classifyResponse(res) };
   } catch {
-    return null;
+    return { status: "offline" };
   }
 }
