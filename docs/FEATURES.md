@@ -65,6 +65,17 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
   thuộc / Tái quên), trạng thái thẻ, chu kỳ kế (`formatInterval`), thời điểm ôn
   tiếp (`formatRelative`), `EF / lapses`.
 
+### Bình luận / góp ý cho từ (#23)
+
+- Cuối panel chi tiết: khu **Bình luận / góp ý** gắn theo từ (khoá
+  `term_lang · native_lang · term · reading` — không gộp đồng âm).
+- **Công khai**: guest đọc được; **đăng nhập mới viết** (guest thấy nút "Đăng
+  nhập để bình luận"). Tác giả xoá bình luận của mình; **admin xoá bất kỳ**.
+- Post-moderation: bình luận hiện ngay (cột `status` để admin ẩn về sau).
+- Client `features/wordcomments/` (`domain/` thuần + test, `data/` gọi
+  `/api/comments`, `ui/WordComments.tsx`); server `features/comments/` +
+  migration `0011_dict_comments`.
+
 ### Tự định nghĩa & thêm thủ công
 
 - **Không tìm thấy** → ô "Tự định nghĩa từ này" + nút **Lưu định nghĩa**; lưu là
@@ -224,6 +235,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Chia sẻ từ điển | Nút "Chia sẻ" trong dropdown Từ điển (cần đăng nhập) | Link tải .zip sống ~5 phút để chuyển từ điển giữa hai máy | `features/share/` |
 | Premium | ☰ | Kích hoạt bằng mã (admin sinh); mở khoá sync từ điển cá nhân; SRS sync vẫn miễn phí | `features/premium/` |
 | Đóng góp & duyệt | Nút "Đề xuất" trên kết quả (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | `features/contribute/` |
+| Bình luận / góp ý | Khu cuối panel chi tiết một từ | Bình luận công khai theo từ; guest đọc, đăng nhập mới viết; tác giả/admin xoá | `features/wordcomments/`, server `features/comments/` |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Xuất cấu hình để trình duyệt dùng server này làm nguồn Yomitan | `auth/ui/YomitanSync.tsx`, `yomitan-api/` |
 | Viết tay & bộ thủ | Nút ✏️ cạnh ô tra | Vẽ kanji (nhận dạng qua server/Google — cần mạng) + lọc theo bộ thủ (client, offline) + panel gợi ý khớp | `dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx` |
 | Skin nền anime | Giao diện → preset | 4 backdrop trang trí lazy-load (panda/buu/cell/akatsuki), tôn trọng reduced-motion | `theme/presets/` |

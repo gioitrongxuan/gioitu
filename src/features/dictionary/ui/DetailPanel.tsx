@@ -18,6 +18,7 @@ import { isCodePointKanji } from "@/shared/japanese";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
+import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
 
 interface Props {
@@ -57,6 +58,10 @@ interface Props {
   loggedIn?: boolean;
   /** Đề xuất một kết quả lên từ điển hệ thống (#70 — 6.1). */
   onPropose?: (res: TermResult) => void;
+  /** Id tài khoản hiện tại — để biết bình luận nào là của mình (#23). */
+  currentUserId?: string | null;
+  /** Mời đăng nhập khi guest muốn bình luận (#23). */
+  onRequireLogin?: () => void;
 }
 
 export function DetailPanel({
@@ -77,6 +82,8 @@ export function DetailPanel({
   onAdminEdit,
   loggedIn,
   onPropose,
+  currentUserId,
+  onRequireLogin,
 }: Props) {
   // Mobile: panel là bottom sheet phủ lên cloud — khoá cuộn body để kéo trong
   // sheet không cuộn luôn nội dung phía sau (desktop panel nằm cạnh, không khoá).
@@ -131,6 +138,12 @@ export function DetailPanel({
   const savedLines = entry ? meaningToLines(entry.meaning) : [];
   const hasSaved = savedLines.length > 0;
   const hasResults = results.length > 0;
+
+  // Bình luận gắn theo từ đang xem: ưu tiên dạng gốc của kết quả khớp nhất, rồi
+  // tới entry cá nhân, cuối cùng là chữ đã gõ (khi không có kết quả từ điển).
+  const primaryEntry = results[0]?.entry;
+  const commentTerm = primaryEntry?.term ?? entry?.term ?? term;
+  const commentReading = primaryEntry?.reading ?? entry?.reading ?? null;
 
   // Một kanji đơn (tra từ lưới thống kê hoặc gõ thẳng) chưa có trong lịch sử: cho
   // đánh dấu "đã biết" ngay tại chỗ để nó vào "đã thuộc" mà không cần tra trước.
@@ -257,6 +270,19 @@ export function DetailPanel({
           />
         )}
 
+        {/* Bình luận / góp ý của người dùng cho từ này (#23). Guest đọc được,
+            đăng nhập mới viết/xoá. Đặt cuối panel, dưới phần nghĩa. */}
+        <WordComments
+          key={`${commentTerm} ${commentReading ?? ""}`}
+          term={commentTerm}
+          reading={commentReading}
+          termLang={term_lang}
+          nativeLang={native_lang}
+          currentUserId={currentUserId}
+          loggedIn={loggedIn}
+          isAdmin={isAdmin}
+          onRequireLogin={onRequireLogin}
+        />
       </aside>
     </>
   );
