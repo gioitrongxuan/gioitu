@@ -29,36 +29,41 @@ export interface Theme {
   line: string;
 }
 
-/** The built-in palette (mirrors the static :root defaults in styles.css). */
+/**
+ * The built-in palette — washi/sumi (DESIGN §1). PHẢI khớp các mặc định tĩnh
+ * ở :root trong styles.css (cùng inline script chống nháy trong index.html):
+ * lệch nhau là nháy màu khi React mount.
+ */
 export const DEFAULT_THEME: Theme = {
   heatFrom: "#e8eaee",
   heatTo: "#1b1f26",
-  accent: "#2563eb",
+  accent: "#2b4c7e", // chàm aizome
   warn: "#dc2626",
-  // Nền lệch xám nhẹ để các thẻ surface trắng nổi khối (bớt phẳng/khô).
-  bg: "#f6f7f9",
-  surface: "#ffffff",
-  fg: "#1a1a1a",
-  muted: "#6b7280",
-  line: "#e5e7eb",
+  // Giấy washi ấm; surface trắng ngà nổi khối nhẹ trên nền (bớt phẳng/khô).
+  bg: "#f7f4ee",
+  surface: "#fffdf9",
+  fg: "#211f1a", // mực sumi
+  muted: "#6f6a5d",
+  line: "#e3dccb",
 };
 
 /**
- * Built-in dark palette. The heatmap inverts: rarely looked-up words sit close
- * to the surface colour and the hottest words glow bright — `heatTextColor`
- * keeps tag text readable either way. Also the default for first-time visitors
- * whose OS prefers dark (see `loadTheme`).
+ * Built-in dark palette — yozora (bầu trời đêm, DESIGN §1). The heatmap inverts:
+ * rarely looked-up words sit close to the surface colour and the hottest words
+ * glow bright — `heatTextColor` keeps tag text readable either way. Also the
+ * default for first-time visitors whose OS prefers dark (see `loadTheme`). PHẢI
+ * khớp nhánh @media (prefers-color-scheme: dark) trong styles.css.
  */
 export const DARK_THEME: Theme = {
   heatFrom: "#374151",
   heatTo: "#e5e7eb",
-  accent: "#3b82f6",
+  accent: "#8fb0dd", // aizome nhạt cho nền tối
   warn: "#ef4444",
-  bg: "#111827",
-  surface: "#1f2937",
-  fg: "#e5e7eb",
-  muted: "#9ca3af",
-  line: "#374151",
+  bg: "#141317",
+  surface: "#1e1d22",
+  fg: "#e8e4da",
+  muted: "#a29c8c",
+  line: "#37343c",
 };
 
 /** Effect keys — each maps to a lazy-loaded component in presets/registry. */

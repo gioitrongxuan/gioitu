@@ -1,14 +1,19 @@
 /* Minimalist styling (SPEC 3). */
 :root {
-  /* Editable palette — overridden at runtime by the theme settings
-     (features/theme pushes these onto :root as inline properties). */
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --line: #e5e7eb;
-  --accent: #2563eb;
+  /* ── Palette washi/sumi — nền sáng (DESIGN §1) ──────────────────────────────
+     Giấy washi ấm + mực sumi; chàm aizome (--accent) cho tương tác. Đây là 6
+     token màu lõi của hợp đồng theme (VAR_MAP trong theme/domain/theme.ts) cộng
+     heat/warn. Theme settings ghi đè các biến này lúc chạy bằng inline style trên
+     :root, nên đổi ở đây chỉ ảnh hưởng mặc định trước-khi-React. ĐỒNG BỘ BẮT
+     BUỘC: DEFAULT_THEME (theme.ts) phải khớp bảng này và DARK_THEME phải khớp
+     nhánh @media dark bên dưới — lệch là nháy màu ngay khi React mount. */
+  --fg: #211f1a;
+  --muted: #6f6a5d;
+  --line: #e3dccb;
+  --accent: #2b4c7e;
   --warn: #dc2626;
-  --bg: #f6f7f9;
-  --surface: #ffffff;
+  --bg: #f7f4ee;
+  --surface: #fffdf9;
   /* Word-cloud heatmap endpoints (low → high look-up frequency). */
   --heat-from: #e8eaee;
   --heat-to: #1b1f26;
@@ -26,6 +31,65 @@
   --ok: #16a34a;
   --caution: #d97706;
   --overlay: rgba(15, 23, 42, 0.45);
+  /* Son đỏ shu-iro — CHỈ dành cho thành tựu (streak hanko, badge tốt nghiệp
+     合格). Tách khỏi --warn để "đỏ thành tựu" không loãng với "đỏ cảnh báo". */
+  --seal: #c73e2e;
+
+  /* ── Thang token nền (DESIGN §2) — dùng dần thay cho magic number ─────────── */
+  /* Spacing — thang 4px. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius — chip → xs/sm · control & dropdown → md/lg · input/card → lg ·
+     modal → xl · pill/tròn → full. */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 999px;
+
+  /* Shadow — 3 bậc 2 lớp + sheet. Gốc sumi (nâu-đen ấm) hợp giấy washi; nhánh
+     @media dark ghi đè bằng bóng đậm hơn (nền tối cần bóng rõ hơn). */
+  --shadow-sm: 0 1px 2px rgba(33, 31, 26, 0.06), 0 1px 3px rgba(33, 31, 26, 0.1);
+  --shadow-md: 0 2px 4px rgba(33, 31, 26, 0.06), 0 4px 12px rgba(33, 31, 26, 0.12);
+  --shadow-lg: 0 4px 8px rgba(33, 31, 26, 0.08), 0 12px 32px rgba(33, 31, 26, 0.16);
+  --shadow-sheet: 0 -2px 8px rgba(33, 31, 26, 0.08), 0 -10px 32px rgba(33, 31, 26, 0.18);
+
+  /* Motion — hover màu = fast · transform/xuất hiện = base · sheet/overlay =
+     slow. Không transition nhanh hơn --dur-fast (cảm giác giật). */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Type — thang cỡ chữ; body 15–16px, line-height 1.6 nội dung / 1.3 heading. */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 26px;
+  --text-3xl: 30px;
+  --leading-body: 1.6;
+  --leading-heading: 1.3;
+
+  /* Z-index — thang tên để các lớp phủ không "đá" nhau. */
+  --z-dropdown: 20;
+  --z-sheet: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+
+  /* Control — chiều cao thống nhất (header / search hero) + vòng focus chung. */
+  --control-h: 38px;
+  --control-h-lg: 48px;
+  --focus-ring: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
 
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Font tiếng Nhật: ưu tiên font hệ thống (offline-first, không tải webfont);
@@ -33,6 +97,32 @@
      app phải được bọc lang="ja" để ăn font này. */
   --font-ja: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
     "Noto Sans JP", "Meiryo", sans-serif;
+  color-scheme: light;
+}
+
+/* Nền tối yozora (DESIGN §1) — nhánh TĨNH chống nháy trắng: khi OS ở dark mà
+   người dùng chưa lưu theme (JS chưa kịp chạy), trang đã tối ngay từ first paint.
+   Inline script trong <head> sẽ ghi đè bằng inline style nếu đã có theme lưu.
+   Giá trị PHẢI khớp DARK_THEME trong theme/domain/theme.ts. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e4da;
+    --muted: #a29c8c;
+    --line: #37343c;
+    --accent: #8fb0dd;
+    --warn: #ef4444;
+    --bg: #141317;
+    --surface: #1e1d22;
+    --heat-from: #374151;
+    --heat-to: #e5e7eb;
+    --seal: #e2705a;
+    /* Bóng đậm hơn trên nền tối (gốc đen thuần thay cho nâu sumi). */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.44);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.36), 0 4px 12px rgba(0, 0, 0, 0.48);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.42), 0 12px 32px rgba(0, 0, 0, 0.56);
+    --shadow-sheet: 0 -2px 8px rgba(0, 0, 0, 0.42), 0 -10px 32px rgba(0, 0, 0, 0.56);
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }
