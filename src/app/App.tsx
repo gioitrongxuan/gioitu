@@ -32,7 +32,7 @@ import { AuthScreen } from "@/features/auth/ui/AuthScreen";
 import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
-import { GUEST_USER_ID, getSession } from "@/features/auth/data/auth";
+import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
 import { Toasts } from "@/shared/ui/Toasts";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
@@ -49,21 +49,21 @@ export default function App() {
   const { session, loginWithGoogle, devLogin, logout, refresh } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
-  // Sau khi đăng nhập (Google hoặc dev), gom dữ liệu học của phiên khách về tài khoản.
-  const adoptGuestData = async () => {
-    const s = getSession();
-    if (s) await reassignEntries(GUEST_USER_ID, s.user_id);
-    setShowAuth(false);
+  // Gom dữ liệu học của phiên khách về tài khoản vừa đăng nhập. Chạy qua callback
+  // của useAuth để hoàn tất TRƯỚC khi session (và userId) đổi — tránh đua với lần
+  // đồng bộ tài khoản mới khi cây app remount (xem useAuth).
+  const migrateGuestData = async (s: Session) => {
+    await reassignEntries(GUEST_USER_ID, s.user_id);
   };
 
   const signInWithGoogle = async (credential: string) => {
-    await loginWithGoogle(credential);
-    await adoptGuestData();
+    await loginWithGoogle(credential, migrateGuestData);
+    setShowAuth(false);
   };
 
   const signInDev = async () => {
-    await devLogin();
-    await adoptGuestData();
+    await devLogin(undefined, migrateGuestData);
+    setShowAuth(false);
   };
 
   const userId = session?.user_id ?? GUEST_USER_ID;
