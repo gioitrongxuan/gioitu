@@ -8,11 +8,16 @@
 // quản hàng đợi ở đây.
 
 import { VocabEntry } from "@/shared/types";
+import { REVIEW_BATCH_SIZE } from "./constants";
 
 export interface ReviewSession {
-  /** Thẻ còn phải ôn; `queue[0]` là thẻ hiện tại. */
+  /** Thẻ còn phải ôn trong lô hiện tại; `queue[0]` là thẻ hiện tại. */
   queue: VocabEntry[];
-  /** Số lượt đã chấm (một thẻ bị re-queue có thể được chấm nhiều lần). */
+  /** Các thẻ đến hạn đã xếp thứ tự nhưng chưa được kéo vào lô nào — chờ lô kế. */
+  pending: VocabEntry[];
+  /** Kích thước mỗi lô; giữ trong phiên để lấy lô kế không cần truyền lại. */
+  batchSize: number;
+  /** Số lượt đã chấm trong CẢ phiên (cộng dồn qua các lô). */
   reviewed: number;
   /** Ảnh chụp trạng thái *trước* mỗi lượt chấm, mới nhất ở cuối — dùng cho Hoàn tác. */
   history: SessionSnapshot[];
@@ -42,14 +47,55 @@ export function orderSession(due: VocabEntry[], rng: () => number = Math.random)
   return shuffle(due, rng).sort((a, b) => (a.next_review ?? 0) - (b.next_review ?? 0));
 }
 
-/** Mở phiên trên một *ảnh chụp* các thẻ đang đến hạn. */
-export function startSession(due: VocabEntry[], rng: () => number = Math.random): ReviewSession {
-  return { queue: orderSession(due, rng), reviewed: 0, history: [] };
+/**
+ * Mở phiên trên một *ảnh chụp* các thẻ đang đến hạn. Xếp cả danh sách theo mức
+ * quá hạn (quá hạn lâu nhất trước) RỒI mới chia lô: lô đầu (`queue`) gồm
+ * `batchSize` thẻ cấp thiết nhất, phần còn lại nằm ở `pending` chờ người dùng
+ * đồng ý ôn tiếp. `batchSize ≤ 0` được coi là "không chia lô" (một lô chứa tất cả).
+ */
+export function startSession(
+  due: VocabEntry[],
+  rng: () => number = Math.random,
+  batchSize: number = REVIEW_BATCH_SIZE,
+): ReviewSession {
+  const ordered = orderSession(due, rng);
+  const size = batchSize > 0 ? batchSize : ordered.length;
+  return {
+    queue: ordered.slice(0, size),
+    pending: ordered.slice(size),
+    batchSize: size,
+    reviewed: 0,
+    history: [],
+  };
 }
 
-/** Thẻ đang hiển thị, hoặc `undefined` khi phiên đã hết. */
+/** Thẻ đang hiển thị, hoặc `undefined` khi lô hiện tại đã hết. */
 export function currentCard(s: ReviewSession): VocabEntry | undefined {
   return s.queue[0];
+}
+
+/** Còn lô nữa để ôn sau khi hết lô hiện tại không? */
+export function hasNextBatch(s: ReviewSession): boolean {
+  return s.pending.length > 0;
+}
+
+/** Số thẻ trong lô kế (lô cuối có thể ít hơn `batchSize`). */
+export function nextBatchSize(s: ReviewSession): number {
+  return Math.min(s.batchSize, s.pending.length);
+}
+
+/**
+ * Kéo lô kế từ `pending` vào `queue`. Xoá lịch sử hoàn tác: hoàn tác không vượt
+ * ranh giới lô (khôi phục một `queue` rỗng của lô trước sẽ vô nghĩa), và mỗi lô
+ * là một chặng khép kín. `reviewed` cộng dồn nên tổng kết cuối phiên vẫn đúng.
+ */
+export function loadNextBatch(s: ReviewSession): ReviewSession {
+  return {
+    ...s,
+    queue: s.pending.slice(0, s.batchSize),
+    pending: s.pending.slice(s.batchSize),
+    history: [],
+  };
 }
 
 /**
@@ -68,7 +114,11 @@ export function shouldRequeue(graded: Pick<VocabEntry, "card_state">): boolean {
  */
 export function applyGrade(s: ReviewSession, graded: VocabEntry): ReviewSession {
   const rest = s.queue.slice(1);
+  // Re-queue giữ thẻ trong LÔ hiện tại (thêm vào cuối `queue`), không đẩy sang
+  // `pending`: một thẻ còn bước học ngắn phải ôn nốt trong lô này, không lùi ra
+  // sau cả phần backlog. `pending`/`batchSize` đi qua nguyên vẹn.
   return {
+    ...s,
     queue: shouldRequeue(graded) ? [...rest, graded] : rest,
     reviewed: s.reviewed + 1,
     history: [...s.history, { queue: s.queue, reviewed: s.reviewed }],
@@ -90,7 +140,7 @@ export function undoGrade(
   const snapshot = s.history[s.history.length - 1];
   if (!snapshot) return null;
   return {
-    session: { queue: snapshot.queue, reviewed: snapshot.reviewed, history: s.history.slice(0, -1) },
+    session: { ...s, queue: snapshot.queue, reviewed: snapshot.reviewed, history: s.history.slice(0, -1) },
     restore: snapshot.queue[0],
   };
 }

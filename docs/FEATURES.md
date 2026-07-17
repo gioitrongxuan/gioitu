@@ -117,16 +117,21 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 `review/ui/ReviewSession.tsx` — overlay lật thẻ, chấm điểm theo SM-2.
 (quy tắc: [LOGIC §4](./LOGIC.md))
 
-- **Tiến độ** `i / tổng`; thẻ tái quên có nhãn "! tái quên".
+- **Tiến độ** `còn N · đã ôn M`; thẻ tái quên có nhãn "! tái quên".
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
+- **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.
+- **Chia lô ~20 thẻ**: phiên phục vụ từng lô `REVIEW_BATCH_SIZE` (=20) thẻ; hết
+  lô mà còn thẻ đến hạn thì hiện lời mời **"Ôn tiếp N thẻ nữa"** (điểm dừng tự
+  nhiên). Hàng đợi ≤ 20 thì không có bước hỏi này.
 - **Hoàn thành**: "Hoàn thành! 🎉" + số thẻ đã ôn; có thể **Kết thúc phiên** bất
   cứ lúc nào.
 
-Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`). Khi một từ vượt
-ngưỡng `matureThreshold` (21 ngày) nó `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng
-trở lại thì `→ RELAPSED`.
+Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`); phiên **chụp một
+lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
+[LOGIC §4.7](./LOGIC.md)). Khi một từ vượt ngưỡng `matureThreshold` (21 ngày) nó
+`→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
 cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
