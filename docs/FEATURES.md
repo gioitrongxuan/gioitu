@@ -80,6 +80,11 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 
 - **Không tìm thấy** → ô "Tự định nghĩa từ này" + nút **Lưu định nghĩa**; lưu là
   một entry `is_custom` (có ghi nhận lượt). (`DetailPanel.tsx` → `useLookup.onSaveCustom`)
+- **Lỗi mạng ≠ không tìm thấy**: khi tra nguồn *Server* mà mất mạng / máy chủ
+  lỗi, không báo "Không tìm thấy" nữa mà hiện thông điệp lỗi riêng + gợi ý chuyển
+  nguồn sang *Trên máy* (offline). Một lượt tra trả `LookupResult` mang cờ lỗi
+  thay vì nuốt lỗi thành `[]`. (`domain/lookupError.ts`, `data/serverDict.ts`,
+  `data/sources.ts`, `DetailPanel.tsx`)
 - **Nút `＋` (`manualAdd`)**: là **cách duy nhất** đưa một kết quả tra vào Word
   Cloud/SRS — tạo entry kèm thẻ SRS **ngay lượt đầu** (không còn cổng ≥ 2 lần
   tra; tra thường không được ghi nhận). (`domain/lookup.ts`, [LOGIC §3](./LOGIC.md))
@@ -237,7 +242,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Đóng góp & duyệt | Nút "Đề xuất" trên kết quả (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | `features/contribute/` |
 | Bình luận / góp ý | Khu cuối panel chi tiết một từ | Bình luận công khai theo từ; guest đọc, đăng nhập mới viết; tác giả/admin xoá | `features/wordcomments/`, server `features/comments/` |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Xuất cấu hình để trình duyệt dùng server này làm nguồn Yomitan | `auth/ui/YomitanSync.tsx`, `yomitan-api/` |
-| Viết tay & bộ thủ | Nút ✏️ cạnh ô tra | Vẽ kanji (nhận dạng qua server/Google — cần mạng) + lọc theo bộ thủ (client, offline) + panel gợi ý khớp | `dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx` |
+| Viết tay & bộ thủ | Nút ✏️ cạnh ô tra | Vẽ kanji (nhận dạng qua server/Google — cần mạng; mất mạng thì báo "Không nhận dạng được — kiểm tra kết nối mạng" thay vì trống trơn) + lọc theo bộ thủ (client, offline) + panel gợi ý khớp | `dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx` |
 | Skin nền anime | Giao diện → preset | 4 backdrop trang trí lazy-load (panda/buu/cell/akatsuki), tôn trọng reduced-motion | `theme/presets/` |
 
 ## 10. Bản đồ chức năng → tài liệu

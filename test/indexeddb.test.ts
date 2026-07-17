@@ -92,22 +92,23 @@ describe("Yomitan import (forward, per-pair)", () => {
 
     // Typing the reading in kana finds 桜 (keyed under term 桜, reading さくら).
     const kana = await getSource("local").findTerms("さくら", JA_VI);
-    expect(kana.map((r) => r.entry.term)).toContain("桜");
+    expect(kana.results.map((r) => r.entry.term)).toContain("桜");
 
     // Typing the reading in romaji works too (sakura → さくら → 桜).
     const romaji = await getSource("local").findTerms("sakura", JA_VI);
-    expect(romaji.map((r) => r.entry.term)).toContain("桜");
+    expect(romaji.results.map((r) => r.entry.term)).toContain("桜");
   });
 
   it("the local source resolves against IndexedDB; the server source does not", async () => {
     // Chosen source decides which database answers — no cross-source fallback.
     const local = await getSource("local").findTerms("resilient", EN_VI);
-    expect(local.map((r) => r.entry.term)).toContain("resilient");
+    expect(local.error).toBeNull();
+    expect(local.results.map((r) => r.entry.term)).toContain("resilient");
 
-    // With no backend reachable in tests, the server source returns nothing
-    // rather than silently falling back to the local dictionary.
+    // With no backend reachable in tests, the server source reports a network
+    // error (not a silent []), so the UI never mistakes it for "không tìm thấy".
     const server = await getSource("server").findTerms("resilient", EN_VI);
-    expect(server).toEqual([]);
+    expect(server).toEqual({ results: [], error: "network" });
   });
 });
 
