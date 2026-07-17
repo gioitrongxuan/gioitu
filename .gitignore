@@ -1,4 +1,6 @@
-node_modules/
+# Không dấu "/" cuối: bỏ qua CẢ thư mục node_modules lẫn symlink cùng tên mà
+# worktree tạm tạo ra (mẫu "node_modules/" chỉ khớp thư mục, để lọt symlink).
+node_modules
 dist/
 *.tsbuildinfo
 *.local

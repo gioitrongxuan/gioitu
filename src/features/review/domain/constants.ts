@@ -68,6 +68,13 @@ export interface SrsConfig {
    * vừa vô nghĩa vừa gây nhiễu, nên các step luôn giữ nguyên.
    */
   minFuzzInterval: number;
+  /**
+   * Ngưỡng số lần rớt tích luỹ (`lapses`) để coi một thẻ là "leech" (khó nhằn):
+   * ôn mãi vẫn quên nên đốt thời gian phiên ôn. Chỉ dùng để PHÁT HIỆN → hiện huy
+   * hiệu + gợi ý (xem srs.isLeech); KHÔNG tự hoãn/xoá thẻ. Suy thẳng từ `lapses`
+   * sẵn có nên không cần thêm trường model.
+   */
+  leechLapseThreshold: number;
 }
 
 export const DEFAULT_SRS_CONFIG: SrsConfig = {
@@ -90,6 +97,7 @@ export const DEFAULT_SRS_CONFIG: SrsConfig = {
   easyEaseDelta: 0.15,
   fuzzRatio: 0.05, // ±5% — đầu thấp của khoảng 5–10%, tách lô mà ít lệch SM-2
   minFuzzInterval: 1 * DAY, // chỉ fuzz interval REVIEW ≥ 1 ngày, bỏ qua các step phút
+  leechLapseThreshold: 8, // theo mặc định Anki: 8 lần rớt là dấu hiệu thẻ khó nhằn
 };
 
 /** Debounce window for counting a repeated lookup of the same term (SPEC 4.1). */

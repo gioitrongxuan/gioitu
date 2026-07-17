@@ -118,6 +118,9 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 (quy tắc: [LOGIC §4](./LOGIC.md))
 
 - **Tiến độ** `còn N · đã ôn M`; thẻ tái quên có nhãn "! tái quên".
+- **Thẻ khó nhằn (leech)**: thẻ rớt ≥ `leechLapseThreshold` (=8) lần hiện huy hiệu
+  "Khó nhằn" + gợi ý (sửa nghĩa cho dễ nhớ hoặc tạm gác để học riêng). Chỉ
+  **cảnh báo**, không tự hoãn/xoá. (`srs.isLeech`, [LOGIC §4.6](./LOGIC.md))
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
@@ -130,12 +133,12 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 
 Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`); phiên **chụp một
 lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
-[LOGIC §4.7](./LOGIC.md)). Khi một từ vượt ngưỡng `matureThreshold` (21 ngày) nó
+[LOGIC §4.8](./LOGIC.md)). Khi một từ vượt ngưỡng `matureThreshold` (21 ngày) nó
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
 cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
-cloud. Chi tiết: [LOGIC §4.6](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+cloud. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
 
 ## 4. Quản lý từ điển
 
