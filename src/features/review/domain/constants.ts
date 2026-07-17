@@ -24,6 +24,23 @@ export interface SrsConfig {
   /** Interval (minutes) at/above which a word graduates to LEARNED ("mature"). */
   matureThreshold: number;
   /**
+   * Trần cứng (phút) cho mọi interval sinh ra ở REVIEW. Khi "Hard/Good/Easy"
+   * nhân interval lên, kết quả bị kẹp tại đây để thẻ không trôi tới những khoảng
+   * cách nhiều năm vô nghĩa. Giữ **bằng** `knownInterval` (~1 năm) để một thẻ tự
+   * nhiên chạm trần và một thẻ "tự khai đã thuộc" cùng nằm ở đỉnh thang — không
+   * mâu thuẫn nhau.
+   */
+  maxInterval: number;
+  /**
+   * Khi một thẻ tốt nghiệp KHỎI relearning, interval mới được khôi phục theo
+   * phần trăm interval NGAY TRƯỚC lúc lapse thay vì rơi thẳng về
+   * `graduatingInterval`: một từ đã chín muồi lỡ quên một lần không nên tụt hẳn
+   * về 1 ngày rồi phải leo lại từ đầu.
+   */
+  lapseIntervalMultiplier: number;
+  /** Sàn (phút) cho interval khôi phục sau lapse — không bao giờ thấp hơn ngưỡng này. */
+  lapseMinInterval: number;
+  /**
    * Interval (minutes) granted when the user asserts they already know a word
    * outright ("Đã nhớ" / "Đánh dấu đã biết"). Deliberately far above
    * `matureThreshold`: the user is vouching they know it cold, so it reads as
@@ -49,6 +66,9 @@ export const DEFAULT_SRS_CONFIG: SrsConfig = {
   easyBonus: 1.3,
   relearningSteps: [10 * MINUTE],
   matureThreshold: 21 * DAY,
+  maxInterval: 365 * DAY, // trần cứng, bằng knownInterval để cùng nằm ở đỉnh thang
+  lapseIntervalMultiplier: 0.5, // khôi phục nửa interval trước lapse (gọn, dễ giải thích)
+  lapseMinInterval: 1 * DAY, // = graduatingInterval → thẻ interval nhỏ vẫn hành xử như cũ
   knownInterval: 365 * DAY, // "thuộc lòng": ~1 năm → gần trần thang thành thạo
 
   againEaseDelta: -0.2,
