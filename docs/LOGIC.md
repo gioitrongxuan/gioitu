@@ -64,6 +64,7 @@ interface VocabEntry {
   is_relearning: boolean;        // đang trong relearning steps? (chọn steps đúng)
   srs_interval: number;          // khoảng hiện tại, đơn vị PHÚT
   next_review: number | null;    // epoch ms lần ôn kế (null tới khi có thẻ)
+  lapsed_from_interval?: number; // interval trước lapse gần nhất (khôi phục sau relearning)
 
   // --- override vòng đời (vuông góc với thẻ SM-2 ở trên) ---
   deleted_at: number | null;     // tombstone: xoá mềm, giữ lại để bản xoá thắng LWW sync
@@ -150,10 +151,13 @@ relearningSteps        = [10]         phút
 graduatingInterval     = 1 ngày  (1440 phút)   ← "Good" từ step cuối
 easyInterval           = 4 ngày  (5760 phút)   ← "Easy" khi đang learning
 matureThreshold        = 21 ngày (30240 phút)  ← ngưỡng → LEARNED
+maxInterval            = 365 ngày (525600 phút) ← trần cứng interval REVIEW (= knownInterval)
 initialEaseFactor      = 2.5
 minEaseFactor          = 1.3          ← sàn cứng (ràng buộc 8)
 hardIntervalMultiplier = 1.2          ← "Hard" trong REVIEW
 easyBonus              = 1.3          ← nhân thêm khi "Easy" trong REVIEW
+lapseIntervalMultiplier= 0.5          ← khôi phục % interval trước lapse khi tốt nghiệp khỏi relearning
+lapseMinInterval       = 1 ngày (1440 phút)    ← sàn interval khôi phục sau lapse
 againEaseDelta         = -0.20
 hardEaseDelta          = -0.15
 easyEaseDelta          = +0.15
@@ -171,41 +175,47 @@ srs_interval = 0, next_review = now   (xếp lịch ngay)
 
 Ném lỗi nếu `card_state == null` (chưa có thẻ). Trình tự:
 
-**Bước A — cập nhật EF & bộ đếm (áp dụng mọi pha):**
+**Bước A — bộ đếm `reps` (áp dụng mọi pha):**
 
-| Grade | Tác động |
-|---|---|
-| `again` | `ef += -0.20` |
-| `hard` | `ef += -0.15` |
-| `good` | `reps += 1` |
-| `easy` | `ef += +0.15`, `reps += 1` |
-
-Sau đó `ef = max(ef, 1.3)` (kẹp sàn).
+`good`/`easy` → `reps += 1`. `reps` chỉ là bộ đếm số lần nhớ được, không phải
+nguồn gốc "ease hell" nên độc lập với pha. **Ease KHÔNG đổi ở đây** — chỉ đổi
+trong pha REVIEW (Bước B), giống Anki: learning/relearning steps không bao giờ
+đụng ease, tránh trừ ease từ trước khi thẻ được ôn thật.
 
 **Bước B — chuyển trạng thái theo pha.**
 
 Pha *Learning* (`card_state ∈ {NEW, LEARNING}`), chọn `steps = is_relearning ?
-relearningSteps : learningSteps`, `curStep = NEW ? 0 : learning_step`:
+relearningSteps : learningSteps`, `curStep = NEW ? 0 : learning_step`. **Ease
+không đổi trong pha này.**
 
 | Grade | Kết quả |
 |---|---|
 | `again` | `LEARNING`, step 0, `interval = steps[0]` |
 | `hard` | `LEARNING`, lặp lại step hiện tại, `interval = steps[min(curStep, len-1)]` |
-| `good` | nếu `curStep+1 >= len` → **tốt nghiệp** `REVIEW`, `interval = graduatingInterval`; ngược lại `LEARNING` step `curStep+1` |
-| `easy` | **tốt nghiệp ngay** `REVIEW`, `interval = easyInterval` |
+| `good` | nếu `curStep+1 >= len` → **tốt nghiệp** `REVIEW`, `interval = graduationInterval(...)`; ngược lại `LEARNING` step `curStep+1` |
+| `easy` | **tốt nghiệp ngay** `REVIEW`, `interval = graduationInterval(...)` |
 
-Pha *Review* (`card_state == REVIEW`), `prev = srs_interval`:
+`graduationInterval` (interval khi RỜI phase learning/relearning): learning lần
+đầu → `easyInterval` cho `easy`, `graduatingInterval` cho `good`. Relearning (thẻ
+đã lapse) → **khôi phục** `max(lapseMinInterval, lapsed_from_interval ×
+lapseIntervalMultiplier)`; thẻ relearning cũ chưa có `lapsed_from_interval` rơi
+về `graduatingInterval` (đúng hành vi cũ). `lapsed_from_interval` được tiêu thụ
+(xoá) khi tốt nghiệp.
+
+Pha *Review* (`card_state == REVIEW`), `prev = srs_interval`. **Chỉ pha này đổi
+ease**, sau đó `ef = max(ef, 1.3)` (kẹp sàn):
 
 | Grade | Kết quả |
 |---|---|
-| `again` | `lapses += 1`, về `LEARNING`, `is_relearning = true`, step 0, `interval = relearningSteps[0]` |
-| `hard` | `REVIEW`, `interval = prev × 1.2` |
+| `again` | `ef += -0.20`, `lapses += 1`, về `LEARNING`, `is_relearning = true`, step 0, `interval = relearningSteps[0]`, **`lapsed_from_interval = prev`** |
+| `hard` | `ef += -0.15`, `REVIEW`, `interval = prev × 1.2` |
 | `good` | `REVIEW`, `interval = prev × ef` |
-| `easy` | `REVIEW`, `interval = prev × ef × 1.3` |
+| `easy` | `ef += +0.15`, `REVIEW`, `interval = prev × ef × 1.3` |
 
 **Bước C — chuẩn hoá & trạng thái vòng đời:**
 
 ```
+interval = min(interval, maxInterval)        // trần cứng (chỉ cắn khi REVIEW nở)
 interval = max(1, round(interval))           // tối thiểu 1 phút khi đã có thẻ
 next_review = now + interval × 60000          // ms
 
@@ -217,14 +227,16 @@ else if (status != RELAPSED)                             status = LEARNING
 
 ### 4.4 Relapse — `relapse(entry, now)`
 
-Khi một từ `LEARNED` bị "chạm" lại qua tra cứu (SPEC 4.2). Hành xử như "Again":
+Khi một từ `LEARNED` bị "chạm" lại qua tra cứu (SPEC 4.2). Một từ `LEARNED` là
+thẻ REVIEW đã chín, nên hành xử như "Again" trong REVIEW (kể cả trừ ease):
 
 ```
 ease_factor = max(ease_factor - 0.20, 1.3)
 status = RELAPSED, card_state = LEARNING, is_relearning = true,
 learning_step = 0, reps = 0, lapses += 1,
 srs_interval = relearningSteps[0] (= 10 phút),
-next_review = now + 10×60000
+next_review = now + 10×60000,
+lapsed_from_interval = srs_interval  (nhớ để khôi phục khi tốt nghiệp lại)
 ```
 
 ### 4.5 Đến hạn — `isDue(entry, now)`

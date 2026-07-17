@@ -42,21 +42,50 @@ describe("learning phase", () => {
     expect(s2.srs_interval).toBe(CFG.graduatingInterval); // 1 day
   });
 
-  it("Easy graduates immediately to REVIEW (4 days) and bumps EF", () => {
+  it("Easy graduates immediately to REVIEW (4 days) without touching EF", () => {
     const card = makeEntry({ card_state: "NEW" });
     const s = gradeCard(card, "easy", NOW);
     expect(s.card_state).toBe("REVIEW");
     expect(s.srs_interval).toBe(CFG.easyInterval); // 4 days
-    expect(s.ease_factor).toBeCloseTo(2.65);
+    // Learning steps never move ease (Anki parity) — no bump on Easy-graduation.
+    expect(s.ease_factor).toBe(2.5);
+    expect(s.reps).toBe(1);
   });
 
-  it("Again resets to first learning step and lowers EF", () => {
+  it("Again resets to first learning step and leaves EF untouched", () => {
     const card = makeEntry({ card_state: "LEARNING", learning_step: 1 });
     const s = gradeCard(card, "again", NOW);
     expect(s.card_state).toBe("LEARNING");
     expect(s.learning_step).toBe(0);
     expect(s.srs_interval).toBe(1);
-    expect(s.ease_factor).toBeCloseTo(2.3);
+    // No "ease hell" before the card is ever truly reviewed: ease unchanged.
+    expect(s.ease_factor).toBe(2.5);
+  });
+});
+
+describe("ease is only adjusted in REVIEW (SM-2 correctness)", () => {
+  it("Hard in the learning phase does not lower ease", () => {
+    const card = makeEntry({ card_state: "LEARNING", learning_step: 0, ease_factor: 2.5 });
+    expect(gradeCard(card, "hard", NOW).ease_factor).toBe(2.5);
+  });
+
+  it("Again / Hard / Easy in REVIEW still move ease", () => {
+    const review = makeEntry({ card_state: "REVIEW", srs_interval: 1 * DAY, ease_factor: 2.5 });
+    expect(gradeCard(review, "again", NOW).ease_factor).toBeCloseTo(2.3);
+    expect(gradeCard(review, "hard", NOW).ease_factor).toBeCloseTo(2.35);
+    expect(gradeCard(review, "easy", NOW).ease_factor).toBeCloseTo(2.65);
+  });
+});
+
+describe("interval ceiling (maxInterval)", () => {
+  it("clamps a growing REVIEW interval at maxInterval", () => {
+    // Already at the ceiling: Good (× ease) would overshoot but must be capped.
+    const card = makeEntry({ card_state: "REVIEW", srs_interval: CFG.maxInterval, ease_factor: 2.5 });
+    const s = gradeCard(card, "good", NOW);
+    expect(s.srs_interval).toBe(CFG.maxInterval);
+    // knownInterval shares the ceiling, so a naturally maxed card and "đã thuộc"
+    // land at the same top of the scale.
+    expect(CFG.maxInterval).toBe(CFG.knownInterval);
   });
 });
 
@@ -114,25 +143,63 @@ describe("relapse from REVIEW Again", () => {
     expect(s.ease_factor).toBeCloseTo(2.3);
   });
 
-  it("relearning Good graduates back to REVIEW but keeps RELAPSED until mature", () => {
+  it("legacy relearning Good (no remembered interval) graduates to graduatingInterval", () => {
     const relearning = makeEntry({
       card_state: "LEARNING",
       is_relearning: true,
       status: "RELAPSED",
       learning_step: 0,
       srs_interval: 10,
+      // lapsed_from_interval unset (pre-migration card) → falls back to old behaviour.
     });
     const s = gradeCard(relearning, "good", NOW);
     expect(s.card_state).toBe("REVIEW");
     expect(s.is_relearning).toBe(false);
-    expect(s.srs_interval).toBe(CFG.graduatingInterval);
+    expect(s.srs_interval).toBe(CFG.graduatingInterval); // 1 day, as before
     expect(s.status).toBe("RELAPSED"); // badge stays until re-mature
+  });
+
+  it("remembers the pre-lapse interval when lapsing from REVIEW", () => {
+    const mature = makeEntry({ card_state: "REVIEW", srs_interval: 60 * DAY, status: "LEARNED" });
+    const s = gradeCard(mature, "again", NOW);
+    expect(s.lapsed_from_interval).toBe(60 * DAY);
+  });
+});
+
+describe("lapse recovery (interval restored as % of pre-lapse)", () => {
+  it("a long-mature card graduating from relearning recovers a fraction, not 1 day", () => {
+    // Mature at 60 days → Again (lapse) → relearn → Good graduates.
+    const mature = makeEntry({ card_state: "REVIEW", srs_interval: 60 * DAY, status: "LEARNED" });
+    const lapsed = { ...mature, ...gradeCard(mature, "again", NOW) };
+    const graduated = gradeCard(lapsed, "good", NOW);
+    // 60 days × 0.5 = 30 days, well above the 1-day floor.
+    expect(graduated.srs_interval).toBe(60 * DAY * CFG.lapseIntervalMultiplier);
+    expect(graduated.srs_interval).toBeGreaterThan(CFG.graduatingInterval);
+    // The remembered interval is consumed once recovered.
+    expect(graduated.lapsed_from_interval).toBeUndefined();
+    // 30 days > matureThreshold → straight back to LEARNED.
+    expect(graduated.status).toBe("LEARNED");
+  });
+
+  it("recovery is floored at lapseMinInterval for short pre-lapse intervals", () => {
+    // Pre-lapse interval of 1 day → 1 × 0.5 = 12h, floored to lapseMinInterval.
+    const shallow = makeEntry({ card_state: "REVIEW", srs_interval: 1 * DAY, status: "LEARNING" });
+    const lapsed = { ...shallow, ...gradeCard(shallow, "again", NOW) };
+    const graduated = gradeCard(lapsed, "good", NOW);
+    expect(graduated.srs_interval).toBe(CFG.lapseMinInterval);
+  });
+
+  it("relapse() via lookup remembers the pre-lapse interval too", () => {
+    const s = relapse({ ease_factor: 2.5, lapses: 0, card_state: "REVIEW", srs_interval: 90 * DAY }, NOW);
+    expect(s.lapsed_from_interval).toBe(90 * DAY);
+    const graduated = gradeCard({ ...makeEntry(), ...s }, "good", NOW);
+    expect(graduated.srs_interval).toBe(90 * DAY * CFG.lapseIntervalMultiplier);
   });
 });
 
 describe("relapse() via lookup (SPEC 4.2)", () => {
   it("resets like Again, increments lapses, floors EF", () => {
-    const s = relapse({ ease_factor: 1.35, lapses: 2, card_state: "REVIEW" }, NOW);
+    const s = relapse({ ease_factor: 1.35, lapses: 2, card_state: "REVIEW", srs_interval: 30 * DAY }, NOW);
     expect(s.status).toBe("RELAPSED");
     expect(s.lapses).toBe(3);
     expect(s.is_relearning).toBe(true);

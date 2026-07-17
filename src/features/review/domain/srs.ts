@@ -15,9 +15,35 @@ export interface SrsState {
   is_relearning: boolean;
   srs_interval: number; // minutes
   next_review: number; // epoch ms
+  // Interval trước lapse, mang theo qua giai đoạn relearning (undefined = không
+  // có lapse treo). Xem VocabEntry.lapsed_from_interval.
+  lapsed_from_interval: number | undefined;
 }
 
 const clampEase = (ef: number, cfg: SrsConfig) => Math.max(ef, cfg.minEaseFactor);
+
+/**
+ * Interval (phút) một thẻ nhận khi tốt nghiệp khỏi phase learning/relearning để
+ * vào REVIEW.
+ *
+ * Learning lần đầu: dùng thẳng `graduatingInterval` / `easyInterval`. Relearning
+ * (thẻ đã từng lapse): khôi phục một phần interval TRƯỚC lúc lapse thay vì reset
+ * về 1 ngày — một từ đã chín muồi lỡ quên một lần không nên tụt hẳn về đáy. Thẻ
+ * relearning cũ (chưa ghi được interval trước lapse) rơi về `graduatingInterval`,
+ * đúng bằng hành vi cũ.
+ */
+function graduationInterval(
+  wasRelearning: boolean,
+  lapsedFromInterval: number | undefined,
+  isEasy: boolean,
+  cfg: SrsConfig,
+): number {
+  if (wasRelearning) {
+    const base = lapsedFromInterval ?? cfg.graduatingInterval;
+    return Math.max(cfg.lapseMinInterval, base * cfg.lapseIntervalMultiplier);
+  }
+  return isEasy ? cfg.easyInterval : cfg.graduatingInterval;
+}
 
 /**
  * Initial SRS fields applied when a card is first created (gating, SPEC 4.4).
@@ -34,6 +60,7 @@ export function newCardState(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): 
     is_relearning: false,
     srs_interval: 0,
     next_review: now,
+    lapsed_from_interval: undefined,
   };
 }
 
@@ -53,6 +80,7 @@ export function gradeCard(
     | "lapses"
     | "is_relearning"
     | "srs_interval"
+    | "lapsed_from_interval"
   >,
   grade: ReviewGrade,
   now: number,
@@ -67,31 +95,23 @@ export function gradeCard(
   let lapses = entry.lapses;
   let isRelearning = entry.is_relearning;
   let learningStep = entry.learning_step;
+  // Interval trước lapse, giữ nguyên qua các bước relearning; tiêu thụ khi tốt
+  // nghiệp; xoá ở mọi lượt chấm REVIEW bình thường. Xem graduationInterval().
+  let lapsedFrom = entry.lapsed_from_interval;
   let cardState: CardState;
   let interval: number;
 
-  // --- "Cập nhật EF & bộ đếm" column (applies regardless of phase) ---
-  switch (grade) {
-    case "again":
-      ef += cfg.againEaseDelta;
-      break;
-    case "hard":
-      ef += cfg.hardEaseDelta;
-      break;
-    case "good":
-      reps += 1;
-      break;
-    case "easy":
-      ef += cfg.easyEaseDelta;
-      reps += 1;
-      break;
-  }
-  ef = clampEase(ef, cfg);
+  // reps đếm số lần nhớ được (Good/Easy) ở MỌI pha — nó chỉ là bộ đếm, không
+  // phải nguồn gốc "ease hell" như ease, nên giữ độc lập với pha. Ease NGƯỢC lại
+  // chỉ điều chỉnh trong REVIEW (dưới đây): giống Anki, learning/relearning steps
+  // không bao giờ đụng vào ease → tránh trừ ease từ trước khi thẻ được ôn thật.
+  if (grade === "good" || grade === "easy") reps += 1;
 
   const inLearningPhase = entry.card_state === "NEW" || entry.card_state === "LEARNING";
 
   if (inLearningPhase) {
-    const steps = isRelearning ? cfg.relearningSteps : cfg.learningSteps;
+    const wasRelearning = isRelearning;
+    const steps = wasRelearning ? cfg.relearningSteps : cfg.learningSteps;
     const curStep = entry.card_state === "NEW" ? 0 : entry.learning_step;
 
     switch (grade) {
@@ -113,7 +133,8 @@ export function gradeCard(
           cardState = "REVIEW";
           isRelearning = false;
           learningStep = 0;
-          interval = cfg.graduatingInterval;
+          interval = graduationInterval(wasRelearning, lapsedFrom, false, cfg);
+          lapsedFrom = undefined; // đã khôi phục — không còn lapse treo
         } else {
           cardState = "LEARNING";
           learningStep = nextStep;
@@ -125,21 +146,25 @@ export function gradeCard(
         cardState = "REVIEW";
         isRelearning = false;
         learningStep = 0;
-        interval = cfg.easyInterval;
+        interval = graduationInterval(wasRelearning, lapsedFrom, true, cfg);
+        lapsedFrom = undefined;
         break;
     }
   } else {
-    // REVIEW phase.
+    // REVIEW phase — pha DUY NHẤT được điều chỉnh ease.
     const prev = entry.srs_interval;
     switch (grade) {
       case "again":
+        ef += cfg.againEaseDelta;
         lapses += 1;
         cardState = "LEARNING";
         isRelearning = true;
         learningStep = 0;
         interval = cfg.relearningSteps[0];
+        lapsedFrom = prev; // nhớ interval cũ để khôi phục khi tốt nghiệp lại
         break;
       case "hard":
+        ef += cfg.hardEaseDelta;
         cardState = "REVIEW";
         interval = prev * cfg.hardIntervalMultiplier;
         break;
@@ -148,14 +173,18 @@ export function gradeCard(
         interval = prev * ef;
         break;
       case "easy":
+        ef += cfg.easyEaseDelta;
         cardState = "REVIEW";
         interval = prev * ef * cfg.easyBonus;
         break;
     }
+    ef = clampEase(ef, cfg);
   }
 
-  // Intervals are stored as whole minutes; never below 1 minute once carded.
-  interval = Math.max(1, Math.round(interval!));
+  // Whole minutes, floored at 1, capped at maxInterval. The cap only bites in
+  // REVIEW growth (learning/relearning intervals sit far below it).
+  interval = Math.min(interval!, cfg.maxInterval);
+  interval = Math.max(1, Math.round(interval));
 
   // --- Status / badge transitions (SPEC 4.2 & 4.4 fix point 6) ---
   let status: WordStatus = entry.status;
@@ -180,18 +209,21 @@ export function gradeCard(
     is_relearning: isRelearning,
     srs_interval: interval,
     next_review: now + interval * 60_000,
+    lapsed_from_interval: lapsedFrom,
   };
 }
 
 /**
  * Relapse a word that is currently LEARNED because it was "touched" again via a
- * lookup (SPEC 4.2, covers both Case 1 and Case 2). Behaves like "Again":
- * lapses += 1, back to the first relearning step, ease -= 0.20 (floored).
+ * lookup (SPEC 4.2, covers both Case 1 and Case 2). Behaves like an "Again" in
+ * REVIEW: lapses += 1, back to the first relearning step, ease -= 0.20 (floored,
+ * a LEARNED word is a mature REVIEW card so lowering ease is right here), and the
+ * pre-lapse interval is remembered so graduating back recovers a fraction of it.
  */
 export function relapse(
   entry: Pick<
     VocabEntry,
-    "ease_factor" | "lapses" | "card_state"
+    "ease_factor" | "lapses" | "card_state" | "srs_interval"
   >,
   now: number,
   cfg: SrsConfig = DEFAULT_SRS_CONFIG,
@@ -208,6 +240,7 @@ export function relapse(
     is_relearning: true,
     srs_interval: interval,
     next_review: now + interval * 60_000,
+    lapsed_from_interval: entry.srs_interval,
   };
 }
 
@@ -230,6 +263,7 @@ export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): Srs
     is_relearning: false,
     srs_interval: cfg.knownInterval,
     next_review: now + cfg.knownInterval * 60_000,
+    lapsed_from_interval: undefined,
   };
 }
 
