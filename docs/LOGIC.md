@@ -252,6 +252,26 @@ lapsed_from_interval = srs_interval  (nhớ để khôi phục khi tốt nghiệ
 
 `card_state != null && next_review != null && next_review ≤ now`.
 
+### 4.6 Nhật ký ôn tập — `review_log` (append-only)
+
+Mỗi lượt chấm thẻ trong phiên ôn (`store.gradeReview`) ghi đúng **một dòng**
+`ReviewLogEntry` vào IndexedDB, **không bao giờ sửa/xoá** — điều kiện tiên quyết
+cho thống kê (retention/forecast) và FSRS về sau. Tách trách nhiệm đúng lớp:
+
+- **domain** (`review/domain/reviewLog.ts`): `buildReviewLogEntry(before, after,
+  grade, ts)` thuần — chỉ dựng bản ghi, lấy `interval_before` từ thẻ cũ và
+  `interval_after` từ thẻ đã `gradeCard`. Test được không cần IndexedDB.
+- **data** (`review/data/reviewLog.ts`): `appendReviewLog` (dùng `add`, không
+  `put`, đúng nghĩa append-only) và `getReviewLog(user_id)` (đọc qua index
+  `by_user_ts`, sắp theo `ts`).
+- **state** (`store.gradeReview`): sau khi `putEntry(next)`, ghi log **best-
+  effort** — lỗi ghi log bị `console.error` và bỏ qua, KHÔNG làm hỏng luồng chấm.
+
+`undoReview` **không** đụng `review_log`: lượt chấm đã thực sự xảy ra và nhật ký
+là append-only, nên để nguyên dòng đã ghi (undo hiếm; append dòng "đảo" sẽ đếm
+trùng, xoá thì phá vỡ append-only). Phạm vi hiện tại: chỉ log lượt chấm trong
+phiên ôn (chưa log relapse-do-tra-cứu/markKnown), **cục bộ, chưa đồng bộ cloud**.
+
 ## 5. Word Cloud — `wordcloud.ts`
 
 `src/features/review/domain/wordcloud.ts`. Màu **chỉ** phụ thuộc `lookup_count`

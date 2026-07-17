@@ -14,7 +14,7 @@
 // fallback. For user data, IndexedDB is only a cache.
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
-import { VocabEntry } from "./types";
+import { VocabEntry, ReviewLogEntry } from "./types";
 import { GlossaryNode, ResolvedTag, Sense } from "./structured-content";
 import type { PitchAccent, DictImage, DictComment } from "./dictionary";
 import { TermMetaEntry } from "./term-meta";
@@ -127,10 +127,17 @@ interface GioituDB extends DBSchema {
     value: VocabEntry;
     indexes: { by_next_review: number; by_status: string };
   };
+  review_log: {
+    // Append-only: khoá tự tăng, không bao giờ sửa/xoá một dòng đã ghi.
+    key: number; // id (autoIncrement)
+    value: ReviewLogEntry;
+    // Truy vấn theo người dùng, sắp theo thời gian (thống kê/forecast).
+    indexes: { by_user_ts: [string, number] };
+  };
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -145,6 +152,9 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         //   v6  adds `term_meta` (Yomitan term-meta banks: IPA/pitch/freq).
         //   v7  adds the `by_reading` index (a reading look-up finds entries
         //       keyed under their kanji term).
+        //   v8  adds the append-only `review_log` store (one row per graded
+        //       card in a review session) — a new store, so a pure add: no
+        //       existing store is touched.
         //
         // `terms` is NOT merely a re-importable cache anymore: Từ điển cá nhân
         // (CustomDictionary) writes hand-authored rows into it under a `dictId`
@@ -201,6 +211,17 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
           });
           user.createIndex("by_next_review", "next_review");
           user.createIndex("by_status", "status");
+        }
+
+        // Append-only review log (v8). Bump AN TOÀN nhất: chỉ tạo store MỚI khi
+        // chưa có, không đụng store cũ nào. `id` tự tăng để mỗi lượt chấm là một
+        // dòng độc lập, không bao giờ ghi đè.
+        if (!db.objectStoreNames.contains("review_log")) {
+          const log = db.createObjectStore("review_log", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          log.createIndex("by_user_ts", ["user_id", "ts"]);
         }
       },
     });

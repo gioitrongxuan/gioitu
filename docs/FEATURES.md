@@ -128,6 +128,10 @@ Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`). Khi một 
 ngưỡng `matureThreshold` (21 ngày) nó `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng
 trở lại thì `→ RELAPSED`.
 
+Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
+cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
+cloud. Chi tiết: [LOGIC §4.6](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+
 ## 4. Quản lý từ điển
 
 Hai cấp độ, phản ánh kiến trúc từ điển hai nguồn:
