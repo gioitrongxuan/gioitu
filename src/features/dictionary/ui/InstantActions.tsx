@@ -66,7 +66,7 @@ export function InstantActions({ query, pair, source, onPick }: Props) {
       ) : (
         <ul className="instant-actions-list">
           {items.map((s) => (
-            <li key={s.term}>
+            <li key={`${s.term}:${s.reading ?? ""}`}>
               <button type="button" onClick={() => onPick(s.term)}>
                 <span className="ia-term" lang={pair.source}>{s.term}</span>
                 {s.reading && (

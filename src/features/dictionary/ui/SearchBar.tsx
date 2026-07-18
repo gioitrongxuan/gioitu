@@ -162,8 +162,10 @@ export function SearchBar({ pair, source, onResult }: Props) {
         </button>
         {open && tool === "none" && suggestions.length > 0 && (
           <ul className="suggestions" role="listbox">
+            {/* Khoá gồm cả reading để hai từ đồng âm (cùng term, khác cách đọc
+                — store `terms` giữ tách) không đụng key nhau. */}
             {suggestions.map((s) => (
-              <li key={s.term} role="option" aria-selected={false}>
+              <li key={`${s.term}:${s.reading ?? ""}`} role="option" aria-selected={false}>
                 <button type="button" onClick={() => confirm(s.term)}>
                   <span className="sug-term" lang={pair.source}>{s.term}</span>
                   {s.reading && <span className="sug-reading" lang={pair.source}>{s.reading}</span>}
