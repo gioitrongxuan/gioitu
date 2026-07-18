@@ -10,6 +10,7 @@ import { DictEntry } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
 import { candidates } from "../domain/deinflect";
 import { found, lookupFailed, LookupResult } from "../domain/lookupError";
+import { mergeDeinflectedHits } from "../domain/serverMerge";
 import { DictSource } from "../domain/source";
 import { findTerms, fuzzyTerms, suggestTerms, TermResult } from "./yomitan";
 import { DictionaryNetworkError, serverFuzzy, serverLookup, serverSuggest } from "./serverDict";
@@ -47,34 +48,28 @@ const serverSource: DictionarySource = {
   async findTerms(text, pair) {
     const query = text.trim();
     if (!query) return found([]);
-    // The server can't deinflect, so look each candidate form up. A form can map
-    // to several entries (homographs sharing a reading: さくら → 桜, 櫻); key by
-    // (term, reading) so they surface separately, keeping the closest match.
+    // The server can't deinflect, so look each candidate form up. These are
+    // independent round-trips (was up to 12 sequential awaits — noticeably slow
+    // on a strongly inflected word) → fire them in parallel. Promise.all giữ
+    // đúng thứ tự ứng viên nên khâu gộp vẫn "first-wins" như trước.
     const cands = candidates(query, pair.source).slice(0, MAX_SERVER_CANDIDATES);
-    const byKey = new Map<string, TermResult>();
     try {
-      for (const cand of cands) {
-        const entries = await serverLookup(cand.term, pair.source, pair.target);
-        for (const entry of entries) {
-          const key = JSON.stringify([entry.term, entry.reading ?? ""]);
-          const prev = byKey.get(key);
-          if (!prev || cand.reasons.length < prev.reasons.length) {
-            byKey.set(key, { entry, reasons: cand.reasons, source: query });
-          }
-        }
-      }
+      const hits = await Promise.all(
+        cands.map(async (cand) => ({
+          reasons: cand.reasons,
+          entries: await serverLookup(cand.term, pair.source, pair.target),
+        })),
+      );
+      // A form can map to several entries (homographs sharing a reading:
+      // さくら → 桜, 櫻); mergeDeinflectedHits keys by (term, reading) so they
+      // surface separately, keeps the closest match, and ranks the result.
+      return found(mergeDeinflectedHits(hits, query));
     } catch (err) {
       // Mất mạng / máy chủ lỗi: KHÔNG trả rỗng-im-lặng (UI sẽ tưởng "không tìm
       // thấy"). Báo cờ lỗi để UI hiện thông điệp riêng + gợi ý chuyển nguồn.
       if (err instanceof DictionaryNetworkError) return lookupFailed("network");
       throw err;
     }
-    // Exact (fewest reasons) first, then most common (score) — như nguồn local.
-    return found(
-      [...byKey.values()].sort(
-        (a, b) => a.reasons.length - b.reasons.length || (b.entry.score ?? 0) - (a.entry.score ?? 0),
-      ),
-    );
   },
 
   suggest: (prefix, pair) => serverSuggest(prefix, pair.source, pair.target),
