@@ -1,6 +1,5 @@
-// Menu ☰ cho màn hẹp: gom các action phụ của header vào một dropdown để khỏi
-// tràn dòng trên mobile. Desktop vẫn thấy đủ nút — CSS (breakpoint 760px)
-// quyết định bên nào hiện; hai bên dùng chung một danh sách MenuItem.
+// Menu ☰: gom các action phụ của header vào một dropdown để khỏi tràn dòng
+// trên header. Hiện ở mọi bề rộng — không có hàng nút desktop riêng.
 
 import { useState } from "react";
 
