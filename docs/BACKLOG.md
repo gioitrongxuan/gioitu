@@ -42,8 +42,6 @@ Evolution UI + engine SRS chuẩn, không đổi IA. Chi tiết token: [DESIGN.m
 _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 
 ### UI nền (theo DESIGN.md)
-- [ ] `:focus-visible` toàn cục + gỡ 5 chỗ `outline:none` không thay thế.
-  `styles.css:516,820,878,896,946`
 - [ ] Hook `useDialog` dùng chung (Escape đóng, focus đầu/trả focus,
   aria-modal) cho cả 5 overlay — hiện grep "Escape" = 0. `ThemeSettings.tsx:60-64`
 - [ ] Combobox chuẩn cho gợi ý: ArrowUp/Down + Enter, aria-activedescendant

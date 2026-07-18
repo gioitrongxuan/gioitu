@@ -129,6 +129,25 @@
 body { margin: 0; color: var(--fg); background: var(--bg); }
 :lang(ja) { font-family: var(--font-ja); }
 
+/* Focus bàn phím toàn cục (DESIGN §3): mọi phần tử tương tác hiện vòng focus
+   --focus-ring khi điều hướng bằng bàn phím. Dùng :focus-visible (không phải
+   :focus) để vòng CHỈ hiện khi dùng bàn phím, không nháy khi bấm chuột. Vẽ bằng
+   box-shadow — token --focus-ring có sẵn dạng box-shadow, lại tôn trọng
+   border-radius của phần tử — nên thay hẳn native outline (outline: none ở đây
+   là cố ý VÀ đã có chỉ báo thay thế). Vòng ăn theo --accent nên đủ tương phản
+   trên cả nền sáng (washi) lẫn tối (yozora). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* env(safe-area-inset-*): khi chạy như app cài từ màn hình chính (standalone,
    viewport-fit=cover) nội dung không chui dưới tai thỏ / thanh home iOS. */
 .app {
@@ -200,7 +219,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .search-input {
   /* basis nhỏ để nút phạm vi + ô tìm luôn chung MỘT hàng, kể cả 390px. */
   flex: 1 1 130px; min-width: 0; height: 46px; padding: 0 14px; font-size: 16px;
-  border: 1px solid var(--line); border-radius: 12px; outline: none;
+  border: 1px solid var(--line); border-radius: 12px;
   background: var(--surface); color: var(--fg);
 }
 .search-input:focus { border-color: var(--accent); }
@@ -607,7 +626,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 }
 .url-row { display: flex; gap: 6px; }
 .url-input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; }
-.url-input:focus { outline: none; border-color: var(--accent); }
+.url-input:focus { border-color: var(--accent); }
 .url-row .primary { margin-top: 0; }
 .local-dict-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
 .local-dict-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
@@ -941,7 +960,6 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .edit-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
 .chip-x { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
 .tag-add { flex: 1 1 80px; min-width: 80px; border: none !important; padding: 2px !important; }
-.tag-add:focus { outline: none; }
 
 .examples-editor { display: grid; gap: 6px; }
 .example-row { display: flex; gap: 6px; align-items: center; }
@@ -999,7 +1017,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   width: 100%; min-width: 88px; border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit;
   background: var(--surface); color: var(--fg);
 }
-.custom-grid input:focus { border-color: var(--accent); outline: none; }
+.custom-grid input:focus { border-color: var(--accent); }
 .custom-grid .row-x { padding: 0 4px; }
 
 /* Chế độ sửa: nhãn "Mới" + nền nhạt cho dòng vừa thêm trong phiên này. */
@@ -1017,7 +1035,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
   width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
   font: inherit; background: var(--surface); color: var(--fg);
 }
-.cd-search input:focus { border-color: var(--accent); outline: none; }
+.cd-search input:focus { border-color: var(--accent); }
 
 .ai-panel { display: grid; gap: 10px; }
 .ai-checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
@@ -1067,7 +1085,7 @@ body { margin: 0; color: var(--fg); background: var(--bg); }
 .cf-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
 .cf-swatch::-webkit-color-swatch { border: none; border-radius: 5px; }
 .cf-hex { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; text-transform: uppercase; }
-.cf-hex:focus { outline: none; border-color: var(--accent); }
+.cf-hex:focus { border-color: var(--accent); }
 
 .theme-actions { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
 .theme-actions .primary { margin: 0 0 0 auto; }
