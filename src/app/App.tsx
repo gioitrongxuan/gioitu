@@ -261,8 +261,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     />
   );
 
-  // Một danh sách action cho cả hai cách hiện: hàng nút (desktop) và menu ☰
-  // (mobile). CSS theo breakpoint 760px quyết định bên nào hiển thị.
+  // Các action phụ của header gom vào một menu ☰ (HeaderMenu), hiện ở mọi bề
+  // rộng — không có hàng nút desktop riêng.
   const menuItems: MenuItem[] = [
     ...(isAdmin
       ? [

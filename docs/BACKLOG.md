@@ -172,5 +172,3 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   tóm tắt ở §10) — coi "thêm mục FEATURES.md" là cổng review mỗi PR tính năng.
 - [ ] Tách styles.css (1089 dòng) theo feature như preset đã làm; quét selector
   chết (.source-toggle). `styles.css:1036`
-- [ ] Sửa comment sai: App.tsx:229-230 (mô tả hàng nút desktop không tồn tại),
-  languages.ts:27 ("// Anh → Việt" cho DEFAULT_PAIR ja-vi).
