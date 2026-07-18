@@ -58,7 +58,7 @@ export function InstantActions({ query, pair, source, onPick }: Props) {
 
   return (
     <aside className="instant-actions" aria-label="Tìm nhanh từ liên quan">
-      <h3 className="instant-actions-title">Instant Action</h3>
+      <h3 className="instant-actions-title">Tìm nhanh</h3>
       {items.length === 0 ? (
         <p className="instant-actions-empty">
           {loading ? "Đang tìm…" : "Chưa có gợi ý"}

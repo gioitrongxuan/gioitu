@@ -100,7 +100,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
   `DictionaryImport.tsx:73-86 · yomitan.ts:101-102`
 - [ ] Loading state khi confirm tra (nguồn server tới 12 round-trip tuần tự —
   song song hoá luôn bằng Promise.all). `sources.ts:41-63`
-- [ ] Đổi heading "Instant Action" → tiếng Việt. `InstantActions.tsx:61`
 - [ ] Touch target pointer:coarse: .tag ≥44px, .radical-btn/.kanji-cell nới,
   .tag-delete to hơn hoặc undo-toast (xoá đang không confirm).
   `styles.css:306-323,1035-1041`
