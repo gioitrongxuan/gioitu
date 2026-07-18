@@ -3,7 +3,64 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f6f7f9" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <!-- Chống nháy trắng: áp theme ĐÃ LƯU ngay trong <head>, trước first paint.
+         Không cần cho lần đầu: CSS (:root washi + @media dark yozora) đã tự lo
+         theo OS. Chỉ khi có theme lưu (nhất là theme sáng lúc OS đang dark, hoặc
+         ngược lại) ta mới phải ghi đè inline sớm để không nháy sang màu OS rồi
+         mới nhảy lại. React (ThemeProvider) áp lại ĐÚNG các giá trị này sau khi
+         mount nên không lệch. Đọc đúng key + tên biến của theme/domain/theme.ts;
+         cố ý không hardcode bảng màu mặc định ở đây để khỏi trôi khỏi theme.ts. -->
+    <script>
+      (function () {
+        var STORAGE_KEY = "gioitu.theme.v1"; // trùng theme/domain/theme.ts
+        // Khớp VAR_MAP: field của Theme → tên CSS custom property.
+        var VAR_MAP = {
+          heatFrom: "--heat-from",
+          heatTo: "--heat-to",
+          accent: "--accent",
+          warn: "--warn",
+          bg: "--bg",
+          surface: "--surface",
+          fg: "--fg",
+          muted: "--muted",
+          line: "--line",
+        };
+        var stored = null;
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) stored = JSON.parse(raw);
+        } catch (e) {
+          // localStorage/JSON hỏng (chế độ riêng tư, quota…) → để CSS lo theo
+          // OS. Không có theme lưu nào an toàn hơn để áp, nên dừng ở đây.
+          stored = null;
+        }
+        if (!stored || typeof stored !== "object") return;
+        var root = document.documentElement;
+        for (var key in VAR_MAP) {
+          var value = stored[key];
+          if (typeof value === "string") root.style.setProperty(VAR_MAP[key], value);
+        }
+        if (typeof stored.bg !== "string") return;
+        // color-scheme theo độ tối của nền — khớp isDarkColor() (luminance < 0.4)
+        // để scrollbar/ô nhập gốc không nháy sai tông trước khi React chạy.
+        root.style.colorScheme = isDark(stored.bg) ? "dark" : "light";
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", stored.bg);
+
+        function isDark(hex) {
+          var m = /^#?([0-9a-f]{6})$/i.exec(hex);
+          if (!m) return false;
+          var n = parseInt(m[1], 16);
+          var rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+          var lin = rgb.map(function (c) {
+            var s = c / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+          });
+          return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2] < 0.4;
+        }
+      })();
+    </script>
     <!-- PWA: cài từ màn hình chính sẽ mở standalone như app thật. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon-192.png" type="image/png" />

@@ -334,5 +334,14 @@ nền mỗi tag nội suy giữa `--heat-from` (ít tra) và `--heat-to` (tra nh
 `color-mix`, nên sửa một endpoint là tô lại cả đám mây. Màu chữ chọn sáng/tối
 theo luminance để giữ tương phản trên mọi bảng màu. Có sẵn các preset
 (Mặc định, Nhiệt, Đại dương, Rừng, Nho).
+
+**Token layer & chống nháy trắng** ([DESIGN §1–2](./DESIGN.md)): `styles.css:root`
+khai báo hệ token nền (spacing/radius/shadow/motion/type/z-index/control) và
+palette mặc định **washi/sumi**; nhánh `@media (prefers-color-scheme: dark)` cấp
+palette **yozora** tĩnh. Vì theme chỉ áp bằng JS sau khi React mount, một inline
+script trong `<head>` của `index.html` đọc `gioitu.theme.v1` và ghi đè các biến
+lên `:root` TRƯỚC first paint (khớp `VAR_MAP` + `isDarkColor` của theme.ts), nên
+theme đã lưu không nháy sang màu OS rồi mới nhảy lại. `DEFAULT_THEME`/`DARK_THEME`
+phải khớp các mặc định tĩnh này (nếu lệch sẽ nháy khi mount).
 </content>
 </invoke>

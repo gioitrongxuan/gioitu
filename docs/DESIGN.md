@@ -27,12 +27,21 @@ color-mix dẫn xuất tự ăn theo. Dark mode phải có nhánh
 `@media (prefers-color-scheme: dark)` tĩnh + inline script trong `<head>` đọc
 localStorage trước paint (chống flash trắng).
 
+> **Đã dựng** (token layer): palette washi + `--seal` ở `:root`, nhánh `@media
+> (prefers-color-scheme: dark)` yozora, và inline script chống nháy trong
+> `index.html`. `DEFAULT_THEME`/`DARK_THEME` (theme.ts) đã khớp bảng trên. `--warn`
+> và hai đầu heatmap chưa nằm trong bảng nên giữ giá trị cũ (chờ mục tag/heatmap).
+
 **Theme anime (panda/buu/cell/akatsuki)**: định vị là *skin sưu tầm opt-in* —
 chỉ đổi backdrop + heatmap + emblem trang trí, KHÔNG đụng token chữ/nền
 (giữ tương phản), KHÔNG thay glyph cảnh báo relapse bằng glyph dễ thương.
 Color-picker tự do → mục "Nâng cao" thu gọn.
 
 ## 2. Token scales (thêm vào `:root` của styles.css)
+
+> **Đã dựng** toàn bộ thang dưới đây trong `styles.css:root` (spacing/radius/
+> shadow/motion/type/z-index/control + `--focus-ring`). Các mục UI sau tiêu thụ
+> dần thay magic number; PR token layer CHỈ khai báo, chưa refactor nơi dùng.
 
 - **Spacing** — thang 4px: `--space-1:4 · 2:8 · 3:12 · 4:16 · 5:20 · 6:24 · 8:32`.
 - **Radius** — `--radius-xs:6 · sm:8 · md:10 · lg:14 · xl:18 · full:999`.
@@ -44,11 +53,13 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
 - **Motion** — `--dur-fast:120ms · --dur-base:200ms · --dur-slow:320ms`;
   `--ease-out: cubic-bezier(.2,0,0,1)`; hover màu = fast, transform/xuất hiện
   = base, sheet/overlay = slow. Cấm transition 0.05s (cảm giác giật).
-- **Type** — thang `11 / 13 / 15 / 16 / 18 / 22 / 26 / 30px`; body 15-16px,
-  line-height 1.6 nội dung, 1.3 heading; `tabular-nums` cho mọi số đếm
-  (progress, interval, đếm due). Font: giữ system-first cho `--font-ja`
-  (offline-first); khi self-host thì Inter subset latin+vietnamese cho UI,
-  Noto Sans JP chèn SAU Hiragino TRƯỚC Yu Gothic (macOS không tải gì).
+- **Type** — thang `11 / 13 / 15 / 16 / 18 / 22 / 26 / 30px`
+  (`--text-xs · sm · base · md · lg · xl · 2xl · 3xl`); body 15-16px,
+  line-height 1.6 nội dung / 1.3 heading (`--leading-body · --leading-heading`);
+  `tabular-nums` cho mọi số đếm (progress, interval, đếm due). Font: giữ
+  system-first cho `--font-ja` (offline-first); khi self-host thì Inter subset
+  latin+vietnamese cho UI, Noto Sans JP chèn SAU Hiragino TRƯỚC Yu Gothic
+  (macOS không tải gì).
 - **Z-index** — đặt thang tên: dropdown 20 · sheet 30 · modal 40 · toast 50.
 - **Control** — height thống nhất 38px (header) / 48px (search hero);
   focus ring: `0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent)`.

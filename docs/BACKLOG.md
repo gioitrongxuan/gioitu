@@ -42,9 +42,6 @@ Evolution UI + engine SRS chuẩn, không đổi IA. Chi tiết token: [DESIGN.m
 _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 
 ### UI nền (theo DESIGN.md)
-- [ ] Token layer: spacing/radius/shadow/motion/type + palette washi/sumi +
-  dark yozora + inline script chống flash trắng (OS dark hiện flash vì theme
-  chỉ áp bằng JS). `styles.css:2-35 · index.html:6`
 - [ ] `:focus-visible` toàn cục + gỡ 5 chỗ `outline:none` không thay thế.
   `styles.css:516,820,878,896,946`
 - [ ] Hook `useDialog` dùng chung (Escape đóng, focus đầu/trả focus,
