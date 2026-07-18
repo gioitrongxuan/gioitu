@@ -42,6 +42,11 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
 > **Đã dựng** toàn bộ thang dưới đây trong `styles.css:root` (spacing/radius/
 > shadow/motion/type/z-index/control + `--focus-ring`). Các mục UI sau tiêu thụ
 > dần thay magic number; PR token layer CHỈ khai báo, chưa refactor nơi dùng.
+> **Focus-visible toàn cục ĐÃ dựng**: quy tắc `:focus-visible` chung cho phần tử
+> tương tác (a/button/input/select/textarea/summary/[tabindex]/[role="button"])
+> vẽ vòng focus bằng `box-shadow: var(--focus-ring)` và thay hẳn native outline;
+> 6 chỗ `outline:none` nuốt focus trước đây đã gỡ. Component mới KHÔNG cần tự
+> khai `:focus` outline — quy tắc chung đã lo.
 
 - **Spacing** — thang 4px: `--space-1:4 · 2:8 · 3:12 · 4:16 · 5:20 · 6:24 · 8:32`.
 - **Radius** — `--radius-xs:6 · sm:8 · md:10 · lg:14 · xl:18 · full:999`.
