@@ -7,11 +7,17 @@ import { pullUserData, pushUserData } from "./syncApi";
 import { SyncStatus } from "../domain/syncStatus";
 import { VocabEntry, keyOf } from "@/shared/types";
 
-/** Read all entries for a user from the local cache. */
+/**
+ * Read all entries for a user from the local cache. `user_data`'s keyPath is
+ * `[user_id, term, term_lang]`, nên đọc thẳng bằng IDBKeyRange theo user_id thay
+ * vì kéo cả store rồi filter JS (store dùng chung cho mọi user trên máy). Chặn
+ * trên `[user_id, []]`: mảng rỗng đứng sau mọi chuỗi `term` trong thứ tự khoá
+ * IndexedDB, nên khoảng này bắt trọn các dòng cùng user_id (như getReviewLog).
+ */
 export async function getAllEntries(user_id: string): Promise<VocabEntry[]> {
   const db = await getDb();
-  const all = await db.getAll("user_data");
-  return all.filter((e) => e.user_id === user_id);
+  const range = IDBKeyRange.bound([user_id], [user_id, []]);
+  return db.getAll("user_data", range);
 }
 
 export async function getEntry(

@@ -112,6 +112,48 @@ describe("Yomitan import (forward, per-pair)", () => {
   });
 });
 
+describe("Yomitan import — trusts index.json's language pair", () => {
+  // Import zip client (#142): trước đây opts (cặp UI đang chọn) đè lên
+  // sourceLanguage/targetLanguage của index.json, nên archive lệch cặp bị lưu
+  // sai và "biến mất" khỏi mọi tra cứu dưới cặp thật của nó. Giờ index.json
+  // thắng khi có khai báo; opts chỉ còn là fallback.
+  it("uses index.json's pair even when it conflicts with the caller's opts", async () => {
+    const buf = await makeJaZip(); // index.json khai ja→vi
+    await importYomitanZip(buf, { term_lang: "en", native_lang: "vi" });
+    expect(await hasLocalDictionary("ja", "vi")).toBe(true);
+    const e = await lookupTerm("桜", "ja", "vi");
+    expect(e?.definitions).toContain("hoa anh đào");
+  });
+
+  it("falls back to the caller's opts when index.json omits the pair", async () => {
+    const zip = new JSZip();
+    zip.file("index.json", JSON.stringify({ title: "No lang" }));
+    zip.file(
+      "term_bank_1.json",
+      JSON.stringify([["hello", "", null, "", 0, ["xin chào"], 1, ""]]),
+    );
+    const buf = await zip.generateAsync({ type: "arraybuffer" });
+    await importYomitanZip(buf, { term_lang: "en", native_lang: "vi" });
+    expect(await hasLocalDictionary("en", "vi")).toBe(true);
+    const e = await lookupTerm("hello", "en", "vi");
+    expect(e?.definitions).toContain("xin chào");
+  });
+});
+
+describe("Yomitan import — progress callback (#134)", () => {
+  // Import lớn từng đơ UI hàng chục giây vì await từng put() một; giờ chỉ
+  // await tx.done, và onProgress báo tiến độ tăng dần từ >0 tới đúng 1 ở cuối.
+  it("reports monotonically increasing progress ending at 1", async () => {
+    const fractions: number[] = [];
+    await importYomitanZip(await makeYomitanZip(), { term_lang: "en", native_lang: "vi" }, (f) => fractions.push(f));
+    expect(fractions.length).toBeGreaterThan(0);
+    expect(fractions[fractions.length - 1]).toBe(1);
+    for (let i = 1; i < fractions.length; i++) {
+      expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]);
+    }
+  });
+});
+
 describe("user-data repository + offline sync", () => {
   it("persists and reads back entries", async () => {
     const e = makeEntry({ user_id: "alice", term: "hello" });

@@ -167,7 +167,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
         upsertLocal(entry);
         scheduleSync();
       }
-      return entry;
+      return { entry, events };
     },
     [userId, pushToast, upsertLocal, scheduleSync],
   );
@@ -316,10 +316,27 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
     }
   }, [userId, reload, scheduleSync, pushToast]);
 
+  // dueEntries phụ thuộc Date.now(): tab để mở lâu không có thay đổi entries thì
+  // "đến hạn" đứng yên dù thời gian thực đã trôi qua due date của thẻ nào đó. Tick
+  // mỗi phút + khi tab trở lại foreground để đếm cập nhật mà không cần thao tác gì.
+  const [dueTick, setDueTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setDueTick((t) => t + 1);
+    const id = setInterval(bump, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
   const dueEntries = useMemo(() => {
     const now = Date.now();
     return entries.filter((e) => isReviewable(e, now));
-  }, [entries]);
+  }, [entries, dueTick]);
 
   // Mastered words for the "Đã thuộc" achievement page, most recently learned first.
   const learnedEntries = useMemo(

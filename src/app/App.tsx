@@ -3,7 +3,7 @@
 // panel, the review session and dictionary import. Lookup orchestration lives
 // in useLookup; per-feature logic lives under src/features/*.
 
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
@@ -11,8 +11,6 @@ import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
-import { KanjiStats } from "@/features/kanjistats/ui";
-import { VocabStudy } from "@/features/vocabstudy/ui";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
@@ -21,14 +19,11 @@ import { hasLocalDict } from "@/features/dictionary/data/search";
 import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
-import { DictionaryManager } from "@/features/dictionary/ui/DictionaryManager";
-import { CustomDictionary } from "@/features/dictionary/ui/CustomDictionary";
 import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
 import { TermResult } from "@/features/dictionary/data/search";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
 import { proposeWord } from "@/features/contribute/data/contribute";
 import { ContributionReview } from "@/features/contribute/ui/ContributionReview";
-import { ThemeSettings } from "@/features/theme/ui/ThemeSettings";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
 import { YomitanSync } from "@/features/auth/ui/YomitanSync";
@@ -41,6 +36,20 @@ import { VocabEntry } from "@/shared/types";
 import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
 import { HeaderMenu, MenuItem } from "./HeaderMenu";
+
+// React.lazy cho các màn phụ (không cần ngay lúc mở app) — giữ chunk chính nhẹ.
+// Mỗi module export theo tên (không có default) nên bọc lại thành { default }.
+const KanjiStats = lazy(() => import("@/features/kanjistats/ui").then((m) => ({ default: m.KanjiStats })));
+const VocabStudy = lazy(() => import("@/features/vocabstudy/ui").then((m) => ({ default: m.VocabStudy })));
+const DictionaryManager = lazy(() =>
+  import("@/features/dictionary/ui/DictionaryManager").then((m) => ({ default: m.DictionaryManager })),
+);
+const CustomDictionary = lazy(() =>
+  import("@/features/dictionary/ui/CustomDictionary").then((m) => ({ default: m.CustomDictionary })),
+);
+const ThemeSettings = lazy(() =>
+  import("@/features/theme/ui/ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
+);
 
 /**
  * No auth gate: the app is fully usable as a guest. Signing in is optional and
@@ -386,25 +395,29 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               onSelect={onSelectTag}
             />
           ) : page === "kanji" ? (
-            <KanjiStats
-              entries={store.entries}
-              onSelectKanji={lookupKanji}
-              onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
-            />
+            <Suspense fallback={<p className="empty">Đang tải…</p>}>
+              <KanjiStats
+                entries={store.entries}
+                onSelectKanji={lookupKanji}
+                onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
+              />
+            </Suspense>
           ) : page === "vocabstudy" ? (
-            <VocabStudy
-              entries={store.entries}
-              pair={pair}
-              onPairChange={choosePair}
-              onSelect={(w) => openWord(w)}
-              onToggle={(w, entry) => {
-                // Click đúp: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược lại
-                // → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
-                if (entry?.status === "LEARNED") store.markForgottenEntry(entry);
-                else store.markKnownByTerm(w.term, w.term_lang, w.native_lang);
-              }}
-              onRequestLogin={onRequestLogin}
-            />
+            <Suspense fallback={<p className="empty">Đang tải…</p>}>
+              <VocabStudy
+                entries={store.entries}
+                pair={pair}
+                onPairChange={choosePair}
+                onSelect={(w) => openWord(w)}
+                onToggle={(w, entry) => {
+                  // Click đúp: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược lại
+                  // → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
+                  if (entry?.status === "LEARNED") store.markForgottenEntry(entry);
+                  else store.markKnownByTerm(w.term, w.term_lang, w.native_lang);
+                }}
+                onRequestLogin={onRequestLogin}
+              />
+            </Suspense>
           ) : (
             <WordCloud
               entries={store.entries}
@@ -434,39 +447,47 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {managing && isAdmin && (
-        <DictionaryManager
-          loggedIn={email != null}
-          initialEdit={manageEditQuery != null ? { pair, query: manageEditQuery } : undefined}
-          onRequestLogin={() => {
-            setManaging(false);
-            setManageEditQuery(null);
-            onRequestLogin();
-          }}
-          onClose={() => {
-            setManaging(false);
-            setManageEditQuery(null);
-          }}
-        />
+        <Suspense fallback={null}>
+          <DictionaryManager
+            loggedIn={email != null}
+            initialEdit={manageEditQuery != null ? { pair, query: manageEditQuery } : undefined}
+            onRequestLogin={() => {
+              setManaging(false);
+              setManageEditQuery(null);
+              onRequestLogin();
+            }}
+            onClose={() => {
+              setManaging(false);
+              setManageEditQuery(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {customDict && (
-        <CustomDictionary
-          pair={pair}
-          loggedIn={email != null}
-          onRequestLogin={() => {
-            setCustomDict(false);
-            onRequestLogin();
-          }}
-          onClose={() => setCustomDict(false)}
-          onSaved={() => {
-            // Nếu đang mở chi tiết một từ, tra lại để từ vừa lưu (nguồn Trên máy) hiện ra.
-            if (view?.kind === "detail") lookup(view.term);
-            syncDicts(); // đẩy từ điển vừa soạn lên (nếu Premium)
-          }}
-        />
+        <Suspense fallback={null}>
+          <CustomDictionary
+            pair={pair}
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setCustomDict(false);
+              onRequestLogin();
+            }}
+            onClose={() => setCustomDict(false)}
+            onSaved={() => {
+              // Nếu đang mở chi tiết một từ, tra lại để từ vừa lưu (nguồn Trên máy) hiện ra.
+              if (view?.kind === "detail") lookup(view.term);
+              syncDicts(); // đẩy từ điển vừa soạn lên (nếu Premium)
+            }}
+          />
+        </Suspense>
       )}
 
-      {theming && <ThemeSettings onClose={() => setTheming(false)} />}
+      {theming && (
+        <Suspense fallback={null}>
+          <ThemeSettings onClose={() => setTheming(false)} />
+        </Suspense>
+      )}
 
       {connectingYomitan && (
         <YomitanSync

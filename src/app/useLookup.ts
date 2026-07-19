@@ -19,7 +19,7 @@ import {
   findByDefinitionRouted,
 } from "@/features/dictionary/data/search";
 import { DictSource } from "@/features/dictionary/domain/source";
-import { LookupInput } from "@/features/review/domain/lookup";
+import { LookupInput, LookupResult } from "@/features/review/domain/lookup";
 
 export type DetailView = {
   kind: "detail";
@@ -39,7 +39,7 @@ export type DetailView = {
 
 /** The slice of the app store this hook needs (interface segregation). */
 interface LookupRecorder {
-  recordLookup: (input: Omit<LookupInput, "user_id">) => Promise<VocabEntry>;
+  recordLookup: (input: Omit<LookupInput, "user_id">) => Promise<LookupResult>;
 }
 
 export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSource) {
@@ -96,15 +96,16 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
   // The user picked one of the shown results as the match they wanted ("+",
   // SPEC 4.4): record it against the history map. Works for exact and fuzzy
   // results alike — we key on the entry's own dictionary form, not the surface
-  // typed. No confirmation: the click *is* the confirmation.
-  async function addResult(res: TermResult) {
+  // typed. Trả events lên UI: nút "+" chỉ tự nhận là ✓ sau khi promise này
+  // resolve (không còn lạc quan set trước rồi bỏ qua lỗi/no-op).
+  async function addResult(res: TermResult): Promise<LookupResult["events"]> {
     const e = res.entry;
     const lines = sensesToLines(e.senses);
     const meaning = JSON.stringify(lines.length ? lines : glossaryToLines(e.definitions));
     // Part-of-speech: the sense tags, resolved to their full names when known.
     const posCodes = [...new Set((e.senses ?? []).flatMap((s) => s.tags))];
     const pos = posCodes.map((c) => e.tagMeta?.[c]?.name ?? c).join(", ");
-    await store.recordLookup({
+    const { events } = await store.recordLookup({
       term: e.term,
       term_lang: e.term_lang,
       native_lang: e.native_lang,
@@ -113,6 +114,7 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
       pos: pos || undefined,
       is_custom: false,
     });
+    return events;
   }
 
   // Navigate to another term from an internal dictionary link.

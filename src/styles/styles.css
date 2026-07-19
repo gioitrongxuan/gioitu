@@ -678,8 +678,9 @@ summary:focus-visible,
 .furigana ruby { ruby-align: center; }
 .furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; user-select: none; }
 .dict-name { font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 999px; margin-left: auto; }
-.add-result { margin-left: auto; font-size: 18px; line-height: 1; padding: 2px 8px; align-self: center; }
+.add-result { margin-left: auto; font-size: 13px; font-weight: 600; line-height: 1; padding: 4px 10px; align-self: center; white-space: nowrap; }
 .add-result:disabled { color: var(--ok); opacity: 1; cursor: default; }
+.add-error { flex-basis: 100%; color: var(--warn); font-size: 12px; }
 
 .reasons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; font-size: 12px; }
 .reasons-base { font-weight: 600; }
@@ -1191,6 +1192,11 @@ summary:focus-visible,
   .kanji-toggles .link { padding: 6px 0; }
   .srs-act { padding: 8px 10px; }
   .header-menu-panel .link { padding: 12px 10px; }
+  .tag { height: 44px; padding: 0 16px; }
+  .tag .tag-delete { margin-left: 10px; padding: 6px; font-size: 20px; }
+  .radical-btn { min-width: 44px; height: 44px; }
+  .kanji-grid { grid-template-columns: repeat(auto-fill, 44px); }
+  .kanji-cell { width: 44px; height: 44px; }
 }
 
 /* Lời nhắc sao lưu cho khách — nhẹ, nằm trong dòng nội dung (không phải overlay).
