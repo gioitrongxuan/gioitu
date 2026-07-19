@@ -86,6 +86,19 @@ dictRoutes.get(
   }),
 );
 
+// --- Public: definition-text search (#172) — gõ nghĩa (vd "đồng cảm" ở cặp
+// ja→vi) vẫn ra từ có gloss chứa cụm đó, không chỉ khớp cách viết/âm đọc ---
+dictRoutes.get(
+  "/by-definition",
+  wrap(async (req, res) => {
+    const term = String(req.query.term ?? "");
+    const src = String(req.query.src ?? "");
+    const tgt = String(req.query.tgt ?? "");
+    if (!term) return res.json([]);
+    res.json(await dictStore.lookupByDefinition(term, src, tgt));
+  }),
+);
+
 // Import a Yomitan .zip. The body is the raw archive (Content-Type
 // application/zip); the language pair is taken from ?src=&tgt= when given,
 // otherwise from the archive's index.json.

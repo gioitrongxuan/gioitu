@@ -155,6 +155,37 @@ export async function fuzzy(term: string, src: string, tgt: string, limit = 8): 
   return assembleByIds(distinctWordIds(rows));
 }
 
+/**
+ * Tra theo nghĩa (#172): tìm từ mà một dòng gloss — chứ không phải cách viết
+ * hay âm đọc — chứa `query`. Vd gõ "đồng cảm" ở cặp ja→vi vẫn ra từ tiếng Nhật
+ * có nghĩa chứa cụm đó. Quét toàn bộ gloss của cặp (chưa có chỉ mục cho văn bản
+ * nghĩa, không như `base`/`reading` đã có GIN trgm) nên chỉ đáng gọi như một
+ * lượt tra bổ trợ off-hot-path, giống `fuzzy` — xem `useLookup.ts`.
+ */
+export async function lookupByDefinition(
+  query: string,
+  src: string,
+  tgt: string,
+  limit = 8,
+): Promise<DictionaryEntry[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const like = "%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
+  const { rows } = await pool.query<{ word_id: string }>(
+    `SELECT w.id AS word_id
+       FROM entry e
+       JOIN word w ON w.id = e.word_id
+       CROSS JOIN LATERAL jsonb_array_elements(e.senses) AS sense
+       CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(sense->'gloss', '[]'::jsonb)) AS gloss_line
+      WHERE w.term_lang = $1 AND w.native_lang = $2 AND gloss_line ILIKE $3
+      GROUP BY w.id
+      ORDER BY MAX(w.score) DESC
+      LIMIT $4`,
+    [src, tgt, like, limit],
+  );
+  return assembleByIds(distinctWordIds(rows));
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Ghi: import, seed dùng chung helper dedup theo heading
 // ─────────────────────────────────────────────────────────────────────────

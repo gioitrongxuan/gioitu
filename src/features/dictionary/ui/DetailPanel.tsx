@@ -252,6 +252,11 @@ export function DetailPanel({
                 {res.fuzzy && !results[i - 1]?.fuzzy && (
                   <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
                 )}
+                {/* Khớp theo định nghĩa (#172): tìm "đồng cảm" ở cặp ja→vi vẫn ra
+                    từ tiếng Nhật có nghĩa chứa cụm đó, tách riêng khỏi khớp thẳng. */}
+                {res.viaDefinition && !results[i - 1]?.viaDefinition && (
+                  <p className="fuzzy-divider muted">Khớp theo định nghĩa:</p>
+                )}
                 <ResultView
                   res={res}
                   onLookup={onLookup}

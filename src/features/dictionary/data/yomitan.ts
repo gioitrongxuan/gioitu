@@ -12,7 +12,7 @@
 
 import JSZip from "jszip";
 import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
-import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
+import { GlossaryNode, Sense, glossaryToLines, sensesToLines } from "@/shared/structured-content";
 import {
   Pronunciation,
   TermFrequency,
@@ -413,6 +413,8 @@ export interface TermResult {
   frequencies?: TermFrequency[];
   /** A near-miss surfaced by edit-distance, not an exact/deinflected match. */
   fuzzy?: boolean;
+  /** Matched by its definition/gloss text, not the headword or reading (#172). */
+  viaDefinition?: boolean;
 }
 
 /** Every stored term-meta row for a term within a pair (across all meta dicts). */
@@ -552,6 +554,44 @@ export async function fuzzyTerms(
     )
     .slice(0, limit)
     .map(({ entry }) => ({ entry, reasons: [], source: query, fuzzy: true }));
+}
+
+/**
+ * Definition-text fallback (#172): scan the pair's terms for a gloss line
+ * containing `query`, so typing a phrase in the *meaning* language (vd gõ
+ * "đồng cảm" ở cặp ja→vi) still surfaces the headword whose Việt gloss chứa
+ * cụm đó, thay vì chỉ khớp cách viết/âm đọc. Cùng kiểu cursor scan off-hot-path
+ * như `fuzzyTerms` — gọi song song với nó, không chặn kết quả khớp thẳng.
+ */
+export async function definitionTerms(
+  text: string,
+  term_lang: string,
+  native_lang: string,
+  exclude: Set<string> = new Set(),
+  limit = 8,
+): Promise<TermResult[]> {
+  const source = text.trim();
+  const query = source.toLowerCase();
+  if (!query) return [];
+
+  const db = await getDb();
+  const range = IDBKeyRange.only([term_lang, native_lang]);
+  const matched: DictEntry[] = [];
+
+  let cursor = await db.transaction("terms").store.index("by_pair").openCursor(range);
+  while (cursor) {
+    const entry = cursor.value;
+    if (!exclude.has(termReadingKey(entry.term, entry.reading))) {
+      const lines = entry.senses?.length ? sensesToLines(entry.senses) : glossaryToLines(entry.definitions);
+      if (lines.some((line) => line.toLowerCase().includes(query))) matched.push(entry);
+    }
+    cursor = await cursor.continue();
+  }
+
+  return matched
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, limit)
+    .map((entry) => ({ entry, reasons: [], source, viaDefinition: true }));
 }
 
 /** Whether a dictionary for the given pair has been imported into IndexedDB. */

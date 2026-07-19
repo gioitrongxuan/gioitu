@@ -41,6 +41,21 @@ export function findFuzzyRouted(
   return getSource(source).fuzzy(text, pair, exclude);
 }
 
+/**
+ * Definition-text look-up (#172): matches by gloss/meaning instead of the
+ * headword, so a phrase in the *meaning* language still finds the entry.
+ * Same bonus-scan contract as `findFuzzyRouted` — callers run it off the hot
+ * path and append the results; `exclude` lists (term, reading) keys already shown.
+ */
+export function findByDefinitionRouted(
+  text: string,
+  pair: LangPair,
+  exclude: Set<string>,
+  source: DictSource,
+): Promise<TermResult[]> {
+  return getSource(source).byDefinition(text, pair, exclude);
+}
+
 /** Live suggestions while typing, against the chosen source. */
 export function searchSuggest(
   prefix: string,
