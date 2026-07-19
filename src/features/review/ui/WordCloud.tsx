@@ -2,6 +2,7 @@
 // Colour = log-normalized lookup_count; badge = RELAPSED; highlight = due.
 // Can be split by language and grouped into time buckets (ngày/tháng/năm).
 
+import { memo, useMemo } from "react";
 import { buildCloud, groupByPeriod, tagTooltip, CloudSort, CloudLang, TimeGrouping, CloudTag } from "../domain/wordcloud";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
@@ -25,12 +26,29 @@ interface Props {
   onDelete: (entry: VocabEntry) => void;
 }
 
-export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping, deleteMode, onSelect, onDelete }: Props) {
+export const WordCloud = memo(function WordCloud({
+  entries,
+  highlightDue,
+  onlyDue,
+  sort,
+  lang,
+  grouping,
+  deleteMode,
+  onSelect,
+  onDelete,
+}: Props) {
   const { theme, icons } = useTheme();
   // Theme trang trí có thể thay glyph "!" của badge tái quên bằng icon riêng.
   const relapseGlyph = icons?.relapse ?? "!";
   const now = Date.now();
-  const tags = buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true));
+  // buildCloud duyệt + sắp cả nghìn entry — chỉ tính lại khi tập từ, cách sắp
+  // xếp hay bộ lọc đổi, không phải mỗi lần cha re-render (vd toast tự tắt).
+  const tags = useMemo(
+    () => buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- "now" cố ý không nằm trong deps: chỉ
+    // dùng làm mốc chấm điểm log-decay (tắt theo mặc định), không phải để tick theo thời gian thực.
+    [entries, sort, lang, onlyDue],
+  );
 
   if (tags.length === 0) {
     return <p className="empty">Chưa có từ nào trên bản đồ. Tra một từ rồi bấm “＋ Học từ này” để bắt đầu.</p>;
@@ -96,4 +114,4 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
       ))}
     </div>
   );
-}
+});
