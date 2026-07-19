@@ -18,7 +18,7 @@ import {
   nextBatchSize,
   loadNextBatch,
 } from "../domain/session";
-import { formatInterval } from "@/shared/ui/format";
+import { formatInterval } from "@/shared/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Definitions } from "@/features/dictionary/ui/Definitions";
 import { KanjiBreakdown } from "@/features/dictionary/ui/KanjiPanel";

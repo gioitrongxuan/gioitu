@@ -2,7 +2,7 @@
 // Colour = log-normalized lookup_count; badge = RELAPSED; highlight = due.
 // Can be split by language and grouped into time buckets (ngày/tháng/năm).
 
-import { buildCloud, groupByPeriod, CloudSort, CloudLang, TimeGrouping, CloudTag } from "../domain/wordcloud";
+import { buildCloud, groupByPeriod, tagTooltip, CloudSort, CloudLang, TimeGrouping, CloudTag } from "../domain/wordcloud";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
@@ -46,7 +46,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
     // are invalid), it's a plain container holding a delete ×.
     if (deleteMode) {
       return (
-        <span key={key} role="listitem" className={className} style={style} title={`Tra ${entry.lookup_count} lần`}>
+        <span key={key} role="listitem" className={className} style={style} title={tagTooltip(entry, now)}>
           {hasBadge && <span className="badge" aria-label="Tái quên">{relapseGlyph}</span>}
           <span className="tag-term">{entry.term}</span>
           <button
@@ -67,7 +67,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
         role="listitem"
         className={className}
         style={style}
-        title={`Tra ${entry.lookup_count} lần`}
+        title={tagTooltip(entry, now)}
         onClick={() => onSelect(entry)}
       >
         {hasBadge && <span className="badge" aria-label="Tái quên">{relapseGlyph}</span>}

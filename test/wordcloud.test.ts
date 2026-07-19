@@ -7,6 +7,7 @@ import {
   groupByPeriod,
   isVisibleOnCloud,
   periodOf,
+  tagTooltip,
 } from "@/features/review/domain/wordcloud";
 import { makeEntry } from "./fixtures";
 
@@ -142,6 +143,52 @@ describe("groupByPeriod", () => {
   it("buckets by month and year", () => {
     expect(groupByPeriod(tags, "month", now).map((g) => g.label)).toEqual(["Tháng 6 2026", "Tháng 5 2026"]);
     expect(groupByPeriod(tags, "year", now).map((g) => g.key)).toEqual(["2026"]);
+  });
+});
+
+describe("tagTooltip", () => {
+  const now = 10_000_000;
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("joins reading · nghĩa đầu · lịch ôn · số lần tra", () => {
+    const e = makeEntry({
+      reading: "たべる",
+      meaning: JSON.stringify(["ăn", "xơi"]),
+      lookup_count: 5,
+      card_state: "REVIEW",
+      next_review: now + 2 * DAY,
+    });
+    expect(tagTooltip(e, now)).toBe("たべる · ăn · ôn sau 2.0 ngày · tra 5 lần");
+  });
+
+  it("reads 'đến hạn' for a due card and skips a missing reading", () => {
+    const e = makeEntry({
+      term_lang: "en",
+      reading: undefined,
+      meaning: JSON.stringify(["empathy"]),
+      lookup_count: 1,
+      card_state: "REVIEW",
+      next_review: now - 1,
+    });
+    expect(tagTooltip(e, now)).toBe("empathy · đến hạn · tra 1 lần");
+  });
+
+  it("omits the schedule when the word has no card yet", () => {
+    const e = makeEntry({
+      reading: "か",
+      meaning: JSON.stringify(["nghĩa"]),
+      lookup_count: 3,
+      card_state: null,
+      next_review: null,
+    });
+    expect(tagTooltip(e, now)).toBe("か · nghĩa · tra 3 lần");
+  });
+
+  it("accepts plain-text meaning and drops an empty gloss", () => {
+    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now))
+      .toBe("chào · tra 2 lần");
+    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "", lookup_count: 2, card_state: null }), now))
+      .toBe("tra 2 lần");
   });
 });
 
