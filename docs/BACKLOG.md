@@ -87,8 +87,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
   đứng yên. `store.ts:144-147`
 
 ### Quick wins lặt vặt (mỗi cái <1h)
-- [ ] Persist cặp ngôn ngữ như đã làm với nguồn (`gioitu.dictPair.v1`).
-  `App.tsx:142`
 - [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
 - [ ] Input tìm: `lang={pair.source}`, `enterkeyhint="search"`,
   autoCapitalize/autoCorrect off. `SearchBar.tsx:146-154`
