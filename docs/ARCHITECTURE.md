@@ -253,8 +253,15 @@ Có **6 cặp ngôn ngữ thuận** (`src/shared/languages.ts`), người dùng 
 "Từ điển" trên header: Nhật→Việt, Việt→Nhật, Nhật→Anh, Anh→Nhật, Anh→Việt,
 Việt→Anh. Mỗi
 tra cứu là truy vấn thuận `term → meaning` trong phạm vi cặp `(term_lang,
-native_lang)` — không có chế độ "đảo chiều" riêng; "Việt → Anh" đơn giản là từ
-điển `vi → en`.
+native_lang)` — không có chế độ "đảo chiều" riêng (chọn cặp khác, vd Việt→Nhật,
+mới đổi hướng thuận); "Việt → Anh" đơn giản là từ điển `vi → en`.
+
+> Ngoại lệ có chủ đích (#172): trong CÙNG một cặp đã chọn, gõ một cụm ở ngôn
+> ngữ *nghĩa* (native_lang) — vd "đồng cảm" khi đang ở Nhật→Việt — vẫn khớp qua
+> `definitionTerms`/`lookupByDefinition` (quét gloss thay vì cách viết/âm đọc)
+> và bổ sung kết quả (*Khớp theo định nghĩa:*), giống cách fuzzy bổ sung near-miss.
+> Đây KHÔNG phải "đảo chiều" — vẫn tra trong phạm vi `(term_lang, native_lang)`
+> của cặp đang chọn, chỉ đổi trường được so khớp.
 
 > Ghi chú: comment đầu file `languages.ts` và một số chỗ trong README/CLAUDE.md
 > còn ghi "bốn" (4) cặp — đó là chữ cũ; mã thực tế khai báo **6** cặp trong

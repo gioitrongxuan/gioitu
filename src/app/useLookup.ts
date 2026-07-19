@@ -11,7 +11,13 @@ import { useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, pairById, pairId } from "@/shared/languages";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
-import { TermResult, LookupErrorKind, findTermsRouted, findFuzzyRouted } from "@/features/dictionary/data/search";
+import {
+  TermResult,
+  LookupErrorKind,
+  findTermsRouted,
+  findFuzzyRouted,
+  findByDefinitionRouted,
+} from "@/features/dictionary/data/search";
 import { DictSource } from "@/features/dictionary/domain/source";
 import { LookupInput } from "@/features/review/domain/lookup";
 
@@ -58,20 +64,26 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // muốn phủ thêm gợi ý lên thông điệp lỗi.
     if (error) return;
 
-    // Fuzzy near-misses ("did you mean…") run off the hot path: scanning the
-    // whole dictionary can take a moment, so we never make the exact results
-    // wait on it. When it resolves we append, but only if the user is still
-    // looking at this exact result set (no newer search/append has replaced it).
+    // Fuzzy near-misses ("did you mean…") and definition-text matches (#172:
+    // gõ nghĩa như "đồng cảm" ở cặp ja→vi vẫn ra từ tiếng Nhật tương ứng) đều
+    // chạy off the hot path: scanning the whole dictionary can take a moment,
+    // so we never make the exact results wait on either. Both append in ONE
+    // setView call — appending separately would race, since the second one's
+    // `prev.results === results` guard would already be stale after the first.
     // A one-character query has no meaningful typo near-miss (its "near-misses"
     // are just longer words that contain it — a single kanji lands on its Chữ Hán
-    // page instead, which lists those words as examples), so we skip fuzzy there.
+    // page instead, which lists those words as examples), so we skip both there.
     if ([...term].length <= 1) return;
     const exclude = new Set(results.map((r) => JSON.stringify([r.entry.term, r.entry.reading ?? ""])));
-    void findFuzzyRouted(term, p, exclude, source).then((fuzzy) => {
-      if (!fuzzy.length) return;
+    void Promise.all([
+      findFuzzyRouted(term, p, exclude, source),
+      findByDefinitionRouted(term, p, exclude, source),
+    ]).then(([fuzzy, viaDefinition]) => {
+      const extra = [...fuzzy, ...viaDefinition];
+      if (!extra.length) return;
       setView((prev) =>
         prev?.kind === "detail" && prev.term === term && prev.results === results
-          ? { ...prev, results: [...prev.results, ...fuzzy] }
+          ? { ...prev, results: [...prev.results, ...extra] }
           : prev,
       );
     });

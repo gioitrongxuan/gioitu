@@ -44,6 +44,7 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 | Định tuyến tìm | `search.ts` chỉ `getSource(source)` rồi uỷ thác; 2 nguồn sau interface `DictionarySource` | `dictionary/data/search.ts`, `data/sources.ts` |
 | Deinflection | Tự đưa từ biến cách về dạng từ điển; SRS theo dõi **lemma** | `domain/deinflect.ts`, [LOGIC §6](./LOGIC.md) |
 | Tra mờ (fuzzy) | Gõ sai/nhớ lộn vẫn ra: near-miss theo khoảng cách Levenshtein (cả term lẫn reading), chạy nền và **bổ sung** sau kết quả khớp đúng (*Có phải bạn muốn tìm:*) | `domain/fuzzy.ts`, `fuzzyTerms`/`serverFuzzy`, `findFuzzyRouted` |
+| Tra theo nghĩa (#172) | Gõ một cụm ở ngôn ngữ **nghĩa** (vd "đồng cảm" khi đang ở cặp Nhật→Việt) vẫn ra từ có gloss chứa cụm đó, không chỉ khớp cách viết/âm đọc; chạy nền song song với fuzzy, bổ sung sau (*Khớp theo định nghĩa:*) | `definitionTerms`/`serverByDefinition`, `findByDefinitionRouted`, `lookupByDefinition` (server) |
 
 ### Detail Panel — chi tiết một từ
 

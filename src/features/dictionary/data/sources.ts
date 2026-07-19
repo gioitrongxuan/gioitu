@@ -12,8 +12,8 @@ import { candidates } from "../domain/deinflect";
 import { found, lookupFailed, LookupResult } from "../domain/lookupError";
 import { mergeDeinflectedHits } from "../domain/serverMerge";
 import { DictSource } from "../domain/source";
-import { findTerms, fuzzyTerms, suggestTerms, TermResult } from "./yomitan";
-import { DictionaryNetworkError, serverFuzzy, serverLookup, serverSuggest } from "./serverDict";
+import { definitionTerms, findTerms, fuzzyTerms, suggestTerms, TermResult } from "./yomitan";
+import { DictionaryNetworkError, serverByDefinition, serverFuzzy, serverLookup, serverSuggest } from "./serverDict";
 
 /** Forward, per-pair look-up against one database. No cross-source fallback. */
 export interface DictionarySource {
@@ -27,6 +27,11 @@ export interface DictionarySource {
   suggest(prefix: string, pair: LangPair): Promise<DictEntry[]>;
   /** Near-misses by edit distance, skipping the `exclude`d (term, reading) keys. */
   fuzzy(text: string, pair: LangPair, exclude: Set<string>): Promise<TermResult[]>;
+  /**
+   * Matches by definition/gloss text instead of the headword (#172), skipping
+   * the `exclude`d (term, reading) keys already shown.
+   */
+  byDefinition(text: string, pair: LangPair, exclude: Set<string>): Promise<TermResult[]>;
 }
 
 const localSource: DictionarySource = {
@@ -34,6 +39,7 @@ const localSource: DictionarySource = {
   findTerms: async (text, pair) => found(await findTerms(text, pair.source, pair.target)),
   suggest: (prefix, pair) => suggestTerms(prefix, pair.source, pair.target),
   fuzzy: (text, pair, exclude) => fuzzyTerms(text, pair.source, pair.target, exclude),
+  byDefinition: (text, pair, exclude) => definitionTerms(text, pair.source, pair.target, exclude),
 };
 
 /** Cap the number of network look-ups when deinflecting against the server. */
@@ -83,6 +89,15 @@ const serverSource: DictionarySource = {
     return entries
       .filter((e) => !exclude.has(termReadingKey(e)))
       .map((entry) => ({ entry, reasons: [], source: query, fuzzy: true }));
+  },
+
+  async byDefinition(text, pair, exclude) {
+    const query = text.trim();
+    if (!query) return [];
+    const entries = await serverByDefinition(query, pair.source, pair.target);
+    return entries
+      .filter((e) => !exclude.has(termReadingKey(e)))
+      .map((entry) => ({ entry, reasons: [], source: query, viaDefinition: true }));
   },
 };
 

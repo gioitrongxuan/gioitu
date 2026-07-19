@@ -133,3 +133,20 @@ export async function serverFuzzy(
     return [];
   }
 }
+
+/** Server-side định nghĩa-text search ("khớp theo định nghĩa" — #172). */
+export async function serverByDefinition(
+  term: string,
+  term_lang: string,
+  native_lang: string,
+  fetchFn?: typeof fetch,
+): Promise<DictEntry[]> {
+  const q = `term=${encodeURIComponent(term)}&src=${term_lang}&tgt=${native_lang}`;
+  try {
+    const entries = await getJson<DictionaryEntry[]>(`/dict/by-definition?${q}`, fetchFn);
+    return entries.map(toDictEntry);
+  } catch {
+    // Bonus lookup, giống fuzzy — lỗi mạng thì bỏ qua, không quấy người dùng.
+    return [];
+  }
+}
