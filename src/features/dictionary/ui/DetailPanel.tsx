@@ -21,6 +21,7 @@ import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
+import { CloseIcon } from "@/shared/ui/icons";
 
 /** Kết quả của một lần "+" — cho biết recordLookup có thực sự ghi nhận gì không
  *  (mới tạo / tăng lượt tra / tạo thẻ ôn), thay vì bị debounce nuốt im lặng. */
@@ -184,7 +185,7 @@ export function DetailPanel({
               term
             )}
           </h2>
-          <button className="link close" onClick={onClose}>✕</button>
+          <button className="link close" onClick={onClose} aria-label="Đóng"><CloseIcon size={18} /></button>
         </header>
 
         {/* Thanh SRS một hàng ngay đầu panel: trạng thái (tag màu) + số lần tra,

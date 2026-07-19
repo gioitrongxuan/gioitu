@@ -6,6 +6,8 @@
 // has no cloud identity — so guests are shown a prompt to sign in instead.
 
 import { useEffect, useState } from "react";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { getYomitanKey, regenerateYomitanKey } from "../data/auth";
 
 interface Props {
@@ -21,6 +23,7 @@ const ENDPOINT = `${window.location.origin}/api/yomitan-sync`;
 export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -46,10 +49,10 @@ export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
 
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="theme-card" role="dialog" aria-label="Kết nối Yomitan">
+      <div className="theme-card" role="dialog" aria-modal="true" aria-label="Kết nối Yomitan" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Kết nối Yomitan</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         {!loggedIn ? (

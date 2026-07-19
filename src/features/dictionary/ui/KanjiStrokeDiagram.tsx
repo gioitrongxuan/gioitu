@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { KanjiStroke, KANJIVG_SIZE } from "../domain/kanjivg";
 import { fetchKanjiStrokes } from "../data/kanjivg";
+import { Skeleton } from "@/shared/ui/Skeleton";
 
 export function KanjiStrokeDiagram({ kanji }: { kanji: string }) {
   // undefined = đang tải, null = không có dữ liệu.
@@ -18,7 +19,7 @@ export function KanjiStrokeDiagram({ kanji }: { kanji: string }) {
     };
   }, [kanji]);
 
-  if (strokes === undefined) return <p className="muted">Đang tải nét viết…</p>;
+  if (strokes === undefined) return <Skeleton className="kanji-strokes-skeleton" />;
   if (strokes === null) return <p className="muted">Không có dữ liệu nét viết cho chữ này.</p>;
 
   return (

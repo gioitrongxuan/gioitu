@@ -14,6 +14,7 @@ import {
   isDarkColor,
   heatBackground,
   heatTextColor,
+  contrastOf,
   type Theme,
   type ThemeDecor,
 } from "@/features/theme/domain/theme";
@@ -45,14 +46,48 @@ describe("heatBackground", () => {
   });
 });
 
+/** WCAG relative luminance + contrast ratio, re-derived here so the test
+ * checks heatTextColor's output against AA independently of its internals. */
+function relLum(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrast(hexA: string, hexB: string): number {
+  const [a, b] = [relLum(hexA), relLum(hexB)];
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** Approximates the same heatmap-endpoint interpolation heatTextColor lerps. */
+function mixHex(from: string, to: string, t: number): string {
+  const [fr, fg, fb] = [1, 3, 5].map((i) => parseInt(from.slice(i, i + 2), 16));
+  const [tr, tg, tb] = [1, 3, 5].map((i) => parseInt(to.slice(i, i + 2), 16));
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
+  return `#${[mix(fr, tr), mix(fg, tg), mix(fb, tb)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 describe("heatTextColor", () => {
   it("picks dark text on the light end and light text on the dark end (default)", () => {
-    expect(heatTextColor(0, DEFAULT_THEME)).toBe("#1a1a1a");
-    expect(heatTextColor(1, DEFAULT_THEME)).toBe("#f5f5f5");
+    expect(heatTextColor(0, DEFAULT_THEME)).toBe("#000000");
+    expect(heatTextColor(1, DEFAULT_THEME)).toBe("#ffffff");
   });
   it("keeps dark text when the dark end is actually pale", () => {
     const pale: Theme = { ...DEFAULT_THEME, heatFrom: "#ffffff", heatTo: "#fde68a" };
-    expect(heatTextColor(1, pale)).toBe("#1a1a1a");
+    expect(heatTextColor(1, pale)).toBe("#000000");
+  });
+  it("giữ contrast AA (≥4.5:1) ở mọi shade cho mọi preset dựng sẵn — kể cả dải giữa gradient", () => {
+    for (const preset of THEME_PRESETS) {
+      for (let i = 0; i <= 20; i++) {
+        const shade = i / 20;
+        const text = heatTextColor(shade, preset.theme);
+        const bg = mixHex(preset.theme.heatFrom, preset.theme.heatTo, shade);
+        expect(contrast(text, bg), `${preset.id} @ shade ${shade}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 });
 
@@ -60,6 +95,26 @@ describe("isDarkColor", () => {
   it("classifies the built-in backgrounds", () => {
     expect(isDarkColor(DEFAULT_THEME.bg)).toBe(false);
     expect(isDarkColor(DARK_THEME.bg)).toBe(true);
+  });
+});
+
+describe("contrastOf", () => {
+  it("black vs white is the maximum ratio (21:1)", () => {
+    expect(contrastOf("#000000", "#ffffff")).toBeCloseTo(21, 0);
+  });
+  it("same colour twice is the minimum ratio (1:1)", () => {
+    expect(contrastOf("#2b4c7e", "#2b4c7e")).toBeCloseTo(1, 5);
+  });
+  it("is symmetric", () => {
+    expect(contrastOf(DEFAULT_THEME.fg, DEFAULT_THEME.bg)).toBeCloseTo(
+      contrastOf(DEFAULT_THEME.bg, DEFAULT_THEME.fg),
+      5,
+    );
+  });
+  it("mọi preset dựng sẵn đạt AA (≥4.5:1) giữa fg và bg", () => {
+    for (const preset of THEME_PRESETS) {
+      expect(contrastOf(preset.theme.fg, preset.theme.bg), preset.id).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

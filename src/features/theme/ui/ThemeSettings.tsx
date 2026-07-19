@@ -6,6 +6,8 @@
 // "Mặc định" restores the built-in theme.
 
 import { useEffect, useState } from "react";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { useTheme } from "../ThemeProvider";
 import {
   Theme,
@@ -14,7 +16,11 @@ import {
   isHexColor,
   heatBackground,
   heatTextColor,
+  contrastOf,
 } from "../domain/theme";
+
+/** Ngưỡng AA cho chữ thường (DESIGN §3.4) — dưới ngưỡng này thì cảnh báo. */
+const MIN_TEXT_CONTRAST = 4.5;
 
 interface Props {
   onClose: () => void;
@@ -56,12 +62,21 @@ export function ThemeSettings({ onClose }: Props) {
     (p) => (Object.keys(p.theme) as (keyof Theme)[]).every((k) => p.theme[k] === theme[k]),
   );
 
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
+
+  // Cảnh báo contrast khi fg≈bg/surface (#128) — chỉ 2 preset dựng sẵn được
+  // khoá AA bằng test; một palette tự chỉnh có thể rơi dưới ngưỡng bất cứ lúc
+  // nào trong lúc kéo màu, nên báo ngay tại chỗ thay vì để người dùng tự nhận ra.
+  const fgVsBg = contrastOf(theme.fg, theme.bg);
+  const fgVsSurface = contrastOf(theme.fg, theme.surface);
+  const lowContrast = Math.min(fgVsBg, fgVsSurface) < MIN_TEXT_CONTRAST;
+
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="theme-card" role="dialog" aria-label="Giao diện">
+      <div className="theme-card" role="dialog" aria-modal="true" aria-label="Giao diện" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Giao diện</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         <section className="theme-section">
@@ -123,6 +138,12 @@ export function ThemeSettings({ onClose }: Props) {
 
         <section className="theme-section">
           <h3>Bảng màu</h3>
+          {lowContrast && (
+            <p className="theme-contrast-warning" role="alert">
+              Màu "Chữ" đang tương phản thấp với nền (~{Math.min(fgVsBg, fgVsSurface).toFixed(1)}:1,
+              cần ≥{MIN_TEXT_CONTRAST}:1) — chữ thường sẽ khó đọc.
+            </p>
+          )}
           <div className="color-grid">
             {PALETTE_FIELDS.map((f) => (
               <ColorField key={f.key} label={f.label} value={theme[f.key]} onChange={(v) => setField(f.key, v)} />
@@ -130,6 +151,10 @@ export function ThemeSettings({ onClose }: Props) {
           </div>
         </section>
 
+        {/* Màu CỐ ĐỊNH (không dùng var(--fg)/--bg/--accent) — đây chính là các
+            biến người dùng đang chỉnh ở trên; nếu họ lỡ đặt fg≈bg hay
+            accent≈surface, chân modal vẫn phải thấy được để bấm "Mặc định"/"Xong"
+            mà thoát ra, không bị kẹt trong một theme tự làm hỏng. */}
         <footer className="theme-actions">
           <button type="button" className="link" onClick={undo}>Hoàn tác</button>
           <button type="button" className="link" onClick={reset}>Mặc định</button>

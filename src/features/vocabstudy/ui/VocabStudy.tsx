@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry } from "@/shared/types";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { LangPair, LANG_PAIRS } from "@/shared/languages";
@@ -182,7 +183,7 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
             </>
           )}
 
-          {loading && <p className="muted">Đang tải…</p>}
+          {loading && <Skeleton lines={2} />}
           {error && <p className="muted">{error}</p>}
 
           {!loading && counts.total === 0 ? (
@@ -292,7 +293,7 @@ function StudyListPicker({
       </p>
     );
   }
-  if (loading && lists === null) return <p className="muted">Đang tải…</p>;
+  if (loading && lists === null) return <Skeleton lines={2} />;
   if (error && lists === null) return <p className="muted">{error}</p>;
   if (lists && lists.length === 0) {
     return (
@@ -335,7 +336,7 @@ function CustomDictPicker({
     };
   }, [pair]);
 
-  if (loading && dicts === null) return <p className="muted">Đang tải…</p>;
+  if (loading && dicts === null) return <Skeleton lines={2} />;
   if (error && dicts === null) return <p className="muted">{error}</p>;
   if (dicts && dicts.length === 0) {
     return (

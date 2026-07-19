@@ -31,6 +31,7 @@ import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
 import { ToastHost } from "@/shared/ui/Toasts";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, loadPair, savePair } from "@/shared/languages";
@@ -386,7 +387,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       <main className="content">
         <section className="cloud-area" {...behindSheet}>
           {!store.loaded ? (
-            <p className="empty">Đang tải…</p>
+            <Skeleton lines={3} className="empty" />
           ) : page === "learned" ? (
             <LearnedCloud
               entries={store.learnedEntries}
@@ -395,7 +396,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               onSelect={onSelectTag}
             />
           ) : page === "kanji" ? (
-            <Suspense fallback={<p className="empty">Đang tải…</p>}>
+            <Suspense fallback={<Skeleton lines={3} className="empty" />}>
               <KanjiStats
                 entries={store.entries}
                 onSelectKanji={lookupKanji}
@@ -403,7 +404,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               />
             </Suspense>
           ) : page === "vocabstudy" ? (
-            <Suspense fallback={<p className="empty">Đang tải…</p>}>
+            <Suspense fallback={<Skeleton lines={3} className="empty" />}>
               <VocabStudy
                 entries={store.entries}
                 pair={pair}

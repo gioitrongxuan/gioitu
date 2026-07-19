@@ -3,6 +3,8 @@
 // dictionary, so it requires a signed-in user. Each tab lives in its own file.
 
 import { useState } from "react";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { LangPair, DEFAULT_PAIR } from "@/shared/languages";
 import { PairSelect } from "./PairSelect";
 import { ImportTab } from "./ImportTab";
@@ -23,13 +25,14 @@ export function DictionaryManager({ loggedIn, onRequestLogin, onClose, initialEd
   const [tab, setTab] = useState<Tab>(initialEdit ? "edit" : "import");
   const [pair, setPair] = useState<LangPair>(initialEdit?.pair ?? DEFAULT_PAIR);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="manager-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="manager-card" role="dialog" aria-label="Quản lý từ điển">
+      <div className="manager-card" role="dialog" aria-modal="true" aria-label="Quản lý từ điển" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Quản lý từ điển</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         {!loggedIn ? (

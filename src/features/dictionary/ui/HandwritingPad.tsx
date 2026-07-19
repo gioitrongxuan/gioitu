@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { recognizeHandwriting, Stroke } from "../data/handwritingApi";
+import { CloseIcon } from "@/shared/ui/icons";
 
 interface Props {
   /** Chèn ký tự đã chọn vào ô tìm kiếm. */
@@ -157,7 +158,7 @@ export function HandwritingPad({ onInsert }: Props) {
       </div>
       <div className="handwriting-side">
         <button type="button" className="hw-clear" onClick={clear} aria-label="Xoá nét vẽ">
-          ✕
+          <CloseIcon size={16} />
         </button>
         {Array.from({ length: CANDIDATE_SLOTS }, (_, i) => {
           const char = results[i];
