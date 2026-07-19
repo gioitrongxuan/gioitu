@@ -162,6 +162,15 @@ export function SearchBar({ pair, source, onResult }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => tool === "none" && suggestions.length && setOpen(true)}
           aria-label="Ô tìm kiếm"
+          // Ô nhập nhận nội dung theo ngôn ngữ nguồn (ja/en), không phải tiếng
+          // Việt của UI: gắn lang để bàn phím/kiểm tra chính tả đúng ngữ cảnh,
+          // enterkeyhint="search" cho phím Enter mobile, và tắt tự viết
+          // hoa/tự sửa/soát chính tả vì thuật ngữ nước ngoài hay bị sửa sai.
+          lang={pair.source}
+          enterKeyHint="search"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
         />
         {/* Nút xóa luôn hiện (layout cố định, không nhảy nút); ô rỗng bấm chỉ
             focus lại như jisho. */}
