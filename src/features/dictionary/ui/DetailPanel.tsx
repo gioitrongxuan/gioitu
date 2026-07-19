@@ -22,6 +22,14 @@ import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
 
+/** Kết quả của một lần "+" — cho biết recordLookup có thực sự ghi nhận gì không
+ *  (mới tạo / tăng lượt tra / tạo thẻ ôn), thay vì bị debounce nuốt im lặng. */
+interface AddResultEvents {
+  created: boolean;
+  counted: boolean;
+  cardCreated: boolean;
+}
+
 interface Props {
   /** The text the user searched (surface form). */
   term: string;
@@ -43,7 +51,7 @@ interface Props {
   /** Navigate to another term (internal `?query=` links). */
   onLookup?: (term: string) => void;
   /** Add one shown result to the history map ("+"), exact or fuzzy. */
-  onAddResult?: (res: TermResult) => void;
+  onAddResult?: (res: TermResult) => Promise<AddResultEvents | void>;
   /** Mark the word as already known → LEARNED. */
   onMarkKnown?: (entry: VocabEntry) => void;
   /**
@@ -386,7 +394,7 @@ function ResultView({
 }: {
   res: TermResult;
   onLookup?: (term: string) => void;
-  onAdd?: (res: TermResult) => void;
+  onAdd?: (res: TermResult) => Promise<AddResultEvents | void>;
   isAdmin?: boolean;
   onAdminEdit?: (term: string) => void;
   loggedIn?: boolean;
@@ -394,7 +402,11 @@ function ResultView({
 }) {
   const { entry } = res;
   // Local-only: once added we flip to a checkmark so the click reads as done.
+  // Chỉ đặt true SAU KHI onAdd resolve — trước đây set ngay khi bấm nên khi
+  // recordLookup bị debounce/lỗi mà không báo gì, nút vẫn hiện ✓ như đã thêm.
   const [added, setAdded] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   // Cờ kiểm duyệt đến từ server; admin toggle tại chỗ nên giữ state cục bộ.
   const [verified, setVerified] = useState(entry.verified === true);
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -432,15 +444,27 @@ function ResultView({
             className="link add-result"
             title={added ? "Đã thêm vào lịch sử" : "Thêm vào lịch sử"}
             aria-label="Thêm vào lịch sử"
-            disabled={added}
-            onClick={() => {
-              onAdd(res);
-              setAdded(true);
+            disabled={added || addBusy}
+            onClick={async () => {
+              setAddBusy(true);
+              setAddError(null);
+              try {
+                const events = await onAdd(res);
+                // void (không có caller nào trả) vẫn coi là thành công; chỉ
+                // debounce thực sự (mọi cờ đều false) mới không đánh dấu ✓.
+                const confirmed = !events || events.counted || events.created || events.cardCreated;
+                setAdded(confirmed);
+              } catch (err) {
+                setAddError((err as Error).message);
+              } finally {
+                setAddBusy(false);
+              }
             }}
           >
-            {added ? "✓" : "+"}
+            {added ? "✓ Đã học" : "＋ Học từ này"}
           </button>
         )}
+        {addError && <span className="danger add-error">{addError}</span>}
       </div>
 
       <HeadwordBadges hanViet={entry.hanViet} jlpt={entry.jlpt} />

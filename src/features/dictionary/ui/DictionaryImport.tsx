@@ -17,6 +17,7 @@ import { ShareDialog } from "@/features/share/ui/ShareDialog";
 import { LocalDictionary } from "@/shared/db";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
+import { pairId } from "@/shared/languages";
 
 interface Props {
   pair: LangPair;
@@ -50,13 +51,20 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
 
   async function run(
     label: string,
-    task: () => Promise<{ title: string; termCount: number; metaCount: number }>,
+    task: (
+      onProgress: (fraction: number) => void,
+    ) => Promise<{ title: string; termCount: number; metaCount: number; term_lang: string; native_lang: string }>,
   ) {
     setBusy(true);
     setStatus(label);
     try {
-      const res = await task();
-      setStatus(`Đã nhập “${res.title}”: ${importSummary(res)} (${pair.label}).`);
+      const res = await task((f) => setStatus(`${label} (${Math.round(f * 100)}%)`));
+      const actualPair = LANG_PAIRS.find((p) => p.id === pairId(res.term_lang, res.native_lang));
+      const mismatch = pairId(res.term_lang, res.native_lang) !== pair.id;
+      const pairNote = mismatch
+        ? ` — CẢNH BÁO: từ điển tự khai cặp ${actualPair?.label ?? `${res.term_lang}→${res.native_lang}`}, khác cặp đang chọn (${pair.label}); đã lưu theo cặp của từ điển.`
+        : ` (${pair.label}).`;
+      setStatus(`Đã nhập “${res.title}”: ${importSummary(res)}${pairNote}`);
       refresh();
       onImported();
     } catch (err) {
@@ -70,16 +78,16 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    await run("Đang nhập file…", () =>
-      importYomitanZip(file, { term_lang: pair.source, native_lang: pair.target }),
+    await run("Đang nhập file…", (onProgress) =>
+      importYomitanZip(file, { term_lang: pair.source, native_lang: pair.target }, onProgress),
     );
   }
 
   async function onUrl() {
     const u = url.trim();
     if (!u) return;
-    await run("Đang tải URL…", async () => {
-      const res = await importYomitanUrl(u, { term_lang: pair.source, native_lang: pair.target });
+    await run("Đang tải URL…", async (onProgress) => {
+      const res = await importYomitanUrl(u, { term_lang: pair.source, native_lang: pair.target }, onProgress);
       setUrl("");
       return res;
     });

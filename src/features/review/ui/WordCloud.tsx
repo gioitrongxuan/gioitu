@@ -33,7 +33,7 @@ export function WordCloud({ entries, highlightDue, onlyDue, sort, lang, grouping
   const tags = buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true));
 
   if (tags.length === 0) {
-    return <p className="empty">Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu.</p>;
+    return <p className="empty">Chưa có từ nào trên bản đồ. Tra một từ rồi bấm “＋ Học từ này” để bắt đầu.</p>;
   }
 
   const renderTag = ({ entry, shade, hasBadge, due }: CloudTag) => {

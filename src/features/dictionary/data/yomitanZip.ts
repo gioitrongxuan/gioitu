@@ -3,7 +3,6 @@
 // JSZip (đã có sẵn trong dự án). Logic dựng nội dung file là hàm thuần ở
 // domain/yomitanExport; ở đây chỉ có phần chạm IndexedDB, JSZip và DOM.
 
-import JSZip from "jszip";
 import { getDb } from "@/shared/db";
 import { buildYomitanFiles } from "../domain/yomitanExport";
 
@@ -40,6 +39,7 @@ export async function exportDictAsZip(dictId: string, revision?: string): Promis
 
   const { index, termBank } = buildYomitanFiles(dict, entries, revision ?? exportRevision());
 
+  const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   zip.file("index.json", JSON.stringify(index));
   zip.file("term_bank_1.json", JSON.stringify(termBank));

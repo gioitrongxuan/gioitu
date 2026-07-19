@@ -74,32 +74,11 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
   `yomitan.ts:532-544 · useLookup.ts:54-63`
 - [ ] Epoch cho confirm() (kết quả tra cũ về muộn đè kết quả mới — idiom epoch
   đã có sẵn cho suggest). `SearchBar.tsx:77-89`
-- [ ] Promise.all các candidate + metaForTerm (hiện ~30+ await tuần tự cho từ
-  chia mạnh). `yomitan.ts:446-478`
-- [ ] Import từ điển: bỏ await từng put (chỉ await tx.done) + yield giữa bank +
-  progress % (hiện treo UI hàng chục giây). `yomitan.ts:143,274-279`
-- [ ] Lazy JSZip (dynamic import) + React.lazy các màn phụ (DictionaryManager,
-  CustomDictionary, ThemeSettings, KanjiStats, VocabStudy) — chunk chính hiện
-  433kB/160kB gzip. `App.tsx:6-41 · yomitan.ts:13`
-- [ ] getAllEntries dùng IDBKeyRange theo user_id thay vì đọc cả store rồi
-  filter JS. `repository.ts:10-14`
-- [ ] Tick phút (hoặc visibilitychange) cho dueEntries — tab để mở thì đếm due
-  đứng yên. `store.ts:144-147`
 
 ### Quick wins lặt vặt (mỗi cái <1h)
 - [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
-- [ ] Đổi "+" thành nút có nhãn "＋ Học từ này"; sửa empty state WordCloud:36
-  ("Hãy tra một từ" → tra + bấm ＋); sửa phản hồi "+" bị debounce nuốt nhưng
-  vẫn hiện ✓ (recordLookup trả events lên UI). `DetailPanel.tsx:346-394`
-- [ ] Import zip client: tin `index.json` khi có sourceLanguage/targetLanguage,
-  cảnh báo khi lệch cặp đang chọn (hiện gán mù cặp UI → từ điển "biến mất").
-  `DictionaryImport.tsx:73-86 · yomitan.ts:101-102`
 - [ ] Loading state khi confirm tra (nguồn server tới 12 round-trip tuần tự —
   song song hoá luôn bằng Promise.all). `sources.ts:41-63`
-- [ ] Touch target pointer:coarse: .tag ≥44px, .radical-btn/.kanji-cell nới,
-  .tag-delete to hơn hoặc undo-toast (xoá đang không confirm).
-  `styles.css:306-323,1035-1041`
-- [ ] xml2js chuyển xuống optionalDependencies (chỉ server dùng). `package.json:22`
 
 ## Giai đoạn 2 — "Nhịp ngày" (~2–3 tuần)
 

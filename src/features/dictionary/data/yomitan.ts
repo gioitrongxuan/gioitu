@@ -10,7 +10,7 @@
 //   looks every candidate up, filters by word-type and returns ranked results
 //   each annotated with the chain of inflection reasons.
 
-import JSZip from "jszip";
+import type JSZip from "jszip";
 import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { GlossaryNode, Sense, glossaryToLines, sensesToLines } from "@/shared/structured-content";
 import {
@@ -70,6 +70,11 @@ function splitTags(raw: string | null | undefined): string[] {
   return raw.split(/\s+/).filter(Boolean);
 }
 
+/** Nhường một tick cho trình duyệt giữa các bank lớn — tránh đơ UI hàng chục giây. */
+function yieldToUI(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 /**
  * Parse a Yomitan archive into entries keyed by term + reading: rows for the
  * same (term, reading) merge into grouped senses (Yomitan-style), while
@@ -79,6 +84,7 @@ function splitTags(raw: string | null | undefined): string[] {
 async function parseArchive(
   file: Blob | ArrayBuffer | Uint8Array,
   opts: { term_lang?: string; native_lang?: string },
+  onProgress?: (fraction: number) => void,
 ): Promise<{
   meta: IndexJson;
   term_lang: string;
@@ -86,7 +92,10 @@ async function parseArchive(
   entries: Map<string, DictEntry>;
   metaEntries: TermMetaEntry[];
 }> {
-  const zip = await JSZip.loadAsync(file);
+  // Dynamic import: JSZip chỉ cần khi thực sự nhập một archive, không kéo vào
+  // chunk chính (JSZip khá nặng và phần lớn phiên không import từ điển mới).
+  const { default: JSZipCtor } = await import("jszip");
+  const zip = await JSZipCtor.loadAsync(file);
 
   let meta: IndexJson = {};
   const indexFile = zip.file("index.json");
@@ -98,8 +107,11 @@ async function parseArchive(
     }
   }
 
-  const term_lang = opts.term_lang ?? meta.sourceLanguage ?? "en";
-  const native_lang = opts.native_lang ?? meta.targetLanguage ?? "vi";
+  // Tin index.json khi archive tự khai cặp ngôn ngữ: gán mù theo cặp UI đang
+  // chọn khiến archive lệch cặp (vd import nhầm .zip ja→vi trong khi đang chọn
+  // en→vi) bị lưu sai term_lang/native_lang và "biến mất" khỏi mọi tra cứu.
+  const term_lang = meta.sourceLanguage ?? opts.term_lang ?? "en";
+  const native_lang = meta.targetLanguage ?? opts.native_lang ?? "vi";
   const title = meta.title ?? "Từ điển Yomitan";
 
   // Tag banks (like Yomitan): code → full name / category / notes. Used to
@@ -139,7 +151,10 @@ async function parseArchive(
     .filter((name) => /term_bank_\d+\.json$/.test(name))
     .sort();
 
-  for (const name of bankFiles) {
+  // Term banks chiếm phần lớn công sức phân tích — dành 90% dải tiến độ cho
+  // chúng, 10% còn lại cho tag resolution + term-meta banks bên dưới.
+  for (let i = 0; i < bankFiles.length; i++) {
+    const name = bankFiles[i];
     const bank = JSON.parse(await zip.files[name].async("string")) as YomitanTermBankEntry[];
     for (const row of bank) {
       const term = row[0];
@@ -201,6 +216,8 @@ async function parseArchive(
         });
       }
     }
+    onProgress?.(((i + 1) / Math.max(bankFiles.length, 1)) * 0.9);
+    await yieldToUI();
   }
 
   // Resolve every entry's tag codes (sense part-of-speech + term tags) against
@@ -215,7 +232,11 @@ async function parseArchive(
 
   // Term-meta banks (IPA / pitch / freq): unlike term banks they add no
   // headwords; each row annotates a term that is looked up from a term bank.
-  const metaEntries = await parseMetaBanks(zip, term_lang, native_lang, title);
+  // 10% cuối dải tiến độ dành cho phần này (bù phần tag resolution ở trên).
+  const metaEntries = await parseMetaBanks(zip, term_lang, native_lang, title, (f) =>
+    onProgress?.(0.9 + f * 0.1),
+  );
+  onProgress?.(1);
 
   return { meta, term_lang, native_lang, entries, metaEntries };
 }
@@ -228,32 +249,37 @@ async function parseMetaBanks(
   term_lang: string,
   native_lang: string,
   title: string,
+  onProgress?: (fraction: number) => void,
 ): Promise<TermMetaEntry[]> {
   const metaFiles = Object.keys(zip.files)
     .filter((name) => /term_meta_bank_\d+\.json$/.test(name))
     .sort();
 
   const out: TermMetaEntry[] = [];
-  for (const name of metaFiles) {
-    let bank: TermMetaRow[];
+  for (let i = 0; i < metaFiles.length; i++) {
+    const name = metaFiles[i];
+    let bank: TermMetaRow[] | null = null;
     try {
       bank = JSON.parse(await zip.files[name].async("string")) as TermMetaRow[];
     } catch {
-      continue; // skip a malformed meta bank rather than failing the whole import
+      // skip a malformed meta bank rather than failing the whole import
     }
-    if (!Array.isArray(bank)) continue;
-    for (const row of bank) {
-      const term = row[0];
-      const mode = row[1];
-      const data = row[2];
-      if (!term || !META_MODES.has(mode)) continue;
-      // The wty data carries its own `reading`; default to "" so it is always a
-      // valid component of the composite key.
-      const reading = typeof (data as { reading?: unknown })?.reading === "string"
-        ? (data as { reading: string }).reading
-        : "";
-      out.push({ term, reading, mode: mode as TermMetaMode, data, term_lang, native_lang, dictionary: title });
+    if (Array.isArray(bank)) {
+      for (const row of bank) {
+        const term = row[0];
+        const mode = row[1];
+        const data = row[2];
+        if (!term || !META_MODES.has(mode)) continue;
+        // The wty data carries its own `reading`; default to "" so it is always
+        // a valid component of the composite key.
+        const reading = typeof (data as { reading?: unknown })?.reading === "string"
+          ? (data as { reading: string }).reading
+          : "";
+        out.push({ term, reading, mode: mode as TermMetaMode, data, term_lang, native_lang, dictionary: title });
+      }
     }
+    onProgress?.((i + 1) / Math.max(metaFiles.length, 1));
+    await yieldToUI();
   }
   return out;
 }
@@ -265,18 +291,32 @@ async function parseMetaBanks(
 export async function importYomitanZip(
   file: Blob | ArrayBuffer | Uint8Array,
   opts: { term_lang?: string; native_lang?: string } = {},
+  onProgress?: (fraction: number) => void,
 ): Promise<ImportResult> {
-  const { meta, term_lang, native_lang, entries, metaEntries } = await parseArchive(file, opts);
+  // Parse chiếm 0-90% dải tiến độ; ghi IndexedDB (nhanh hơn nhiều — không
+  // await từng put) chiếm 10% còn lại.
+  const { meta, term_lang, native_lang, entries, metaEntries } = await parseArchive(
+    file,
+    opts,
+    (f) => onProgress?.(f * 0.9),
+  );
   const id = uuid();
   const title = meta.title ?? "Từ điển Yomitan";
 
   const db = await getDb();
   const tx = db.transaction(["terms", "dictionaries", "term_meta"], "readwrite");
+  // Chỉ await tx.done ở cuối: put() bên trong CÙNG một transaction được
+  // IndexedDB xử lý tuần tự theo thứ tự gọi dù không await từng cái — await mỗi
+  // put một round-trip riêng mới là thứ khiến import hàng vạn từ đơ UI hàng
+  // chục giây.
+  // .catch no-op: lỗi thật (vd quá hạn mức storage) vẫn nổi lên qua tx.done bên
+  // dưới — chỉ tránh unhandled rejection warning cho promise của từng put() mà
+  // ta cố ý không await riêng.
   for (const entry of entries.values()) {
-    await tx.objectStore("terms").put({ ...entry, dictId: id });
+    tx.objectStore("terms").put({ ...entry, dictId: id }).catch(() => undefined);
   }
   for (const metaEntry of metaEntries) {
-    await tx.objectStore("term_meta").put({ ...metaEntry, dictId: id });
+    tx.objectStore("term_meta").put({ ...metaEntry, dictId: id }).catch(() => undefined);
   }
   const dict: LocalDictionary = {
     id,
@@ -288,8 +328,9 @@ export async function importYomitanZip(
     importedAt: Date.now(),
     revision: meta.revision,
   };
-  await tx.objectStore("dictionaries").put(dict);
+  tx.objectStore("dictionaries").put(dict).catch(() => undefined);
   await tx.done;
+  onProgress?.(1);
 
   return { id, title, termCount: entries.size, metaCount: metaEntries.length, term_lang, native_lang };
 }
@@ -301,6 +342,7 @@ export async function importYomitanZip(
 export async function importYomitanUrl(
   url: string,
   opts: { term_lang?: string; native_lang?: string } = {},
+  onProgress?: (fraction: number) => void,
 ): Promise<ImportResult> {
   let res: Response;
   try {
@@ -311,7 +353,7 @@ export async function importYomitanUrl(
   if (!res.ok) throw new Error(`Tải URL thất bại (HTTP ${res.status})`);
   const buf = await res.arrayBuffer();
   if (buf.byteLength === 0) throw new Error("URL trả về dữ liệu rỗng");
-  return importYomitanZip(buf, opts);
+  return importYomitanZip(buf, opts, onProgress);
 }
 
 /** List locally imported dictionaries (optionally for one pair). */
@@ -442,17 +484,28 @@ export async function findTerms(
 
   const cands = candidates(query, term_lang);
 
+  // Song song hoá theo candidate (mỗi candidate độc lập với các candidate khác,
+  // và 2 tra cứu term/reading của cùng một candidate cũng độc lập với nhau) —
+  // trước đây ~30+ await tuần tự cho từ chia mạnh (nhiều cách chia = nhiều
+  // candidate). Promise.all giữ nguyên thứ tự cands nên tie-break bên dưới
+  // (giữ candidate xuất hiện trước khi bằng số reasons) không đổi.
+  const perCandidate = await Promise.all(
+    cands.map(async (cand) => {
+      // Match the candidate against both the term and the reading, so typing a
+      // reading (kana, or romaji converted to kana) finds an entry keyed under
+      // its kanji term (さくら → 桜).
+      const [byTerm, byReading] = await Promise.all([
+        entriesForTerm(cand.term, term_lang, native_lang),
+        entriesForReading(cand.term, term_lang, native_lang),
+      ]);
+      return { cand, matches: [...byTerm, ...byReading] };
+    }),
+  );
+
   // Key by term + reading so homographs (same term, different readings) surface
   // as separate results instead of collapsing into one.
   const byKey = new Map<string, TermResult>();
-  for (const cand of cands) {
-    // Match the candidate against both the term and the reading, so typing a
-    // reading (kana, or romaji converted to kana) finds an entry keyed under its
-    // kanji term (さくら → 桜).
-    const matches = [
-      ...(await entriesForTerm(cand.term, term_lang, native_lang)),
-      ...(await entriesForReading(cand.term, term_lang, native_lang)),
-    ];
+  for (const { cand, matches } of perCandidate) {
     for (const entry of matches) {
       if (!rulesMatchEntry(cand.rules, entry.rules)) continue;
       const key = JSON.stringify([entry.term, entry.reading ?? ""]);
@@ -469,15 +522,18 @@ export async function findTerms(
     return (b.entry.score ?? 0) - (a.entry.score ?? 0);
   });
 
-  // Enrich each result with IPA + frequency from the pair's term-meta dicts.
-  for (const result of ranked) {
-    const meta = await metaForTerm(result.entry.term, term_lang, native_lang);
-    if (!meta.length) continue;
-    const pronunciations = ipaPronunciations(meta, result.entry.reading);
-    if (pronunciations.length) result.pronunciations = pronunciations;
-    const frequencies = frequencyRanks(meta, result.entry.reading);
-    if (frequencies.length) result.frequencies = frequencies;
-  }
+  // Enrich each result with IPA + frequency from the pair's term-meta dicts —
+  // các tra cứu này độc lập với nhau nên cũng song song hoá.
+  await Promise.all(
+    ranked.map(async (result) => {
+      const meta = await metaForTerm(result.entry.term, term_lang, native_lang);
+      if (!meta.length) return;
+      const pronunciations = ipaPronunciations(meta, result.entry.reading);
+      if (pronunciations.length) result.pronunciations = pronunciations;
+      const frequencies = frequencyRanks(meta, result.entry.reading);
+      if (frequencies.length) result.frequencies = frequencies;
+    }),
+  );
 
   return ranked;
 }
