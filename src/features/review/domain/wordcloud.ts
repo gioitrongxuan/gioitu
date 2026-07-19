@@ -6,6 +6,8 @@ import { isDue } from "./srs";
 import { isDeleted } from "./lifecycle";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
+import { meaningToLines } from "@/shared/meaning";
+import { formatRelative } from "@/shared/format";
 
 export interface CloudTag {
   entry: VocabEntry;
@@ -120,6 +122,28 @@ export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}):
     hasBadge: entry.status === "RELAPSED",
     due: isDue(entry, now),
   }));
+}
+
+/**
+ * Nội dung tooltip (thuộc tính `title`) cho một thẻ trên Word Cloud:
+ *   cách đọc · nghĩa đầu · lịch ôn · số lần tra
+ * Bỏ qua phần nào thiếu dữ liệu (từ tiếng Anh không có `reading`, từ chưa lưu
+ * nghĩa, thẻ chưa có lịch…) rồi nối bằng " · ". Lịch ôn đọc là "đến hạn" nếu quá
+ * hạn, ngược lại "ôn sau X" (tái dùng formatRelative). Thuần để test dễ.
+ */
+export function tagTooltip(
+  entry: Pick<VocabEntry, "reading" | "meaning" | "lookup_count" | "card_state" | "next_review">,
+  now: number,
+): string {
+  const parts: string[] = [];
+  if (entry.reading) parts.push(entry.reading);
+  const gloss = meaningToLines(entry.meaning)[0];
+  if (gloss) parts.push(gloss);
+  if (entry.card_state != null && entry.next_review != null) {
+    parts.push(isDue(entry, now) ? "đến hạn" : `ôn ${formatRelative(entry.next_review, now)}`);
+  }
+  parts.push(`tra ${entry.lookup_count} lần`);
+  return parts.join(" · ");
 }
 
 /** A labelled time bucket of cloud tags, for the day/month/year display mode. */

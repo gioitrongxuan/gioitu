@@ -99,8 +99,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 - [ ] Touch target pointer:coarse: .tag ≥44px, .radical-btn/.kanji-cell nới,
   .tag-delete to hơn hoặc undo-toast (xoá đang không confirm).
   `styles.css:306-323,1035-1041`
-- [ ] Tooltip tag cloud: reading · nghĩa đầu · "ôn sau X" (hiện chỉ "Tra N lần").
-  `WordCloud.tsx:49,70`
 - [ ] xml2js chuyển xuống optionalDependencies (chỉ server dùng). `package.json:22`
 
 ## Giai đoạn 2 — "Nhịp ngày" (~2–3 tuần)
