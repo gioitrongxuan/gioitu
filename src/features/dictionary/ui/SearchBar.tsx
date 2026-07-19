@@ -30,6 +30,11 @@ export function SearchBar({ pair, source, onResult }: Props) {
   const [suggestions, setSuggestions] = useState<DictEntry[]>([]);
   const [open, setOpen] = useState(false);
   const [tool, setTool] = useState<Tool>("none");
+  // Nguồn Server tra qua mạng nên có độ trễ thấy được — hiện trạng thái "đang
+  // tra" trên nút tìm để bấm xong không thấy như treo. Đếm số lượt đang bay để
+  // hai lần tra chồng nhau không tắt spinner sớm (lượt trước xong trước lượt sau).
+  const [searching, setSearching] = useState(false);
+  const inFlightRef = useRef(0);
   const debounceRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   // confirm() phải dập được gợi ý ở CẢ ba pha, kẻo dropdown mở lại đè lên kết
@@ -84,8 +89,14 @@ export function SearchBar({ pair, source, onResult }: Props) {
     setQuery(term);
     // Trên màn cảm ứng, thu bàn phím lại để kết quả (bottom sheet) không bị che.
     if (window.matchMedia?.("(pointer: coarse)").matches) inputRef.current?.blur();
-    const { results, error } = await findTermsRouted(term, pair, source);
-    onResult(results, term, pair, error);
+    inFlightRef.current++;
+    setSearching(true);
+    try {
+      const { results, error } = await findTermsRouted(term, pair, source);
+      onResult(results, term, pair, error);
+    } finally {
+      if (--inFlightRef.current === 0) setSearching(false);
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -157,8 +168,14 @@ export function SearchBar({ pair, source, onResult }: Props) {
         <button type="button" className="search-icon-btn" aria-label="Xóa" onClick={onClear}>
           ✕
         </button>
-        <button type="submit" className="search-icon-btn search-submit" aria-label="Tìm kiếm">
-          🔍
+        <button
+          type="submit"
+          className="search-icon-btn search-submit"
+          aria-label="Tìm kiếm"
+          aria-busy={searching}
+          disabled={searching}
+        >
+          {searching ? <span className="btn-spinner" aria-hidden="true" /> : "🔍"}
         </button>
         {open && tool === "none" && suggestions.length > 0 && (
           <ul className="suggestions" role="listbox">
