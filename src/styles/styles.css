@@ -126,7 +126,9 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; color: var(--fg); background: var(--bg); }
+/* Cỡ chữ/line-height cơ sở (DESIGN §2 type scale) — body 15-16px, 1.6 nội
+   dung; component cụ thể vẫn tự khai font-size riêng khi cần (chip, badge…). */
+body { margin: 0; color: var(--fg); background: var(--bg); font-size: var(--text-base); line-height: var(--leading-body); }
 :lang(ja) { font-family: var(--font-ja); }
 
 /* Focus bàn phím toàn cục (DESIGN §3): mọi phần tử tương tác hiện vòng focus
@@ -184,7 +186,8 @@ summary:focus-visible,
   color: var(--fg); font-size: 12px; cursor: pointer; white-space: nowrap;
 }
 .pair-menu-button:hover { border-color: var(--accent); }
-.pair-menu-button .caret { color: var(--muted); font-size: 10px; }
+.caret { display: inline-flex; align-items: center; }
+.pair-menu-button .caret { color: var(--muted); }
 /* Nguồn hiện tại nép trong nút phạm vi, tách khỏi cặp ngôn ngữ bằng vách mảnh. */
 .pair-menu-button .scope-source {
   color: var(--muted); font-size: 11px;
@@ -261,6 +264,8 @@ summary:focus-visible,
   border-radius: 8px; cursor: pointer;
 }
 .suggestions li button:hover { background: var(--surface-2); }
+/* Mục đang chọn bằng ArrowUp/Down (#120) — cùng nền hover để nhất quán chuột/bàn phím. */
+.suggestions li.active button { background: var(--surface-2); }
 .sug-term { font-weight: 600; }
 .sug-reading { color: var(--muted); font-size: 12px; }
 .sug-def { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -369,7 +374,6 @@ summary:focus-visible,
 /* Filter bar — desktop trải phẳng (display: contents), màn hẹp gom vào popover. */
 .filter-bar { position: relative; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .filter-toggle { display: none; align-items: center; gap: 6px; }
-.filter-toggle .caret { font-size: 10px; }
 .filter-controls { display: contents; }
 @media (max-width: 759px) {
   .filter-toggle { display: inline-flex; }
@@ -452,6 +456,21 @@ summary:focus-visible,
 .badge.inline { position: static; width: auto; height: auto; padding: 1px 6px; border-radius: 999px; }
 
 .empty, .muted { color: var(--muted); font-size: 14px; }
+
+/* Skeleton shimmer (DESIGN §3.9) — thay cho text "Đang tải…" trơ khi một vùng
+   nội dung đang tải. Dòng sau ngắn dần (xem Skeleton.tsx) cho tự nhiên hơn
+   một khối chữ nhật đơn. */
+.skeleton { display: grid; gap: 8px; padding: 2px 0; }
+.skeleton-line {
+  display: block; height: 14px; border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line:nth-child(2) { width: 80%; }
+.skeleton-line:nth-child(3) { width: 60%; }
+@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton-line { animation: none; } }
 
 /* Hiệu ứng nền trang trí của theme (features/theme/ui/ThemeBackdrop).
    Cố định sau toàn bộ nội dung: z-index âm + pointer-events none nên không
@@ -732,7 +751,9 @@ summary:focus-visible,
 
 .headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
 .jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
-.hanviet, .kanji-badges .han-viet { font-size: 12px; color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .02em; }
+/* Bỏ uppercase (#129): chữ Việt có dấu viết hoa toàn bộ khó đọc hơn hẳn; cỡ chữ
+   map về token gần nhất (--text-xs) thay 12px lệch thang. */
+.hanviet, .kanji-badges .han-viet { font-size: var(--text-xs); color: var(--hanviet-fg); background: var(--hanviet-bg); padding: 1px 8px; border-radius: 999px; letter-spacing: .02em; }
 
 /* Pitch accent (kiểu OJAD): gạch trên ở mora cao, góc phải = bước xuống giọng */
 .pitches { display: grid; gap: 6px; margin: 8px 0; }
@@ -770,16 +791,19 @@ summary:focus-visible,
 .comment-meta { display: flex; gap: 8px; font-size: 11px; margin-top: 1px; }
 
 /* Tags — coloured by Yomitan category (data-category). Compact code label,
-   full name on hover (title). */
+   full name on hover (title). Chip nhạt kiểu .srs-status thay vì nền đặc +
+   chữ trắng (DESIGN §3.4): --tag-color chỉ còn là "gốc màu" cấp cho
+   color-mix, không tự vẽ trực tiếp — nên giữ AA trên cả nền sáng/tối. */
 .pos-tag, .term-tag {
   --tag-color: #8a8a91;
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--text-xs);
+  font-weight: 600;
   line-height: 1.5;
-  color: #fff;
-  background: var(--tag-color);
+  color: color-mix(in oklab, var(--tag-color) 65%, var(--fg));
+  background: color-mix(in oklab, var(--tag-color) 14%, var(--surface));
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   white-space: nowrap;
   cursor: help;
 }
@@ -857,13 +881,42 @@ summary:focus-visible,
 .flashcard .back { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 16px; }
 .flashcard .hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 16px; }
 .grade-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.grade { display: flex; flex-direction: column; gap: 2px; border: none; border-radius: 10px; padding: 10px 6px; cursor: pointer; color: #fff; }
+/* Màu chữ (color) đặt inline theo contrast thật (ReviewSession tính bằng
+   readableTextOn) — không hardcode #fff, giữ AA dù đổi theme/preset (#124). */
+.grade {
+  display: flex; flex-direction: column; gap: 2px; border: none; border-radius: 10px;
+  padding: 10px 6px; cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.grade:hover { filter: brightness(1.08); }
+.grade:active { filter: brightness(0.92); transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .grade { transition: none; } }
 .grade-label { font-weight: 600; }
+.grade-key { opacity: 0.7; font-weight: 400; font-size: 11px; }
 .grade-interval { font-size: 11px; opacity: 0.9; }
 .grade.again { background: var(--warn); }
 .grade.hard { background: var(--caution); }
 .grade.good { background: var(--ok); }
 .grade.easy { background: var(--accent); }
+.grade-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* Màn tổng kết phiên ôn (#126) — breakdown + từ tốt nghiệp + từ vừa quên. */
+.review-summary { margin-top: 14px; text-align: left; display: grid; gap: 10px; }
+.review-breakdown {
+  list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap;
+  justify-content: center; font-size: 13px;
+}
+.review-breakdown li { display: inline-flex; align-items: center; gap: 6px; }
+.review-breakdown b { font-variant-numeric: tabular-nums; }
+.grade-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.grade-dot.again { background: var(--warn); }
+.grade-dot.hard { background: var(--caution); }
+.grade-dot.good { background: var(--ok); }
+.grade-dot.easy { background: var(--accent); }
+.review-graduated, .review-forgotten p, .review-forecast { margin: 0; font-size: 13px; color: var(--muted); }
+/* --seal: son đỏ CHỈ dành cho thành tựu (DESIGN §1/§5) — khoảnh khắc tốt nghiệp. */
+.seal-badge { color: var(--seal); font-weight: 700; }
+.review-forgotten { display: grid; gap: 6px; justify-items: start; }
 .review-footer { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
 /* Kết thúc phiên luôn nằm bên phải, dù nút Hoàn tác có hiện hay không. */
 .review-footer .close { margin-left: auto; }
@@ -903,7 +956,11 @@ summary:focus-visible,
 /* Auth as a dismissible modal (guest flow) */
 .auth-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--overlay); }
 .auth-overlay .auth-card { position: relative; }
-.auth-close { position: absolute; top: 10px; right: 12px; border: none; background: none; font-size: 24px; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px; }
+.auth-close {
+  position: absolute; top: 10px; right: 12px; border: none; background: none;
+  color: var(--muted); cursor: pointer; padding: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
 .auth-close:hover { color: var(--fg); }
 .auth-guest { display: block; margin-top: 10px; width: 100%; text-align: center; }
 
@@ -1099,8 +1156,29 @@ summary:focus-visible,
 .cf-hex { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; text-transform: uppercase; }
 .cf-hex:focus { border-color: var(--accent); }
 
-.theme-actions { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
-.theme-actions .primary { margin: 0 0 0 auto; }
+/* Cảnh báo contrast (#128) khi palette đang soạn dở có fg≈bg/surface — màu
+   CỐ ĐỊNH như chân modal bên dưới: banner này tồn tại ĐỂ báo fg đang hỏng, nên
+   không thể tự vẽ bằng var(--fg) (sẽ vô hình đúng lúc cần thấy nhất — bug thật
+   bắt được khi test tay). Không dùng var(--surface) làm nền vì cùng lý do. */
+.theme-contrast-warning {
+  margin: 0 0 10px; padding: 8px 12px; font-size: 13px;
+  color: #78350f;
+  border: 1px solid #f4d29a;
+  border-radius: var(--radius-md);
+  background: #fef3c7;
+}
+
+/* Chân modal luôn thoát được (#128): màu CỐ ĐỊNH, KHÔNG dùng var(--fg)/--bg/
+   --accent — đó chính là các biến người dùng đang chỉnh ở trên; fg≈bg hay
+   accent≈surface không được phép làm mất luôn cả lối thoát "Mặc định"/"Xong". */
+.theme-actions {
+  display: flex; align-items: center; gap: 16px; margin-top: 22px;
+  padding: 10px 12px; border-radius: var(--radius-md); background: #211f1a;
+}
+.theme-actions .link { color: #c9c4b8; }
+.theme-actions .link:hover { color: #f7f4ee; }
+.theme-actions .primary { margin: 0 0 0 auto; background: #2b4c7e; color: #f7f4ee; }
+.theme-actions .primary:hover { filter: brightness(1.1); }
 
 /* Saved-word meaning (detail panel + review card): one shared layout. */
 .meaning-view { display: grid; gap: 8px; }
@@ -1160,7 +1238,8 @@ summary:focus-visible,
 .header-menu { position: relative; }
 .menu-button {
   border: 1px solid var(--line); background: var(--surface); color: var(--fg);
-  border-radius: 9px; padding: 7px 11px; font-size: 16px; line-height: 1; cursor: pointer;
+  border-radius: 9px; padding: 7px 11px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .menu-button:hover { border-color: var(--accent); }
 .header-menu-panel {
@@ -1183,6 +1262,10 @@ summary:focus-visible,
   }
   /* Ẩn phần đếm cạnh nút nhập từ điển cho gọn. */
   .dict-count, .dict-status { display: none; }
+  /* Input/select/textarea ≥16px trên mobile (DESIGN §3.7) — dưới ngưỡng này
+     Safari iOS tự zoom vào khi focus. .search-input đã 16px sẵn (không đụng);
+     một số ô như .url-input/.cf-hex/.manager-search từng nhỏ hơn. */
+  input, select, textarea { font-size: max(16px, 1em); }
 }
 
 /* Màn cảm ứng: nới vùng chạm (không đụng layout chuột/bàn phím). */
@@ -1216,7 +1299,10 @@ summary:focus-visible,
 /* Toasts */
 .toasts { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
 .toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
-.toast.info { background: #334155; }
+/* fg/bg là cặp luôn tương phản cao theo thiết kế (mọi theme/preset — xem
+   theme.test.ts) nên đảo màu là cách duy nhất giữ AA ở toast trung tính mà
+   không hardcode hex rời như #334155 cũ (vốn không đổi theo theme tối). */
+.toast.info { background: var(--fg); color: var(--bg); }
 .toast.success { background: var(--ok); }
 .toast.warn { background: var(--warn); }
 
@@ -1242,6 +1328,7 @@ summary:focus-visible,
 
 /* Thứ tự nét viết (KanjiVG): mỗi nét một ô SVG hệ 109×109. */
 .kanji-strokes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.kanji-strokes-skeleton { width: 120px; margin-top: 8px; }
 .stroke-panel { width: 56px; height: 56px; }
 .stroke-panel .sp-frame { fill: none; stroke: var(--line); stroke-width: 2; }
 .stroke-panel .sp-grid { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 5 5; }
@@ -1259,4 +1346,4 @@ summary:focus-visible,
 /* Chữ thường để .kanji-hit (màu nhấn) nổi lên đúng chữ Hán đang xét. */
 .kanji-examples .example-word { font-weight: 600; color: var(--fg); }
 .kanji-examples .reading { font-size: 12px; color: var(--muted); }
-.kanji-examples .han-viet { font-size: 11px; color: var(--hanviet-fg); text-transform: uppercase; }
+.kanji-examples .han-viet { font-size: var(--text-xs); color: var(--hanviet-fg); }

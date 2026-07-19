@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { CloudSort, CloudLang, TimeGrouping } from "../domain/wordcloud";
 import { CloudViewControls } from "./CloudViewControls";
+import { ChevronDownIcon } from "@/shared/ui/icons";
 
 interface Props {
   dueCount: number;
@@ -50,7 +51,7 @@ export function FilterBar({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        Bộ lọc <span className="caret" aria-hidden>▾</span>
+        Bộ lọc <span className="caret" aria-hidden><ChevronDownIcon /></span>
       </button>
       {open && <div className="menu-backdrop" onClick={() => setOpen(false)} />}
       <div className={`filter-controls${open ? " open" : ""}`}>

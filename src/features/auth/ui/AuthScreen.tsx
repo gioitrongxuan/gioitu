@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { getAuthConfig } from "../data/auth";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 
 interface Props {
@@ -19,6 +21,8 @@ export function AuthScreen({ onCredential, onDevLogin, onClose, notice }: Props)
   const [error, setError] = useState<string | null>(null);
   const [devEnabled, setDevEnabled] = useState(false);
   const isModal = onClose != null;
+  // Chỉ gắn ref (bên dưới) khi isModal — màn toàn trang không cần bẫy focus.
+  const dialogRef = useDialog<HTMLDivElement>(onClose ?? (() => {}));
 
   useEffect(() => {
     let alive = true;
@@ -51,10 +55,10 @@ export function AuthScreen({ onCredential, onDevLogin, onClose, notice }: Props)
       className={isModal ? "auth-overlay" : "auth-screen"}
       onClick={isModal ? (e) => e.target === e.currentTarget && onClose!() : undefined}
     >
-      <div className="auth-card">
+      <div className="auth-card" {...(isModal ? { role: "dialog", "aria-modal": true, tabIndex: -1, ref: dialogRef } : {})}>
         {isModal && (
           <button type="button" className="auth-close" aria-label="Đóng" onClick={onClose}>
-            ×
+            <CloseIcon size={18} />
           </button>
         )}
         <h1>Gioitu</h1>

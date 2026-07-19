@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { exportDictAsZip } from "@/features/dictionary/data/yomitanZip";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { createShareLink, ShareLink } from "../data/share";
 
 interface Props {
@@ -46,6 +48,7 @@ export function ShareDialog({ loggedIn, dict, onRequestLogin, onClose }: Props) 
   }, [link]);
 
   const expired = remaining === 0;
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   async function copy() {
     if (!link) return;
@@ -60,10 +63,10 @@ export function ShareDialog({ loggedIn, dict, onRequestLogin, onClose }: Props) 
 
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="theme-card" role="dialog" aria-label="Chia sẻ từ điển">
+      <div className="theme-card" role="dialog" aria-modal="true" aria-label="Chia sẻ từ điển" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Chia sẻ “{dict.title}”</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         {!loggedIn ? (

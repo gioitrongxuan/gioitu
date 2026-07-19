@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { addComment, deleteComment, listComments } from "../data/comments";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import {
   canDeleteComment,
   sortComments,
@@ -112,7 +113,7 @@ export function WordComments({
       <p className="section-label">Bình luận / góp ý</p>
 
       {loading ? (
-        <p className="muted">Đang tải…</p>
+        <Skeleton lines={2} />
       ) : comments.length === 0 ? (
         <p className="muted">Chưa có bình luận. Hãy là người đầu tiên góp ý.</p>
       ) : (

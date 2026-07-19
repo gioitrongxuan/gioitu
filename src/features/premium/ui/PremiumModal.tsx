@@ -2,6 +2,8 @@
 // admin sinh + xem danh sách mã. Yêu cầu đăng nhập — Premium gắn với tài khoản.
 
 import { useEffect, useState } from "react";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import {
   redeemPremiumCode,
   generatePremiumCodes,
@@ -24,6 +26,7 @@ export function PremiumModal({ loggedIn, isAdmin, isPremium, onActivated, onRequ
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(isPremium);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   async function redeem() {
     const value = code.trim();
@@ -44,10 +47,10 @@ export function PremiumModal({ loggedIn, isAdmin, isPremium, onActivated, onRequ
 
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="theme-card" role="dialog" aria-label="Premium">
+      <div className="theme-card" role="dialog" aria-modal="true" aria-label="Premium" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Premium</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         {!loggedIn ? (

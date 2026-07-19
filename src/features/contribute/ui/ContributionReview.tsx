@@ -8,11 +8,15 @@ import {
   approveProposal,
   rejectProposal,
 } from "../data/contribute";
+import { Skeleton } from "@/shared/ui/Skeleton";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 
 export function ContributionReview({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<Proposal[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   useEffect(() => {
     let alive = true;
@@ -39,15 +43,15 @@ export function ContributionReview({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="theme-card" role="dialog" aria-label="Duyệt đề xuất">
+      <div className="theme-card" role="dialog" aria-modal="true" aria-label="Duyệt đề xuất" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Duyệt đề xuất</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         <section className="theme-section">
           {error && <p className="yk-error">{error}</p>}
-          {!items && !error && <p className="yk-hint">Đang tải…</p>}
+          {!items && !error && <Skeleton lines={3} />}
           {items && items.length === 0 && <p className="yk-hint">Không có đề xuất nào đang chờ.</p>}
           {items && items.length > 0 && (
             <ul className="proposal-list">

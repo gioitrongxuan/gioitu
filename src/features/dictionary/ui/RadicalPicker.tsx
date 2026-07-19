@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadRadicalData } from "../data/radicals";
 import { availableRadicals, groupByStrokes, matchingKanji, RadicalData } from "../domain/radicals";
+import { Skeleton } from "@/shared/ui/Skeleton";
+import { CloseIcon } from "@/shared/ui/icons";
 
 interface Props {
   /** Chèn kanji đã chọn vào ô tìm kiếm. */
@@ -35,7 +37,7 @@ export function RadicalPicker({ onInsert }: Props) {
     setSelected((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
   }
 
-  if (!data) return <div className="radical-picker loading">Đang tải bộ thủ…</div>;
+  if (!data) return <div className="radical-picker loading"><Skeleton lines={3} /></div>;
 
   return (
     <div className="radical-picker">
@@ -48,7 +50,7 @@ export function RadicalPicker({ onInsert }: Props) {
             title="Bỏ chọn tất cả"
             onClick={() => setSelected([])}
           >
-            ✕
+            <CloseIcon size={16} />
           </button>
         )}
         {selected.length === 0 ? (

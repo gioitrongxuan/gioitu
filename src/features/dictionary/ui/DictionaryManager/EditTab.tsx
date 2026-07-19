@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LangPair } from "@/shared/languages";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { TermRow, browseTerms } from "../../data/dictAdmin";
 import { NewTermForm } from "./NewTermForm";
 import { TermEditor } from "./TermEditor";
@@ -50,7 +51,7 @@ export function EditTab({
       />
 
       {loading ? (
-        <p className="muted">Đang tải…</p>
+        <Skeleton lines={4} />
       ) : data.items.length === 0 ? (
         <p className="muted">Không có từ nào.</p>
       ) : (
