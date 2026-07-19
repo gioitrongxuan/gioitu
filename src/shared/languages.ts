@@ -33,3 +33,27 @@ export function pairById(id: string): LangPair {
 export function pairId(source: string, target: string): string {
   return `${source}-${target}`;
 }
+
+// Cặp ngôn ngữ đang chọn được lưu lại (localStorage) giống nguồn từ điển, để mở
+// lại app không bị nhảy về mặc định. Chỉ lưu id; đọc lại thì phân giải qua
+// pairById (id lạ → DEFAULT_PAIR).
+const PAIR_STORAGE_KEY = "gioitu.dictPair.v1";
+
+/** Cặp đã lưu, hoặc DEFAULT_PAIR nếu người dùng chưa từng chọn / storage lỗi. */
+export function loadPair(): LangPair {
+  try {
+    const id = localStorage.getItem(PAIR_STORAGE_KEY);
+    if (id != null) return pairById(id);
+  } catch {
+    /* storage unavailable (private mode) — dùng mặc định */
+  }
+  return DEFAULT_PAIR;
+}
+
+export function savePair(pair: LangPair): void {
+  try {
+    localStorage.setItem(PAIR_STORAGE_KEY, pair.id);
+  } catch {
+    /* ignore */
+  }
+}

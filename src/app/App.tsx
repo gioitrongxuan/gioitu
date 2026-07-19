@@ -38,7 +38,7 @@ import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
 import { Toasts } from "@/shared/ui/Toasts";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
-import { DEFAULT_PAIR, LangPair } from "@/shared/languages";
+import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
 import { HeaderMenu, MenuItem } from "./HeaderMenu";
 
@@ -171,7 +171,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       store.pushToast("Đã đồng bộ", "success");
     }
   };
-  const [pair, setPair] = useState<LangPair>(DEFAULT_PAIR);
+  // Cặp ngôn ngữ được lưu lại (localStorage) như nguồn từ điển: mở lại app giữ
+  // đúng cặp đang tra thay vì nhảy về mặc định.
+  const [pair, setPair] = useState<LangPair>(loadPair);
+  const choosePair = (p: LangPair) => {
+    setPair(p);
+    savePair(p);
+  };
   // Which dictionary database look-ups hit. Persisted only once the user picks;
   // until then we default to the source that actually has data (local if a
   // dictionary is imported, otherwise the server) so neither kind of user hits
@@ -306,7 +312,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         <div className="header-actions">
           <DictionaryImport
             pair={pair}
-            onPairChange={setPair}
+            onPairChange={choosePair}
             source={dictSource}
             onSourceChange={chooseSource}
             onImported={syncDicts}
@@ -389,7 +395,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             <VocabStudy
               entries={store.entries}
               pair={pair}
-              onPairChange={setPair}
+              onPairChange={choosePair}
               onSelect={(w) => openWord(w)}
               onToggle={(w, entry) => {
                 // Click đúp: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược lại
