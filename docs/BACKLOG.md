@@ -88,8 +88,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 
 ### Quick wins lặt vặt (mỗi cái <1h)
 - [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
-- [ ] Input tìm: `lang={pair.source}`, `enterkeyhint="search"`,
-  autoCapitalize/autoCorrect off. `SearchBar.tsx:146-154`
 - [ ] Đổi "+" thành nút có nhãn "＋ Học từ này"; sửa empty state WordCloud:36
   ("Hãy tra một từ" → tra + bấm ＋); sửa phản hồi "+" bị debounce nuốt nhưng
   vẫn hiện ✓ (recordLookup trả events lên UI). `DetailPanel.tsx:346-394`
