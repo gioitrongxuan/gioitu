@@ -65,16 +65,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
   (hiện .url-input 13px gây iOS auto-zoom); bỏ uppercase hán-việt 12px.
   `styles.css:39,515,575,597`
 
-### Hiệu năng rẻ
-- [ ] Memo WordCloud (`useMemo(buildCloud)` + `React.memo`) + tách Toasts ra
-  subtree riêng — hiện toast tự tắt cũng re-render 1000+ button.
-  `WordCloud.tsx:28-33 · App.tsx:103-175`
-- [ ] Fuzzy scan: chỉ chạy khi exact rỗng + epoch cancel + batch getAll (hiện
-  quét toàn store 150-200k row sau MỖI lượt tra, không cancel).
-  `yomitan.ts:532-544 · useLookup.ts:54-63`
-- [ ] Epoch cho confirm() (kết quả tra cũ về muộn đè kết quả mới — idiom epoch
-  đã có sẵn cho suggest). `SearchBar.tsx:77-89`
-
 ### Quick wins lặt vặt (mỗi cái <1h)
 - [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
 - [ ] Loading state khi confirm tra (nguồn server tới 12 round-trip tuần tự —

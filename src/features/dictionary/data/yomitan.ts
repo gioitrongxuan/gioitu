@@ -569,8 +569,9 @@ function termReadingKey(term: string, reading: string | undefined): string {
  * Fuzzy fallback: scan the pair's terms and return the closest near-misses by
  * edit distance, so a misspelled or misremembered query still surfaces the word
  * the user meant. `exclude` holds (term, reading) keys already shown as exact
- * matches. This walks every term for the pair, so callers run it off the hot
- * path (a cursor yields between steps, keeping the UI responsive).
+ * matches. Callers only run this when the exact look-up came back empty, and
+ * off the hot path — a single `getAll` batch beats stepping a cursor row by
+ * row for a range this size.
  */
 export async function fuzzyTerms(
   text: string,
@@ -587,9 +588,8 @@ export async function fuzzyTerms(
   const range = IDBKeyRange.only([term_lang, native_lang]);
   const scored = new Map<string, { entry: DictEntry; distance: number }>();
 
-  let cursor = await db.transaction("terms").store.index("by_pair").openCursor(range);
-  while (cursor) {
-    const entry = cursor.value;
+  const pairEntries = await db.getAllFromIndex("terms", "by_pair", range);
+  for (const entry of pairEntries) {
     const key = termReadingKey(entry.term, entry.reading);
     if (!exclude.has(key)) {
       const distance = fuzzyMatchDistance(query, entry.term, entry.reading, max);
@@ -599,7 +599,6 @@ export async function fuzzyTerms(
         if (!prev || distance < prev.distance) scored.set(key, { entry, distance });
       }
     }
-    cursor = await cursor.continue();
   }
 
   return [...scored.values()]
@@ -616,7 +615,7 @@ export async function fuzzyTerms(
  * Definition-text fallback (#172): scan the pair's terms for a gloss line
  * containing `query`, so typing a phrase in the *meaning* language (vd gõ
  * "đồng cảm" ở cặp ja→vi) still surfaces the headword whose Việt gloss chứa
- * cụm đó, thay vì chỉ khớp cách viết/âm đọc. Cùng kiểu cursor scan off-hot-path
+ * cụm đó, thay vì chỉ khớp cách viết/âm đọc. Cùng kiểu batch scan off-hot-path
  * như `fuzzyTerms` — gọi song song với nó, không chặn kết quả khớp thẳng.
  */
 export async function definitionTerms(
@@ -634,14 +633,12 @@ export async function definitionTerms(
   const range = IDBKeyRange.only([term_lang, native_lang]);
   const matched: DictEntry[] = [];
 
-  let cursor = await db.transaction("terms").store.index("by_pair").openCursor(range);
-  while (cursor) {
-    const entry = cursor.value;
+  const pairEntries = await db.getAllFromIndex("terms", "by_pair", range);
+  for (const entry of pairEntries) {
     if (!exclude.has(termReadingKey(entry.term, entry.reading))) {
       const lines = entry.senses?.length ? sensesToLines(entry.senses) : glossaryToLines(entry.definitions);
       if (lines.some((line) => line.toLowerCase().includes(query))) matched.push(entry);
     }
-    cursor = await cursor.continue();
   }
 
   return matched

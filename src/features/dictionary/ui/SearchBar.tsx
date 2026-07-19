@@ -40,7 +40,9 @@ export function SearchBar({ pair, source, onResult }: Props) {
   // confirm() phải dập được gợi ý ở CẢ ba pha, kẻo dropdown mở lại đè lên kết
   // quả vừa tra: (1) effect re-run do setQuery — nuốt bằng skipSuggestRef;
   // (2) timer debounce còn treo — clearTimeout; (3) fetch đã bay đi đang chờ
-  // kết quả — so epoch trước khi áp kết quả.
+  // kết quả — so epoch trước khi áp kết quả. Cùng epoch này còn chặn CHÍNH
+  // confirm(): bấm liên tiếp hai gợi ý khác nhau thì lượt tra cũ về muộn không
+  // được đè lên kết quả của lượt mới hơn.
   const skipSuggestRef = useRef(false);
   const suggestEpochRef = useRef(0);
   // Chỉ tra tiếng Nhật mới có viết tay / bộ thủ (giống jisho — nhập kanji/kana).
@@ -80,7 +82,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
   }, [supportsTools]);
 
   async function confirm(term: string) {
-    suggestEpochRef.current++;
+    const epoch = ++suggestEpochRef.current;
     window.clearTimeout(debounceRef.current);
     setOpen(false);
     // Chỉ khi term khác query hiện tại thì setQuery mới re-run effect gợi ý.
@@ -93,6 +95,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
     setSearching(true);
     try {
       const { results, error } = await findTermsRouted(term, pair, source);
+      if (epoch !== suggestEpochRef.current) return; // một lượt confirm mới hơn đã ghi đè
       onResult(results, term, pair, error);
     } finally {
       if (--inFlightRef.current === 0) setSearching(false);

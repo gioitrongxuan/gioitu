@@ -30,7 +30,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
-import { Toasts } from "@/shared/ui/Toasts";
+import { ToastHost } from "@/shared/ui/Toasts";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, loadPair, savePair } from "@/shared/languages";
@@ -516,7 +516,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         />
       )}
 
-      <Toasts toasts={store.toasts} />
+      {/* Subtree riêng, subscribe thẳng vào kho toast module-level — toast tự
+          tắt không còn kéo theo re-render MainApp (và Word Cloud cả nghìn nút). */}
+      <ToastHost />
     </div>
   );
 }

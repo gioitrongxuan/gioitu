@@ -7,7 +7,7 @@
 //                   count as a lookup)
 // Kept out of <App> so the shell stays a thin composition root.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, pairById, pairId } from "@/shared/languages";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
@@ -44,6 +44,9 @@ interface LookupRecorder {
 
 export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSource) {
   const [view, setView] = useState<DetailView>(null);
+  // Đếm lượt tra để một lượt quét near-miss cũ (chạy off the hot path) về muộn
+  // không đè lên kết quả của lượt tra mới hơn — cùng idiom epoch dùng ở SearchBar.
+  const epochRef = useRef(0);
 
   // A search result was confirmed. Like Yomitan, we track the *dictionary form*
   // of a deinflected match (not the inflected surface typed) so the SRS and word
@@ -54,6 +57,7 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     p: LangPair,
     error: LookupErrorKind | null = null,
   ) {
+    const epoch = ++epochRef.current;
     const primary = results[0]?.entry;
     const term_lang = primary?.term_lang ?? p.source;
     const native_lang = primary?.native_lang ?? p.target;
@@ -64,27 +68,27 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // muốn phủ thêm gợi ý lên thông điệp lỗi.
     if (error) return;
 
+    // Tra thẳng đã ra kết quả thì near-miss (gợi ý gần đúng) chỉ gây nhiễu, mà
+    // quét toàn bộ từ điển theo cặp lại tốn kém — bỏ hẳn khi không cần.
+    if (results.length > 0) return;
+
     // Fuzzy near-misses ("did you mean…") and definition-text matches (#172:
     // gõ nghĩa như "đồng cảm" ở cặp ja→vi vẫn ra từ tiếng Nhật tương ứng) đều
     // chạy off the hot path: scanning the whole dictionary can take a moment,
-    // so we never make the exact results wait on either. Both append in ONE
-    // setView call — appending separately would race, since the second one's
-    // `prev.results === results` guard would already be stale after the first.
+    // so we never make the exact results wait on either.
     // A one-character query has no meaningful typo near-miss (its "near-misses"
     // are just longer words that contain it — a single kanji lands on its Chữ Hán
     // page instead, which lists those words as examples), so we skip both there.
     if ([...term].length <= 1) return;
-    const exclude = new Set(results.map((r) => JSON.stringify([r.entry.term, r.entry.reading ?? ""])));
     void Promise.all([
-      findFuzzyRouted(term, p, exclude, source),
-      findByDefinitionRouted(term, p, exclude, source),
+      findFuzzyRouted(term, p, new Set(), source),
+      findByDefinitionRouted(term, p, new Set(), source),
     ]).then(([fuzzy, viaDefinition]) => {
+      if (epoch !== epochRef.current) return; // một lượt tra mới hơn đã bắt đầu, bỏ kết quả trễ
       const extra = [...fuzzy, ...viaDefinition];
       if (!extra.length) return;
       setView((prev) =>
-        prev?.kind === "detail" && prev.term === term && prev.results === results
-          ? { ...prev, results: [...prev.results, ...extra] }
-          : prev,
+        prev?.kind === "detail" && prev.term === term ? { ...prev, results: [...prev.results, ...extra] } : prev,
       );
     });
 

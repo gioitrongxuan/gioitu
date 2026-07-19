@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
-import { Toast } from "@/shared/ui/Toasts";
+import { pushToast } from "@/shared/ui/Toasts";
 import { GUEST_USER_ID } from "@/features/auth/data/auth";
 import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, markKnown, relapse } from "../domain/srs";
@@ -35,15 +35,13 @@ const AUTO_SYNC_DELAY_MS = 2500;
  */
 export function useAppStore(userId: string, onSessionExpired?: () => void) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => readLastSync(userId));
 
-  const pushToast = useCallback((message: string, kind: Toast["kind"] = "info") => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, kind }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
-  }, []);
+  // pushToast sống ngoài cây React (kho module-level trong Toasts.tsx): một
+  // toast tự tắt sau 4s trước đây là state chung với `entries` ở đây, nên mỗi
+  // lần tắt/bật lại re-render toàn bộ MainApp — kể cả Word Cloud cả nghìn nút.
+  // Hàm import về là tham chiếu ổn định (module-scope), không cần đưa vào deps.
 
   // Giữ callback mới nhất trong ref: nếu để các hàm đồng bộ phụ thuộc trực tiếp,
   // mỗi lần App render lại chúng đổi định danh → scheduler bị dựng lại và huỷ mất
@@ -71,7 +69,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       }
       return report.status;
     },
-    [userId, pushToast],
+    [userId],
   );
 
   // Initial load: local cache first, then a best-effort cloud sync. Tombstones
@@ -169,7 +167,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       }
       return { entry, events };
     },
-    [userId, pushToast, upsertLocal, scheduleSync],
+    [userId, upsertLocal, scheduleSync],
   );
 
   /** Grade a card in a review session (SPEC 4.4). */
@@ -196,7 +194,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       scheduleSync();
       return next;
     },
-    [pushToast, upsertLocal, scheduleSync],
+    [upsertLocal, scheduleSync],
   );
 
   /**
@@ -231,7 +229,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
       return next;
     },
-    [pushToast, upsertLocal, scheduleSync],
+    [upsertLocal, scheduleSync],
   );
 
   /**
@@ -253,7 +251,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       pushToast(`“${term}” đã thuộc 🎉`, "success");
       return next;
     },
-    [userId, pushToast, upsertLocal, scheduleSync],
+    [userId, upsertLocal, scheduleSync],
   );
 
   /** "Đã quên" — relapse a learned word back into the review queue. */
@@ -267,7 +265,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       pushToast(`“${entry.term}” đã chuyển về ôn lại`, "info");
       return next;
     },
-    [pushToast, upsertLocal, scheduleSync],
+    [upsertLocal, scheduleSync],
   );
 
   /** "Xoá" — tombstone the word: persist the deletion (so it syncs) but drop it
@@ -282,7 +280,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       scheduleSync();
       pushToast(`Đã xoá “${entry.term}”`, "info");
     },
-    [pushToast, scheduleSync],
+    [scheduleSync],
   );
 
   /** Xuất toàn bộ dữ liệu học ra file JSON tải về. */
@@ -294,7 +292,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       console.error("export backup failed", e);
       pushToast("Không xuất được tệp sao lưu", "warn");
     }
-  }, [userId, pushToast]);
+  }, [userId]);
 
   /**
    * Nhập dữ liệu học từ một file backup JSON: chọn file → trộn last-write-wins
@@ -314,7 +312,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       console.error("import backup failed", e);
       pushToast((e as Error).message ?? "Không nhập được tệp sao lưu", "warn");
     }
-  }, [userId, reload, scheduleSync, pushToast]);
+  }, [userId, reload, scheduleSync]);
 
   // dueEntries phụ thuộc Date.now(): tab để mở lâu không có thay đổi entries thì
   // "đến hạn" đứng yên dù thời gian thực đã trôi qua due date của thẻ nào đó. Tick
@@ -352,7 +350,6 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
     entries,
     dueEntries,
     learnedEntries,
-    toasts,
     loaded,
     lastSyncedAt,
     recordLookup,
