@@ -5,6 +5,11 @@ import { importYomitanZip, definitionTerms } from "@/features/dictionary/data/yo
 import { findByDefinitionRouted } from "@/features/dictionary/data/search";
 import { pairById, pairId } from "@/shared/languages";
 
+// Nội dung cào-web thực tế (kiểu Mazii) hay lẫn NFD (dấu tổ hợp rời) và NBSP
+// thay dấu cách thường — hiển thị giống hệt "cảm thông" nhưng khác byte. #172
+// thất bại trên dữ liệu thật vì includes() thô không khớp qua khác biệt này.
+const messyGloss = ("cảm" + " " + "thông").normalize("NFD");
+
 // #172: gõ một cụm ở ngôn ngữ NGHĨA (vd "đồng cảm") khi đang ở cặp ja→vi phải
 // vẫn ra từ tiếng Nhật có gloss chứa cụm đó, dù cách viết/âm đọc không khớp gì.
 async function makeZip(): Promise<ArrayBuffer> {
@@ -15,6 +20,7 @@ async function makeZip(): Promise<ArrayBuffer> {
     JSON.stringify([
       ["共感", "きょうかん", "n", "", 10, ["sự đồng cảm", "cảm thông"], 1, ""],
       ["犬", "いぬ", "n", "", 5, ["con chó"], 2, ""],
+      ["理解", "りかい", "n", "", 3, [messyGloss], 3, ""],
     ]),
   );
   return zip.generateAsync({ type: "arraybuffer" });
@@ -32,6 +38,11 @@ describe("definitionTerms (client/IndexedDB): tra theo nghĩa (#172)", () => {
     expect(results).toHaveLength(1);
     expect(results[0].entry.term).toBe("共感");
     expect(results[0].viaDefinition).toBe(true);
+  });
+
+  it("khớp xuyên NFC/NFD và NBSP: gõ NFC thường, gloss lưu NFD + NBSP", async () => {
+    const results = await definitionTerms("cảm thông", "ja", "vi");
+    expect(results.map((r) => r.entry.term).sort()).toEqual(["共感", "理解"]);
   });
 
   it("không khớp khi cụm không nằm trong gloss của cặp", async () => {
