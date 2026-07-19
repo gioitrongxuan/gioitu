@@ -46,13 +46,62 @@ describe("heatBackground", () => {
 });
 
 describe("heatTextColor", () => {
+  // WCAG relative luminance + contrast — kept independent of theme.ts's private
+  // helpers so we test the readability outcome, not the same arithmetic twice.
+  const luminance = (hex: string): number => {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const chan = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2];
+  };
+  const contrast = (fg: string, bg: string): number => {
+    const [l1, l2] = [luminance(fg), luminance(bg)];
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  };
+  // The RGB lerp the tag is actually painted over (mirrors theme.ts) — text
+  // must be readable on that exact colour, not on the endpoints.
+  const heatBgHex = (shade: number, theme: Theme): string => {
+    const parse = (hex: string) => {
+      const n = parseInt(hex.replace("#", ""), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const;
+    };
+    const [a, b] = [parse(theme.heatFrom), parse(theme.heatTo)];
+    const to2 = (v: number) => Math.round(v).toString(16).padStart(2, "0");
+    return `#${[0, 1, 2].map((i) => to2(a[i] + (b[i] - a[i]) * shade)).join("")}`;
+  };
+
   it("picks dark text on the light end and light text on the dark end (default)", () => {
-    expect(heatTextColor(0, DEFAULT_THEME)).toBe("#1a1a1a");
-    expect(heatTextColor(1, DEFAULT_THEME)).toBe("#f5f5f5");
+    expect(heatTextColor(0, DEFAULT_THEME)).toBe("#000000");
+    expect(heatTextColor(1, DEFAULT_THEME)).toBe("#ffffff");
   });
   it("keeps dark text when the dark end is actually pale", () => {
     const pale: Theme = { ...DEFAULT_THEME, heatFrom: "#ffffff", heatTo: "#fde68a" };
-    expect(heatTextColor(1, pale)).toBe("#1a1a1a");
+    expect(heatTextColor(1, pale)).toBe("#000000");
+  });
+  it("clamps out-of-range shades to the endpoints", () => {
+    expect(heatTextColor(-1, DEFAULT_THEME)).toBe(heatTextColor(0, DEFAULT_THEME));
+    expect(heatTextColor(2, DEFAULT_THEME)).toBe(heatTextColor(1, DEFAULT_THEME));
+  });
+
+  // The reason this function exists: a fixed luminance threshold left the
+  // heatmap's mid-tones around 2–4:1. Every shade of every shipped palette must
+  // clear WCAG AA (4.5:1) against the colour it is drawn on.
+  it("keeps every shade ≥ 4.5:1 (AA) across all built-in palettes", () => {
+    const palettes: [string, Theme][] = [
+      ["DEFAULT_THEME", DEFAULT_THEME],
+      ["DARK_THEME", DARK_THEME],
+      ...THEME_PRESETS.map((p): [string, Theme] => [`preset:${p.id}`, p.theme]),
+    ];
+    for (const [name, theme] of palettes) {
+      for (let i = 0; i <= 100; i++) {
+        const shade = i / 100;
+        const fg = heatTextColor(shade, theme);
+        const bg = heatBgHex(shade, theme);
+        expect(contrast(fg, bg), `${name} @ shade ${shade}: ${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 });
 

@@ -354,10 +354,22 @@ export function isDarkColor(hex: string): boolean {
   return relativeLuminance(parseHex(hex)) < 0.4;
 }
 
+/** WCAG contrast ratio between two relative luminances (order-independent). */
+function contrastRatio(l1: number, l2: number): number {
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
 /**
  * Readable text colour for a tag at the given shade. We approximate the
- * interpolated background by lerping the two endpoints and pick light or dark
- * text by its luminance, so contrast holds for any heatmap palette.
+ * interpolated background by lerping the two endpoints, then pick whichever
+ * text colour has the higher *real* WCAG contrast against it.
+ *
+ * Flipping on a fixed luminance threshold (0.4) used to strand the heatmap's
+ * mid-tones around 2–4:1 — below AA. Choosing by measured contrast keeps every
+ * shade ≥ 4.5:1 (see the domain test). Pure #fff/#000, not softened greys:
+ * only their luminance spread is wide enough that the crossover shade — where
+ * both candidates are equally readable — still clears 4.5:1; any softening
+ * narrows that gap and dips a mid-band of shades below AA.
  */
 export function heatTextColor(shade: number, theme: Theme): string {
   const t = clamp01(shade);
@@ -368,5 +380,7 @@ export function heatTextColor(shade: number, theme: Theme): string {
     a[1] + (b[1] - a[1]) * t,
     a[2] + (b[2] - a[2]) * t,
   ];
-  return relativeLuminance(mixed) < 0.4 ? "#f5f5f5" : "#1a1a1a";
+  const bg = relativeLuminance(mixed);
+  // #fff → luminance 1, #000 → 0.
+  return contrastRatio(bg, 1) >= contrastRatio(bg, 0) ? "#ffffff" : "#000000";
 }

@@ -47,9 +47,6 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 - [ ] Combobox chuẩn cho gợi ý: ArrowUp/Down + Enter, aria-activedescendant
   (hiện listbox aria-selected cứng false). `SearchBar.tsx:146-174`
 - [ ] Bộ ~15 SVG icon inline (stroke currentColor) thay emoji 🔍 ✏️ ✕ ☰ ▾ ↞ ×.
-- [ ] Contrast: heatTextColor tính contrast thật với cả 2 ứng viên chữ (hiện
-  flip ở luminance 0.4 → dải giữa heatmap ~2.2–3.5:1, rớt AA); chốt bằng test
-  domain mọi shade ≥ 4.5. `theme.ts:357-367`
 - [ ] Tag từ loại bỏ palette Bootstrap-3 hardcode chữ trắng 11px → chip nhạt
   kiểu `.srs-status` (nền color-mix 12-14% + chữ đậm). `styles.css:636-672`
 - [ ] Grade buttons: nền đậm hơn đạt AA + hover/press. `styles.css:716-722`
