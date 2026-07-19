@@ -230,6 +230,17 @@ summary:focus-visible,
   color: var(--fg); font-size: 16px; cursor: pointer;
 }
 .search-icon-btn:hover { border-color: var(--accent); }
+.search-icon-btn[disabled] { cursor: default; }
+/* Spinner nhỏ trong nút tìm khi đang tra (nguồn Server có độ trễ mạng). Vòng
+   viền hở một cạnh quay tròn — kích thước theo em để ăn theo font của nút. */
+.btn-spinner {
+  width: 1em; height: 1em; border-radius: var(--radius-full);
+  border: 2px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: btn-spin var(--dur-slow) linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-spinner { animation: none; } }
 @media (max-width: 419px) {
   /* Màn rất hẹp: nút phạm vi bớt đệm để nhường chỗ cho ô tìm. */
   .pair-menu-button { padding: 0 8px; gap: 4px; }
