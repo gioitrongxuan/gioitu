@@ -11,7 +11,7 @@ import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
-import { reassignEntries } from "@/features/review/data/repository";
+import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -30,6 +30,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
+import { guestAdoptionPrompt } from "@/features/auth/domain/guestAdoption";
 import { ToastHost } from "@/shared/ui/Toasts";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
@@ -83,7 +84,12 @@ export default function App() {
   // Gom dữ liệu học của phiên khách về tài khoản vừa đăng nhập. Chạy qua callback
   // của useAuth để hoàn tất TRƯỚC khi session (và userId) đổi — tránh đua với lần
   // đồng bộ tài khoản mới khi cây app remount (xem useAuth).
+  // Máy dùng chung: nếu trên máy đang có tiến trình khách thì HỎI trước khi gộp —
+  // đừng lặng lẽ nuốt dữ liệu người khác vào tài khoản vừa đăng nhập. Không có gì
+  // để gộp (prompt null) thì reassignEntries vẫn là no-op nên bỏ qua luôn.
   const migrateGuestData = async (s: Session) => {
+    const prompt = guestAdoptionPrompt((await getAllEntries(GUEST_USER_ID)).length);
+    if (prompt && !window.confirm(prompt)) return;
     await reassignEntries(GUEST_USER_ID, s.user_id);
   };
 

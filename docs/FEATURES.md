@@ -205,7 +205,9 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
   `GoogleSignInButton.tsx`)
 - **Di trú tiến trình guest**: lần đăng nhập đầu, mọi entry `__guest__` được
   chuyển sang tài khoản mới (last-write-wins từng term) → không mất gì đã học khi
-  dùng thử. (`App.tsx` `migrateThen` → `reassignEntries`)
+  dùng thử. Nếu trên máy đang có dữ liệu khách thì **hỏi xác nhận trước khi gộp**
+  (máy dùng chung dễ trộn dữ liệu người khác — bấm Huỷ để giữ nguyên).
+  (`App.tsx` `migrateGuestData` → `guestAdoptionPrompt` → `reassignEntries`)
 - **Đồng bộ** (nút **Đồng bộ**, tự chạy khi mở app, và **tự động theo sự kiện**):
   hai chiều, last-write-wins theo `updated_at`; offline/guest thì cache cục bộ tự
   đứng. Với người đăng nhập, mọi thay đổi dữ liệu học (tra, chấm thẻ, đánh dấu

@@ -71,8 +71,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Merge theo field: lookup_count = max, lapses = max, LWW phần thẻ SM-2
   (hiện LWW nguyên entry → 2 thiết bị cùng học 1 từ là mất lượt của bên thua).
   `repository.ts:62-72 · syncStore.ts:31-36`
-- [ ] Hỏi trước khi adopt guest data (máy dùng chung trộn dữ liệu người khác).
-  `App.tsx:53-67`
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).
