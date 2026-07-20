@@ -35,6 +35,12 @@ export type DetailView = {
    * điệp riêng thay vì "Không tìm thấy" khi results rỗng chỉ vì mất mạng.
    */
   error: LookupErrorKind | null;
+  /**
+   * Tra thẳng rỗng nhưng lượt quét near-miss/định nghĩa (#172) còn đang chạy
+   * nền — UI nên chờ chứ đừng vội kết luận "không tìm thấy" rồi lại phải lật
+   * sang có kết quả ngay sau đó.
+   */
+  pending?: boolean;
 } | null;
 
 /** The slice of the app store this hook needs (interface segregation). */
@@ -80,15 +86,19 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     // are just longer words that contain it — a single kanji lands on its Chữ Hán
     // page instead, which lists those words as examples), so we skip both there.
     if ([...term].length <= 1) return;
+    // Đánh dấu đang chờ near-miss/định nghĩa: panel hoãn "Không tìm thấy" cho tới
+    // khi lượt quét này xong, để không chớp thông báo sai rồi phải lật kết quả.
+    setView((prev) => (prev?.kind === "detail" && prev.term === term ? { ...prev, pending: true } : prev));
     void Promise.all([
       findFuzzyRouted(term, p, new Set(), source),
       findByDefinitionRouted(term, p, new Set(), source),
     ]).then(([fuzzy, viaDefinition]) => {
       if (epoch !== epochRef.current) return; // một lượt tra mới hơn đã bắt đầu, bỏ kết quả trễ
       const extra = [...fuzzy, ...viaDefinition];
-      if (!extra.length) return;
       setView((prev) =>
-        prev?.kind === "detail" && prev.term === term ? { ...prev, results: [...prev.results, ...extra] } : prev,
+        prev?.kind === "detail" && prev.term === term
+          ? { ...prev, results: extra.length ? [...prev.results, ...extra] : prev.results, pending: false }
+          : prev,
       );
     });
 

@@ -18,6 +18,7 @@ import { Furigana } from "@/shared/ui/Furigana";
 import { isCodePointKanji } from "@/shared/japanese";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
@@ -45,6 +46,11 @@ interface Props {
    * rỗng KHÔNG có nghĩa "không tìm thấy" — panel báo lỗi riêng.
    */
   error?: LookupErrorKind | null;
+  /**
+   * Tra thẳng rỗng nhưng lượt quét near-miss/định nghĩa (#172) còn chạy nền —
+   * hoãn "Không tìm thấy" cho tới khi biết chắc, tránh chớp rồi lật kết quả.
+   */
+  pending?: boolean;
   /** The user's learning entry for the primary term, if any. */
   entry?: VocabEntry;
   onSaveCustom: (meaning: string) => void;
@@ -85,6 +91,7 @@ export function DetailPanel({
   native_lang,
   results,
   error,
+  pending,
   entry,
   onSaveCustom,
   onClose,
@@ -287,6 +294,7 @@ export function DetailPanel({
             termLang={term_lang}
             nativeLang={native_lang}
             error={error}
+            pending={pending}
             onLookup={onLookup}
             onSaveCustom={onSaveCustom}
           />
@@ -325,6 +333,7 @@ function NoMatch({
   termLang,
   nativeLang,
   error,
+  pending,
   onLookup,
   onSaveCustom,
 }: {
@@ -332,6 +341,7 @@ function NoMatch({
   termLang: string;
   nativeLang: string;
   error?: LookupErrorKind | null;
+  pending?: boolean;
   onLookup?: (term: string) => void;
   onSaveCustom: (meaning: string) => void;
 }) {
@@ -363,9 +373,13 @@ function NoMatch({
         />
       )}
 
-      {/* Chờ tra kanji xong mới quyết định lời mời, tránh chớp "không tìm thấy"
-          rồi mới hiện chữ Hán. Còn tự định nghĩa vẫn luôn khả dụng. */}
-      {!resolvingKanji && (
+      {/* Chữ Hán xong nhưng near-miss/định nghĩa (#172) còn quét nền: hiện khung
+          chờ thay vì vội báo "không tìm thấy" rồi phải lật sang có kết quả. */}
+      {!resolvingKanji && pending && <Skeleton lines={2} className="nomatch-skeleton" />}
+
+      {/* Chờ cả kanji lẫn near-miss/định nghĩa xong mới quyết định lời mời, tránh
+          chớp "không tìm thấy" rồi mới hiện kết quả trễ. Tự định nghĩa vẫn luôn khả dụng. */}
+      {!resolvingKanji && !pending && (
         <div className="custom-def">
           {errorMessage && <p className="danger">{errorMessage.title}</p>}
           <p className="muted">{invite}</p>
