@@ -6,7 +6,7 @@ import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { pushToast } from "@/shared/ui/Toasts";
 import { GUEST_USER_ID } from "@/features/auth/data/auth";
 import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
-import { gradeCard, markKnown, relapse } from "../domain/srs";
+import { gradeCard, learnedAtAfter, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
 import { createSyncScheduler } from "../domain/syncScheduler";
 import { SyncStatus } from "../domain/syncStatus";
@@ -177,7 +177,13 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       // Bơm Math.random để fuzz interval REVIEW (rải ngày đến hạn). Đây là nơi
       // DUY NHẤT được dùng Math.random cho SRS — domain (srs.ts) thuần, ngẫu
       // nhiên là phụ thuộc do tầng state này inject.
-      const next: VocabEntry = { ...entry, ...gradeCard(entry, grade, now, Math.random), updated_at: now };
+      const graded = gradeCard(entry, grade, now, Math.random);
+      const next: VocabEntry = {
+        ...entry,
+        ...graded,
+        learned_at: learnedAtAfter(entry.status, graded.status, now, entry.learned_at),
+        updated_at: now,
+      };
       if (entry.status !== "LEARNED" && next.status === "LEARNED") {
         pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
       }
@@ -222,7 +228,12 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
   const markKnownEntry = useCallback(
     async (entry: VocabEntry) => {
       const now = Date.now();
-      const next: VocabEntry = { ...entry, ...markKnown(now), updated_at: now };
+      const next: VocabEntry = {
+        ...entry,
+        ...markKnown(now),
+        learned_at: learnedAtAfter(entry.status, "LEARNED", now, entry.learned_at),
+        updated_at: now,
+      };
       await putEntry(next);
       upsertLocal(next);
       scheduleSync();
@@ -243,7 +254,12 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       const now = Date.now();
       const existing = await getEntry(userId, term, term_lang);
       const next: VocabEntry = existing
-        ? { ...existing, ...markKnown(now), updated_at: now }
+        ? {
+            ...existing,
+            ...markKnown(now),
+            learned_at: learnedAtAfter(existing.status, "LEARNED", now, existing.learned_at),
+            updated_at: now,
+          }
         : newKnownEntry({ user_id: userId, term, term_lang, native_lang, meaning: "" }, now);
       await putEntry(next);
       upsertLocal(next);
@@ -336,12 +352,15 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
     return entries.filter((e) => isReviewable(e, now));
   }, [entries, dueTick]);
 
-  // Mastered words for the "Đã thuộc" achievement page, most recently learned first.
+  // Mastered words for the "Đã thuộc" achievement page, most recently learned
+  // first. Sắp theo `learned_at` (thời điểm thuộc thật) thay vì `updated_at` —
+  // cái sau nhích mỗi lần chạm entry; fallback về last_lookup_at cho entry cũ
+  // chưa từng đóng dấu.
   const learnedEntries = useMemo(
     () =>
       entries
         .filter((e) => e.status === "LEARNED")
-        .sort((a, b) => b.updated_at - a.updated_at),
+        .sort((a, b) => (b.learned_at ?? b.last_lookup_at) - (a.learned_at ?? a.last_lookup_at)),
     [entries],
   );
 

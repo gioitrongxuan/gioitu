@@ -64,10 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Due badge: `document.title` + `navigator.setAppBadge` (PWA sẵn).
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
-- [ ] Đếm "Đã thuộc (N)" thường trực (menu hiện chỉ xuất hiện khi N>0);
-  trường `learned_at` để trang Đã thuộc nhóm đúng theo thời điểm thuộc (hiện
-  nhóm theo last_lookup_at — kể sai câu chuyện). `App.tsx:238-240 ·
-  LearnedCloud.tsx:66`
 - [ ] Merge theo field: lookup_count = max, lapses = max, LWW phần thẻ SM-2
   (hiện LWW nguyên entry → 2 thiết bị cùng học 1 từ là mất lượt của bên thua).
   `repository.ts:62-72 · syncStore.ts:31-36`

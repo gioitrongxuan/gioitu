@@ -281,7 +281,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 
 | Tính năng | Lối vào | Mô tả ngắn | Nơi cài đặt |
 |---|---|---|---|
-| Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian (hiện theo `last_lookup_at`) | `review/ui/LearnedCloud.tsx` |
+| Đã thuộc | ☰ (thường trực, kèm số N kể cả 0) | Trang trưng từ đã LEARNED, nhóm & sắp theo `learned_at` (thời điểm thuộc thật; fallback `last_lookup_at` cho entry cũ) | `review/ui/LearnedCloud.tsx` |
 | Thống kê kanji | ☰ | Lưới độ phủ kanji theo JLPT/cấp lớp + progress + "Đánh dấu nhanh" (tạo entry LEARNED 1 chữ) | `features/kanjistats/` |
 | Học từ vựng | ☰ | Lưới từ vựng kiểu kanji-grid; nguồn: study list hoặc từ điển cá nhân; click xem nghĩa, double-click toggle nhớ↔quên | `features/vocabstudy/` |
 | Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB: lưới nhập tay + sinh bằng AI (Deepseek); xuất zip Yomitan; sync đa thiết bị cần Premium | `dictionary/ui/CustomDictionary/`, `data/customDict.ts`, `data/customDictSync.ts` |

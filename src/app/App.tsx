@@ -287,9 +287,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           { label: "Duyệt đề xuất", run: () => setContribReview(true) },
         ]
       : []),
-    ...(store.learnedEntries.length > 0
-      ? [{ label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") }]
-      : []),
+    // Luôn hiện (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
+    { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") },
     { label: "Thống kê kanji", run: () => setPage("kanji") },
     { label: "Học từ vựng", run: () => setPage("vocabstudy") },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
