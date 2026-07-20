@@ -708,6 +708,22 @@ summary:focus-visible,
 
 .fuzzy-divider { margin: 14px 0 6px; font-size: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
 
+/* Kết quả phụ (#172) — gợi ý gần đúng + khớp theo định nghĩa — hiện gọn một
+   dòng như ô gợi ý (.sug-*), để danh sách dài (gõ một cụm tiếng Việt ra chục
+   từ) quét được; bấm mở chi tiết đầy đủ, nút "＋" thêm thẳng vào lịch sử. */
+.detail-panel .results-secondary { display: grid; gap: 2px; }
+.result-compact { display: flex; align-items: baseline; gap: 8px; }
+.result-compact-main {
+  display: flex; gap: 8px; align-items: baseline; flex: 1; min-width: 0;
+  background: none; border: none; text-align: left; padding: 8px 10px;
+  border-radius: 8px; cursor: pointer;
+}
+.result-compact-main:hover { background: var(--surface-2); }
+.result-compact-main .sug-term { font-size: 16px; white-space: nowrap; }
+.result-compact-main .sug-def { flex: 1; min-width: 0; }
+.result-compact .add-compact { align-self: center; flex: none; }
+@media (pointer: coarse) { .result-compact-main { min-height: 44px; } }
+
 .term-tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
 
 /* IPA pronunciations from term-meta dictionaries (one group per source dict). */
