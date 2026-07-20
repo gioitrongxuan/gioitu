@@ -612,6 +612,16 @@ export async function fuzzyTerms(
 }
 
 /**
+ * Chuẩn hoá một chuỗi trước khi so khớp gloss: NFC (dữ liệu Mazii/Yomitan lẫn
+ * lộn dạng tổ hợp/rời cho tiếng Việt có dấu — so bằng `includes` thô sẽ trật dù
+ * hiển thị giống hệt), gộp mọi khoảng trắng (kể cả NBSP hay gặp trong nội dung
+ * cào từ web) về một dấu cách, hạ chữ thường.
+ */
+function normalizeForMatch(s: string): string {
+  return s.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
  * Definition-text fallback (#172): scan the pair's terms for a gloss line
  * containing `query`, so typing a phrase in the *meaning* language (vd gõ
  * "đồng cảm" ở cặp ja→vi) still surfaces the headword whose Việt gloss chứa
@@ -626,7 +636,7 @@ export async function definitionTerms(
   limit = 8,
 ): Promise<TermResult[]> {
   const source = text.trim();
-  const query = source.toLowerCase();
+  const query = normalizeForMatch(source);
   if (!query) return [];
 
   const db = await getDb();
@@ -637,7 +647,7 @@ export async function definitionTerms(
   for (const entry of pairEntries) {
     if (!exclude.has(termReadingKey(entry.term, entry.reading))) {
       const lines = entry.senses?.length ? sensesToLines(entry.senses) : glossaryToLines(entry.definitions);
-      if (lines.some((line) => line.toLowerCase().includes(query))) matched.push(entry);
+      if (lines.some((line) => normalizeForMatch(line).includes(query))) matched.push(entry);
     }
   }
 
