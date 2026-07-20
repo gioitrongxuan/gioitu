@@ -626,6 +626,10 @@ summary:focus-visible,
   user-select: none; /* click đúp không select chữ */
 }
 .vocab-cell:hover { transform: translateY(-1px); }
+/* Chế độ đánh dấu nhanh: mỗi ô là nút toggle nhớ/không nhớ — con trỏ + viền nhấn
+   khi rê để thấy rõ bấm là có hành động (đồng bộ với .kanji-cell.quick). */
+.vocab-cell.quick { cursor: copy; }
+.vocab-cell.quick:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 .vocab-cell.missing { border: 1px dashed var(--line); }
 /* Ô đã thuộc: viền accent nhẹ + dấu ✓ góc trên-phải để nhận biết nhanh khi lướt. */
 .vocab-cell.known { border-color: var(--accent); }
@@ -1298,7 +1302,10 @@ summary:focus-visible,
 
 /* Toasts */
 .toasts { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
-.toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
+.toast { padding: 10px 16px; border-radius: 10px; color: #fff; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; }
+/* Nút hành động trong toast (vd "Hoàn tác"): kế thừa màu chữ toast, gạch chân
+   để đọc như một liên kết bấm được mà không phá nền theo kind. */
+.toast-action { background: none; border: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; white-space: nowrap; }
 /* fg/bg là cặp luôn tương phản cao theo thiết kế (mọi theme/preset — xem
    theme.test.ts) nên đảo màu là cách duy nhất giữ AA ở toast trung tính mà
    không hardcode hex rời như #334155 cũ (vốn không đổi theo theme tối). */
