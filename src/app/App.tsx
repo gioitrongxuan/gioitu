@@ -14,6 +14,7 @@ import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
+import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
 import { hasLocalDict } from "@/features/dictionary/data/search";
 import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
@@ -51,6 +52,10 @@ const CustomDictionary = lazy(() =>
 const ThemeSettings = lazy(() =>
   import("@/features/theme/ui/ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
 );
+
+// Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
+// strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
+const BASE_TITLE = document.title.replace(/^\(\d+\)\s/, "");
 
 /**
  * No auth gate: the app is fully usable as a guest. Signing in is optional and
@@ -221,6 +226,21 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [contribReview, setContribReview] = useState(false);
   const [page, setPage] = useState<"home" | "learned" | "kanji" | "vocabstudy">("home");
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
+
+  // Số từ đến hạn hiện lên tiêu đề tab + huy hiệu ứng dụng (PWA app badge) để
+  // nhắc ôn kể cả khi app ở tab nền hoặc đã cài. dueEntries đã tự tick mỗi phút
+  // và khi tab trở lại foreground (store). setAppBadge chỉ có ở trình duyệt hỗ
+  // trợ — dùng optional chaining, bỏ qua an toàn nếu vắng mặt.
+  const dueCount = store.dueEntries.length;
+  useEffect(() => {
+    document.title = formatDueTitle(dueCount, BASE_TITLE);
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (dueCount > 0) nav.setAppBadge?.(dueCount).catch(() => {});
+    else nav.clearAppBadge?.().catch(() => {});
+  }, [dueCount]);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
