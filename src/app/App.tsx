@@ -294,8 +294,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: "Học từ vựng", run: () => setPage("vocabstudy") },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
-    { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true) },
-    { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true) },
+    // Hai mục này chỉ dùng được khi đăng nhập (Yomitan cần định danh cloud,
+    // Premium kích hoạt theo tài khoản). Gắn ổ khoá cho khách để "tường đăng
+    // nhập" nhất quán — không giấu hẳn cũng không mời-rồi-chặn bất ngờ.
+    { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true), locked: !email },
+    { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true), locked: !email },
     { label: "Xuất dữ liệu học", run: store.exportBackup },
     { label: "Nhập dữ liệu học", run: store.importBackup },
     ...(email

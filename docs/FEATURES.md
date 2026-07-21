@@ -30,6 +30,9 @@ Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nh
 Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
 Kết nối Yomitan · Premium · Xuất/Nhập dữ liệu học · Đồng bộ · Đăng nhập/Đăng xuất;
 admin thêm Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
+Với **khách**, các mục chỉ dùng được khi đăng nhập (**Kết nối Yomitan**,
+**Premium**) hiện **ổ khoá** (icon SVG) kèm gợi ý "cần đăng nhập" — tường đăng
+nhập nhất quán, không giấu hẳn cũng không mời-rồi-chặn. (`app/HeaderMenu.tsx`)
 
 ## 1. Tra cứu từ điển
 
