@@ -6,6 +6,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LocalDictionary } from "@/shared/db";
+import { Skeleton } from "@/shared/ui/Skeleton";
+import { useDialog } from "@/shared/ui/useDialog";
+import { CloseIcon } from "@/shared/ui/icons";
 import { LangPair } from "@/shared/languages";
 import { listLocalDictionaries } from "../../data/yomitan";
 import {
@@ -48,6 +51,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [conflict, setConflict] = useState<{ fresh: CustomDraft[]; duplicates: CustomDraft[] } | null>(null);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   const refreshDicts = useCallback(() => {
     listLocalDictionaries(pair.source, pair.target).then(setDicts).catch(() => undefined);
@@ -200,10 +204,10 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
 
   return (
     <div className="manager-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="manager-card" role="dialog" aria-label="Từ điển cá nhân">
+      <div className="manager-card" role="dialog" aria-modal="true" aria-label="Từ điển cá nhân" tabIndex={-1} ref={dialogRef}>
         <header className="manager-head">
           <h2>Từ điển cá nhân</h2>
-          <button className="auth-close" aria-label="Đóng" onClick={onClose}>×</button>
+          <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
         <div className="manager-body">
@@ -238,7 +242,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
                   : "Tab để sang ô kế, Enter để tạo hàng mới. Nghĩa nhiều nét ngăn bằng “;”. Ví dụ dạng “câu :: bản dịch”."}
               </p>
               {loading ? (
-                <p className="muted">Đang tải…</p>
+                <Skeleton lines={4} />
               ) : (
                 <ManualGrid rows={rows} onChange={setRows} isJa={pair.source === "ja"} markNew={editMode} />
               )}
@@ -270,24 +274,46 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
         </footer>
 
         {conflict && (
-          <div className="cd-conflict-backdrop" onClick={(e) => e.target === e.currentTarget && setConflict(null)}>
-            <div className="cd-conflict" role="dialog" aria-label="Xử lý từ trùng">
-              <p>
-                Có <b>{conflict.duplicates.length}</b> từ đã tồn tại trong từ điển trên máy
-                {conflict.fresh.length > 0 ? ` và ${conflict.fresh.length} từ mới` : ""}. Bạn muốn làm gì?
-              </p>
-              <div className="form-actions">
-                <button className="primary" onClick={() => commit([...conflict.fresh, ...conflict.duplicates])}>
-                  Ghi đè tất cả
-                </button>
-                <button className="link" disabled={conflict.fresh.length === 0} onClick={() => commit(conflict.fresh)}>
-                  Bỏ qua từ trùng{conflict.fresh.length > 0 ? ` (lưu ${conflict.fresh.length})` : ""}
-                </button>
-                <button className="link" onClick={() => setConflict(null)}>Huỷ</button>
-              </div>
-            </div>
-          </div>
+          <ConflictDialog conflict={conflict} onCommit={commit} onClose={() => setConflict(null)} />
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Dialog xử lý từ trùng, tách component riêng (không inline trong JSX của
+ * CustomDictionary) để `useDialog` mount/unmount đúng nhịp: CustomDictionary
+ * luôn tồn tại trong DOM nên effect của nó chỉ chạy một lần lúc mount — tách
+ * riêng thì component này chỉ mount khi `conflict` khác null, và unmount hẳn
+ * khi đóng, đúng vòng đời một dialog thật.
+ */
+function ConflictDialog({
+  conflict,
+  onCommit,
+  onClose,
+}: {
+  conflict: { fresh: CustomDraft[]; duplicates: CustomDraft[] };
+  onCommit: (rows: CustomDraft[]) => void;
+  onClose: () => void;
+}) {
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
+  return (
+    <div className="cd-conflict-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cd-conflict" role="dialog" aria-modal="true" aria-label="Xử lý từ trùng" tabIndex={-1} ref={dialogRef}>
+        <p>
+          Có <b>{conflict.duplicates.length}</b> từ đã tồn tại trong từ điển trên máy
+          {conflict.fresh.length > 0 ? ` và ${conflict.fresh.length} từ mới` : ""}. Bạn muốn làm gì?
+        </p>
+        <div className="form-actions">
+          <button className="primary" onClick={() => onCommit([...conflict.fresh, ...conflict.duplicates])}>
+            Ghi đè tất cả
+          </button>
+          <button className="link" disabled={conflict.fresh.length === 0} onClick={() => onCommit(conflict.fresh)}>
+            Bỏ qua từ trùng{conflict.fresh.length > 0 ? ` (lưu ${conflict.fresh.length})` : ""}
+          </button>
+          <button className="link" onClick={onClose}>Huỷ</button>
+        </div>
       </div>
     </div>
   );

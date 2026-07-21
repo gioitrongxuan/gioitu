@@ -354,22 +354,41 @@ export function isDarkColor(hex: string): boolean {
   return relativeLuminance(parseHex(hex)) < 0.4;
 }
 
-/** WCAG contrast ratio between two relative luminances (order-independent). */
+/** WCAG contrast ratio between two relative luminances. */
 function contrastRatio(l1: number, l2: number): number {
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  const [hi, lo] = l1 > l2 ? [l1, l2] : [l2, l1];
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 /**
- * Readable text colour for a tag at the given shade. We approximate the
- * interpolated background by lerping the two endpoints, then pick whichever
- * text colour has the higher *real* WCAG contrast against it.
- *
- * Flipping on a fixed luminance threshold (0.4) used to strand the heatmap's
- * mid-tones around 2–4:1 — below AA. Choosing by measured contrast keeps every
- * shade ≥ 4.5:1 (see the domain test). Pure #fff/#000, not softened greys:
- * only their luminance spread is wide enough that the crossover shade — where
- * both candidates are equally readable — still clears 4.5:1; any softening
- * narrows that gap and dips a mid-band of shades below AA.
+ * WCAG contrast ratio between two `#rrggbb` colours — dùng để cảnh báo trong
+ * theme editor khi người dùng tự đặt fg≈bg (#128), lúc palette đang soạn dở
+ * chưa chắc đã tuân AA như 2 preset dựng sẵn (theme.test.ts chỉ khoá bộ có sẵn).
+ */
+export function contrastOf(hexA: string, hexB: string): number {
+  return contrastRatio(relativeLuminance(parseHex(hexA)), relativeLuminance(parseHex(hexB)));
+}
+
+const HEAT_TEXT_WHITE = "#ffffff";
+const HEAT_TEXT_BLACK = "#000000";
+const HEAT_TEXT_WHITE_LUM = relativeLuminance(parseHex(HEAT_TEXT_WHITE));
+const HEAT_TEXT_BLACK_LUM = relativeLuminance(parseHex(HEAT_TEXT_BLACK));
+
+/** Picks whichever of pure white/black wins the REAL contrast ratio against a
+ * background luminance — not a fixed luminance threshold, which lets a
+ * background land at ~2.2–3.5:1 on either choice. */
+function bestTextFor(bgLum: number): string {
+  const whiteContrast = contrastRatio(bgLum, HEAT_TEXT_WHITE_LUM);
+  const blackContrast = contrastRatio(bgLum, HEAT_TEXT_BLACK_LUM);
+  return whiteContrast >= blackContrast ? HEAT_TEXT_WHITE : HEAT_TEXT_BLACK;
+}
+
+/**
+ * Readable text colour for a tag at the given shade. Approximates the
+ * interpolated background by lerping the two heatmap endpoints, then picks
+ * the best of pure white/black (see `bestTextFor`) — that combination is what
+ * keeps every shade ≥ 4.5:1 across the built-in presets (see theme.test.ts);
+ * the previously softened #f5f5f5/#1a1a1a pair did not.
  */
 export function heatTextColor(shade: number, theme: Theme): string {
   const t = clamp01(shade);
@@ -380,7 +399,24 @@ export function heatTextColor(shade: number, theme: Theme): string {
     a[1] + (b[1] - a[1]) * t,
     a[2] + (b[2] - a[2]) * t,
   ];
-  const bg = relativeLuminance(mixed);
-  // #fff → luminance 1, #000 → 0.
-  return contrastRatio(bg, 1) >= contrastRatio(bg, 0) ? "#ffffff" : "#000000";
+  return bestTextFor(relativeLuminance(mixed));
 }
+
+/**
+ * Readable text colour (white or black) for an arbitrary `#rrggbb` background —
+ * used where a UI paints a solid semantic colour (e.g. review grade buttons)
+ * and needs AA contrast to hold across every theme/preset, not just the
+ * default. See `heatTextColor` for the same approach applied to a gradient.
+ */
+export function readableTextOn(hex: string): string {
+  return bestTextFor(relativeLuminance(parseHex(hex)));
+}
+
+/**
+ * `--ok` / `--caution` (styles.css) — fixed semantic tokens, not part of the
+ * user-customizable `Theme` palette, mirrored here for components that need
+ * to compute readable text against them (review grade buttons: hard/good).
+ * Khớp styles.css — lệch là badge/nút mất tương phản.
+ */
+export const FIXED_OK = "#16a34a";
+export const FIXED_CAUTION = "#d97706";

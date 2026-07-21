@@ -42,25 +42,8 @@ Evolution UI + engine SRS chuẩn, không đổi IA. Chi tiết token: [DESIGN.m
 _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 
 ### UI nền (theo DESIGN.md)
-- [ ] Hook `useDialog` dùng chung (Escape đóng, focus đầu/trả focus,
-  aria-modal) cho cả 5 overlay — hiện grep "Escape" = 0. `ThemeSettings.tsx:60-64`
-- [ ] Combobox chuẩn cho gợi ý: ArrowUp/Down + Enter, aria-activedescendant
-  (hiện listbox aria-selected cứng false). `SearchBar.tsx:146-174`
-- [ ] Bộ ~15 SVG icon inline (stroke currentColor) thay emoji 🔍 ✏️ ✕ ☰ ▾ ↞ ×.
-- [ ] Tag từ loại bỏ palette Bootstrap-3 hardcode chữ trắng 11px → chip nhạt
-  kiểu `.srs-status` (nền color-mix 12-14% + chữ đậm). `styles.css:636-672`
-- [ ] Grade buttons: nền đậm hơn đạt AA + hover/press. `styles.css:716-722`
-- [ ] Việt hoá Quên/Khó/Nhớ/Dễ + phím tắt Space/1–4. `ReviewSession.tsx:26-30`
-- [ ] Màn tổng kết phiên giàu: breakdown grade, từ Quên → "Ôn lại ngay", từ vừa
-  tốt nghiệp, forecast ngày mai. `ReviewSession.tsx:65-75`
-- [ ] Skeleton shimmer thay text "Đang tải…"; sửa `.toast.info` hardcode
-  #334155. `styles.css:1046`
-- [ ] Theme editor: cảnh báo contrast khi fg≈bg (relativeLuminance có sẵn
-  trong cùng file); footer modal render màu cố định để luôn thoát được.
-  `ThemeSettings.tsx:124-131`
-- [ ] Body font-size/line-height cơ sở; text nội dung ≥12px; input ≥16px mobile
-  (hiện .url-input 13px gây iOS auto-zoom); bỏ uppercase hán-việt 12px.
-  `styles.css:39,515,575,597`
+
+_(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 ### Quick wins lặt vặt (mỗi cái <1h)
 - [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
@@ -85,9 +68,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   trường `learned_at` để trang Đã thuộc nhóm đúng theo thời điểm thuộc (hiện
   nhóm theo last_lookup_at — kể sai câu chuyện). `App.tsx:238-240 ·
   LearnedCloud.tsx:66`
-- [ ] Merge theo field: lookup_count = max, lapses = max, LWW phần thẻ SM-2
-  (hiện LWW nguyên entry → 2 thiết bị cùng học 1 từ là mất lượt của bên thua).
-  `repository.ts:62-72 · syncStore.ts:31-36`
 - [ ] Hỏi trước khi adopt guest data (máy dùng chung trộn dữ liệu người khác).
   `App.tsx:53-67`
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện

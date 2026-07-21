@@ -4,7 +4,7 @@
 // (DictionaryImport.tsx) — hàng này còn ô nhập, hai nút vuông (xóa, tìm), và khi
 // tra tiếng Nhật thì thêm hai công cụ nhập kiểu jisho: viết tay và bộ thủ.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { DictEntry } from "@/shared/db";
 import { findTermsRouted, searchSuggest, LookupErrorKind, TermResult } from "../data/search";
 import { DictSource } from "../domain/source";
@@ -13,6 +13,7 @@ import { LangPair } from "@/shared/languages";
 import { HandwritingPad } from "./HandwritingPad";
 import { RadicalPicker } from "./RadicalPicker";
 import { InstantActions } from "./InstantActions";
+import { CloseIcon, PencilIcon, SearchIcon } from "@/shared/ui/icons";
 
 /** Công cụ nhập đang mở dưới ô tìm; chỉ một cái mở tại một thời điểm. */
 type Tool = "none" | "draw" | "radicals";
@@ -29,6 +30,11 @@ export function SearchBar({ pair, source, onResult }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<DictEntry[]>([]);
   const [open, setOpen] = useState(false);
+  // Combobox chuẩn (#120): -1 = chưa chọn gợi ý nào (Enter thì tra nguyên ô
+  // nhập, khớp hành vi cũ). ArrowUp/Down di chuyển, Enter xác nhận mục đang
+  // chọn, Escape đóng dropdown mà không đổi query.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listboxId = useId();
   const [tool, setTool] = useState<Tool>("none");
   // Nguồn Server tra qua mạng nên có độ trễ thấy được — hiện trạng thái "đang
   // tra" trên nút tìm để bấm xong không thấy như treo. Đếm số lượt đang bay để
@@ -75,6 +81,10 @@ export function SearchBar({ pair, source, onResult }: Props) {
     }, 120);
     return () => window.clearTimeout(debounceRef.current);
   }, [query, pair, source, tool]);
+
+  // Danh sách gợi ý đổi (kể cả về rỗng) → bỏ chọn combobox, tránh activeIndex
+  // trỏ vào một mục đã không còn ở đó.
+  useEffect(() => setActiveIndex(-1), [suggestions]);
 
   // Đổi cặp ngôn ngữ sang hướng không phải tiếng Nhật thì đóng công cụ đang mở.
   useEffect(() => {
@@ -127,6 +137,25 @@ export function SearchBar({ pair, source, onResult }: Props) {
     setTool((cur) => (cur === next ? "none" : next));
   }
 
+  // Combobox chuẩn (#120): ArrowUp/Down di chuyển trong danh sách gợi ý đang
+  // mở, Enter xác nhận mục đang chọn (không mục nào chọn thì Enter rơi xuống
+  // form onSubmit như cũ — tra nguyên ô nhập), Escape đóng dropdown.
+  function onInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      confirm(suggestions[activeIndex].term);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
   return (
     <div className="searchbar">
       <form onSubmit={onSubmit} autoComplete="off" className="search-row">
@@ -142,7 +171,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
               title="Viết tay"
               onClick={() => toggleTool("draw")}
             >
-              ✏️
+              <PencilIcon />
             </button>
             <button
               type="button"
@@ -164,7 +193,15 @@ export function SearchBar({ pair, source, onResult }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => tool === "none" && suggestions.length && setOpen(true)}
+          onKeyDown={onInputKeyDown}
           aria-label="Ô tìm kiếm"
+          // Combobox chuẩn (DESIGN §3.3): role + aria-expanded/-controls/-activedescendant
+          // khớp danh sách <ul role="listbox"> bên dưới, thay vì aria-selected cứng false.
+          role="combobox"
+          aria-expanded={open && suggestions.length > 0}
+          aria-controls={listboxId}
+          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
+          aria-autocomplete="list"
           // Ô nhập nhận nội dung theo ngôn ngữ nguồn (ja/en), không phải tiếng
           // Việt của UI: gắn lang để bàn phím/kiểm tra chính tả đúng ngữ cảnh,
           // enterkeyhint="search" cho phím Enter mobile, và tắt tự viết
@@ -178,7 +215,7 @@ export function SearchBar({ pair, source, onResult }: Props) {
         {/* Nút xóa luôn hiện (layout cố định, không nhảy nút); ô rỗng bấm chỉ
             focus lại như jisho. */}
         <button type="button" className="search-icon-btn" aria-label="Xóa" onClick={onClear}>
-          ✕
+          <CloseIcon />
         </button>
         <button
           type="submit"
@@ -187,15 +224,21 @@ export function SearchBar({ pair, source, onResult }: Props) {
           aria-busy={searching}
           disabled={searching}
         >
-          {searching ? <span className="btn-spinner" aria-hidden="true" /> : "🔍"}
+          {searching ? <span className="btn-spinner" aria-hidden="true" /> : <SearchIcon />}
         </button>
         {open && tool === "none" && suggestions.length > 0 && (
-          <ul className="suggestions" role="listbox">
+          <ul className="suggestions" role="listbox" id={listboxId}>
             {/* Khoá gồm cả reading để hai từ đồng âm (cùng term, khác cách đọc
                 — store `terms` giữ tách) không đụng key nhau. */}
-            {suggestions.map((s) => (
-              <li key={`${s.term}:${s.reading ?? ""}`} role="option" aria-selected={false}>
-                <button type="button" onClick={() => confirm(s.term)}>
+            {suggestions.map((s, i) => (
+              <li
+                key={`${s.term}:${s.reading ?? ""}`}
+                id={`${listboxId}-opt-${i}`}
+                role="option"
+                aria-selected={i === activeIndex}
+                className={i === activeIndex ? "active" : undefined}
+              >
+                <button type="button" onClick={() => confirm(s.term)} onMouseEnter={() => setActiveIndex(i)}>
                   <span className="sug-term" lang={pair.source}>{s.term}</span>
                   {s.reading && <span className="sug-reading" lang={pair.source}>{s.reading}</span>}
                   <span className="sug-def">{glossToText(s.definitions[0])}</span>

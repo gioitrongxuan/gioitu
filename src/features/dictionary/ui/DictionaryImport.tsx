@@ -18,6 +18,7 @@ import { LocalDictionary } from "@/shared/db";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
 import { pairId } from "@/shared/languages";
+import { ChevronDownIcon } from "@/shared/ui/icons";
 
 interface Props {
   pair: LangPair;
@@ -120,7 +121,7 @@ export function DictionaryImport({ pair, onPairChange, source, onSourceChange, o
       >
         {pair.label}
         <span className="scope-source">{sourceLabel}</span>
-        <span className="caret" aria-hidden>▾</span>
+        <span className="caret" aria-hidden><ChevronDownIcon /></span>
       </button>
 
       {open && (

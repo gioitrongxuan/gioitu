@@ -14,6 +14,7 @@ import {
   isDarkColor,
   heatBackground,
   heatTextColor,
+  contrastOf,
   type Theme,
   type ThemeDecor,
 } from "@/features/theme/domain/theme";
@@ -109,6 +110,26 @@ describe("isDarkColor", () => {
   it("classifies the built-in backgrounds", () => {
     expect(isDarkColor(DEFAULT_THEME.bg)).toBe(false);
     expect(isDarkColor(DARK_THEME.bg)).toBe(true);
+  });
+});
+
+describe("contrastOf", () => {
+  it("black vs white is the maximum ratio (21:1)", () => {
+    expect(contrastOf("#000000", "#ffffff")).toBeCloseTo(21, 0);
+  });
+  it("same colour twice is the minimum ratio (1:1)", () => {
+    expect(contrastOf("#2b4c7e", "#2b4c7e")).toBeCloseTo(1, 5);
+  });
+  it("is symmetric", () => {
+    expect(contrastOf(DEFAULT_THEME.fg, DEFAULT_THEME.bg)).toBeCloseTo(
+      contrastOf(DEFAULT_THEME.bg, DEFAULT_THEME.fg),
+      5,
+    );
+  });
+  it("mọi preset dựng sẵn đạt AA (≥4.5:1) giữa fg và bg", () => {
+    for (const preset of THEME_PRESETS) {
+      expect(contrastOf(preset.theme.fg, preset.theme.bg), preset.id).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

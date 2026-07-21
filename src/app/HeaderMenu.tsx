@@ -2,6 +2,7 @@
 // trên header. Hiện ở mọi bề rộng — không có hàng nút desktop riêng.
 
 import { useState } from "react";
+import { MenuIcon } from "@/shared/ui/icons";
 
 export interface MenuItem {
   label: string;
@@ -25,7 +26,7 @@ export function HeaderMenu({ items, email }: { items: MenuItem[]; email: string 
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        ☰
+        <MenuIcon />
       </button>
       {open && (
         <>

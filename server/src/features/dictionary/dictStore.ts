@@ -161,6 +161,11 @@ export async function fuzzy(term: string, src: string, tgt: string, limit = 8): 
  * có nghĩa chứa cụm đó. Quét toàn bộ gloss của cặp (chưa có chỉ mục cho văn bản
  * nghĩa, không như `base`/`reading` đã có GIN trgm) nên chỉ đáng gọi như một
  * lượt tra bổ trợ off-hot-path, giống `fuzzy` — xem `useLookup.ts`.
+ *
+ * Cả gloss_line lẫn query đều đưa qua NORMALIZE(...,NFC) + gộp khoảng trắng
+ * trước khi so: dữ liệu cào từ Mazii lẫn dạng NFD lẫn NBSP giữa các từ — so
+ * ILIKE thô sẽ trật dù hai chuỗi hiển thị giống hệt. Lớp `\s` của regex Postgres
+ * KHÔNG khớp NBSP (khác JS) nên phải tự thay chr(160) → dấu cách trước khi gộp.
  */
 export async function lookupByDefinition(
   query: string,
@@ -168,7 +173,7 @@ export async function lookupByDefinition(
   tgt: string,
   limit = 8,
 ): Promise<DictionaryEntry[]> {
-  const q = query.trim();
+  const q = query.normalize("NFC").replace(/\s+/g, " ").trim();
   if (!q) return [];
   const like = "%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
   const { rows } = await pool.query<{ word_id: string }>(
@@ -177,7 +182,8 @@ export async function lookupByDefinition(
        JOIN word w ON w.id = e.word_id
        CROSS JOIN LATERAL jsonb_array_elements(e.senses) AS sense
        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(sense->'gloss', '[]'::jsonb)) AS gloss_line
-      WHERE w.term_lang = $1 AND w.native_lang = $2 AND gloss_line ILIKE $3
+      WHERE w.term_lang = $1 AND w.native_lang = $2
+        AND regexp_replace(replace(NORMALIZE(gloss_line, NFC), chr(160), ' '), '\s+', ' ', 'g') ILIKE $3
       GROUP BY w.id
       ORDER BY MAX(w.score) DESC
       LIMIT $4`,
