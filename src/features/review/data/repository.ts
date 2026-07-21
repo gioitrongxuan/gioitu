@@ -37,8 +37,9 @@ export async function putEntry(entry: VocabEntry): Promise<void> {
 
 /**
  * Move every entry owned by `from_user_id` to `to_user_id`, merging into any
- * entry the target already has (last-write-wins). Used to carry a guest's local
- * progress over to their account on first sign-in. Returns the migrated count.
+ * entry the target already has (field-level qua `mergeEntryPair` — giữ max
+ * lookup_count/lapses, LWW phần còn lại). Used to carry a guest's local progress
+ * over to their account on first sign-in. Returns the migrated count.
  */
 export async function reassignEntries(
   from_user_id: string,
@@ -53,9 +54,7 @@ export async function reassignEntries(
   for (const e of source) {
     const moved: VocabEntry = { ...e, user_id: to_user_id };
     const existing = await tx.store.get([to_user_id, e.term, e.term_lang]);
-    if (!existing || moved.updated_at >= existing.updated_at) {
-      await tx.store.put(moved);
-    }
+    await tx.store.put(existing ? mergeEntryPair(existing, moved) : moved);
     await tx.store.delete([from_user_id, e.term, e.term_lang]);
   }
   await tx.done;
@@ -63,17 +62,34 @@ export async function reassignEntries(
 }
 
 /**
- * Last-write-wins merge of two entry lists keyed by (user_id, term, term_lang).
- * Pure function so it can be unit-tested independently of IndexedDB/network.
+ * Hợp nhất HAI bản ghi cùng khoá theo TỪNG FIELD (không còn LWW nguyên entry):
+ *  - `lookup_count`, `lapses` lấy **max** — đây là bộ đếm chỉ tăng, để LWW nuốt
+ *    nguyên entry thì thiết bị thua sẽ mất lượt tra / lượt quên của mình
+ *    (2 thiết bị cùng học một từ);
+ *  - mọi field còn lại (thẻ SM-2, vòng đời, nghĩa…) theo bản **mới hơn**
+ *    (last-write-wins theo `updated_at`).
+ * Đối xứng theo cặp: `mergeEntryPair(a, b)` và `mergeEntryPair(b, a)` cho cùng
+ * kết quả (trừ thứ tự khi `updated_at` bằng nhau — khi đó bản đứng sau thắng).
+ */
+export function mergeEntryPair(a: VocabEntry, b: VocabEntry): VocabEntry {
+  const winner = b.updated_at >= a.updated_at ? b : a;
+  return {
+    ...winner,
+    lookup_count: Math.max(a.lookup_count, b.lookup_count),
+    lapses: Math.max(a.lapses, b.lapses),
+  };
+}
+
+/**
+ * Hợp nhất hai danh sách entry theo khoá (user_id, term, term_lang), field-level
+ * qua `mergeEntryPair`. Hàm thuần để test độc lập với IndexedDB/mạng.
  */
 export function mergeByUpdatedAt(a: VocabEntry[], b: VocabEntry[]): VocabEntry[] {
   const map = new Map<string, VocabEntry>();
   for (const e of [...a, ...b]) {
     const k = keyOf(e);
     const existing = map.get(k);
-    if (!existing || e.updated_at >= existing.updated_at) {
-      map.set(k, e);
-    }
+    map.set(k, existing ? mergeEntryPair(existing, e) : e);
   }
   return Array.from(map.values());
 }
