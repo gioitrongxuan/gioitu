@@ -1270,6 +1270,9 @@ summary:focus-visible,
 }
 .header-menu-panel .link { text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 15px; }
 .header-menu-panel .link:hover { background: var(--surface-2); }
+.header-menu-panel .menu-item { display: flex; align-items: center; gap: 8px; }
+/* Ổ khoá dồn về mép phải, tông chữ phụ — dấu hiệu "cần đăng nhập" nhã, không cướp nhãn. */
+.header-menu-panel .menu-lock { margin-left: auto; color: var(--muted); flex: none; }
 .header-menu-panel .user-email {
   max-width: none; padding: 4px 10px 8px;
   border-bottom: 1px solid var(--line); margin-bottom: 4px;
