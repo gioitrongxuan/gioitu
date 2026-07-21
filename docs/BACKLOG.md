@@ -64,8 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Due badge: `document.title` + `navigator.setAppBadge` (PWA sẵn).
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
-- [ ] Hỏi trước khi adopt guest data (máy dùng chung trộn dữ liệu người khác).
-  `App.tsx:53-67`
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).
@@ -75,9 +73,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   catch cho loadRadicalData (hiện offline bấm Bộ thủ treo "Đang tải…" vĩnh
   viễn); dọn ASSET_CACHE cũ sau activate. `sw.js:9-12,28-36,76-92 ·
   RadicalPicker.tsx:19-25`
-- [ ] VocabStudy: bỏ double-click (không ổn định trên touch, click đơn trễ
-  250ms, không undo) → pattern "Đánh dấu nhanh" như KanjiStats + toast undo.
-  `VocabStudy.tsx:366-417`
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 

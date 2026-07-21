@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
-import { pushToast } from "@/shared/ui/Toasts";
+import { pushToast, ToastAction } from "@/shared/ui/Toasts";
 import { GUEST_USER_ID } from "@/features/auth/data/auth";
 import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, learnedAtAfter, markKnown, relapse } from "../domain/srs";
@@ -26,6 +26,16 @@ import { requestPersistentStorage } from "@/shared/persist";
 // nếu đóng app đột ngột, đủ dài để gộp cả tràng chấm thẻ trong một phiên ôn
 // thành ít lần đẩy. Rời tab thì flush ngay, không đợi hết nhịp này.
 const AUTO_SYNC_DELAY_MS = 2500;
+
+/** Nút "Hoàn tác" cho toast đánh dấu; chạy `undo` (bất đồng bộ) khi bấm. */
+function undoAction(term: string, undo: () => Promise<void>): ToastAction {
+  return {
+    label: "Hoàn tác",
+    onClick: () => {
+      void undo().then(() => pushToast(`Đã hoàn tác “${term}”`, "info"));
+    },
+  };
+}
 
 /**
  * Drives the app for an authenticated user (id comes from the session).
@@ -132,6 +142,32 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
   const scheduleSync = useCallback(() => {
     if (!isGuest) scheduler.schedule();
   }, [isGuest, scheduler]);
+
+  // Khôi phục một bản ghi về đúng như ảnh chụp trước khi đánh dấu — nền cho nút
+  // "Hoàn tác". Ghi thẳng bản cũ (kể cả updated_at cũ) để lần sync sau LWW không
+  // dựng lại bản vừa bị hoàn tác.
+  const restoreSnapshot = useCallback(
+    async (snapshot: VocabEntry) => {
+      await putEntry(snapshot);
+      upsertLocal(snapshot);
+      scheduleSync();
+    },
+    [upsertLocal, scheduleSync],
+  );
+
+  // Gỡ một từ vừa được tạo mới (đánh dấu "đã biết" cho từ chưa từng có entry):
+  // tombstone để đồng bộ được, đồng thời rút khỏi danh sách hiển thị.
+  const removeCreated = useCallback(
+    async (created: VocabEntry) => {
+      const gone: VocabEntry = { ...created, ...softDelete(Date.now()) };
+      await putEntry(gone);
+      setEntries((list) =>
+        list.filter((e) => !(e.term === created.term && e.term_lang === created.term_lang)),
+      );
+      scheduleSync();
+    },
+    [scheduleSync],
+  );
 
   // Rời tab / đóng trang: đẩy ngay phần đang chờ thay vì để cả buổi học nằm
   // local. Dọn lịch chờ khi đổi tài khoản (component remount theo userId).
@@ -250,7 +286,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
    * không bị ghi đè mất tiến độ khi có tình huống chạy đua.
    */
   const markKnownByTerm = useCallback(
-    async (term: string, term_lang: string, native_lang: string) => {
+    async (term: string, term_lang: string, native_lang: string, undoable = false) => {
       const now = Date.now();
       const existing = await getEntry(userId, term, term_lang);
       const next: VocabEntry = existing
@@ -264,24 +300,33 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
       await putEntry(next);
       upsertLocal(next);
       scheduleSync();
-      pushToast(`“${term}” đã thuộc 🎉`, "success");
+      // Hoàn tác: khôi phục đúng trạng thái trước — nếu từ đã có sẵn thì trả lại
+      // bản cũ; nếu vừa tạo mới thì gỡ (tombstone) để nó biến mất như chưa từng có.
+      const undo = existing
+        ? () => restoreSnapshot(existing)
+        : () => removeCreated(next);
+      pushToast(`“${term}” đã thuộc 🎉`, "success", undoable ? undoAction(term, undo) : undefined);
       return next;
     },
-    [userId, upsertLocal, scheduleSync],
+    [userId, upsertLocal, scheduleSync, restoreSnapshot, removeCreated],
   );
 
   /** "Đã quên" — relapse a learned word back into the review queue. */
   const markForgottenEntry = useCallback(
-    async (entry: VocabEntry) => {
+    async (entry: VocabEntry, undoable = false) => {
       const now = Date.now();
       const next: VocabEntry = { ...entry, ...relapse(entry, now), updated_at: now };
       await putEntry(next);
       upsertLocal(next);
       scheduleSync();
-      pushToast(`“${entry.term}” đã chuyển về ôn lại`, "info");
+      pushToast(
+        `“${entry.term}” đã chuyển về ôn lại`,
+        "info",
+        undoable ? undoAction(entry.term, () => restoreSnapshot(entry)) : undefined,
+      );
       return next;
     },
-    [upsertLocal, scheduleSync],
+    [upsertLocal, scheduleSync, restoreSnapshot],
   );
 
   /** "Xoá" — tombstone the word: persist the deletion (so it syncs) but drop it
