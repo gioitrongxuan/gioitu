@@ -84,12 +84,14 @@ export interface PresetBackground {
   opacity: number;
 }
 
-/** Themed glyphs for tags/badges; absent fields fall back to app defaults. */
+/**
+ * Decorative glyphs a skin may contribute. Chỉ có `emblem` (nhãn nhận diện skin
+ * ở màn Giao diện) — CỐ Ý không cho skin thay glyph badge tái quên: đó là tín
+ * hiệu cảnh báo, phải giữ họ "!" trên nền --warn ở mọi skin (DESIGN §1).
+ */
 export interface PresetIcons {
   /** Signature glyph shown on the preset chip in settings. */
   emblem: string;
-  /** Replaces the default "!" relapse badge on word-cloud tags. */
-  relapse: string;
 }
 
 export interface ThemePreset {
@@ -155,7 +157,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       line: "#f3d3e3",
     },
     background: { effect: "buu", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "🍬", relapse: "💢" },
+    icons: { emblem: "🍬" },
   },
   {
     id: "cell",
@@ -172,7 +174,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       line: "#28402e",
     },
     background: { effect: "cell", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🧬", relapse: "☣" },
+    icons: { emblem: "🧬" },
   },
   {
     id: "panda",
@@ -189,7 +191,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       line: "#dde7d4",
     },
     background: { effect: "bamboo", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🐼", relapse: "🐾" },
+    icons: { emblem: "🐼" },
   },
   {
     id: "akatsuki",
@@ -206,7 +208,7 @@ export const THEME_PRESETS: ThemePreset[] = [
       line: "#3a2b30",
     },
     background: { effect: "akatsuki", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "☁️", relapse: "◉" },
+    icons: { emblem: "☁️" },
   },
 ];
 

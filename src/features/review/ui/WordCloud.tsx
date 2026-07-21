@@ -37,9 +37,11 @@ export const WordCloud = memo(function WordCloud({
   onSelect,
   onDelete,
 }: Props) {
-  const { theme, icons } = useTheme();
-  // Theme trang trí có thể thay glyph "!" của badge tái quên bằng icon riêng.
-  const relapseGlyph = icons?.relapse ?? "!";
+  const { theme } = useTheme();
+  // Badge tái quên là TÍN HIỆU cảnh báo, không phải trang trí: luôn dùng "!" trắng
+  // trên nền --warn (styles.css .tag .badge). Skin trang trí KHÔNG được thay glyph
+  // này bằng emoji dễ thương — nó làm nhoè tín hiệu (DESIGN §1).
+  const relapseGlyph = "!";
   const now = Date.now();
   // buildCloud duyệt + sắp cả nghìn entry — chỉ tính lại khi tập từ, cách sắp
   // xếp hay bộ lọc đổi, không phải mỗi lần cha re-render (vd toast tự tắt).
