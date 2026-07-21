@@ -53,6 +53,9 @@ const CustomDictionary = lazy(() =>
 const ThemeSettings = lazy(() =>
   import("@/features/theme/ui/ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
 );
+const QuickAdd = lazy(() =>
+  import("@/features/dictionary/ui/QuickAdd").then((m) => ({ default: m.QuickAdd })),
+);
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
@@ -230,6 +233,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
+  // bookmarklet / Share Target; rỗng khi mở từ menu.
+  const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
   const [page, setPage] = useState<"home" | "learned" | "kanji" | "vocabstudy">("home");
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
 
@@ -247,6 +253,20 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     if (dueCount > 0) nav.setAppBadge?.(dueCount).catch(() => {});
     else nav.clearAppBadge?.().catch(() => {});
   }, [dueCount]);
+
+  // Bookmarklet (máy tính) và Share Target (điện thoại) mở app kèm ?add=<mặt chữ>.
+  // Đọc một lần lúc mount → mở form Thêm nhanh, rồi xoá param khỏi URL để refresh
+  // không mở lại và mặt chữ không đọng trên thanh địa chỉ.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const term = params.get("add") ?? params.get("add_title");
+    if (term == null) return;
+    setQuickAdd({ term });
+    params.delete("add");
+    params.delete("add_title");
+    const qs = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
@@ -317,6 +337,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") },
     { label: "Thống kê kanji", run: () => setPage("kanji") },
     { label: "Học từ vựng", run: () => setPage("vocabstudy") },
+    { label: "Thêm nhanh", run: () => setQuickAdd({ term: "" }) },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
     // Hai mục này chỉ dùng được khi đăng nhập (Yomitan cần định danh cloud,
@@ -517,6 +538,27 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       {theming && (
         <Suspense fallback={null}>
           <ThemeSettings onClose={() => setTheming(false)} />
+        </Suspense>
+      )}
+
+      {quickAdd && (
+        <Suspense fallback={null}>
+          <QuickAdd
+            pair={pair}
+            initialTerm={quickAdd.term}
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setQuickAdd(null);
+              onRequestLogin();
+            }}
+            onRecordSrs={store.recordLookup}
+            onClose={() => setQuickAdd(null)}
+            onSaved={() => {
+              syncDicts(); // đẩy hộp thư lượm nhặt lên (nếu Premium)
+              // Đang mở chi tiết một từ thì tra lại để từ vừa lưu (nguồn Trên máy) hiện ra.
+              if (view?.kind === "detail") lookup(view.term);
+            }}
+          />
         </Suspense>
       )}
 

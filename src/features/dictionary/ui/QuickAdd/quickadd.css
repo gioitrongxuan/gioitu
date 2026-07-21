@@ -1,0 +1,70 @@
+/* "Thêm nhanh" — chỉ vài nét riêng; overlay/form/nút dùng chung lớp có sẵn
+   (manager-overlay, form-field, primary, link…). Mọi giá trị bám token §2 DESIGN. */
+
+.qa-card {
+  max-width: 34rem;
+}
+
+.qa-more,
+.qa-shortcut {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+
+.qa-more > summary,
+.qa-shortcut > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.qa-more[open],
+.qa-shortcut[open] {
+  padding-bottom: var(--space-3);
+}
+
+.qa-more[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+.qa-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.qa-ai-hint {
+  font-size: var(--text-sm);
+}
+
+.qa-shortcut {
+  margin-top: var(--space-2);
+}
+
+.qa-shortcut p {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.qa-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* Nút bookmarklet: trông như một "viên" kéo được lên thanh dấu trang. */
+.qa-bookmarklet {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: grab;
+}
