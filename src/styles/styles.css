@@ -350,6 +350,12 @@ summary:focus-visible,
   margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
 }
 .radical-hint { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+.radical-error { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.radical-retry {
+  padding: 6px 12px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent);
+}
+.radical-retry:hover { border-color: var(--accent); }
 .radical-reset {
   flex: none; min-width: 38px; height: 38px; font-size: 14px; cursor: pointer;
   border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--muted);
