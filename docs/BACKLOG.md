@@ -64,27 +64,13 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Due badge: `document.title` + `navigator.setAppBadge` (PWA sẵn).
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
-- [ ] Đếm "Đã thuộc (N)" thường trực (menu hiện chỉ xuất hiện khi N>0);
-  trường `learned_at` để trang Đã thuộc nhóm đúng theo thời điểm thuộc (hiện
-  nhóm theo last_lookup_at — kể sai câu chuyện). `App.tsx:238-240 ·
-  LearnedCloud.tsx:66`
-- [ ] Merge theo field: lookup_count = max, lapses = max, LWW phần thẻ SM-2
-  (hiện LWW nguyên entry → 2 thiết bị cùng học 1 từ là mất lượt của bên thua).
-  `repository.ts:62-72 · syncStore.ts:31-36`
-- [ ] Hỏi trước khi adopt guest data (máy dùng chung trộn dữ liệu người khác).
-  `App.tsx:53-67`
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).
-- [ ] Nhất quán tường đăng nhập cho guest: nhãn 🔒 tại menu thay vì nửa
-  mời-rồi-chặn nửa giấu hẳn. `AddToListButton.tsx:16 · YomitanSync.tsx:55-62`
 - [ ] SW: precache chunk lazy theo manifest build (hoặc vite-plugin-pwa);
   catch cho loadRadicalData (hiện offline bấm Bộ thủ treo "Đang tải…" vĩnh
   viễn); dọn ASSET_CACHE cũ sau activate. `sw.js:9-12,28-36,76-92 ·
   RadicalPicker.tsx:19-25`
-- [ ] VocabStudy: bỏ double-click (không ổn định trên touch, click đơn trễ
-  250ms, không undo) → pattern "Đánh dấu nhanh" như KanjiStats + toast undo.
-  `VocabStudy.tsx:366-417`
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gradeCard, newCardState, relapse, markKnown, isDue, applyFuzz, isLeech } from "@/features/review/domain/srs";
+import { gradeCard, newCardState, relapse, markKnown, isDue, applyFuzz, isLeech, learnedAtAfter } from "@/features/review/domain/srs";
 import { DAY, DEFAULT_SRS_CONFIG as CFG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
@@ -25,6 +25,23 @@ describe("markKnown ('Đã nhớ')", () => {
     expect(s.srs_interval).toBeGreaterThan(CFG.matureThreshold);
     expect(s.next_review).toBe(NOW + CFG.knownInterval * 60_000);
     expect(isDue({ card_state: s.card_state, next_review: s.next_review }, NOW)).toBe(false);
+  });
+});
+
+describe("learnedAtAfter (mốc thời điểm thuộc)", () => {
+  it("đóng dấu now khi vừa chuyển sang LEARNED (kể cả entry mới)", () => {
+    expect(learnedAtAfter("LEARNING", "LEARNED", NOW)).toBe(NOW);
+    expect(learnedAtAfter("RELAPSED", "LEARNED", NOW)).toBe(NOW);
+    expect(learnedAtAfter(undefined, "LEARNED", NOW)).toBe(NOW);
+  });
+
+  it("giữ mốc cũ khi vốn đã LEARNED (đánh dấu lại không dời mốc)", () => {
+    expect(learnedAtAfter("LEARNED", "LEARNED", NOW, 111)).toBe(111);
+  });
+
+  it("giữ mốc cũ (kể cả undefined) khi rời khỏi hoặc không ở LEARNED", () => {
+    expect(learnedAtAfter("LEARNED", "RELAPSED", NOW, 111)).toBe(111);
+    expect(learnedAtAfter("LEARNING", "LEARNING", NOW)).toBeUndefined();
   });
 });
 

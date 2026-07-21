@@ -3,11 +3,13 @@
 //   • Study list      — bộ sưu tập từ (server, cần đăng nhập)
 //   • Từ điển cá nhân — các dict tự soạn (local IndexedDB)
 //   • Lịch sử         — các từ đã tra cứu (store.entries)
-// Tương tác mỗi ô:
-//   • Click 1  → hiện nghĩa (read-only, KHÔNG đếm lượt tra)
-//   • Click đúp → toggle nhớ ↔ không nhớ (LEARNED ↔ relapse về hàng ôn)
+// Tương tác mỗi ô (giống KanjiStats): một cú bấm, hành vi tuỳ chế độ —
+//   • Thường          → hiện nghĩa (read-only, KHÔNG đếm lượt tra)
+//   • "Đánh dấu nhanh" → toggle nhớ ↔ không nhớ (LEARNED ↔ relapse về hàng ôn),
+//     kèm toast "Hoàn tác" để lỡ tay còn gỡ được.
+// Bỏ click-đúp cũ: trên cảm ứng không ổn định và click đơn phải trễ 250ms.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { useTheme } from "@/features/theme/ThemeProvider";
@@ -67,6 +69,9 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
+  // "Đánh dấu nhanh": bật thì một cú bấm sẽ toggle nhớ/không nhớ thay vì xem nghĩa
+  // (giống KanjiStats). Tắt là mặc định an toàn — bấm chỉ để xem.
+  const [quickMark, setQuickMark] = useState(false);
 
   // Khi đổi nguồn hoặc lựa chọn — tải danh sách từ tương ứng.
   useEffect(() => {
@@ -176,8 +181,16 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
                     <option value="learned">Đã thuộc</option>
                   </select>
                 </label>
+                <label className="kanji-check">
+                  <input
+                    type="checkbox"
+                    checked={quickMark}
+                    onChange={(e) => setQuickMark(e.target.checked)}
+                  />
+                  Đánh dấu nhanh
+                </label>
                 <span className="vocab-mode-hint muted">
-                  Click = xem nghĩa · Click đúp = nhớ ↔ không nhớ
+                  {quickMark ? "Bấm để đánh dấu nhớ ↔ không nhớ" : "Bấm để xem nghĩa"}
                 </span>
               </div>
             </>
@@ -201,6 +214,7 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
                   key={`${cell.word.term}:${cell.word.term_lang}:${cell.word.reading ?? ""}`}
                   cell={cell}
                   theme={theme}
+                  quickMark={quickMark}
                   onView={() => onSelect(cell.word)}
                   onToggle={() => onToggle(cell.word, cell.entry)}
                 />
@@ -361,54 +375,36 @@ function CustomDictPicker({
 
 /**
  * Một ô từ: shade heatmap theo trạng thái học; viền đứt cho từ chưa có trong vốn
- * từ. Click đơn = xem nghĩa, click đúp = toggle nhớ/không nhớ. Phân biệt bằng timer
- * 250ms: click đơn chờ xem có click thứ hai không; nếu có thì huỷ và bật toggle.
+ * từ. Một cú bấm — chế độ thường mở nghĩa, "Đánh dấu nhanh" thì toggle nhớ/không
+ * nhớ. Không còn click-đúp (chậm + kém tin cậy trên cảm ứng).
  */
 function VocabTile({
   cell,
   theme,
+  quickMark,
   onView,
   onToggle,
 }: {
   cell: VocabCell;
   theme: ReturnType<typeof useTheme>["theme"];
+  quickMark: boolean;
   onView: () => void;
   onToggle: () => void;
 }) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shade = cellShade(cell.progress);
   const missing = cell.progress === "missing";
   const known = cell.progress === "learned";
 
-  const click = () => {
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      onView();
-    }, 250);
-  };
-  const dblclick = () => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-    onToggle();
-  };
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const action = quickMark ? `đánh dấu ${known ? "không nhớ" : "đã nhớ"}` : "xem nghĩa";
 
   return (
     <button
       type="button"
       role="listitem"
-      className={`vocab-cell${missing ? " missing" : ""}${known ? " known" : ""}`}
+      className={`vocab-cell${missing ? " missing" : ""}${known ? " known" : ""}${quickMark ? " quick" : ""}`}
       style={{ background: heatBackground(shade), color: heatTextColor(shade, theme) }}
-      title={`${cell.word.term}${cell.word.reading ? ` 【${cell.word.reading}】` : ""} · ${STATUS_LABEL[cell.progress]}\nClick = xem · Click đúp = ${known ? "đánh dấu không nhớ" : "đánh dấu đã nhớ"}`}
-      onClick={click}
-      onDoubleClick={dblclick}
+      title={`${cell.word.term}${cell.word.reading ? ` 【${cell.word.reading}】` : ""} · ${STATUS_LABEL[cell.progress]}\nBấm để ${action}`}
+      onClick={quickMark ? onToggle : onView}
     >
       <span className="vocab-term">{cell.word.term}</span>
       {cell.word.reading && <span className="vocab-reading">{cell.word.reading}</span>}

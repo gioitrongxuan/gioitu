@@ -2,11 +2,13 @@
 // trên header. Hiện ở mọi bề rộng — không có hàng nút desktop riêng.
 
 import { useState } from "react";
-import { MenuIcon } from "@/shared/ui/icons";
+import { LockIcon, MenuIcon } from "@/shared/ui/icons";
 
 export interface MenuItem {
   label: string;
   run: () => void;
+  /** Cần đăng nhập mới dùng được: hiện ổ khoá + gợi ý, thay vì giấu hay chặn bất ngờ. */
+  locked?: boolean;
 }
 
 export function HeaderMenu({ items, email }: { items: MenuItem[]; email: string | null }) {
@@ -34,8 +36,17 @@ export function HeaderMenu({ items, email }: { items: MenuItem[]; email: string 
           <div className="header-menu-panel" role="menu">
             <div className="user-email">{email ?? "Khách"}</div>
             {items.map((item) => (
-              <button key={item.label} type="button" className="link" role="menuitem" onClick={() => pick(item.run)}>
-                {item.label}
+              <button
+                key={item.label}
+                type="button"
+                className="link menu-item"
+                role="menuitem"
+                onClick={() => pick(item.run)}
+                aria-label={item.locked ? `${item.label} — cần đăng nhập` : undefined}
+                title={item.locked ? "Cần đăng nhập" : undefined}
+              >
+                <span className="menu-item-label">{item.label}</span>
+                {item.locked && <LockIcon className="menu-lock" />}
               </button>
             ))}
           </div>

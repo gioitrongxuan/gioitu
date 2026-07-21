@@ -30,6 +30,9 @@ Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nh
 Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
 Kết nối Yomitan · Premium · Xuất/Nhập dữ liệu học · Đồng bộ · Đăng nhập/Đăng xuất;
 admin thêm Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
+Với **khách**, các mục chỉ dùng được khi đăng nhập (**Kết nối Yomitan**,
+**Premium**) hiện **ổ khoá** (icon SVG) kèm gợi ý "cần đăng nhập" — tường đăng
+nhập nhất quán, không giấu hẳn cũng không mời-rồi-chặn. (`app/HeaderMenu.tsx`)
 
 ## 1. Tra cứu từ điển
 
@@ -205,7 +208,9 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
   `GoogleSignInButton.tsx`)
 - **Di trú tiến trình guest**: lần đăng nhập đầu, mọi entry `__guest__` được
   chuyển sang tài khoản mới (last-write-wins từng term) → không mất gì đã học khi
-  dùng thử. (`App.tsx` `migrateThen` → `reassignEntries`)
+  dùng thử. Nếu trên máy đang có dữ liệu khách thì **hỏi xác nhận trước khi gộp**
+  (máy dùng chung dễ trộn dữ liệu người khác — bấm Huỷ để giữ nguyên).
+  (`App.tsx` `migrateGuestData` → `guestAdoptionPrompt` → `reassignEntries`)
 - **Đồng bộ** (nút **Đồng bộ**, tự chạy khi mở app, và **tự động theo sự kiện**):
   hai chiều, last-write-wins theo `updated_at`; offline/guest thì cache cục bộ tự
   đứng. Với người đăng nhập, mọi thay đổi dữ liệu học (tra, chấm thẻ, đánh dấu
