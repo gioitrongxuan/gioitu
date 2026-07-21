@@ -10,6 +10,7 @@ import { VocabEntry } from "@/shared/types";
 import { setTermVerified } from "../data/dictAdmin";
 import { reasonLabel } from "../domain/deinflect";
 import { describeLookupError, LookupErrorKind } from "../domain/lookupError";
+import { partitionResults, resultGloss } from "../domain/results";
 import { Definitions } from "./Definitions";
 import { ImageGallery, CommentList } from "./Media";
 import { PitchView, Pronunciations } from "./PitchView";
@@ -18,6 +19,7 @@ import { Furigana } from "@/shared/ui/Furigana";
 import { isCodePointKanji } from "@/shared/japanese";
 import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { MeaningView, meaningToLines } from "@/shared/ui/MeaningView";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
@@ -45,6 +47,11 @@ interface Props {
    * rỗng KHÔNG có nghĩa "không tìm thấy" — panel báo lỗi riêng.
    */
   error?: LookupErrorKind | null;
+  /**
+   * Tra thẳng rỗng nhưng lượt quét near-miss/định nghĩa (#172) còn chạy nền —
+   * hoãn "Không tìm thấy" cho tới khi biết chắc, tránh chớp rồi lật kết quả.
+   */
+  pending?: boolean;
   /** The user's learning entry for the primary term, if any. */
   entry?: VocabEntry;
   onSaveCustom: (meaning: string) => void;
@@ -85,6 +92,7 @@ export function DetailPanel({
   native_lang,
   results,
   error,
+  pending,
   entry,
   onSaveCustom,
   onClose,
@@ -154,6 +162,9 @@ export function DetailPanel({
   const savedLines = entry ? meaningToLines(entry.meaning) : [];
   const hasSaved = savedLines.length > 0;
   const hasResults = results.length > 0;
+  // Khớp thẳng hiện đầy đủ; gợi ý gần đúng + khớp theo định nghĩa (#172) hiện gọn
+  // một dòng để danh sách (gõ cụm tiếng Việt ra rất nhiều từ) quét được.
+  const { primary, secondary } = partitionResults(results);
 
   // Bình luận gắn theo từ đang xem: ưu tiên dạng gốc của kết quả khớp nhất, rồi
   // tới entry cá nhân, cuối cùng là chữ đã gõ (khi không có kết quả từ điển).
@@ -255,28 +266,39 @@ export function DetailPanel({
         {hasResults ? (
           <div className="results">
             {hasSaved && <p className="section-label">Trong từ điển</p>}
-            {results.map((res, i) => (
-              <div key={i}>
-                {/* Separate near-misses from the real matches above them. */}
-                {res.fuzzy && !results[i - 1]?.fuzzy && (
-                  <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
-                )}
-                {/* Khớp theo định nghĩa (#172): tìm "đồng cảm" ở cặp ja→vi vẫn ra
-                    từ tiếng Nhật có nghĩa chứa cụm đó, tách riêng khỏi khớp thẳng. */}
-                {res.viaDefinition && !results[i - 1]?.viaDefinition && (
-                  <p className="fuzzy-divider muted">Khớp theo định nghĩa:</p>
-                )}
-                <ResultView
-                  res={res}
-                  onLookup={onLookup}
-                  onAdd={onAddResult}
-                  isAdmin={isAdmin}
-                  onAdminEdit={onAdminEdit}
-                  loggedIn={loggedIn}
-                  onPropose={onPropose}
-                />
-              </div>
+            {/* Khớp thẳng: thẻ đầy đủ, kết quả khớp nhất nổi nhất (kiểu jisho). */}
+            {primary.map((res, i) => (
+              <ResultView
+                key={`primary-${i}`}
+                res={res}
+                onLookup={onLookup}
+                onAdd={onAddResult}
+                isAdmin={isAdmin}
+                onAdminEdit={onAdminEdit}
+                loggedIn={loggedIn}
+                onPropose={onPropose}
+              />
             ))}
+            {/* Kết quả phụ (#172) hiện gọn một dòng — bấm để mở chi tiết đầy đủ —
+                nên gõ một cụm tiếng Việt ra chục từ vẫn quét được từ nào là từ mình cần. */}
+            {secondary.length > 0 && (
+              <div className="results-secondary">
+                {secondary.map((res, i) => (
+                  <div key={`secondary-${i}`}>
+                    {/* Separate near-misses from the real matches above them. */}
+                    {res.fuzzy && !secondary[i - 1]?.fuzzy && (
+                      <p className="fuzzy-divider muted">Có phải bạn muốn tìm:</p>
+                    )}
+                    {/* Khớp theo định nghĩa: tìm "đồng cảm" ở cặp ja→vi vẫn ra từ
+                        tiếng Nhật có nghĩa chứa cụm đó, tách riêng khỏi khớp thẳng. */}
+                    {res.viaDefinition && !secondary[i - 1]?.viaDefinition && (
+                      <p className="fuzzy-divider muted">Khớp theo định nghĩa:</p>
+                    )}
+                    <CompactResultRow res={res} onOpen={onLookup} onAdd={onAddResult} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : hasSaved ? null : (
           // key theo từ: đổi truy vấn thì trạng thái tra kanji reset sạch, không
@@ -287,6 +309,7 @@ export function DetailPanel({
             termLang={term_lang}
             nativeLang={native_lang}
             error={error}
+            pending={pending}
             onLookup={onLookup}
             onSaveCustom={onSaveCustom}
           />
@@ -325,6 +348,7 @@ function NoMatch({
   termLang,
   nativeLang,
   error,
+  pending,
   onLookup,
   onSaveCustom,
 }: {
@@ -332,6 +356,7 @@ function NoMatch({
   termLang: string;
   nativeLang: string;
   error?: LookupErrorKind | null;
+  pending?: boolean;
   onLookup?: (term: string) => void;
   onSaveCustom: (meaning: string) => void;
 }) {
@@ -363,9 +388,13 @@ function NoMatch({
         />
       )}
 
-      {/* Chờ tra kanji xong mới quyết định lời mời, tránh chớp "không tìm thấy"
-          rồi mới hiện chữ Hán. Còn tự định nghĩa vẫn luôn khả dụng. */}
-      {!resolvingKanji && (
+      {/* Chữ Hán xong nhưng near-miss/định nghĩa (#172) còn quét nền: hiện khung
+          chờ thay vì vội báo "không tìm thấy" rồi phải lật sang có kết quả. */}
+      {!resolvingKanji && pending && <Skeleton lines={2} className="nomatch-skeleton" />}
+
+      {/* Chờ cả kanji lẫn near-miss/định nghĩa xong mới quyết định lời mời, tránh
+          chớp "không tìm thấy" rồi mới hiện kết quả trễ. Tự định nghĩa vẫn luôn khả dụng. */}
+      {!resolvingKanji && !pending && (
         <div className="custom-def">
           {errorMessage && <p className="danger">{errorMessage.title}</p>}
           <p className="muted">{invite}</p>
@@ -381,6 +410,85 @@ function NoMatch({
         </div>
       )}
     </>
+  );
+}
+
+/** Nút "＋ Học từ này" — dùng chung cho thẻ đầy đủ và thẻ rút gọn (#172). Chỉ
+ *  đánh dấu ✓ SAU KHI onAdd resolve: trước đây set ngay khi bấm nên khi
+ *  recordLookup bị debounce/lỗi mà không báo gì, nút vẫn hiện ✓ như đã thêm. */
+function AddResultButton({
+  res,
+  onAdd,
+  className = "link add-result",
+}: {
+  res: TermResult;
+  onAdd: (res: TermResult) => Promise<AddResultEvents | void>;
+  className?: string;
+}) {
+  const [added, setAdded] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        className={className}
+        title={added ? "Đã thêm vào lịch sử" : "Thêm vào lịch sử"}
+        aria-label="Thêm vào lịch sử"
+        disabled={added || addBusy}
+        onClick={async () => {
+          setAddBusy(true);
+          setAddError(null);
+          try {
+            const events = await onAdd(res);
+            // void (không có caller nào trả) vẫn coi là thành công; chỉ
+            // debounce thực sự (mọi cờ đều false) mới không đánh dấu ✓.
+            const confirmed = !events || events.counted || events.created || events.cardCreated;
+            setAdded(confirmed);
+          } catch (err) {
+            setAddError((err as Error).message);
+          } finally {
+            setAddBusy(false);
+          }
+        }}
+      >
+        {added ? "✓ Đã học" : "＋ Học từ này"}
+      </button>
+      {addError && <span className="danger add-error">{addError}</span>}
+    </>
+  );
+}
+
+/**
+ * Thẻ kết quả rút gọn cho phần phụ (#172): một dòng gồm từ + cách đọc + nghĩa
+ * ngắn (giống ô gợi ý), bấm vào mở chi tiết đầy đủ. Vẫn kèm nút "＋" để thêm
+ * thẳng vào lịch sử mà không cần mở. Giữ danh sách dài quét được thay vì mỗi
+ * kết quả banh ra cả nghĩa + ảnh + bình luận + chữ Hán.
+ */
+function CompactResultRow({
+  res,
+  onOpen,
+  onAdd,
+}: {
+  res: TermResult;
+  onOpen?: (term: string) => void;
+  onAdd?: (res: TermResult) => Promise<AddResultEvents | void>;
+}) {
+  const { entry } = res;
+  const gloss = resultGloss(entry);
+  return (
+    <div className="result-compact">
+      <button
+        type="button"
+        className="result-compact-main"
+        title="Xem chi tiết"
+        onClick={() => onOpen?.(entry.term)}
+      >
+        <span className="sug-term" lang={entry.term_lang}>{entry.term}</span>
+        {entry.reading && <span className="sug-reading" lang={entry.term_lang}>{entry.reading}</span>}
+        {gloss && <span className="sug-def">{gloss}</span>}
+      </button>
+      {onAdd && <AddResultButton res={res} onAdd={onAdd} className="link add-result add-compact" />}
+    </div>
   );
 }
 
@@ -402,12 +510,6 @@ function ResultView({
   onPropose?: (res: TermResult) => void;
 }) {
   const { entry } = res;
-  // Local-only: once added we flip to a checkmark so the click reads as done.
-  // Chỉ đặt true SAU KHI onAdd resolve — trước đây set ngay khi bấm nên khi
-  // recordLookup bị debounce/lỗi mà không báo gì, nút vẫn hiện ✓ như đã thêm.
-  const [added, setAdded] = useState(false);
-  const [addBusy, setAddBusy] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
   // Cờ kiểm duyệt đến từ server; admin toggle tại chỗ nên giữ state cục bộ.
   const [verified, setVerified] = useState(entry.verified === true);
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -440,32 +542,7 @@ function ResultView({
           <span className="verified-badge" title="Từ đã được kiểm duyệt">✓</span>
         )}
         {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
-        {onAdd && (
-          <button
-            className="link add-result"
-            title={added ? "Đã thêm vào lịch sử" : "Thêm vào lịch sử"}
-            aria-label="Thêm vào lịch sử"
-            disabled={added || addBusy}
-            onClick={async () => {
-              setAddBusy(true);
-              setAddError(null);
-              try {
-                const events = await onAdd(res);
-                // void (không có caller nào trả) vẫn coi là thành công; chỉ
-                // debounce thực sự (mọi cờ đều false) mới không đánh dấu ✓.
-                const confirmed = !events || events.counted || events.created || events.cardCreated;
-                setAdded(confirmed);
-              } catch (err) {
-                setAddError((err as Error).message);
-              } finally {
-                setAddBusy(false);
-              }
-            }}
-          >
-            {added ? "✓ Đã học" : "＋ Học từ này"}
-          </button>
-        )}
-        {addError && <span className="danger add-error">{addError}</span>}
+        {onAdd && <AddResultButton res={res} onAdd={onAdd} />}
       </div>
 
       <HeadwordBadges hanViet={entry.hanViet} jlpt={entry.jlpt} />
