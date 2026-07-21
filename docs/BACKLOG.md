@@ -96,7 +96,5 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
 ## Nợ tài liệu & dọn dẹp
 
-- [ ] FEATURES.md: bổ sung ~8 tính năng vắng mặt chi tiết hơn (đã có inventory
-  tóm tắt ở §10) — coi "thêm mục FEATURES.md" là cổng review mỗi PR tính năng.
 - [ ] Tách styles.css (1089 dòng) theo feature như preset đã làm; quét selector
   chết (.source-toggle). `styles.css:1036`
