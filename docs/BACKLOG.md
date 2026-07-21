@@ -79,9 +79,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   catch cho loadRadicalData (hiện offline bấm Bộ thủ treo "Đang tải…" vĩnh
   viễn); dọn ASSET_CACHE cũ sau activate. `sw.js:9-12,28-36,76-92 ·
   RadicalPicker.tsx:19-25`
-- [ ] VocabStudy: bỏ double-click (không ổn định trên touch, click đơn trễ
-  250ms, không undo) → pattern "Đánh dấu nhanh" như KanjiStats + toast undo.
-  `VocabStudy.tsx:366-417`
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 

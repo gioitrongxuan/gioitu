@@ -432,10 +432,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onPairChange={choosePair}
                 onSelect={(w) => openWord(w)}
                 onToggle={(w, entry) => {
-                  // Click đúp: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược lại
-                  // → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
-                  if (entry?.status === "LEARNED") store.markForgottenEntry(entry);
-                  else store.markKnownByTerm(w.term, w.term_lang, w.native_lang);
+                  // Đánh dấu nhanh: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược
+                  // lại → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
+                  // Bật undo để lỡ tay bấm còn hoàn tác được (toast "Hoàn tác").
+                  if (entry?.status === "LEARNED") store.markForgottenEntry(entry, true);
+                  else store.markKnownByTerm(w.term, w.term_lang, w.native_lang, true);
                 }}
                 onRequestLogin={onRequestLogin}
               />
