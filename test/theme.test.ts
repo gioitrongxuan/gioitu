@@ -262,11 +262,18 @@ describe("decorated presets (background + icons)", () => {
     }
   });
 
-  it("every decorated preset also names its icon set", () => {
+  it("every decorated preset names an emblem (decorative chip only)", () => {
     for (const preset of decorated) {
       expect(preset.icons, preset.id).toBeDefined();
       expect(preset.icons!.emblem.length, preset.id).toBeGreaterThan(0);
-      expect(preset.icons!.relapse.length, preset.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("no skin themes the relapse badge — it stays a warning signal (DESIGN §1)", () => {
+    for (const preset of decorated) {
+      // Skin trang trí không được thay glyph cảnh báo tái quên bằng emoji dễ
+      // thương: badge luôn là "!" trắng trên nền --warn ở WordCloud.
+      expect(Object.keys(preset.icons!), preset.id).toEqual(["emblem"]);
     }
   });
 
