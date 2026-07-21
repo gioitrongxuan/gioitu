@@ -274,25 +274,240 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
 
-## 9. Các tính năng bổ sung (2026) — kiểm kê
+## 9. Các tính năng bổ sung (2026)
 
-> Các màn/tính năng mọc sau bản SPEC gốc. Mỗi dòng: lối vào · mục đích · nơi
-> cài đặt. Chi tiết UX chưa được viết đầy đủ (nợ tài liệu — xem BACKLOG).
+> Các màn/tính năng mọc sau bản SPEC gốc. Bảng dưới là mục lục nhanh (lối vào ·
+> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.11 kế tiếp. Khi thêm
+> tính năng mới, cập nhật cả bảng lẫn một mục chi tiết ở đây (cổng review mỗi PR
+> tính năng — xem CLAUDE.md).
 
-| Tính năng | Lối vào | Mô tả ngắn | Nơi cài đặt |
+| Tính năng | Lối vào | Mô tả ngắn | Chi tiết |
 |---|---|---|---|
-| Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian (hiện theo `last_lookup_at`) | `review/ui/LearnedCloud.tsx` |
-| Thống kê kanji | ☰ | Lưới độ phủ kanji theo JLPT/cấp lớp + progress + "Đánh dấu nhanh" (tạo entry LEARNED 1 chữ) | `features/kanjistats/` |
-| Học từ vựng | ☰ | Lưới từ vựng kiểu kanji-grid; nguồn: study list hoặc từ điển cá nhân; click xem nghĩa, double-click toggle nhớ↔quên | `features/vocabstudy/` |
-| Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB: lưới nhập tay + sinh bằng AI (Deepseek); xuất zip Yomitan; sync đa thiết bị cần Premium | `dictionary/ui/CustomDictionary/`, `data/customDict.ts`, `data/customDictSync.ts` |
-| Study list | Nút "＋ Danh sách" trên kết quả tra (cần đăng nhập) | Danh sách từ lưu server; hiện chỉ tạo + thêm (chưa có UI xem/sửa/xoá — xem BACKLOG) | `features/studylist/` |
-| Chia sẻ từ điển | Nút "Chia sẻ" trong dropdown Từ điển (cần đăng nhập) | Link tải .zip sống ~5 phút để chuyển từ điển giữa hai máy | `features/share/` |
-| Premium | ☰ | Kích hoạt bằng mã (admin sinh); mở khoá sync từ điển cá nhân; SRS sync vẫn miễn phí | `features/premium/` |
-| Đóng góp & duyệt | Nút "Đề xuất" trên kết quả (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | `features/contribute/` |
-| Bình luận / góp ý | Khu cuối panel chi tiết một từ | Bình luận công khai theo từ; guest đọc, đăng nhập mới viết; tác giả/admin xoá | `features/wordcomments/`, server `features/comments/` |
-| Kết nối Yomitan | ☰ (cần đăng nhập) | Xuất cấu hình để trình duyệt dùng server này làm nguồn Yomitan | `auth/ui/YomitanSync.tsx`, `yomitan-api/` |
-| Viết tay & bộ thủ | Nút ✏️ cạnh ô tra | Vẽ kanji (nhận dạng qua server/Google — cần mạng; mất mạng thì báo "Không nhận dạng được — kiểm tra kết nối mạng" thay vì trống trơn) + lọc theo bộ thủ (client, offline) + panel gợi ý khớp | `dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx` |
-| Skin nền anime | Giao diện → preset | 4 backdrop trang trí lazy-load (panda/buu/cell/akatsuki), tôn trọng reduced-motion | `theme/presets/` |
+| Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian | [§9.1](#91-đã-thuộc-learnedcloud) |
+| Thống kê kanji | ☰ | Lưới độ phủ kanji theo nhóm + "Đánh dấu nhanh" | [§9.2](#92-thống-kê-kanji) |
+| Học từ vựng | ☰ | Lưới ô từ (3 nguồn) để đánh dấu biết/không biết | [§9.3](#93-học-từ-vựng) |
+| Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB (nhập tay + AI) | [§9.4](#94-từ-điển-cá-nhân) |
+| Study list | (chưa nối vào UI) | Bộ từ lưu server; client mới chỉ đọc qua Học từ vựng | [§9.5](#95-study-list) |
+| Chia sẻ từ điển | Nút "Chia sẻ" ở mỗi từ điển trên máy | Link tải .zip sống ~5 phút để chuyển máy | [§9.6](#96-chia-sẻ-từ-điển) |
+| Premium | ☰ | Kích hoạt bằng mã; mở khoá sync từ điển cá nhân | [§9.7](#97-premium) |
+| Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
+| Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
+| Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
+| Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
+| Skin nền anime | Giao diện | 4 backdrop trang trí lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+
+### 9.1 Đã thuộc (LearnedCloud)
+
+Trang trưng "tài sản" đã học. Mục menu **Đã thuộc (N)** chỉ hiện khi `N > 0`
+(`store.learnedEntries.length`) — đây là điểm BACKLOG muốn đổi thành thường trực.
+(`App.tsx:290-292 · review/ui/LearnedCloud.tsx`)
+
+- **Nội dung**: các entry `status === "LEARNED"`, cùng kiểu heatmap như Word Cloud
+  chính (sắc độ log-normalized theo `lookup_count`, `computeShade`); tooltip
+  "Tra N lần", bấm mở Detail Panel ở chế độ xem lại (**không** tính lượt tra).
+- **Sắp xếp**: `store.learnedEntries` sắp theo `updated_at` giảm dần (mới thuộc
+  lên trước); `LearnedCloud` không sắp lại.
+- **Nhóm theo thời gian**: dùng `CloudViewControls` chung với cloud chính (ngày /
+  tháng / năm / không nhóm). Khi có nhóm, `groupByPeriod` gom theo
+  **`last_lookup_at`** — *không* phải thời điểm thuộc; đây là điểm "kể sai câu
+  chuyện" mà BACKLOG (trường `learned_at`) muốn sửa.
+- **Lọc ngôn ngữ** theo cặp đang xem (`filterByLang`).
+- **Rỗng**: "Chưa có từ nào đã thuộc. Hãy ôn tập để chinh phục!" (thực tế menu đã
+  ẩn khi N=0 nên chủ yếu để phòng render trực tiếp).
+
+### 9.2 Thống kê kanji
+
+Lưới độ phủ kanji kiểu add-on "Kanji Grid" của Anki. Mục menu **Thống kê kanji**
+luôn hiện. (`features/kanjistats/`, `App.tsx:293,399-406`)
+
+- **Nguồn từ** (dropdown): *Đã thuộc* (entry `LEARNED`, mặc định) hoặc *Tất cả từ
+  đang học* (entry có `card_state`). Đây là tập từ dùng để bóc kanji.
+- **Nhóm theo**: JLPT (mặc định), cấp lớp (grade), RTK, WaniKani, hoặc *Không
+  nhóm*. Bộ nhóm là JSON port nguyên từ add-on Kuuuube. (`data/groupings.ts`)
+- **Tính điểm mỗi kanji** (`domain/kanjigrid.ts`): gom `srs_interval` (phút) của
+  mọi từ chứa kanji đó thành trung bình, rồi `score = 1 - 1/(ratio+1)²` với
+  `ratio = avgInterval / (matureThreshold ngày)`. Từ chưa có chu kỳ vẫn tính là
+  đã gặp nhưng kéo điểm xuống. Ô tô bằng `heatBackground`/`heatTextColor` (theo
+  bảng màu người dùng); legend Yếu→Mạnh.
+- **Chế độ xem**: *Không nhóm* liệt kê kanji đã biết mạnh-trước; *có nhóm* hiện
+  tổng "Đã biết X/Y kanji trong nhóm (P%)" + mỗi nhóm có thanh tiến độ và, tuỳ
+  chọn "Hiện kanji chưa biết", các ô `missing` viền đứt ở sắc độ 0.
+- **Đánh dấu nhanh** (checkbox): bật thì bấm một ô = ghi nhận kanji đó **đã biết**
+  (`markKnownByTerm(kanji, "ja", "vi")` → tạo/tốt-nghiệp một entry `LEARNED` cho
+  đúng một ký tự kanji), thay vì mở tra cứu; ô có affordance `.quick`.
+
+### 9.3 Học từ vựng
+
+Lưới ô từ (kiểu kanji-grid) để duyệt nhanh và tự đánh dấu biết/không biết. Mục
+menu **Học từ vựng** luôn hiện. (`features/vocabstudy/`, `App.tsx:294,407-421`)
+
+- **Ba nguồn** (dropdown "Nguồn danh sách"):
+  - *Lịch sử* (mặc định): chính `store.entries`, lọc theo cặp ngôn ngữ đang chọn.
+  - *Từ điển cá nhân*: nạp toàn bộ một từ điển tự soạn từ IndexedDB (không phân
+    trang — từ điển cá nhân thường nhỏ).
+  - *Study list*: bộ từ trên server, **cần đăng nhập** (chưa đăng nhập thì hiện
+    lời mời).
+- **Phủ tiến độ** (`domain/vocablist.ts`): `applyProgress` chồng entry SRS lên
+  danh sách nguồn theo khoá `(term, term_lang)`, phân loại 4 trạng thái —
+  `learned` / `due` (đến hạn) / `learning` / `missing` — và tô sắc độ tương ứng
+  (learned đậm nhất, missing viền đứt). Ô đã thuộc có dấu ✓.
+- **Tóm tắt + lọc**: dòng "Đã thuộc N/T (P%) · đang học · cần ôn · chưa học" và
+  thanh tiến độ; dropdown "Lọc theo" (tất cả / chưa học / đang học / đến hạn / đã
+  thuộc).
+- **Tương tác (mã hiện tại)**: *click đơn* (trễ 250ms) xem nghĩa; *click đúp*
+  toggle nhớ↔quên (`markForgottenEntry` nếu đang LEARNED, ngược lại
+  `markKnownByTerm`). Đây là hành vi BACKLOG muốn thay bằng "Đánh dấu nhanh" như
+  Thống kê kanji (double-click kém ổn định trên cảm ứng).
+- **Rỗng**: thông điệp khác nhau theo nguồn / khi bộ lọc không khớp.
+
+### 9.4 Từ điển cá nhân
+
+Soạn từ điển riêng, lưu **cục bộ trong IndexedDB** nên guest dùng được, offline
+được (chỉ *đồng bộ* mới cần Premium). Mục menu **Từ điển cá nhân** mở một modal.
+(`dictionary/ui/CustomDictionary/`, `data/customDict.ts`, `App.tsx:295,469-485`)
+
+- **Bản chất lưu trữ**: một từ điển cá nhân là một bản ghi registry
+  `LocalDictionary` (`custom: true`) cộng các `DictEntry` gắn `dictId`, nên nó
+  xuất hiện luôn dưới nguồn tra *Trên máy* mà không đổi schema.
+- **Cấu hình (DictConfig)**: chọn cặp ngôn ngữ + tạo từ điển mới (tên bắt buộc,
+  mô tả/chủ đề tuỳ chọn) **hoặc** chọn một từ điển sẵn có để nối thêm. Chọn từ
+  điển sẵn có sẽ khoá cặp ngôn ngữ; chọn một từ điển *custom* thì nạp toàn bộ từ
+  vào lưới để sửa tại chỗ ("edit mode").
+- **Nhập tay (ManualGrid)**: lưới kiểu bảng tính, cột từ · cách đọc · từ loại ·
+  nghĩa · ví dụ · giải thích · từ liên quan. Enter chèn hàng mới; nhiều nghĩa
+  ngăn bằng `;`, ví dụ dạng `câu :: bản dịch`. Ô ngôn ngữ nguồn có `lang="ja"`
+  khi cặp là Nhật.
+- **Tạo bằng AI (AiPanel)** — hai đường:
+  - **"Lấy Prompt"**: dựng prompt và chép vào clipboard để tự chạy ChatGPT/Gemini
+    rồi dán JSON trả về vào ô "Phân tích & thêm vào lưới" — không cần server.
+  - **"Generate"**: gửi prompt tới server (proxy Deepseek, `POST
+    /api/ai/generate-vocab`), **cần đăng nhập** (nút bị vô hiệu khi chưa đăng
+    nhập). Kết quả parse xong được thêm lên đầu lưới để soát.
+- **Lưu**: chế độ *add* có dedupe theo `(term, reading)` và `ConflictDialog` (ghi
+  đè tất cả / bỏ qua từ trùng); chế độ *edit* ghi cho khớp lưới (xoá từ đã gỡ,
+  cập nhật phần còn lại).
+- **Xuất `.zip` Yomitan**: **không** nằm ở đây mà ở nút **Tải ZIP** của mỗi từ
+  điển trong panel "Từ điển" trên header (`DictionaryImport.tsx`, `exportDictAsZip`).
+- **Đồng bộ (Premium)**: hai chiều nguyên từ điển, LWW theo `updatedAt`, chạy
+  ngầm — nhưng chỉ khi `email && isPremium`. Từ điển *custom* luôn được đồng bộ;
+  từ điển *đã nhập* chỉ đồng bộ khi ≤ `SYNCABLE_MAX_TERMS` (2000). Người đăng
+  nhập chưa Premium bấm "Đồng bộ" sẽ thấy "Cần Premium để đồng bộ từ điển".
+  (`data/customDictSync.ts`, `App.tsx:146-182`)
+
+### 9.5 Study list
+
+Khái niệm "bộ từ tự gom" lưu **trên server** (song song với Từ điển cá nhân
+IndexedDB — xem quyết định mở #3 trong BACKLOG). (`features/studylist/`)
+
+- **Trạng thái hiện tại — nửa vời**: `AddToListButton` (nút "＋ Danh sách" trên
+  kết quả tra, `return null` cho khách) **chưa được nối vào UI nào** — không
+  component nào render nó. Vì vậy client hiện **không có** lối tạo / thêm / đổi
+  tên / xoá study list sống.
+- **Cái đang chạy**: chỉ đường **đọc** — `listMine` + `getList` được
+  `vocabstudy` tái dùng để hiện study list dưới dạng lưới học có phủ SRS (§9.3).
+- **API client** (`data/studyListApi.ts`) vẫn có đủ `createList` / `addWord` /
+  `renameList` / `deleteList` / `removeWord` / `markedFor`, tất cả **cần đăng
+  nhập** (`authHeaders` ném lỗi khi thiếu token); server cài đặt đủ ở
+  `server/src/features/studylist/`. Khi nối lại UI thì bám mẫu tường đăng nhập
+  (nhãn 🔒 ở menu — BACKLOG).
+
+### 9.6 Chia sẻ từ điển
+
+Chuyển một từ điển sang máy khác qua link tải `.zip` ngắn hạn. Lối vào: nút
+**Chia sẻ** ("Tạo link chia sẻ tạm (5 phút)") ở mỗi từ điển trên máy trong panel
+"Từ điển" của header. (`features/share/`, `DictionaryImport.tsx:195,205-215`)
+
+- **Cần đăng nhập**: chưa đăng nhập thì `ShareDialog` chỉ hiện "Cần đăng nhập để
+  tạo link chia sẻ tạm" + nút Đăng nhập, không đóng gói gì.
+- **Luồng**: đóng gói từ điển thành `.zip` Yomitan (`exportDictAsZip`) → upload
+  (`createShareLink` → `POST /api/share`, base64 theo khối 0x8000 byte cho an
+  toàn stack) → trả URL `…/api/dl/:id`.
+- **Hết hạn**: đồng hồ đếm ngược MM:SS tới `expiresAt` (server trả), UI nêu "tự
+  hết hạn sau 5 phút"; hết giờ thì hiện "Link đã hết hạn." và khoá nút chép.
+
+### 9.7 Premium
+
+Gói trả phí mở khoá **đồng bộ từ điển cá nhân đa thiết bị**; đồng bộ tiến trình
+học (SRS) vẫn **miễn phí**. Mục menu **Premium** (hiện "Premium ✓" khi đã kích
+hoạt). (`features/premium/`, `App.tsx:298,508`)
+
+- **Kích hoạt (user)**: cần đăng nhập (Premium gắn theo tài khoản). Nhập mã dạng
+  `ABCD-EFGH-JKMN` → `redeemPremiumCode` (`POST /api/premium/redeem`); thành công
+  thì cập nhật cache phiên (`markSessionPremium`) để UI/cổng đồng bộ phản ánh
+  ngay, hiện "✓ Tài khoản đã kích hoạt Premium." Lỗi server hiện inline. Chưa
+  đăng nhập thì thay ô nhập mã bằng lời mời đăng nhập.
+- **Admin sinh mã**: chỉ hiện khi `isAdmin`. Liệt kê mã (mới nhất trước,
+  `GET /api/premium/codes`); nút "Tạo 5 mã mới" (`POST …`, `count: 5`). Mỗi mã
+  hiện trạng thái đã dùng / chưa dùng theo `redeemed_by`.
+
+### 9.8 Đóng góp & duyệt
+
+Cộng đồng đề xuất sửa nghĩa cho **từ điển server dùng chung**, admin duyệt.
+(`features/contribute/`)
+
+- **Đề xuất (user)**: từ panel chi tiết một từ (`onPropose`). `proposeResult` dựng
+  `gloss` (từ `senses`, hoặc `definitions`) + `pos` (tag từ loại đã dedupe) rồi
+  `proposeWord` (`POST /api/contribute`). Toast "Đã gửi đề xuất, chờ admin duyệt".
+  (`App.tsx:229-238,275`)
+- **Duyệt (admin)**: mục menu **Duyệt đề xuất** (chỉ admin) mở `ContributionReview`
+  — liệt kê đề xuất đang chờ (`GET /api/contribute/pending`), mỗi mục hiện
+  từ + cách đọc, cặp ngôn ngữ, từ loại và các nghĩa. Hai nút **Duyệt**
+  (`…/approve`) / **Từ chối** (`…/reject`); duyệt xong gỡ khỏi danh sách, nút khoá
+  trong lúc gọi, lỗi hiện inline. Rỗng: "Không có đề xuất nào đang chờ."
+
+### 9.9 Kết nối Yomitan
+
+Cấu hình để tiện ích Yomitan trên trình duyệt **đẩy từ đã lưu về server này** (qua
+kênh tích hợp Anki), chứ không xuất file. Mục menu **Kết nối Yomitan**.
+(`auth/ui/YomitanSync.tsx`, `App.tsx:297,495`)
+
+- **Cần đăng nhập**: từ lưu phải gắn với một tài khoản; guest thấy lời mời đăng
+  nhập thay vì phần cài đặt.
+- **Hai giá trị chép được**: *Server endpoint* `${origin}/api/yomitan-sync` (dựng
+  theo origin hiện tại nên đúng cả localhost lẫn khi deploy) và *API key* ổn định
+  theo user (`getYomitanKey`); "Tạo khóa mới" (`regenerateYomitanKey`) có xác
+  nhận vì khoá cũ sẽ ngừng hoạt động.
+- **Hướng dẫn**: bật tích hợp Anki trong Yomitan, dán Server + API key, chọn Deck
+  và Type/Model = "Website Database", map trường Word/Reading/Glossary/Sentence.
+  Bấm "+" trong Yomitan là từ được lưu vào gioitu.
+
+### 9.10 Viết tay & bộ thủ
+
+Hai công cụ nhập kanji kiểu jisho, bật bằng nút ✏️ (Viết tay) và 部 (Bộ thủ) ở đầu
+ô tìm — **chỉ hiện khi đang tra tiếng Nhật** (`pair.source === "ja"`). Khi một
+công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel công cụ.
+(`dictionary/ui/HandwritingPad.tsx`, `RadicalPicker.tsx`, `InstantActions.tsx`,
+`SearchBar.tsx:164-186`)
+
+- **Viết tay — cần mạng (server)**: canvas Pointer Events (chuột + cảm ứng), nét
+  chuẩn hoá về [0,1]. Nhấc bút → debounce 500ms → `recognizeHandwriting`
+  (`POST /api/handwriting`) trả tối đa 5 ứng viên; bấm ứng viên chèn ký tự vào ô
+  tìm. Mất mạng / server lỗi thì báo **"Không nhận dạng được — kiểm tra kết nối
+  mạng."** thay vì trống trơn (epoch guard bỏ phản hồi cũ).
+- **Bộ thủ — client, offline**: nạp dữ liệu radkfile lazy (`loadRadicalData`),
+  lọc hoàn toàn phía client nên tức thì và offline được. Chọn nhiều bộ → hiện
+  kanji chứa **đủ** các bộ đã chọn và làm mờ bộ không còn ghép được; nút reset
+  xoá lựa chọn; bấm kanji chèn vào ô tìm.
+- **InstantActions**: panel bên phải panel công cụ (chỉ desktop) chạy
+  `searchSuggest` liên tục trên chuỗi hiện tại (kể cả ký tự vừa chèn), tối đa 8
+  mục; bấm một mục là tra ngay. Giữ panel mounted để không giật layout ("Đang
+  tìm…" / "Chưa có gợi ý").
+
+### 9.11 Skin nền anime
+
+Bộ backdrop trang trí lazy-load, chỉ đổi hoạ tiết nền (không đụng token chữ/nền).
+Lối vào: **Giao diện** → mục "Mẫu có sẵn" + công tắc "Hiện hoạ tiết nền của
+theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
+
+- **Bốn skin** (`presets/registry.ts`, khoá `BackgroundEffect`): `buu` (Majin
+  Buu), `cell`, `bamboo` (Rừng trúc — thư mục `panda/`), `akatsuki`.
+- **Lazy-load**: mỗi hiệu ứng là một `lazy(() => import(...))` riêng, render trong
+  `<Suspense fallback={null}>` ở lớp `.theme-backdrop` (fixed, `z-index: -1`,
+  `pointer-events: none`) — skin không chọn thì không tải component/CSS/ảnh. Không
+  render khi tắt hiệu ứng (`effectsEnabled`).
+- **Reduced-motion**: mỗi background đặt `data-speed` + biến `--fx-drift`; CSS
+  đóng băng animation khi OS bật "giảm chuyển động" hoặc khi `data-speed="none"`
+  (`styles.css:483-486`) — hoạ tiết vẫn hiện nhưng đứng yên.
 
 ## 10. Bản đồ chức năng → tài liệu
 
