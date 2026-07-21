@@ -65,7 +65,7 @@ function createEntry(input: LookupInput, now: number, cfg: SrsConfig): VocabEntr
  * 0 to stay honest: no lookup — the signal of forgetting — actually happened.
  */
 export function newKnownEntry(input: LookupInput, now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): VocabEntry {
-  return { ...createEntry(input, now, cfg), lookup_count: 0, ...markKnown(now, cfg), updated_at: now };
+  return { ...createEntry(input, now, cfg), lookup_count: 0, ...markKnown(now, cfg), learned_at: now, updated_at: now };
 }
 
 /**

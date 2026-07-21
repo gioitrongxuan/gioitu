@@ -13,7 +13,7 @@ interface Props {
   entries: VocabEntry[];
   /** Restrict the cloud to one language ("all" = mixed). */
   lang: CloudLang;
-  /** Split the cloud into time buckets by last lookup ("none" = flat). */
+  /** Split the cloud into time buckets by time learned ("none" = flat). */
   grouping: TimeGrouping;
   /** Open a word's detail (read-only — does not count as a lookup). */
   onSelect: (entry: VocabEntry) => void;
@@ -63,7 +63,7 @@ export function LearnedCloud({ entries, lang, grouping, onSelect }: Props) {
 
   return (
     <div className="cloud-groups">
-      {groupByPeriod(tags, grouping, Date.now()).map((group) => (
+      {groupByPeriod(tags, grouping, Date.now(), (e) => e.learned_at ?? e.last_lookup_at).map((group) => (
         <section className="cloud-group" key={group.key}>
           <h3 className="cloud-group-head">{group.label}</h3>
           <div className="word-cloud" role="list">

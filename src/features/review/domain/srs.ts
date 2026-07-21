@@ -282,6 +282,23 @@ export function relapse(
  * resurface for a long time. Looking it up again later relapses it like any
  * other mature word (SPEC 4.2).
  */
+/**
+ * Mốc `learned_at` sau một lần cập nhật trạng thái. Đóng dấu `now` KHI VÀ CHỈ KHI
+ * từ vừa chuyển sang LEARNED từ một trạng thái khác (kể cả entry mới, `prevStatus`
+ * undefined); nếu vốn đã LEARNED (đánh dấu lại) hoặc rời khỏi LEARNED thì giữ
+ * nguyên mốc cũ (có thể undefined với entry cũ chưa từng đóng dấu). Thuần để test
+ * độc lập; tầng state gọi khi ghi entry.
+ */
+export function learnedAtAfter(
+  prevStatus: WordStatus | undefined,
+  nextStatus: WordStatus,
+  now: number,
+  prevLearnedAt?: number,
+): number | undefined {
+  if (nextStatus === "LEARNED" && prevStatus !== "LEARNED") return now;
+  return prevLearnedAt;
+}
+
 export function markKnown(now: number, cfg: SrsConfig = DEFAULT_SRS_CONFIG): SrsState {
   return {
     status: "LEARNED",

@@ -64,10 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Due badge: `document.title` + `navigator.setAppBadge` (PWA sẵn).
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
-- [ ] Đếm "Đã thuộc (N)" thường trực (menu hiện chỉ xuất hiện khi N>0);
-  trường `learned_at` để trang Đã thuộc nhóm đúng theo thời điểm thuộc (hiện
-  nhóm theo last_lookup_at — kể sai câu chuyện). `App.tsx:238-240 ·
-  LearnedCloud.tsx:66`
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).

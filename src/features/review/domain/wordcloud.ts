@@ -189,18 +189,21 @@ export function periodOf(
 }
 
 /**
- * Partition tags into time buckets by their entry's `last_lookup_at`, newest
- * bucket first. Tags keep their incoming order within a bucket, so the caller's
- * sort (recent/frequency) is preserved inside each group.
+ * Partition tags into time buckets by a per-entry timestamp, newest bucket
+ * first. Mặc định gom theo `last_lookup_at` (Word Cloud chính); truyền `tsOf`
+ * để gom theo mốc khác — vd trang Đã thuộc gom theo `learned_at`. Tags keep
+ * their incoming order within a bucket, so the caller's sort (recent/frequency)
+ * is preserved inside each group.
  */
-export function groupByPeriod<T extends { entry: Pick<VocabEntry, "last_lookup_at"> }>(
+export function groupByPeriod<T extends { entry: Pick<VocabEntry, "last_lookup_at" | "learned_at"> }>(
   items: T[],
   grouping: Exclude<TimeGrouping, "none">,
   now: number,
+  tsOf: (entry: Pick<VocabEntry, "last_lookup_at" | "learned_at">) => number = (e) => e.last_lookup_at,
 ): CloudGroup<T>[] {
   const groups = new Map<string, CloudGroup<T>>();
   for (const item of items) {
-    const { key, label } = periodOf(item.entry.last_lookup_at, grouping, now);
+    const { key, label } = periodOf(tsOf(item.entry), grouping, now);
     const group = groups.get(key);
     if (group) group.items.push(item);
     else groups.set(key, { key, label, items: [item] });

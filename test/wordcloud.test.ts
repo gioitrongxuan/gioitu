@@ -144,6 +144,23 @@ describe("groupByPeriod", () => {
     expect(groupByPeriod(tags, "month", now).map((g) => g.label)).toEqual(["Tháng 6 2026", "Tháng 5 2026"]);
     expect(groupByPeriod(tags, "year", now).map((g) => g.key)).toEqual(["2026"]);
   });
+
+  it("buckets by a custom timestamp (learned_at) when tsOf is given", () => {
+    // Trang Đã thuộc gom theo learned_at, không phải last_lookup_at: cùng ngày
+    // tra nhưng khác ngày thuộc phải rơi vào hai nhóm khác nhau.
+    const learned = [
+      { entry: { last_lookup_at: now, learned_at: new Date(2026, 5, 23, 9).getTime() } },
+      { entry: { last_lookup_at: now, learned_at: new Date(2026, 5, 22, 9).getTime() } },
+    ];
+    const groups = groupByPeriod(learned, "day", now, (e) => e.learned_at ?? e.last_lookup_at);
+    expect(groups.map((g) => g.label)).toEqual(["Hôm nay", "Hôm qua"]);
+  });
+
+  it("falls back to last_lookup_at when learned_at is absent", () => {
+    const legacy = [{ entry: { last_lookup_at: new Date(2026, 5, 22, 9).getTime() } }];
+    const groups = groupByPeriod(legacy, "day", now, (e) => e.learned_at ?? e.last_lookup_at);
+    expect(groups.map((g) => g.label)).toEqual(["Hôm qua"]);
+  });
 });
 
 describe("tagTooltip", () => {
