@@ -5,10 +5,13 @@ import {
   effectiveCount,
   filterByLang,
   groupByPeriod,
+  groupBySrsTier,
   isVisibleOnCloud,
   periodOf,
+  srsTier,
   tagTooltip,
 } from "@/features/review/domain/wordcloud";
+import { DAY, DEFAULT_SRS_CONFIG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 describe("visibility depends on SRS status (constraint 4)", () => {
@@ -160,6 +163,56 @@ describe("groupByPeriod", () => {
     const legacy = [{ entry: { last_lookup_at: new Date(2026, 5, 22, 9).getTime() } }];
     const groups = groupByPeriod(legacy, "day", now, (e) => e.learned_at ?? e.last_lookup_at);
     expect(groups.map((g) => g.label)).toEqual(["Hôm qua"]);
+  });
+});
+
+describe("srsTier — 3 tầng Khu vườn ký ức", () => {
+  it("RELAPSED luôn là 'forgetting', kể cả interval lớn", () => {
+    // Tái quên là tín hiệu mong manh nhất, thắng cả interval × ease cao.
+    expect(srsTier(makeEntry({ status: "RELAPSED", card_state: "REVIEW", srs_interval: 100 * DAY, ease_factor: 2.5 }))).toBe("forgetting");
+  });
+
+  it("chưa vào REVIEW (learning/relearning/chưa có thẻ) là 'forgetting'", () => {
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "LEARNING", srs_interval: 10 }))).toBe("forgetting");
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "NEW", srs_interval: 0 }))).toBe("forgetting");
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: null }))).toBe("forgetting");
+  });
+
+  it("thẻ REVIEW còn xa ngưỡng trưởng thành là 'rooting'", () => {
+    // 3 ngày × 2.5 = 7.5 ngày < matureThreshold (21 ngày).
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5 }))).toBe("rooting");
+  });
+
+  it("thẻ REVIEW cách một lần 'Nhớ' là chạm ngưỡng → 'maturing'", () => {
+    // 20 ngày × 2.5 = 50 ngày ≥ matureThreshold (21 ngày) nhưng interval hiện tại
+    // (20 ngày) vẫn dưới ngưỡng nên chưa LEARNED → còn hiện trên cloud.
+    expect(20 * DAY).toBeLessThan(DEFAULT_SRS_CONFIG.matureThreshold);
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "REVIEW", srs_interval: 20 * DAY, ease_factor: 2.5 }))).toBe("maturing");
+  });
+});
+
+describe("groupBySrsTier", () => {
+  const item = (over: Parameters<typeof makeEntry>[0]) => ({ entry: makeEntry(over) });
+
+  it("trả về các tầng có thẻ, theo thứ tự mong manh → trưởng thành", () => {
+    const items = [
+      item({ term: "mature", status: "LEARNING", card_state: "REVIEW", srs_interval: 20 * DAY, ease_factor: 2.5 }),
+      item({ term: "fresh", status: "LEARNING", card_state: "LEARNING", srs_interval: 10 }),
+      item({ term: "growing", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5 }),
+    ];
+    const groups = groupBySrsTier(items);
+    expect(groups.map((g) => g.label)).toEqual(["Sắp quên", "Đang bén rễ", "Sắp trưởng thành"]);
+    expect(groups.map((g) => g.key)).toEqual(["forgetting", "rooting", "maturing"]);
+  });
+
+  it("bỏ tầng rỗng và giữ nguyên thứ tự đến của thẻ trong một tầng", () => {
+    const items = [
+      item({ term: "a", status: "RELAPSED", card_state: "REVIEW", srs_interval: 10 }),
+      item({ term: "b", status: "LEARNING", card_state: "NEW", srs_interval: 0 }),
+    ];
+    const groups = groupBySrsTier(items);
+    expect(groups.map((g) => g.label)).toEqual(["Sắp quên"]); // chỉ một tầng có thẻ
+    expect(groups[0].items.map((i) => i.entry.term)).toEqual(["a", "b"]);
   });
 });
 

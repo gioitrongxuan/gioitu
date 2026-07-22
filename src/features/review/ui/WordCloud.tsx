@@ -3,7 +3,7 @@
 // Can be split by language and grouped into time buckets (ngày/tháng/năm).
 
 import { memo, useMemo } from "react";
-import { buildCloud, groupByPeriod, tagTooltip, CloudSort, CloudLang, TimeGrouping, CloudTag } from "../domain/wordcloud";
+import { buildCloud, groupByPeriod, groupBySrsTier, tagTooltip, CloudSort, CloudLang, CloudGrouping, CloudTag } from "../domain/wordcloud";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
@@ -18,8 +18,11 @@ interface Props {
   sort: CloudSort;
   /** Restrict the cloud to one language ("all" = mixed). */
   lang: CloudLang;
-  /** Split the cloud into time buckets by last lookup ("none" = flat). */
-  grouping: TimeGrouping;
+  /**
+   * Nhóm cloud: theo thời gian (day/month/year), theo tầng trí nhớ ("srs" —
+   * Khu vườn ký ức) hoặc "none" = phẳng.
+   */
+  grouping: CloudGrouping;
   /** When true, each tag shows an × that deletes it on click — no confirm. */
   deleteMode: boolean;
   onSelect: (entry: VocabEntry) => void;
@@ -104,9 +107,12 @@ export const WordCloud = memo(function WordCloud({
     );
   }
 
+  // "srs" gom theo tầng trí nhớ (Khu vườn ký ức); còn lại gom theo thời gian.
+  const groups = grouping === "srs" ? groupBySrsTier(tags) : groupByPeriod(tags, grouping, now);
+
   return (
     <div className="cloud-groups">
-      {groupByPeriod(tags, grouping, now).map((group) => (
+      {groups.map((group) => (
         <section className="cloud-group" key={group.key}>
           <h3 className="cloud-group-head">{group.label}</h3>
           <div className="word-cloud" role="list">
