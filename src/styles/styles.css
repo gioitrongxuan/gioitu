@@ -1299,7 +1299,7 @@ summary:focus-visible,
 
 /* Màn cảm ứng: nới vùng chạm (không đụng layout chuột/bàn phím). */
 @media (pointer: coarse) {
-  .pair-toggle button, .source-toggle button { padding: 9px 15px; }
+  .pair-toggle button { padding: 9px 15px; }
   .suggestions li button { padding: 12px 10px; }
   .kanji-toggles .link { padding: 6px 0; }
   .srs-act { padding: 8px 10px; }
