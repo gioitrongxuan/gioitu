@@ -4,7 +4,7 @@
 // nút "Bộ lọc" (CSS quyết định — cùng một markup) để chỉ còn [Bộ lọc][Ôn tập].
 
 import { useState } from "react";
-import { CloudSort, CloudLang, TimeGrouping } from "../domain/wordcloud";
+import { CloudSort, CloudLang, CloudGrouping } from "../domain/wordcloud";
 import { CloudViewControls } from "./CloudViewControls";
 import { ChevronDownIcon } from "@/shared/ui/icons";
 
@@ -15,13 +15,13 @@ interface Props {
   deleteMode: boolean;
   sort: CloudSort;
   lang: CloudLang;
-  grouping: TimeGrouping;
+  grouping: CloudGrouping;
   onToggleHighlight: () => void;
   onToggleOnlyDue: () => void;
   onToggleDeleteMode: () => void;
   onSortChange: (sort: CloudSort) => void;
   onLangChange: (lang: CloudLang) => void;
-  onGroupingChange: (grouping: TimeGrouping) => void;
+  onGroupingChange: (grouping: CloudGrouping) => void;
   onStartReview: () => void;
 }
 
@@ -60,6 +60,7 @@ export function FilterBar({
           grouping={grouping}
           onLangChange={onLangChange}
           onGroupingChange={onGroupingChange}
+          enableSrsTier
         />
         <label className="sort-select">
           Sắp xếp

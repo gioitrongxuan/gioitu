@@ -12,7 +12,7 @@ import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
-import { CloudSort, CloudLang, TimeGrouping } from "@/features/review/domain/wordcloud";
+import { CloudSort, CloudLang, CloudGrouping } from "@/features/review/domain/wordcloud";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -223,7 +223,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [sort, setSort] = useState<CloudSort>("recent");
   // Shared by both maps (home + "Đã thuộc") so the view reads the same way.
   const [cloudLang, setCloudLang] = useState<CloudLang>("all");
-  const [grouping, setGrouping] = useState<TimeGrouping>("none");
+  const [grouping, setGrouping] = useState<CloudGrouping>("none");
   const [reviewing, setReviewing] = useState(false);
   const [managing, setManaging] = useState(false);
   // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
@@ -390,7 +390,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
           <CloudViewControls
             lang={cloudLang}
-            grouping={grouping}
+            grouping={grouping === "srs" ? "none" : grouping}
             onLangChange={setCloudLang}
             onGroupingChange={setGrouping}
           />
@@ -442,7 +442,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             <LearnedCloud
               entries={store.learnedEntries}
               lang={cloudLang}
-              grouping={grouping}
+              grouping={grouping === "srs" ? "none" : grouping}
               onSelect={onSelectTag}
             />
           ) : page === "kanji" ? (

@@ -4,6 +4,7 @@
 
 import { isDue } from "./srs";
 import { isDeleted } from "./lifecycle";
+import { DEFAULT_SRS_CONFIG, SrsConfig } from "./constants";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
 import { meaningToLines } from "@/shared/meaning";
@@ -57,6 +58,12 @@ export type CloudLang = "all" | LangCode;
 
 /** Granularity of the "hiển thị theo ngày/tháng/năm" display mode. */
 export type TimeGrouping = "none" | "day" | "month" | "year";
+
+/**
+ * Cách nhóm Word Cloud mà người dùng chọn: theo thời gian (day/month/year) HOẶC
+ * theo tầng trí nhớ ("srs" — "Khu vườn ký ức", DESIGN §4). "none" = phẳng.
+ */
+export type CloudGrouping = TimeGrouping | "srs";
 
 export interface BuildCloudOptions extends ShadeOptions {
   sort?: CloudSort;
@@ -210,6 +217,64 @@ export function groupByPeriod<T extends { entry: Pick<VocabEntry, "last_lookup_a
   }
   // Keys are zero-padded and year-first, so lexical-descending = newest-first.
   return [...groups.values()].sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
+}
+
+/**
+ * Ba tầng "Khu vườn ký ức" (DESIGN §4), xếp theo độ vững của trí nhớ từ mong
+ * manh đến gần trưởng thành. Chỉ áp cho từ đang hiện trên cloud (LEARNING /
+ * RELAPSED); từ đã thuộc (LEARNED) vốn đã ẩn khỏi bản đồ.
+ */
+export type SrsTier = "forgetting" | "rooting" | "maturing";
+
+/** Tiêu đề tiếng Việt cho mỗi tầng (DESIGN §4). */
+const SRS_TIER_LABEL: Record<SrsTier, string> = {
+  forgetting: "Sắp quên",
+  rooting: "Đang bén rễ",
+  maturing: "Sắp trưởng thành",
+};
+
+/** Thứ tự hiển thị: mong manh trước (cấp thiết nhất), trưởng thành sau. */
+const SRS_TIER_ORDER: SrsTier[] = ["forgetting", "rooting", "maturing"];
+
+/**
+ * Xếp một từ vào tầng trí nhớ dựa CHỈ trên trạng thái SRS sẵn có (không thêm hằng
+ * số mới):
+ *  - "forgetting" (Sắp quên): vừa tái quên (RELAPSED) hoặc chưa rời các bước
+ *    learning/relearning (`card_state ≠ REVIEW`) — trí nhớ còn mong manh, chưa
+ *    bén rễ.
+ *  - "maturing" (Sắp trưởng thành): thẻ REVIEW mà chỉ cần một lần "Nhớ" nữa là
+ *    chạm ngưỡng trưởng thành (`srs_interval × ease_factor ≥ matureThreshold`).
+ *  - "rooting" (Đang bén rễ): thẻ REVIEW còn lại — đã bén rễ và đang lớn dần.
+ */
+export function srsTier(
+  entry: Pick<VocabEntry, "status" | "card_state" | "srs_interval" | "ease_factor">,
+  cfg: SrsConfig = DEFAULT_SRS_CONFIG,
+): SrsTier {
+  if (entry.status === "RELAPSED" || entry.card_state !== "REVIEW") return "forgetting";
+  return entry.srs_interval * entry.ease_factor >= cfg.matureThreshold ? "maturing" : "rooting";
+}
+
+/**
+ * Phân các thẻ vào 3 tầng trí nhớ ("Khu vườn ký ức", DESIGN §4), giữ nguyên thứ
+ * tự đến của thẻ trong mỗi tầng (nên sắp xếp recent/frequency của caller được bảo
+ * toàn). Chỉ trả về tầng có thẻ, theo thứ tự mong manh → trưởng thành. Thuần để
+ * test độc lập, soi gương `groupByPeriod`.
+ */
+export function groupBySrsTier<
+  T extends { entry: Pick<VocabEntry, "status" | "card_state" | "srs_interval" | "ease_factor"> },
+>(items: T[], cfg: SrsConfig = DEFAULT_SRS_CONFIG): CloudGroup<T>[] {
+  const buckets = new Map<SrsTier, T[]>();
+  for (const item of items) {
+    const tier = srsTier(item.entry, cfg);
+    const bucket = buckets.get(tier);
+    if (bucket) bucket.push(item);
+    else buckets.set(tier, [item]);
+  }
+  return SRS_TIER_ORDER.filter((tier) => buckets.has(tier)).map((tier) => ({
+    key: tier,
+    label: SRS_TIER_LABEL[tier],
+    items: buckets.get(tier)!,
+  }));
 }
 
 // Shade → colour mapping lives in the theme feature (`heatBackground` /
