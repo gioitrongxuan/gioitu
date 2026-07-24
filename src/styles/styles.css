@@ -585,6 +585,17 @@ summary:focus-visible,
 .kanji-quick-hint { margin: 0; font-size: 13px; }
 .kanji-legend { display: flex; align-items: center; gap: 8px; }
 .kanji-legend-bar { flex: 1; max-width: 220px; height: 10px; border-radius: 999px; border: 1px solid var(--line); }
+.kanji-legend-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+/* Tải ảnh PNG (issue #161) — cùng hình dạng pill với .chip-toggle nhưng là một
+   hành động một lần (không có trạng thái "on"), nên icon+nhãn cần tự canh giữa. */
+.export-btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: var(--radius-full); padding: 6px var(--space-3); font-size: var(--text-sm);
+  cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out);
+}
+.export-btn:hover { border-color: var(--accent); }
+.export-btn:disabled { opacity: 0.6; cursor: default; }
 /* Dense grid of fixed-size tiles that reflows to the container width (like the
    add-on's auto-fit grid). */
 .kanji-grid { display: grid; grid-template-columns: repeat(auto-fill, 34px); gap: 4px; justify-content: start; }
@@ -1309,6 +1320,7 @@ summary:focus-visible,
   .radical-btn { min-width: 44px; height: 44px; }
   .kanji-grid { grid-template-columns: repeat(auto-fill, 44px); }
   .kanji-cell { width: 44px; height: 44px; }
+  .export-btn { min-height: 44px; }
 }
 
 /* Lời nhắc sao lưu cho khách — nhẹ, nằm trong dòng nội dung (không phải overlay).

@@ -392,16 +392,29 @@ function bestTextFor(bgLum: number): string {
  * keeps every shade ≥ 4.5:1 across the built-in presets (see theme.test.ts);
  * the previously softened #f5f5f5/#1a1a1a pair did not.
  */
-export function heatTextColor(shade: number, theme: Theme): string {
+/** Linear RGB lerp between the theme's heatmap endpoints at the given shade —
+ * the same interpolation `heatBackground`'s CSS `color-mix` does, computed in
+ * JS so callers without a cascade context (e.g. canvas) can use it too. */
+function mixHeat(shade: number, theme: Theme): [number, number, number] {
   const t = clamp01(shade);
   const a = parseHex(theme.heatFrom);
   const b = parseHex(theme.heatTo);
-  const mixed: [number, number, number] = [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t,
-  ];
-  return bestTextFor(relativeLuminance(mixed));
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+export function heatTextColor(shade: number, theme: Theme): string {
+  return bestTextFor(relativeLuminance(mixHeat(shade, theme)));
+}
+
+/**
+ * Same background `heatBackground` paints via CSS `color-mix`, but resolved to
+ * a concrete `rgb()` string in JS — for contexts with no custom-property
+ * cascade to resolve `var(--heat-to)` against, namely a canvas 2D fillStyle
+ * (PNG export, issue #161).
+ */
+export function heatBackgroundRgb(shade: number, theme: Theme): string {
+  const [r, g, b] = mixHeat(shade, theme).map(Math.round);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 /**

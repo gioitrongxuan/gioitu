@@ -340,6 +340,11 @@ luôn hiện. (`features/kanjistats/`, `App.tsx:293,399-406`)
 - **Đánh dấu nhanh** (checkbox): bật thì bấm một ô = ghi nhận kanji đó **đã biết**
   (`markKnownByTerm(kanji, "ja", "vi")` → tạo/tốt-nghiệp một entry `LEARNED` cho
   đúng một ký tự kanji), thay vì mở tra cứu; ô có affordance `.quick`.
+- **Tải ảnh PNG** (nút "Tải ảnh PNG" cạnh legend): vẽ lại đúng dữ liệu đang hiển
+  thị (nhóm/không nhóm, gồm cả ô `missing` nếu đang bật "Hiện kanji chưa biết")
+  lên canvas rồi tải xuống client-side — không qua server, không thư viện ngoài
+  (`ui/kanjiGridPng.ts`, layout thuần ở `domain/exportGrid.ts`). Word Cloud chưa
+  có nút tương ứng — xem BACKLOG #161.
 
 ### 9.3 Học từ vựng
 
