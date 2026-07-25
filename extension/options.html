@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gioitu — Tuỳ chọn</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        max-width: 34rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.6;
+      }
+      h1 { font-size: 1.25rem; }
+      label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+      input[type="url"] {
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        font-size: 1rem;
+        border: 1px solid #8888;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+      .hint { color: #8a8a8a; font-size: 0.9rem; }
+      .row { display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
+      button {
+        padding: 0.5rem 0.9rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #8888;
+        background: #2b4c7e;
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary { background: transparent; color: inherit; }
+      #status { color: #2e7d32; min-height: 1.25rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Gioitu — Thêm nhanh từ</h1>
+
+    <p>
+      Địa chỉ web Gioitu của bạn — extension sẽ mở <code>&lt;địa chỉ&gt;/?add=&lt;từ&gt;</code>
+      để thêm nhanh từ đang bôi đen.
+    </p>
+
+    <label for="baseUrl">Địa chỉ Gioitu</label>
+    <input id="baseUrl" type="url" placeholder="https://tudien-cua-ban.example" inputmode="url" />
+    <p class="hint">Ví dụ: <code>http://localhost:5173</code> (khi chạy dev) hoặc domain đã deploy.</p>
+
+    <div class="row">
+      <button id="save">Lưu</button>
+      <button id="shortcuts" class="secondary">Đổi phím tắt…</button>
+      <span id="status"></span>
+    </div>
+
+    <p class="hint">
+      Cách dùng: bôi đen một từ ở trang bất kỳ → chuột phải chọn <b>“Thêm … vào Gioitu”</b>,
+      hoặc bấm phím tắt (mặc định <b>Ctrl/⌘ + Shift + Y</b>), hoặc bấm biểu tượng extension.
+    </p>
+
+    <script src="options.js"></script>
+  </body>
+</html>
