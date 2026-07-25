@@ -434,7 +434,11 @@ summary:focus-visible,
 .word-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
 /* Time-grouped cloud (ngày/tháng/năm display mode) */
 .cloud-groups { display: flex; flex-direction: column; gap: 18px; }
-.cloud-group-head { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.cloud-group-head {
+  margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.cloud-group-head .link { font-size: 13px; }
 .tag {
   position: relative; height: 38px; display: inline-flex; align-items: center;
   padding: 0 14px; border: none; border-radius: 8px; cursor: pointer;

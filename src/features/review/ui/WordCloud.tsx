@@ -3,7 +3,7 @@
 // Can be split by language and grouped into time buckets (ngày/tháng/năm).
 
 import { memo, useMemo } from "react";
-import { buildCloud, groupByPeriod, groupBySrsTier, tagTooltip, CloudSort, CloudLang, CloudGrouping, CloudTag } from "../domain/wordcloud";
+import { buildCloud, groupByPeriod, groupBySrsTier, dueEntriesInGroup, tagTooltip, CloudSort, CloudLang, CloudGrouping, CloudTag } from "../domain/wordcloud";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
@@ -27,6 +27,11 @@ interface Props {
   deleteMode: boolean;
   onSelect: (entry: VocabEntry) => void;
   onDelete: (entry: VocabEntry) => void;
+  /**
+   * Bắt đầu phiên ôn chỉ với các từ đến hạn của MỘT tầng (nút "Ôn N từ này",
+   * BACKLOG #159). Chỉ dùng khi `grouping === "srs"`.
+   */
+  onReviewTier?: (entries: VocabEntry[]) => void;
 }
 
 export const WordCloud = memo(function WordCloud({
@@ -39,6 +44,7 @@ export const WordCloud = memo(function WordCloud({
   deleteMode,
   onSelect,
   onDelete,
+  onReviewTier,
 }: Props) {
   const { theme } = useTheme();
   // Badge tái quên là TÍN HIỆU cảnh báo, không phải trang trí: luôn dùng "!" trắng
@@ -112,14 +118,26 @@ export const WordCloud = memo(function WordCloud({
 
   return (
     <div className="cloud-groups">
-      {groups.map((group) => (
-        <section className="cloud-group" key={group.key}>
-          <h3 className="cloud-group-head">{group.label}</h3>
-          <div className="word-cloud" role="list">
-            {group.items.map(renderTag)}
-          </div>
-        </section>
-      ))}
+      {groups.map((group) => {
+        // Nút "Ôn N từ này" chỉ hiện ở nhóm "srs" (Khu vườn ký ức) và chỉ khi
+        // tầng có từ đến hạn — ôn tầng "Sắp trưởng thành" khi chưa ai due là vô nghĩa.
+        const dueInTier = grouping === "srs" ? dueEntriesInGroup(group) : [];
+        return (
+          <section className="cloud-group" key={group.key}>
+            <h3 className="cloud-group-head">
+              {group.label}
+              {dueInTier.length > 0 && (
+                <button type="button" className="link" onClick={() => onReviewTier?.(dueInTier)}>
+                  Ôn {dueInTier.length} từ này
+                </button>
+              )}
+            </h3>
+            <div className="word-cloud" role="list">
+              {group.items.map(renderTag)}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 });
