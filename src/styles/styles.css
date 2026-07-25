@@ -926,6 +926,19 @@ summary:focus-visible,
 .grade.easy { background: var(--accent); }
 .grade-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
 
+/* Luyện chủ động (BACKLOG GĐ3): gõ cách đọc trước khi lật — ô nhập theo mẫu
+   .search-input; feedback màu theo --ok/--warn như .srs-status, không hardcode hex. */
+.reading-attempt { display: grid; gap: 6px; margin-top: 16px; text-align: center; }
+.reading-attempt label { font-size: 13px; color: var(--muted); }
+.reading-attempt input {
+  height: 44px; padding: 0 14px; font-size: 16px; text-align: center;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg);
+}
+.reading-attempt input:focus { border-color: var(--accent); }
+.reading-feedback { margin: 0 0 12px; font-size: 13px; }
+.reading-feedback.correct { color: var(--ok); }
+.reading-feedback.wrong { color: var(--warn); }
+
 /* Màn tổng kết phiên ôn (#126) — breakdown + từ tốt nghiệp + từ vừa quên. */
 .review-summary { margin-top: 14px; text-align: left; display: grid; gap: 10px; }
 .review-breakdown {

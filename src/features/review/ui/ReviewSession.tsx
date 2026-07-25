@@ -19,6 +19,8 @@ import {
   nextBatchSize,
   loadNextBatch,
 } from "../domain/session";
+import { isReadingMatch } from "../domain/readingPractice";
+import { loadTypeReadingEnabled, saveTypeReadingEnabled } from "../domain/readingPracticeSettings";
 import { formatInterval } from "@/shared/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -78,6 +80,12 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
   // Khoá trong lúc chấm/hoàn tác (await ghi dữ liệu) để tránh bấm kép làm lệch con trỏ.
   const [busy, setBusy] = useState(false);
 
+  // Chế độ luyện chủ động tuỳ chọn (BACKLOG GĐ3): gõ cách đọc trước khi lật.
+  // Chỉ là gợi ý mềm sau khi lật, KHÔNG chặn lật thẻ — né việc phải quyết cách
+  // xử okurigana/nhiều cách đọc hợp lệ ở v1 (xem readingPractice.ts).
+  const [typeReadingEnabled, setTypeReadingEnabled] = useState(loadTypeReadingEnabled);
+  const [typedReading, setTypedReading] = useState("");
+
   // Escape đóng, focus đầu/trả focus, bẫy Tab (#119). Gọi MỘT LẦN, không trong
   // nhánh `if (!card)` bên dưới (Rules of Hooks) — cả 3 màn (thẻ đang ôn, hết
   // lô, hoàn thành) đều gắn cùng `dialogRef` vào div gốc của chúng; React tái
@@ -127,6 +135,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     setDictResults(null);
     setDictLoading(false);
     setDictError(null);
+    setTypedReading("");
   }, [card?.term]);
 
   const previews = useMemo(() => {
@@ -281,6 +290,15 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     }
   }
 
+  // Chỉ có cách đọc kana cho từ tiếng Nhật — ẩn ô gõ với thẻ khác/không có reading.
+  const showReadingInput = typeReadingEnabled && card.term_lang === "ja" && !!card.reading;
+  const readingAttempt = typedReading.trim();
+
+  function toggleTypeReading(enabled: boolean) {
+    setTypeReadingEnabled(enabled);
+    saveTypeReadingEnabled(enabled);
+  }
+
   return (
     <div className="review-overlay">
       <div className="review-card" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
@@ -304,6 +322,14 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
           <div className="front">{card.term}</div>
           {flipped && (
             <div className="back">
+              {showReadingInput && readingAttempt && (
+                <p className={`reading-feedback ${isReadingMatch(readingAttempt, card.reading) ? "correct" : "wrong"}`}>
+                  Bạn gõ: <b>{readingAttempt}</b> ·{" "}
+                  {isReadingMatch(readingAttempt, card.reading)
+                    ? "đúng"
+                    : `chưa đúng — đáp án: ${card.reading}`}
+                </p>
+              )}
               <MeaningView
                 term={card.term}
                 reading={card.reading}
@@ -353,7 +379,22 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
               )}
             </div>
           )}
-          {!flipped && <p className="hint">Nhấn hoặc bấm Space để lật đáp án</p>}
+          {!flipped && showReadingInput && (
+            <div className="reading-attempt" onClick={(e) => e.stopPropagation()}>
+              <label htmlFor="reading-attempt-input">Gõ cách đọc (romaji hoặc kana):</label>
+              <input
+                id="reading-attempt-input"
+                type="text"
+                autoFocus
+                value={typedReading}
+                onChange={(e) => setTypedReading(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setFlipped(true);
+                }}
+              />
+            </div>
+          )}
+          {!flipped && !showReadingInput && <p className="hint">Nhấn hoặc bấm Space để lật đáp án</p>}
         </div>
 
         {flipped ? (
@@ -390,6 +431,14 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
               Hoàn tác
             </button>
           )}
+          <label className="chk reading-toggle">
+            <input
+              type="checkbox"
+              checked={typeReadingEnabled}
+              onChange={(e) => toggleTypeReading(e.target.checked)}
+            />
+            Gõ cách đọc trước khi lật
+          </label>
           <button className="link close" onClick={onClose}>Kết thúc phiên</button>
         </div>
       </div>
