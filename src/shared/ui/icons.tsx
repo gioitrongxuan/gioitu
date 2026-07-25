@@ -68,3 +68,13 @@ export function LockIcon({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+export function DownloadIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M12 3v12" />
+      <polyline points="7 10 12 15 17 10" />
+      <path d="M5 19h14" />
+    </svg>
+  );
+}

@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
+import { DownloadIcon } from "@/shared/ui/icons";
 import {
   computeKanjiStats,
   knownKanji,
@@ -21,6 +22,7 @@ import {
   KanjiStat,
 } from "../domain/kanjigrid";
 import { KANJI_GROUPINGS } from "../data/groupings";
+import { exportKanjiGridPng, ExportSection } from "./kanjiGridPng";
 
 type SourceKind = "learned" | "all";
 
@@ -47,6 +49,8 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
   // "Đánh dấu nhanh": while on, a tile click marks the kanji known outright
   // instead of opening its detail — the fast way to fill in kanji you know cold.
   const [quickMark, setQuickMark] = useState(false);
+  // Vẽ + toBlob() là bất đồng bộ — chặn double-click, không phải vì việc chậm.
+  const [exporting, setExporting] = useState(false);
 
   const sourceWords = useMemo(
     () =>
@@ -148,6 +152,41 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
     </div>
   );
 
+  // Cùng dữ liệu đang hiển thị (flat hoặc theo nhóm + kanji chưa học nếu đang
+  // bật "Hiện kanji chưa biết"), gói lại cho canvas vẽ — không đọc lại DOM.
+  const exportSections = (): ExportSection[] => {
+    if (!cov) return [{ name: "Đã biết", cells: flat.map((s) => ({ kanji: s.kanji, shade: s.score })) }];
+    const groups: ExportSection[] = cov.groups.map((group) => ({
+      name: group.name,
+      cells: group.cells
+        .filter((cell) => cell.stat || showMissing)
+        .map((cell) => (cell.stat ? { kanji: cell.kanji, shade: cell.stat.score } : { kanji: cell.kanji })),
+    }));
+    if (cov.leftover.known.length > 0) {
+      groups.push({
+        name: cov.leftover.name,
+        cells: cov.leftover.known.map((s) => ({ kanji: s.kanji, shade: s.score })),
+      });
+    }
+    return groups;
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportKanjiGridPng(exportSections(), theme);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const ExportButton = (
+    <button type="button" className="export-btn" onClick={handleExport} disabled={exporting}>
+      <DownloadIcon size={16} />
+      {exporting ? "Đang xuất…" : "Tải ảnh PNG"}
+    </button>
+  );
+
   // Flat view — every known kanji, strongest first. With no grouping there is no
   // "missing" set to fill in, so an empty source just shows a prompt.
   if (!cov) {
@@ -171,7 +210,10 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
         <p className="kanji-summary">
           Đã biết <b>{flat.length}</b> kanji
         </p>
-        {Legend}
+        <div className="kanji-legend-row">
+          {Legend}
+          {ExportButton}
+        </div>
         <div className="kanji-grid">
           {flat.map((stat) => (
             <KnownTile key={stat.kanji} stat={stat} />
@@ -192,7 +234,10 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
         Đã biết <b>{cov.knownInGrouping}</b>/{cov.groupingTotal} kanji trong nhóm{" "}
         <span className="muted">({percent(cov.knownInGrouping, cov.groupingTotal)}%)</span>
       </p>
-      {Legend}
+      <div className="kanji-legend-row">
+        {Legend}
+        {ExportButton}
+      </div>
 
       {cov.groups.map((group) => {
         const pct = percent(group.knownCount, group.total);

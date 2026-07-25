@@ -13,11 +13,18 @@ import {
   isHexColor,
   isDarkColor,
   heatBackground,
+  heatBackgroundRgb,
   heatTextColor,
   contrastOf,
   type Theme,
   type ThemeDecor,
 } from "@/features/theme/domain/theme";
+
+/** Local mirror of theme.ts's private parseHex, for asserting against endpoints directly. */
+function hexToRgbTuple(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
 
 describe("isHexColor", () => {
   it("accepts full #rrggbb", () => {
@@ -43,6 +50,24 @@ describe("heatBackground", () => {
   it("clamps out-of-range shades to [0,100]%", () => {
     expect(heatBackground(-2)).toContain("var(--heat-to) 0%");
     expect(heatBackground(5)).toContain("var(--heat-to) 100%");
+  });
+});
+
+describe("heatBackgroundRgb", () => {
+  it("interpolates the same endpoints heatBackground names, resolved to rgb()", () => {
+    expect(heatBackgroundRgb(0, DEFAULT_THEME)).toBe(
+      `rgb(${hexToRgbTuple(DEFAULT_THEME.heatFrom).join(", ")})`,
+    );
+    expect(heatBackgroundRgb(1, DEFAULT_THEME)).toBe(
+      `rgb(${hexToRgbTuple(DEFAULT_THEME.heatTo).join(", ")})`,
+    );
+  });
+  it("clamps out-of-range shades to the endpoints", () => {
+    expect(heatBackgroundRgb(-2, DEFAULT_THEME)).toBe(heatBackgroundRgb(0, DEFAULT_THEME));
+    expect(heatBackgroundRgb(5, DEFAULT_THEME)).toBe(heatBackgroundRgb(1, DEFAULT_THEME));
+  });
+  it("returns a canvas-safe rgb() string with no CSS var()/color-mix()", () => {
+    expect(heatBackgroundRgb(0.5, DEFAULT_THEME)).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
   });
 });
 
