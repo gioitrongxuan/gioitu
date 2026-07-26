@@ -54,8 +54,6 @@ _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
-- [ ] Màn "Hôm nay": hero "N từ đến hạn · ~X phút" → vào phiên; streak (store
-  activity_log nhẹ, sync best-effort); dải hoạt động 7 ngày; 3 từ hay quên.
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện

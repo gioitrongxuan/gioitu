@@ -14,8 +14,11 @@
 (desktop) — `app/AppNav.tsx` + `app/shell.css`, khu "Hôm nay" đeo badge số từ
 đến hạn:
 
-- **Hôm nay** (`/`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn, tài sản
-  "Đã thuộc N từ", lối tắt sang Tra cứu (`app/TodayScreen.tsx`).
+- **Hôm nay** (`/`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi ngày
+  ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng); "Từ
+  hay quên" (3 thẻ rớt nhiều nhất, bấm mở chi tiết); tài sản "Đã thuộc N từ";
+  lối tắt sang Tra cứu (`app/TodayScreen.tsx`, `review/data/todayStats.ts`,
+  `activityByDay`/`mostForgotten` trong `review/domain/reviewStats.ts`).
 - **Tra cứu** (`/search`) — Search Bar (gợi ý live + viết tay/bộ thủ); kết quả
   mở Detail Panel chiếm nguyên trang.
 - **Kho từ** (`/words`) — tab con: Bản đồ từ (Word Cloud + Filter Bar) ·

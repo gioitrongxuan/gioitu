@@ -32,6 +32,8 @@ import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
 import { loadReviewStreak } from "@/features/review/data/streak";
+import { loadTodayStats } from "@/features/review/data/todayStats";
+import { mostForgotten } from "@/features/review/domain/reviewStats";
 import { guestAdoptionPrompt } from "@/features/auth/domain/guestAdoption";
 import { ToastHost } from "@/shared/ui/Toasts";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -247,6 +249,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // bookmarklet / Share Target; rỗng khi mở từ menu.
   const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
+  // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
+  // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
+  // khi phiên đóng — chuỗi ngày nối ngay, không đợi tải lại trang.
+  const reviewing = reviewQueue != null;
+  const loadStats = useCallback(() => loadTodayStats(userId), [userId, reviewing]);
   // Routing History API (#148): mỗi trang một URL (F5 giữ chỗ, Back/Forward đi
   // giữa các trang), deep-link /word/:pair/:term mở panel chi tiết lúc tải trang.
   const { page, gotoPage } = useAppRoute((w) =>
@@ -525,9 +532,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 <TodayScreen
                   dueCount={dueCount}
                   learnedCount={store.learnedEntries.length}
+                  forgotten={mostForgotten(store.entries)}
+                  loadStats={loadStats}
                   onStartReview={() => setReviewQueue(store.dueEntries)}
                   onGoSearch={() => gotoPage("search")}
                   onGoLearned={() => gotoPage("learned")}
+                  onSelectWord={(w) => openWord(w)}
                 />
               )}
             </section>
