@@ -1,16 +1,20 @@
-// Overlay "Thêm nhanh" chèn thẳng vào trang đang đọc (Shadow DOM) — soạn/duyệt
-// tại chỗ, không rời trang. Lưu = nhắn background mở một tab nền
-// `?add=…&add_save=1` để chính app ghi vào IndexedDB của origin app rồi tự đóng
-// (iframe nhúng không dùng được: trình duyệt phân vùng storage bên thứ ba).
-// Chỉ được inject theo cử chỉ người dùng (chuột phải / phím tắt / nút toolbar),
-// không thường trực trên trang nào. Bản song sinh cho bookmarklet:
-// public/qa-overlay.js — đổi bên nào nhớ soi bên kia.
+// Overlay "Thêm nhanh" cho BOOKMARKLET — bản song sinh của extension/overlay.js
+// (đổi bên nào nhớ soi bên kia). Khác biệt duy nhất là đường vận chuyển: ở đây
+// không có chrome.runtime, script chạy trong page world do bookmarklet chèn
+// <script src> từ origin app, nên:
+//   • origin app lấy từ chính src của script (document.currentScript);
+//   • Lưu = mở cửa sổ tí hon ở góc màn hình `?add=…&add_save=1` — app ghi vào
+//     IndexedDB của origin app rồi tự đóng cửa sổ (iframe nhúng không dùng được:
+//     trình duyệt phân vùng storage bên thứ ba);
+//   • "Form đầy đủ" = cửa sổ popup 520×680 như bookmarklet cũ.
+// Trang có CSP chặn script ngoài sẽ không tải được file này — bookmarklet tự
+// rơi về popup form đầy đủ (xem loader trong QuickAdd.tsx).
 
 (function () {
   const HOST_ID = "gioitu-quick-add-host";
+  const BASE = new URL(document.currentScript.src).origin;
 
-  // Sao chép tối thiểu từ app (shared/languages + domain/quickadd) — extension
-  // đứng ngoài bundle nên không import được; đổi bên app thì đổi cả ở đây.
+  // Sao chép tối thiểu từ app (shared/languages + domain/quickadd).
   const LANG_PAIRS = [
     { id: "ja-vi", label: "Nhật → Việt" },
     { id: "vi-ja", label: "Việt → Nhật" },
@@ -53,6 +57,17 @@
       .link { color: #8ba7ff; }
     }
   `;
+
+  /** Cửa sổ tí hon góc dưới-phải làm "đường ghi": app lưu xong tự đóng nó. */
+  function openSaveWindow(params) {
+    const left = Math.max(0, (window.screen.availWidth || 1280) - 320);
+    const top = Math.max(0, (window.screen.availHeight || 800) - 220);
+    window.open(`${BASE}/?${params}`, "gioitu-save", `width=300,height=180,left=${left},top=${top}`);
+  }
+
+  function openFullForm(term) {
+    window.open(`${BASE}/?add=${encodeURIComponent(term || "")}`, "gioitu-add", "width=520,height=680");
+  }
 
   function show(prefill) {
     document.getElementById(HOST_ID)?.remove();
@@ -136,14 +151,11 @@
       const t = termInput.value.trim();
       const gloss = glossInput.value.trim();
       if (!t || !gloss) return;
-      chrome.runtime.sendMessage({
-        kind: "gioitu-quick-save",
-        term: t,
-        reading: readingInput.value.trim(),
-        gloss,
-        pairId: pairSelect.value,
-      });
-      // Báo xong ngay (tab nền lo phần ghi) — không bắt người đọc chờ.
+      const params = new URLSearchParams({ add: t, add_save: "1", add_meaning: gloss, add_pair: pairSelect.value });
+      const reading = readingInput.value.trim();
+      if (reading) params.set("add_reading", reading);
+      openSaveWindow(params);
+      // Báo xong ngay (cửa sổ góc lo phần ghi) — không bắt người đọc chờ.
       showSaved(t);
     };
     saveBtn.addEventListener("click", save);
@@ -153,7 +165,7 @@
 
     card.querySelector(".close").addEventListener("click", close);
     card.querySelector(".link").addEventListener("click", () => {
-      chrome.runtime.sendMessage({ kind: "gioitu-open-full", term: termInput.value.trim() });
+      openFullForm(termInput.value.trim());
       close();
     });
     document.addEventListener("keydown", (e) => e.key === "Escape" && close(), { signal: ac.signal });
