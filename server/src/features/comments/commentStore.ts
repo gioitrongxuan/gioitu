@@ -7,6 +7,7 @@
 import crypto from "node:crypto";
 import { pool } from "../../core/db.js";
 import { isAdminEmail } from "../auth/auth.js";
+import { clampInt } from "../../core/queryParams.js";
 
 const MAX_BODY = 2000;
 /** Trang bình luận: cỡ mặc định khi client không nói gì, và trần cứng cho một lượt. */
@@ -88,8 +89,7 @@ export interface CommentPage {
 }
 
 function clampLimit(raw: number | undefined): number {
-  if (raw == null || !Number.isFinite(raw) || raw < 1) return DEFAULT_PAGE_SIZE;
-  return Math.min(Math.floor(raw), MAX_PAGE_SIZE);
+  return clampInt(raw, DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
 }
 
 /**

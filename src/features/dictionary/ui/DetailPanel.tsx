@@ -319,7 +319,7 @@ export function DetailPanel({
         {/* Bình luận / góp ý của người dùng cho từ này (#23). Guest đọc được,
             đăng nhập mới viết/xoá. Đặt cuối panel, dưới phần nghĩa. */}
         <WordComments
-          key={`${commentTerm} ${commentReading ?? ""}`}
+          key={`${commentTerm} ${commentReading ?? ""}`}
           term={commentTerm}
           reading={commentReading}
           termLang={term_lang}

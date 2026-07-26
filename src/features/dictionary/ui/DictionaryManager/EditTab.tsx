@@ -57,7 +57,10 @@ export function EditTab({
       ) : (
         <ul className="term-edit-list">
           {data.items.map((t) => (
-            <TermEditor key={t.term} row={t} pair={pair} onChanged={load} onError={onError} />
+            // Khoá theo wordId: server trả DISTINCT theo word_id nên hai đồng âm
+            // (生 = せい và なま) về thành hai dòng cùng `term` — key trùng thì
+            // React gắn state trình sửa đang mở vào nhầm dòng.
+            <TermEditor key={t.wordId ?? t.term} row={t} pair={pair} onChanged={load} onError={onError} />
           ))}
         </ul>
       )}

@@ -57,7 +57,10 @@
 .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
 .edit-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
 .chip-x { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
-.tag-add { flex: 1 1 80px; min-width: 80px; border: none !important; padding: 2px !important; }
+/* Đặc thù (0,2,0) thắng `.term-form input` (0,1,1) nên không cần !important.
+   Bám `.tag-chips` chứ không `.term-form`: TagInput còn render trong
+   `.imported-editor` (ImportedEntryEditor), ở đó vẫn phải giữ nguyên style. */
+.tag-chips .tag-add { flex: 1 1 80px; min-width: 80px; border: none; padding: 2px; }
 
 .examples-editor { display: grid; gap: 6px; }
 .example-row { display: flex; gap: 6px; align-items: center; }

@@ -382,8 +382,14 @@ export async function browseTerms(src: string, tgt: string, q: string, limit: nu
   );
   const dictByWord = new Map(dictIds.rows.map((r) => [r.word_id, r.dict_id]));
 
-  const items = ids.map((id, i) => {
-    const e = entries[i];
+  // Tra theo word_id chứ không ghép theo vị trí: assembleByIds bỏ qua id không
+  // còn row `word`, nên chỉ cần một id hụt là mọi dòng sau lệch sang entry của
+  // từ khác — và dòng cuối đọc `headings` trên undefined rồi ném 500.
+  const entryByWord = new Map(entries.map((e) => [e.word_id, e]));
+
+  const items = ids.flatMap((id) => {
+    const e = entryByWord.get(id);
+    if (!e) return [];
     const h = e.headings[0];
     return {
       wordId: id,

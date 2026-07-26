@@ -290,7 +290,7 @@ nguồn nào được chọn thì tra đúng nguồn đó:
 ## 8. Backend (tuỳ chọn)
 
 ```
-index.ts          initSchema() → seedIfEmpty() → app.listen(PORT)
+index.ts          runMigrations() → seedIfEmpty() → app.listen(PORT)
    │
    ▼
 app.ts            cors() + express.json + raw(zip) → mount router → static SPA
@@ -299,9 +299,12 @@ app.ts            cors() + express.json + raw(zip) → mount router → static S
    ├── /api/sync   syncRoutes  (pull/push, cần auth)            — LWW server-side
    └── (fallback)  phục vụ dist/ — SPA cho mọi path không phải /api/*
 core/
-   db.ts          Pool pg + initSchema() (DDL 4 bảng)
+   db.ts          Pool pg (DDL đã chuyển hết vào migrations/0001)
+   migrate.ts     runMigrations() — chạy migrations/ theo version, có ghi sổ
    seed.ts        seedIfEmpty() — nạp từ mẫu khi dict rỗng
    middleware.ts  asyncHandler, requireAuth (rút user_id từ Bearer token)
+   entitlements.ts canSyncDicts() — gác tính năng theo Premium
+   queryParams.ts clampInt/sinceParam — nắn tham số query trước khi chạm SQL
 ```
 
 Chi tiết route, auth, sync protocol và DDL: xem [DB_SCHEMA.md](./DB_SCHEMA.md).
