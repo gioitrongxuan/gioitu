@@ -4,7 +4,8 @@
 // lượm hiện ngay ở nguồn "Trên máy" mà không cần schema riêng.
 
 import { LangPair } from "@/shared/languages";
-import { CustomDraft } from "../domain/customEntry";
+import { buildDictEntry, CustomDraft } from "../domain/customEntry";
+import { QuickAddRecord } from "../domain/quickadd";
 import { createLocalDictionary, listCustomDictionaries, upsertCustomEntries } from "./customDict";
 
 /** Tên cố định của hộp thư — cũng là khoá nhận diện (mỗi cặp một hộp). */
@@ -32,4 +33,28 @@ export async function addToInbox(pair: LangPair, draft: CustomDraft): Promise<st
   const { id, title } = await getOrCreateInbox(pair);
   await upsertCustomEntries(id, title, pair, [draft]);
   return title;
+}
+
+/**
+ * Lưu trọn gói một từ thêm nhanh vào CẢ hai kho: hàng ôn SRS (onRecordSrs —
+ * thường là store.recordLookup) và hộp thư lượm nhặt. Dùng chung cho form
+ * Thêm nhanh lẫn đường lưu ngầm ?add_save=1 của extension. Trả về mặt chữ đã lưu.
+ */
+export async function saveQuickAdd(
+  pair: LangPair,
+  draft: CustomDraft,
+  onRecordSrs: (input: QuickAddRecord) => Promise<unknown>,
+): Promise<string> {
+  const entry = buildDictEntry(draft, pair, INBOX_TITLE);
+  await onRecordSrs({
+    term: entry.term,
+    term_lang: entry.term_lang,
+    native_lang: entry.native_lang,
+    meaning: JSON.stringify(entry.definitions),
+    reading: entry.reading || undefined,
+    pos: draft.pos.trim() || undefined,
+    is_custom: true,
+  });
+  await addToInbox(pair, draft);
+  return entry.term;
 }

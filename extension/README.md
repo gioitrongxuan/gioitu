@@ -1,19 +1,23 @@
 # Gioitu — extension "Thêm nhanh từ" (Chrome / Edge)
 
-Bôi đen một từ ở **bất kỳ trang web nào** rồi thêm thẳng vào Gioitu — không cần
-mở app trước, không cần bookmarklet.
+Bôi đen một từ ở **bất kỳ trang web nào**, soạn nghĩa ngay trên trang rồi lưu
+thẳng vào Gioitu — không rời trang đang đọc, không cần mở app trước.
 
-Ba cách dùng (đều mở form *Thêm nhanh* của app với từ điền sẵn):
+Ba cách gọi (đều hiện **overlay nhỏ ngay cạnh vùng bôi đen**):
 
 - **Chuột phải** trên vùng bôi đen → *"Thêm … vào Gioitu"* (ai cũng biết, không cần nhớ gì).
 - **Phím tắt** — mặc định `Ctrl/⌘ + Shift + Y` (đổi được).
 - **Bấm biểu tượng extension** trên thanh công cụ.
 
-Extension chỉ mở `<địa chỉ Gioitu>/?add=<từ>`; chính web app lo phần còn lại
-(gõ tay / AI điền / lưu vào hàng ôn + từ điển cá nhân). Không gọi API riêng,
-không đọc trang ngoài phần bạn chủ động bôi đen — nên chỉ xin quyền tối thiểu
-(`contextMenus`, `activeTab`, `scripting`, `storage`), không cần quyền truy cập
-mọi trang.
+Trên overlay sửa được mặt chữ / cách đọc / nghĩa và cặp ngôn ngữ (đoán sẵn theo
+chữ viết). Bấm **Lưu** → extension mở một tab nền `?add=…&add_save=1`; chính app
+ghi vào hàng ôn + hộp thư "Từ nhặt được" rồi tự đóng tab — bạn vẫn ở nguyên
+trang. Cần ✨ AI điền hộ thì bấm **Form đầy đủ** (cửa sổ popup nhỏ mở form của
+app). Trang cấm chèn script (chrome://, cửa hàng tiện ích…) tự rơi về popup này.
+
+Extension không gọi API riêng, không đọc trang ngoài phần bạn chủ động bôi đen —
+nên chỉ xin quyền tối thiểu (`contextMenus`, `activeTab`, `scripting`,
+`storage`), không cần quyền truy cập mọi trang.
 
 > Cần app hỗ trợ tham số `?add=` (đã có trong Gioitu). Chạy được offline nếu app
 > đã cài dạng PWA và đang mở.
@@ -46,7 +50,8 @@ mọi trang.
 ```
 extension/
   manifest.json   # MV3: permissions, context menu, command (hotkey), action
-  background.js   # service worker: 3 đường thêm → mở /?add=
+  background.js   # service worker: 3 đường gọi → inject overlay; lưu ngầm / popup
+  overlay.js      # form Shadow DOM chèn vào trang (inject theo cử chỉ)
   options.html    # đặt địa chỉ Gioitu + mở màn phím tắt
   options.js
   icons/          # icon48/128 (mượn từ public/icons)
