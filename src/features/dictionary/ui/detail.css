@@ -163,22 +163,8 @@
 .admin-actions { display: flex; align-items: center; gap: 12px; }
 .admin-actions .danger { color: var(--warn); font-size: 12px; }
 
-/* Bình luận / góp ý của người dùng cho từ (#23) — cuối panel, dưới phần nghĩa. */
-.word-comments { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; display: grid; gap: 10px; }
-.comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-/* Tải thêm phần cũ hơn — đứng trên danh sách vì bình luận cũ mọc ngược lên. */
-.comment-more { justify-self: start; font-size: var(--text-xs); }
-.comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
-.comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
-.comment-author { font-weight: 600; color: var(--fg); }
-/* Icon SVG không có baseline chữ để bám: canh giữa thay vì để hàng meta
-   (align-items: baseline) dìm nó xuống dưới tên người viết. */
-.comment-del { margin-left: auto; align-self: center; display: inline-flex; padding: 0 4px; }
-.comment-body { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.comment-form { display: grid; gap: 8px; }
-.comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
-.comment-form .primary { justify-self: start; }
-.comment-error { font-size: 12px; margin: 0; }
+/* Bình luận / góp ý của người dùng: feature riêng, style ở
+   features/wordcomments/ui/wordcomments.css. */
 
 .headword-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
 .jlpt-badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; }
@@ -198,14 +184,22 @@
 .word-image { flex: 0 0 auto; }
 .word-image img { height: 72px; width: auto; border-radius: 6px; object-fit: cover; display: block; background: var(--line); }
 
-/* Bình luận cộng đồng (Mazii) */
-.word-comments { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-.word-comments-head { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-.word-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.comment { display: flex; gap: 8px; }
-.comment-avatar { width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto; }
-.comment-body { font-size: 13px; line-height: 1.45; }
-.comment-meta { display: flex; gap: 8px; font-size: 11px; margin-top: 1px; }
+/* Bình luận cộng đồng (Mazii). Gốc `.community-comments` chứ không dùng lại
+   `.word-comments` của feature wordcomments: hai khối từng trùng cả gốc lẫn tên
+   class con trong cùng file này và đè chéo lên nhau. Mọi rule bọc trong gốc để
+   giữ nguyên như vậy. Giá trị dưới đây là hiệu lực THỰC TẾ trước khi tách, gồm
+   cả phần thừa hưởng từ khối kia (nền thẻ, bọc chữ) nên nhìn không đổi gì. */
+.community-comments { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 10px; }
+.community-comments-head { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.community-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.community-comments .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; display: flex; gap: 8px; }
+.community-comments .comment-avatar { width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto; }
+/* pre-wrap/anywhere là thuộc tính DI TRUYỀN: `.comment-mean` bên trong dựa vào
+   chúng để giữ dòng và không tràn panel (#227) — bỏ đi là chữ dài phá layout. */
+.community-comments .comment-body { margin: 4px 0 0; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-comments .comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 11px; margin-top: 1px; color: var(--muted); }
+.community-comments .comment-author { font-weight: 600; color: var(--fg); }
+.community-comments .comment-more { justify-self: start; font-size: var(--text-xs); }
 
 /* Tags — coloured by Yomitan category (data-category). Compact code label,
    full name on hover (title). Chip nhạt kiểu .srs-status thay vì nền đặc +

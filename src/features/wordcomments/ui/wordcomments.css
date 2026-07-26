@@ -1,0 +1,26 @@
+/* Bình luận / góp ý của người dùng cho từ (#23) — cuối panel chi tiết, dưới
+   phần nghĩa.
+
+   Trước đây khối này nằm trong `dictionary/ui/detail.css`, cùng file và cùng tên
+   class với khối "bình luận cộng đồng (Mazii)" của Media.tsx. Hai bên có DOM
+   khác nhau hẳn (ở đây `.comment` xếp dọc meta-trên-body-dưới; Mazii xếp ngang
+   avatar-cạnh-nội-dung) nên các rule đè chéo nhau: `.comment { display: flex }`
+   của Mazii đứng sau trong bundle nên thắng, biến thẻ bình luận ở đây thành hàng
+   ngang. Nay tách về đúng feature và bọc MỌI rule trong `.word-comments` để hai
+   hệ không còn với tới nhau. */
+
+.word-comments { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; display: grid; gap: 10px; }
+.word-comments .comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+/* Tải thêm phần cũ hơn — đứng trên danh sách vì bình luận cũ mọc ngược lên. */
+.word-comments .comment-more { justify-self: start; font-size: var(--text-xs); }
+.word-comments .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.word-comments .comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
+.word-comments .comment-author { font-weight: 600; color: var(--fg); }
+/* Icon SVG không có baseline chữ để bám: canh giữa thay vì để hàng meta
+   (align-items: baseline) dìm nó xuống dưới tên người viết. */
+.word-comments .comment-del { margin-left: auto; align-self: center; display: inline-flex; padding: 0 4px; }
+.word-comments .comment-body { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.word-comments .comment-form { display: grid; gap: 8px; }
+.word-comments .comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+.word-comments .comment-form .primary { justify-self: start; }
+.word-comments .comment-error { font-size: 12px; margin: 0; }
