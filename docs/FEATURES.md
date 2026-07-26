@@ -682,8 +682,10 @@ xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
   `?add=…&add_save=1` — app tự lưu (khi đủ mặt chữ + nghĩa) rồi tự đóng tab.
   Trang cấm chèn script thì rơi về cửa sổ popup mở form đầy đủ. Nút "Form đầy
   đủ" trên overlay cũng mở popup đó (cần AI điền hộ thì đi đường này).
-- **Bookmarklet "＋ Gioitu"** (kéo từ cuối form lên thanh dấu trang): mở cửa sổ
-  popup 520×680 của app với mặt chữ bôi đen điền sẵn.
+- **Bookmarklet "＋ Gioitu"** (kéo từ cuối form lên thanh dấu trang): mồi tải
+  `public/qa-overlay.js` (bản song sinh của overlay extension — lưu qua cửa sổ
+  tí hon góc màn hình, app ghi xong tự đóng) → cùng trải nghiệm soạn tại chỗ.
+  Trang có CSP chặn script ngoài thì rơi về cửa sổ popup 520×680 mở form như cũ.
 - **Share Target Android** (`manifest.webmanifest`): bôi đen ở app bất kỳ →
   Chia sẻ → Gioitu (map `text→add`, `title→add_title`; cần cài PWA). iOS chưa có.
 

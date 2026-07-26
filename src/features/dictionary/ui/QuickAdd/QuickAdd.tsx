@@ -215,12 +215,22 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
  * origin hiện tại; href gắn qua ref để React không quét bỏ chuỗi `javascript:`.
  */
 function QuickAddShortcut() {
+  // Bookmarklet là mồi tải public/qa-overlay.js (bản song sinh của overlay
+  // extension) vào trang đang đọc → soạn/lưu tại chỗ, không rời trang. Trang có
+  // CSP chặn script ngoài không tải được (onerror) → rơi về cửa sổ popup mở form
+  // đầy đủ như trước.
   const bookmarklet = useMemo(() => {
     const origin = window.location.origin;
     return (
-      "javascript:(function(){var s=(''+(window.getSelection?window.getSelection():'')).trim();" +
-      "var t=s||window.prompt('Từ cần thêm vào Gioitu:','');" +
-      `if(t)window.open('${origin}/?add='+encodeURIComponent(t),'gioitu-add','width=520,height=680');})();`
+      "javascript:(function(){var w=window,d=document;" +
+      "if(w.__gioituOverlay){w.__gioituOverlay('');return;}" +
+      "var s=d.createElement('script');" +
+      `s.src='${origin}/qa-overlay.js';` +
+      "s.onload=function(){w.__gioituOverlay&&w.__gioituOverlay('')};" +
+      "s.onerror=function(){var t=(''+(w.getSelection?w.getSelection():'')).trim();" +
+      "t=t||w.prompt('Từ cần thêm vào Gioitu:','');" +
+      `if(t)w.open('${origin}/?add='+encodeURIComponent(t),'gioitu-add','width=520,height=680')};` +
+      "d.documentElement.appendChild(s)})();"
     );
   }, []);
 
