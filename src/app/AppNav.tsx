@@ -27,6 +27,13 @@ interface AppNavProps {
 export function AppNav({ active, dueCount, onSelect, behindSheet }: AppNavProps) {
   return (
     <nav className="app-nav" aria-label="Điều hướng chính" {...behindSheet}>
+      {/* Brand ở đỉnh sidebar theo quy ước layout có sidebar cố định; trên
+          mobile ẩn đi — tab bar đáy không phải chỗ cho brand, wordmark trên
+          header lo việc đó. */}
+      <div className="app-nav-brand">
+        <span className="logo-mark" lang="ja" aria-hidden>語</span>
+        Gioitu
+      </div>
       {TABS.map((tab) => (
         <button
           key={tab.khu}
