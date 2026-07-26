@@ -62,6 +62,8 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    permissions:
+      packages: read          # cần để docker login GHCR trên EC2 trước khi pull
     steps:
       - uses: actions/checkout@v4
       - name: Copy compose + Caddyfile lên EC2
@@ -74,13 +76,18 @@ jobs:
           target: ~/gioitu
       - name: Pull image và khởi động lại
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_ACTOR: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GHCR_ACTOR,GHCR_TOKEN
           script: |
             set -euo pipefail
             cd ~/gioitu
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d
             docker image prune -f

@@ -6,13 +6,17 @@
 // dữ liệu học. Xuất backup cho họ một bản sao mang đi được; nhập lại trộn theo
 // last-write-wins (dùng lại `mergeByUpdatedAt` ở tầng data) để không mất tiến độ.
 
-import { VocabEntry } from "@/shared/types";
+import { ReviewLogEntry, VocabEntry } from "@/shared/types";
 
 /** Nhãn nhận diện file backup — chặn nhập nhầm một JSON bất kỳ. */
 export const BACKUP_FORMAT = "gioitu-learning-backup";
 
-/** Phiên bản định dạng file (khác với DB_VERSION của IndexedDB). */
-export const BACKUP_VERSION = 1;
+/**
+ * Phiên bản định dạng file (khác với DB_VERSION của IndexedDB).
+ * v2: thêm `review_log` (tuỳ chọn, Premium) — file v1 không có trường này vẫn
+ * nhập được bình thường, và app cũ nhập file v2 chỉ đơn giản bỏ qua trường lạ.
+ */
+export const BACKUP_VERSION = 2;
 
 /**
  * Ngưỡng nhắc khách sao lưu: đủ nhiều từ để "mất thì tiếc" nhưng chưa phiền quá
@@ -29,15 +33,28 @@ export interface LearningBackup {
   /** Chủ nhân lúc xuất (thông tin; lúc nhập sẽ gán lại theo người đang dùng). */
   user_id: string;
   entries: VocabEntry[];
+  /**
+   * Lịch sử ôn tập đầy đủ (Premium). Vắng mặt ở file v1 và ở bản xuất của
+   * người chưa Premium; lúc nhập, vắng mặt đơn giản là không có gì để trộn.
+   */
+  review_log?: ReviewLogEntry[];
 }
 
-/** Gói danh sách entry thành một backup có nhãn + dấu thời gian. */
+/** Gói danh sách entry (kèm lịch sử ôn nếu có) thành một backup có nhãn + dấu thời gian. */
 export function buildBackup(
   user_id: string,
   entries: VocabEntry[],
   now: number,
+  review_log?: ReviewLogEntry[],
 ): LearningBackup {
-  return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exported_at: now, user_id, entries };
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exported_at: now,
+    user_id,
+    entries,
+    ...(review_log != null ? { review_log } : {}),
+  };
 }
 
 /** Chuỗi JSON dễ đọc (indent 2) để người dùng có thể xem/lưu trữ. */
@@ -54,6 +71,20 @@ function isEntryShape(x: unknown): x is VocabEntry {
     typeof e.term_lang === "string" &&
     typeof e.native_lang === "string" &&
     typeof e.updated_at === "number"
+  );
+}
+
+function isLogRowShape(x: unknown): x is ReviewLogEntry {
+  if (typeof x !== "object" || x === null) return false;
+  const r = x as Record<string, unknown>;
+  // Bộ trường tối thiểu để khử trùng lặp + thống kê hoạt động đúng.
+  return (
+    typeof r.term === "string" &&
+    typeof r.term_lang === "string" &&
+    typeof r.grade === "string" &&
+    typeof r.ts === "number" &&
+    typeof r.interval_before === "number" &&
+    typeof r.interval_after === "number"
   );
 }
 
@@ -79,12 +110,18 @@ export function parseBackup(text: string): LearningBackup {
   if (!Array.isArray(obj.entries) || !obj.entries.every(isEntryShape)) {
     throw new Error("Tệp sao lưu bị hỏng hoặc thiếu dữ liệu");
   }
+  // `review_log` là trường tuỳ chọn (v2): vắng mặt (file v1) thì bỏ qua êm;
+  // nhưng đã CÓ mà méo dạng thì file hỏng — chặn như entries, không nhập nửa vời.
+  if (obj.review_log != null && (!Array.isArray(obj.review_log) || !obj.review_log.every(isLogRowShape))) {
+    throw new Error("Tệp sao lưu bị hỏng hoặc thiếu dữ liệu");
+  }
   return {
     format: BACKUP_FORMAT,
     version: typeof obj.version === "number" ? obj.version : BACKUP_VERSION,
     exported_at: typeof obj.exported_at === "number" ? obj.exported_at : 0,
     user_id: typeof obj.user_id === "string" ? obj.user_id : "",
     entries: obj.entries as VocabEntry[],
+    ...(obj.review_log != null ? { review_log: obj.review_log as ReviewLogEntry[] } : {}),
   };
 }
 
@@ -95,6 +132,38 @@ export function parseBackup(text: string): LearningBackup {
  */
 export function entriesForUser(backup: LearningBackup, user_id: string): VocabEntry[] {
   return backup.entries.map((e) => ({ ...e, user_id }));
+}
+
+/**
+ * Gán lại chủ nhân cho các dòng lịch sử ôn và BỎ `id`: khoá đó do IndexedDB
+ * nguồn tự cấp, mang sang máy khác vừa vô nghĩa vừa đè nhầm dòng sẵn có —
+ * để store đích tự cấp khoá mới khi ghi.
+ */
+export function logRowsForUser(rows: ReviewLogEntry[], user_id: string): ReviewLogEntry[] {
+  return rows.map(({ id: _id, ...row }) => ({ ...row, user_id }));
+}
+
+/** Danh tính một lượt chấm — đủ phân biệt trong thực tế (hai lượt cùng ms là trùng). */
+const logKey = (r: ReviewLogEntry) => [r.term, r.term_lang, r.ts, r.grade].join("\u0000");
+
+/**
+ * Lọc các dòng lịch sử CHƯA có trong kho hiện tại (khử cả trùng lặp nội bộ của
+ * file). review_log là append-only nên nhập backup không được phép nhân đôi
+ * lịch sử khi người dùng nhập lại cùng một file — thống kê retention sẽ sai.
+ */
+export function missingLogRows(
+  existing: ReviewLogEntry[],
+  incoming: ReviewLogEntry[],
+): ReviewLogEntry[] {
+  const seen = new Set(existing.map(logKey));
+  const out: ReviewLogEntry[] = [];
+  for (const row of incoming) {
+    const key = logKey(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
 }
 
 /** Có nên nhắc khách sao lưu không: là khách, đủ nhiều từ, và chưa tắt lời nhắc. */

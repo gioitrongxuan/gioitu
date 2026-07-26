@@ -6,13 +6,31 @@ import {
   serializeBackup,
   parseBackup,
   entriesForUser,
+  logRowsForUser,
+  missingLogRows,
   shouldRemindGuestBackup,
   GUEST_BACKUP_REMINDER_THRESHOLD,
 } from "@/features/review/domain/backup";
 import { importBackup } from "@/features/review/data/backup";
 import { getAllEntries, getEntry, putEntry } from "@/features/review/data/repository";
+import { getReviewLog } from "@/features/review/data/reviewLog";
 import { requestPersistentStorage, _resetPersistRequest } from "@/shared/persist";
+import { ReviewLogEntry } from "@/shared/types";
 import { makeEntry } from "./fixtures";
+
+/** Một dòng review_log hợp lệ tối thiểu cho test backup kèm lịch sử. */
+function makeLogRow(over: Partial<ReviewLogEntry> = {}): ReviewLogEntry {
+  return {
+    user_id: "u1",
+    term: "犬",
+    term_lang: "ja",
+    grade: "good",
+    ts: 1000,
+    interval_before: 1440,
+    interval_after: 3600,
+    ...over,
+  };
+}
 
 describe("backup serialize/parse (domain)", () => {
   it("round-trips a backup through serialize → parse", () => {
@@ -34,6 +52,46 @@ describe("backup serialize/parse (domain)", () => {
   it("rejects a backup whose entries are malformed", () => {
     const bad = JSON.stringify({ format: BACKUP_FORMAT, entries: [{ term: 123 }] });
     expect(() => parseBackup(bad)).toThrow();
+  });
+
+  it("v2: round-trips review_log; file v1 không có trường này thì bỏ qua êm", () => {
+    const withLog = buildBackup("u1", [makeEntry()], 1234, [makeLogRow(), makeLogRow({ ts: 2000 })]);
+    const restored = parseBackup(serializeBackup(withLog));
+    expect(restored.review_log).toHaveLength(2);
+
+    // File v1 (không có review_log) — nhập được như trước, trường vắng mặt.
+    const v1 = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, entries: [makeEntry()] }));
+    expect(v1.review_log).toBeUndefined();
+    // Không truyền log lúc build cũng không được bịa ra trường rỗng.
+    expect("review_log" in buildBackup("u1", [], 0)).toBe(false);
+  });
+
+  it("v2: review_log có mặt nhưng méo dạng → file hỏng, chặn như entries", () => {
+    const bad = JSON.stringify({ format: BACKUP_FORMAT, entries: [], review_log: [{ ts: "hôm qua" }] });
+    expect(() => parseBackup(bad)).toThrow();
+  });
+});
+
+describe("logRowsForUser + missingLogRows (domain)", () => {
+  it("gán lại chủ nhân và bỏ id nguồn (khoá do IndexedDB đích tự cấp)", () => {
+    const rows = logRowsForUser([makeLogRow({ id: 42, user_id: "other" })], "me");
+    expect(rows[0].user_id).toBe("me");
+    expect("id" in rows[0]).toBe(false);
+  });
+
+  it("chỉ giữ dòng chưa có; khử luôn trùng lặp nội bộ của file", () => {
+    const existing = [makeLogRow({ ts: 1000 })];
+    const incoming = [
+      makeLogRow({ ts: 1000 }), // đã có trong kho
+      makeLogRow({ ts: 2000 }),
+      makeLogRow({ ts: 2000 }), // file chứa dòng lặp
+      makeLogRow({ ts: 1000, grade: "again" }), // cùng ts nhưng lượt khác → giữ
+    ];
+    const missing = missingLogRows(existing, incoming);
+    expect(missing.map((r) => [r.ts, r.grade])).toEqual([
+      [2000, "good"],
+      [1000, "again"],
+    ]);
   });
 });
 
@@ -71,7 +129,8 @@ describe("importBackup (data) — last-write-wins merge into the current user", 
     ], 999);
 
     const imported = await importBackup("imp", backup);
-    expect(imported).toBe(3);
+    expect(imported.entryCount).toBe(3);
+    expect(imported.logCount).toBe(0); // file không có review_log
 
     const all = await getAllEntries("imp");
     const byTerm = new Map(all.map((e) => [e.term, e]));
@@ -82,6 +141,26 @@ describe("importBackup (data) — last-write-wins merge into the current user", 
     // Mọi entry nhập vào phải thuộc người đang dùng, không còn "other".
     expect(all.every((e) => e.user_id === "imp")).toBe(true);
     expect(await getEntry("other", "fresh", "en")).toBeUndefined();
+  });
+
+  it("v2: nhập review_log bổ sung, nhập lại cùng file không nhân đôi lịch sử", async () => {
+    const backup = buildBackup("other", [makeEntry({ user_id: "other", term: "犬" })], 999, [
+      makeLogRow({ id: 5, user_id: "other", ts: 1000 }),
+      makeLogRow({ id: 6, user_id: "other", ts: 2000, grade: "again" }),
+    ]);
+
+    const first = await importBackup("hist", backup);
+    expect(first.logCount).toBe(2);
+    const rows = await getReviewLog("hist");
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.user_id === "hist")).toBe(true);
+    // id nguồn bị bỏ, IndexedDB đích cấp khoá mới.
+    expect(rows.map((r) => r.id)).not.toEqual([5, 6]);
+
+    // Append-only: lần nhập thứ hai không được ghi thêm dòng nào.
+    const again = await importBackup("hist", backup);
+    expect(again.logCount).toBe(0);
+    expect(await getReviewLog("hist")).toHaveLength(2);
   });
 });
 

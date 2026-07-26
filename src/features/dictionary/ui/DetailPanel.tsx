@@ -24,6 +24,7 @@ import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
 import { CloseIcon } from "@/shared/ui/icons";
+import "./detail.css";
 
 /** Kết quả của một lần "+" — cho biết recordLookup có thực sự ghi nhận gì không
  *  (mới tạo / tăng lượt tra / tạo thẻ ôn), thay vì bị debounce nuốt im lặng. */

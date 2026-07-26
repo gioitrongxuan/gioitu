@@ -2,13 +2,17 @@ import { describe, it, expect } from "vitest";
 import {
   buildCloud,
   computeShade,
+  dueEntriesInGroup,
   effectiveCount,
   filterByLang,
   groupByPeriod,
+  groupBySrsTier,
   isVisibleOnCloud,
   periodOf,
-  tagTooltip,
+  srsTier,
+  tagPopoverContent,
 } from "@/features/review/domain/wordcloud";
+import { DAY, DEFAULT_SRS_CONFIG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
 
 describe("visibility depends on SRS status (constraint 4)", () => {
@@ -163,11 +167,83 @@ describe("groupByPeriod", () => {
   });
 });
 
-describe("tagTooltip", () => {
+describe("srsTier — 3 tầng Khu vườn ký ức", () => {
+  it("RELAPSED luôn là 'forgetting', kể cả interval lớn", () => {
+    // Tái quên là tín hiệu mong manh nhất, thắng cả interval × ease cao.
+    expect(srsTier(makeEntry({ status: "RELAPSED", card_state: "REVIEW", srs_interval: 100 * DAY, ease_factor: 2.5 }))).toBe("forgetting");
+  });
+
+  it("chưa vào REVIEW (learning/relearning/chưa có thẻ) là 'forgetting'", () => {
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "LEARNING", srs_interval: 10 }))).toBe("forgetting");
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "NEW", srs_interval: 0 }))).toBe("forgetting");
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: null }))).toBe("forgetting");
+  });
+
+  it("thẻ REVIEW còn xa ngưỡng trưởng thành là 'rooting'", () => {
+    // 3 ngày × 2.5 = 7.5 ngày < matureThreshold (21 ngày).
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5 }))).toBe("rooting");
+  });
+
+  it("thẻ REVIEW cách một lần 'Nhớ' là chạm ngưỡng → 'maturing'", () => {
+    // 20 ngày × 2.5 = 50 ngày ≥ matureThreshold (21 ngày) nhưng interval hiện tại
+    // (20 ngày) vẫn dưới ngưỡng nên chưa LEARNED → còn hiện trên cloud.
+    expect(20 * DAY).toBeLessThan(DEFAULT_SRS_CONFIG.matureThreshold);
+    expect(srsTier(makeEntry({ status: "LEARNING", card_state: "REVIEW", srs_interval: 20 * DAY, ease_factor: 2.5 }))).toBe("maturing");
+  });
+});
+
+describe("groupBySrsTier", () => {
+  const item = (over: Parameters<typeof makeEntry>[0]) => ({ entry: makeEntry(over) });
+
+  it("trả về các tầng có thẻ, theo thứ tự mong manh → trưởng thành", () => {
+    const items = [
+      item({ term: "mature", status: "LEARNING", card_state: "REVIEW", srs_interval: 20 * DAY, ease_factor: 2.5 }),
+      item({ term: "fresh", status: "LEARNING", card_state: "LEARNING", srs_interval: 10 }),
+      item({ term: "growing", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5 }),
+    ];
+    const groups = groupBySrsTier(items);
+    expect(groups.map((g) => g.label)).toEqual(["Sắp quên", "Đang bén rễ", "Sắp trưởng thành"]);
+    expect(groups.map((g) => g.key)).toEqual(["forgetting", "rooting", "maturing"]);
+  });
+
+  it("bỏ tầng rỗng và giữ nguyên thứ tự đến của thẻ trong một tầng", () => {
+    const items = [
+      item({ term: "a", status: "RELAPSED", card_state: "REVIEW", srs_interval: 10 }),
+      item({ term: "b", status: "LEARNING", card_state: "NEW", srs_interval: 0 }),
+    ];
+    const groups = groupBySrsTier(items);
+    expect(groups.map((g) => g.label)).toEqual(["Sắp quên"]); // chỉ một tầng có thẻ
+    expect(groups[0].items.map((i) => i.entry.term)).toEqual(["a", "b"]);
+  });
+});
+
+describe("dueEntriesInGroup", () => {
+  const now = 10_000_000;
+
+  it("chỉ giữ entry đến hạn trong nhóm, bỏ entry chưa đến hạn", () => {
+    const entries = [
+      makeEntry({ term: "quá hạn", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now - 1 }),
+      makeEntry({ term: "chưa hạn", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now + DAY }),
+    ];
+    const groups = groupBySrsTier(buildCloud(entries, { now }));
+    expect(groups).toHaveLength(1); // cả hai cùng tầng "rooting"
+    expect(dueEntriesInGroup(groups[0]).map((e) => e.term)).toEqual(["quá hạn"]);
+  });
+
+  it("trả về mảng rỗng khi không có entry nào due trong nhóm", () => {
+    const entries = [
+      makeEntry({ term: "a", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now + DAY }),
+    ];
+    const groups = groupBySrsTier(buildCloud(entries, { now }));
+    expect(dueEntriesInGroup(groups[0])).toEqual([]);
+  });
+});
+
+describe("tagPopoverContent (nội dung popover mini, #159 — thay tooltip title)", () => {
   const now = 10_000_000;
   const DAY = 24 * 60 * 60 * 1000;
 
-  it("joins reading · nghĩa đầu · lịch ôn · số lần tra", () => {
+  it("gồm cách đọc, nghĩa đầu, lịch ôn và số lần tra", () => {
     const e = makeEntry({
       reading: "たべる",
       meaning: JSON.stringify(["ăn", "xơi"]),
@@ -175,10 +251,15 @@ describe("tagTooltip", () => {
       card_state: "REVIEW",
       next_review: now + 2 * DAY,
     });
-    expect(tagTooltip(e, now)).toBe("たべる · ăn · ôn sau 2.0 ngày · tra 5 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: "たべる",
+      gloss: "ăn",
+      schedule: "ôn sau 2.0 ngày",
+      lookupText: "tra 5 lần",
+    });
   });
 
-  it("reads 'đến hạn' for a due card and skips a missing reading", () => {
+  it("đọc 'đến hạn' cho thẻ quá hạn và bỏ reading khi thiếu", () => {
     const e = makeEntry({
       term_lang: "en",
       reading: undefined,
@@ -187,10 +268,15 @@ describe("tagTooltip", () => {
       card_state: "REVIEW",
       next_review: now - 1,
     });
-    expect(tagTooltip(e, now)).toBe("empathy · đến hạn · tra 1 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: undefined,
+      gloss: "empathy",
+      schedule: "đến hạn",
+      lookupText: "tra 1 lần",
+    });
   });
 
-  it("omits the schedule when the word has no card yet", () => {
+  it("bỏ lịch ôn khi từ chưa có thẻ SRS", () => {
     const e = makeEntry({
       reading: "か",
       meaning: JSON.stringify(["nghĩa"]),
@@ -198,14 +284,19 @@ describe("tagTooltip", () => {
       card_state: null,
       next_review: null,
     });
-    expect(tagTooltip(e, now)).toBe("か · nghĩa · tra 3 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: "か",
+      gloss: "nghĩa",
+      schedule: undefined,
+      lookupText: "tra 3 lần",
+    });
   });
 
-  it("accepts plain-text meaning and drops an empty gloss", () => {
-    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now))
-      .toBe("chào · tra 2 lần");
-    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "", lookup_count: 2, card_state: null }), now))
-      .toBe("tra 2 lần");
+  it("nhận meaning dạng chữ trơn và bỏ gloss rỗng", () => {
+    expect(tagPopoverContent(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now).gloss)
+      .toBe("chào");
+    expect(tagPopoverContent(makeEntry({ reading: undefined, meaning: "", lookup_count: 2, card_state: null }), now).gloss)
+      .toBeUndefined();
   });
 });
 

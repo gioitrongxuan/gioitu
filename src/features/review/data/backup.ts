@@ -9,8 +9,11 @@ import {
   serializeBackup,
   parseBackup,
   entriesForUser,
+  logRowsForUser,
+  missingLogRows,
 } from "../domain/backup";
 import { getAllEntries, mergeByUpdatedAt } from "./repository";
+import { getReviewLog } from "./reviewLog";
 
 /** Tên file theo ngày để nhiều bản sao lưu không đè nhau. */
 function backupFilename(exportedAt: number): string {
@@ -30,14 +33,20 @@ function triggerDownload(content: string, filename: string): void {
 }
 
 /**
- * Xuất toàn bộ dữ liệu học của người dùng hiện tại ra file JSON tải về. Trả về
- * số entry đã xuất để caller phản hồi cho người dùng.
+ * Xuất toàn bộ dữ liệu học của người dùng hiện tại ra file JSON tải về.
+ * `includeHistory` (Premium) đính kèm cả lịch sử ôn (`review_log`) — bản sao
+ * lưu khi đó là ảnh đầy đủ, nhập lại không mất quá khứ ôn tập. Trả về số entry
+ * + số dòng lịch sử đã xuất để caller phản hồi cho người dùng.
  */
-export async function exportBackup(user_id: string): Promise<number> {
+export async function exportBackup(
+  user_id: string,
+  includeHistory = false,
+): Promise<{ entryCount: number; logCount: number }> {
   const entries = await getAllEntries(user_id);
-  const backup = buildBackup(user_id, entries, Date.now());
+  const log = includeHistory ? await getReviewLog(user_id) : undefined;
+  const backup = buildBackup(user_id, entries, Date.now(), log);
   triggerDownload(serializeBackup(backup), backupFilename(backup.exported_at));
-  return entries.length;
+  return { entryCount: entries.length, logCount: log?.length ?? 0 };
 }
 
 /** Mở hộp thoại chọn file JSON; trả về file đã chọn, hoặc null nếu người dùng huỷ. */
@@ -61,9 +70,15 @@ export async function readBackupFile(file: File): Promise<LearningBackup> {
 /**
  * Nhập backup vào kho dữ liệu học của người dùng hiện tại: gán lại chủ nhân, trộn
  * last-write-wins với dữ liệu đang có (dùng lại `mergeByUpdatedAt`) rồi ghi cả
- * tập đã trộn xuống IndexedDB. Trả về số entry trong file (số bản ghi được nhập).
+ * tập đã trộn xuống IndexedDB. File v2 có `review_log` thì chỉ ghi bổ sung các
+ * dòng CHƯA có (append-only, không nhân đôi lịch sử khi nhập lại cùng file);
+ * nhập lịch sử không cần Premium — gate nằm ở lúc xuất, dữ liệu đã xuất thì
+ * luôn phục hồi được. Trả về số entry + số dòng lịch sử đã nhập.
  */
-export async function importBackup(user_id: string, backup: LearningBackup): Promise<number> {
+export async function importBackup(
+  user_id: string,
+  backup: LearningBackup,
+): Promise<{ entryCount: number; logCount: number }> {
   const incoming = entriesForUser(backup, user_id);
   const existing = await getAllEntries(user_id);
   const merged: VocabEntry[] = mergeByUpdatedAt(existing, incoming);
@@ -73,5 +88,15 @@ export async function importBackup(user_id: string, backup: LearningBackup): Pro
   for (const e of merged) await tx.store.put(e);
   await tx.done;
 
-  return incoming.length;
+  let logCount = 0;
+  if (backup.review_log != null && backup.review_log.length > 0) {
+    const incomingLog = logRowsForUser(backup.review_log, user_id);
+    const newRows = missingLogRows(await getReviewLog(user_id), incomingLog);
+    const logTx = db.transaction("review_log", "readwrite");
+    for (const row of newRows) await logTx.store.add(row);
+    await logTx.done;
+    logCount = newRows.length;
+  }
+
+  return { entryCount: incoming.length, logCount };
 }

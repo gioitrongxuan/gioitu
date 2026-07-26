@@ -111,6 +111,9 @@ Tôi       — tài khoản/sync (kèm trạng thái thật) · Premium · Giao 
 
 - Navigation: bottom tab bar 4 tab trên mobile (breakpoint 760px duy nhất,
   đồng bộ `MOBILE_MEDIA_QUERY`), sidebar thu gọn trên desktop.
+- **Map-first (chủ dự án chốt 07/2026)**: trang chủ `/` là Kho từ / Bản đồ từ
+  (không phải Hôm nay), và **SearchBar toàn cục trên mọi khu** — mở app là
+  thấy bản đồ trí nhớ, tra được liền, từ vừa "+" hiện ngay trên bản đồ.
 - Routing bằng History API (không cần thư viện); mở overlay là push history
   để Back đóng overlay; mọi màn có URL.
 - Phiên ôn là route toàn màn hình (không phải modal): progress bar mảnh,

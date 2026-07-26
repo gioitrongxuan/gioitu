@@ -4,7 +4,7 @@
 // Ném lỗi khi chưa cấu hình khoá hoặc upstream lỗi — nơi gọi tự quyết cách phản hồi.
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const DEEPSEEK_MODEL = "deepseek-chat";
+const DEEPSEEK_MODEL = "deepseek-v4-flash";
 
 const JSON_ONLY_SYSTEM =
   "Bạn trả về DUY NHẤT một đối tượng JSON hợp lệ theo schema người dùng yêu cầu, không kèm giải thích hay markdown.";

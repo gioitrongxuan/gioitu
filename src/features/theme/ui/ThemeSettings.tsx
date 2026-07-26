@@ -7,7 +7,8 @@
 
 import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
-import { CloseIcon } from "@/shared/ui/icons";
+import { CloseIcon, LockIcon } from "@/shared/ui/icons";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { useTheme } from "../ThemeProvider";
 import {
   Theme,
@@ -18,12 +19,26 @@ import {
   heatTextColor,
   contrastOf,
 } from "../domain/theme";
+import {
+  THEME_SKINS,
+  StreakSnapshot,
+  loadEarnedSkins,
+  saveEarnedSkins,
+  updateEarnedSkins,
+} from "../domain/skins";
+import "./skins.css";
+import "./settings.css";
 
 /** Ngưỡng AA cho chữ thường (DESIGN §3.4) — dưới ngưỡng này thì cảnh báo. */
 const MIN_TEXT_CONTRAST = 4.5;
 
 interface Props {
   onClose: () => void;
+  /**
+   * Chuỗi ngày ôn của người dùng hiện tại — App inject từ feature review
+   * (data/streak.ts) để theme không import ngược; quyết định skin nào mở khoá.
+   */
+  loadStreak: () => Promise<StreakSnapshot>;
 }
 
 interface FieldDef {
@@ -49,14 +64,43 @@ const PALETTE_FIELDS: FieldDef[] = [
 // Sample shades for the live heatmap strip (low → high look-up frequency).
 const PREVIEW_SHADES = [0, 0.25, 0.5, 0.75, 1];
 
-export function ThemeSettings({ onClose }: Props) {
-  const { theme, decor, setTheme, setField, setDecor, applyPreset, reset } = useTheme();
+export function ThemeSettings({ onClose, loadStreak }: Props) {
+  const { theme, decor, setTheme, setField, setDecor, applyPreset, applySkin, reset } = useTheme();
   // Snapshot palette + decor as they were when the modal opened, for "Hoàn tác".
   const [initial] = useState<{ theme: Theme; decor: ThemeDecor }>({ theme, decor });
   const undo = () => {
     setTheme(initial.theme);
     setDecor(initial.decor);
   };
+
+  // Bộ sưu tập skin: skin đang mặc từ trước ngày có gating được cộng luôn vào
+  // danh sách đã mở — không tước lại thứ người dùng đã chọn.
+  const [earned, setEarned] = useState<string[]>(() =>
+    updateEarnedSkins(loadEarnedSkins(), 0, decor.presetId),
+  );
+  const [streak, setStreak] = useState<StreakSnapshot | null>(null);
+  // Đọc chuỗi ôn một lần lúc mở modal (nhật ký cục bộ, đủ tươi cho phiên chỉnh
+  // giao diện). Mount-only có chủ đích: lambda `loadStreak` App truyền xuống
+  // đổi định danh mỗi render, không đưa vào deps được.
+  useEffect(() => {
+    let cancelled = false;
+    loadStreak()
+      // Lỗi đọc nhật ký: coi như chưa có chuỗi — skin đã mở vẫn giữ nguyên.
+      .catch((): StreakSnapshot => ({ current: 0, longest: 0 }))
+      .then((info) => {
+        if (cancelled) return;
+        setStreak(info);
+        setEarned((prev) => {
+          const next = updateEarnedSkins(prev, info.longest, decor.presetId);
+          saveEarnedSkins(next);
+          return next;
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activePreset = THEME_PRESETS.find(
     (p) => (Object.keys(p.theme) as (keyof Theme)[]).every((k) => p.theme[k] === theme[k]),
@@ -96,11 +140,59 @@ export function ThemeSettings({ onClose }: Props) {
                   }}
                   aria-hidden
                 />
-                {preset.icons && <span className="preset-emblem" aria-hidden>{preset.icons.emblem}</span>}
                 {preset.name}
               </button>
             ))}
           </div>
+        </section>
+
+        <section className="theme-section">
+          <h3>Bộ sưu tập skin</h3>
+          {streak ? (
+            <p className="skin-streak">
+              Chuỗi ôn: <strong>{streak.current} ngày</strong> · dài nhất: {streak.longest} ngày
+            </p>
+          ) : (
+            <Skeleton className="skin-streak-loading" />
+          )}
+          <div className="preset-row">
+            {THEME_SKINS.map((skin) =>
+              earned.includes(skin.id) ? (
+                <button
+                  key={skin.id}
+                  type="button"
+                  className={`preset-chip${decor.presetId === skin.id ? " active" : ""}`}
+                  onClick={() => applySkin(skin)}
+                >
+                  <span
+                    className="preset-swatch"
+                    style={{
+                      background: `linear-gradient(135deg, ${skin.heat.heatFrom}, ${skin.heat.heatTo})`,
+                    }}
+                    aria-hidden
+                  />
+                  <span className="preset-emblem" aria-hidden>{skin.icons.emblem}</span>
+                  {skin.name}
+                </button>
+              ) : (
+                <button
+                  key={skin.id}
+                  type="button"
+                  className="preset-chip skin-locked"
+                  disabled
+                  title={`Cần chuỗi ôn ${skin.requiredStreak} ngày để mở khoá`}
+                >
+                  <LockIcon size={16} className="skin-lock-icon" />
+                  {skin.name}
+                  <span className="skin-req">{skin.requiredStreak} ngày</span>
+                </button>
+              ),
+            )}
+          </div>
+          <p className="skin-hint">
+            Ôn từ mỗi ngày để nối chuỗi và mở khoá; skin đã mở giữ vĩnh viễn. Skin chỉ đổi hoạ tiết
+            nền + màu bản đồ nhiệt, không đổi màu chữ/nền đang dùng.
+          </p>
         </section>
 
         <section className="theme-section">
@@ -111,7 +203,7 @@ export function ThemeSettings({ onClose }: Props) {
               checked={decor.effectsEnabled}
               onChange={(e) => setDecor({ ...decor, effectsEnabled: e.target.checked })}
             />
-            <span>Hiện hoạ tiết nền của theme (Majin Buu, Cell, Rừng trúc, Akatsuki)</span>
+            <span>Hiện hoạ tiết nền của skin đang mặc</span>
           </label>
           <p className="fx-hint">Hoạ tiết sẽ đứng yên khi hệ điều hành bật "giảm chuyển động".</p>
         </section>

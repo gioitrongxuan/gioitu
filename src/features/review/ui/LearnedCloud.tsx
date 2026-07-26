@@ -7,6 +7,7 @@ import { computeShade, effectiveCount, filterByLang, groupByPeriod, CloudLang, T
 import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
+import "./review.css";
 
 interface Props {
   /** Mastered entries, already filtered/sorted by the store. */

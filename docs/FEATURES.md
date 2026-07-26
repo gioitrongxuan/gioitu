@@ -7,32 +7,52 @@
 > Kiến trúc: [ARCHITECTURE.md](./ARCHITECTURE.md). Lược đồ dữ liệu:
 > [DB_SCHEMA.md](./DB_SCHEMA.md).
 
-## 0. Bố cục màn hình chính
+## 0. Bố cục màn hình chính — IA 4 khu
 
-`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** chuyển bằng state
-nội bộ (`page`: home / learned / kanji / vocabstudy — chưa có URL/route), cộng
-các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
-Dictionary Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Auth.
+`src/app/App.tsx` lắp ráp app theo **4 khu** ([DESIGN.md §4](./DESIGN.md)),
+điều hướng bằng **tab bar dưới đáy** (mobile <760px) / **sidebar trái**
+(desktop) — `app/AppNav.tsx` + `app/shell.css`, khu "Hôm nay" đeo badge số từ
+đến hạn. **Thanh tra cứu (Search Bar) toàn cục, hiện trên mọi khu** — vòng
+lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên trang nào cũng tra
+được ngay; kết quả mở Detail Panel đè lên trang đang xem:
+
+- **Kho từ** (`/` — **trang chủ**, mở app là thấy bản đồ) — tab con: Bản đồ
+  từ (Word Cloud + Filter Bar) · Đã thuộc (`/words/learned`) · Kanji
+  (`/words/kanji`) · Học từ vựng (`/words/study`); kèm hàng hành động Thêm
+  nhanh · Từ điển cá nhân · Thống kê ôn tập. Path cũ `/learned` `/kanji`
+  `/vocabstudy` `/words` vẫn mở đúng trang.
+- **Hôm nay** (`/today`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi
+  ngày ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng);
+  "Từ hay quên" (3 thẻ rớt nhiều nhất, bấm mở chi tiết); tài sản "Đã thuộc N
+  từ"; lối tắt sang Tra cứu (`app/TodayScreen.tsx`, `review/data/todayStats.ts`,
+  `activityByDay`/`mostForgotten` trong `review/domain/reviewStats.ts`).
+- **Tra cứu** (`/search`) — trang tra tập trung (không có nội dung khu nào
+  khác bên dưới thanh tra); Detail Panel chiếm nguyên trang.
+- **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
+  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
+  từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
+  được khi đăng nhập hiện **ổ khoá** (icon SVG) — tường đăng nhập nhất quán,
+  không giấu hẳn cũng không mời-rồi-chặn.
+
+Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward đi
+giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
+phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
+Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
+Contribution Review, Quick Add, Auth, Onboarding. Mỗi overlay đang mở chiếm một entry
+History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
+Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
+`/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
 
 ```
-┌ Header ─────────────────────────────────────────────────────────┐
-│ 語 Gioitu                [Từ điển ▾ (cặp + nguồn + import)]  [☰] │
-├ Search Bar — ô tra cứu + gợi ý live + viết tay/bộ thủ ───────────┤
-├ Filter Bar — sắp xếp · nổi bật/chỉ-hiện từ cần ôn · [Ôn tập hôm nay]│
-├ Word Cloud — bản đồ nhiệt các từ đang học ──────────┐            │
-│                                          Detail Panel │ (khi mở) │
-└──────────────────────────────────────────────────────┴──────────┘
-        Toasts (góc) · các màn còn lại là mục trong menu ☰
+┌ Sidebar ─┬ Header ────────────────────────────────────────────┐
+│ Hôm nay● │ 語 Gioitu        [Từ điển ▾ (cặp + nguồn + import)] │
+│ Tra cứu  ├ Search Bar (toàn cục, mọi khu) ─────────────────────┤
+│ Kho từ   ├ (dải theo khu: tab con + Filter Bar) ───────────────┤
+│ Tôi      ├ Nội dung khu ───────────────────────┐               │
+│          │                          Detail Panel │ (khi mở)     │
+└──────────┴─────────────────────────────────────┴───────────────┘
+  (mobile: sidebar thành tab bar cố định dưới đáy) · Toasts (góc)
 ```
-
-Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nhập/quyền):
-Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
-Kết nối Yomitan · Premium · Xuất/Nhập dữ liệu học · Đồng bộ · Đăng nhập/Đăng xuất;
-admin thêm Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
-Với **khách**, các mục chỉ dùng được khi đăng nhập (**Kết nối Yomitan**,
-**Premium**) hiện **ổ khoá** (icon SVG) kèm gợi ý "cần đăng nhập" — tường đăng
-nhập nhất quán, không giấu hẳn cũng không mời-rồi-chặn. (`app/HeaderMenu.tsx`)
 
 ## 1. Tra cứu từ điển
 
@@ -105,6 +125,18 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 - **Nổi bật/đến hạn**: từ đến hạn ôn được làm nổi; còn lại bị làm mờ (khi bật).
 - **Bấm một tag**: mở Detail Panel ở chế độ **xem lại** — **không** tính lượt tra
   (xem bản đồ của mình không nên bị phạt). (`useLookup.onSelectTag`)
+- **Nhóm** (chọn ở "Nhóm theo"): thời gian tra (ngày/tháng/năm) hoặc **Trí nhớ**
+  — "Khu vườn ký ức" 3 tầng *Sắp quên / Đang bén rễ / Sắp trưởng thành*
+  (`srsTier`/`groupBySrsTier`, chỉ dựa trạng thái SRS sẵn có). Tầng nào có từ
+  đến hạn thì tiêu đề tầng kèm nút **"Ôn N từ này"** — mở phiên ôn chỉ với các
+  từ đến hạn của tầng đó.
+- **Popover mini trên mỗi thẻ** (#159): rê chuột đậu trên thẻ, **long-press**
+  (mobile) hoặc **chuột phải** mở thẻ tin nhanh — cách đọc, nghĩa đầu, lịch ôn,
+  số lần tra (`tagPopoverContent`) + hành động nhanh: **Ôn từ này** (chỉ khi
+  đến hạn), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
+  (backdrop + Esc đóng, focus qua `useDialog`); popover này **thay** tooltip
+  `title` và "Chế độ xoá" toàn cục trước đây. Long-press và vị trí neo là logic
+  thuần ở `domain/tagPopover.ts`; UI ở `ui/TagPopover.tsx` + `ui/cloud.css`.
 - **Trạng thái rỗng**: "Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu."
 
 ### Filter Bar (`review/ui/FilterBar.tsx`)
@@ -114,7 +146,18 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Sắp xếp** | `recent` (mới tra nhất) hoặc `frequency` (tra nhiều nhất) |
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
+| **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
+
+### Tải ảnh PNG (`review/ui/wordCloudPng.ts`)
+
+Vẽ lại đúng bản đồ đang hiển thị (cùng bộ lọc ngôn ngữ/sắp xếp/nhóm/chỉ-từ-cần-ôn,
+kèm huy hiệu "!" tái quên, màu bám theme hiện hành) lên canvas rồi tải xuống
+client-side — không qua server, không thư viện ngoài. Bố cục xếp dòng kiểu
+flex-wrap tính thuần ở `domain/exportCloud.ts` (đo chữ bằng `measureText` do lớp
+UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
+`shared/ui/pngExport.ts`. Trạng thái nổi bật/làm mờ "từ cần ôn" là tín hiệu hành
+động nhất thời, cố ý không tái tạo trong ảnh.
 
 ## 3. Phiên ôn tập SRS
 
@@ -126,8 +169,31 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   "Khó nhằn" + gợi ý (sửa nghĩa cho dễ nhớ hoặc tạm gác để học riêng). Chỉ
   **cảnh báo**, không tự hoãn/xoá. (`srs.isLeech`, [LOGIC §4.6](./LOGIC.md))
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
+- **Luyện chủ động (tuỳ chọn, #164)** — hai toggle ở footer phiên, lưu
+  `localStorage`, mặc định tắt:
+  - *Gõ cách đọc trước khi lật* (`gioitu.reviewTypeReading.v1`): thẻ tiếng Nhật
+    có `reading` hiện ô nhập romaji/kana trước khi lật; sau khi lật hiện gợi ý
+    đúng/sai (`domain/readingPractice.ts`). Chỉ là gợi ý mềm — không chặn lật,
+    không đụng self-grade/SRS.
+  - *Đảo chiều: nghĩa → từ* (`gioitu.reviewReverse.v1`): mặt trước là **nghĩa**,
+    người học nhớ lại từ; lật ra từ + cách đọc (mặt sau giữ nguyên MeaningView).
+    Thẻ không có nghĩa đọc được thì rơi về mặt từ (`domain/reverseMode.ts`).
+    Bật cùng gõ cách đọc: nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
+- **Swipe 4 hướng (#160)**: sau khi lật, kéo thẻ để chấm — **trái Quên · phải
+  Nhớ · lên Dễ · xuống Khó** (pointer events, `domain/swipe.ts`). Khi kéo hiện
+  chỉ dấu nhãn grade + interval xem trước, đậm dần theo khoảng kéo; thả qua
+  ngưỡng thì chốt, dưới ngưỡng thì thôi (vùng chết nhỏ để tap/bấm trong thẻ
+  không bị nhận nhầm). Thẻ có nội dung dài (cuộn được) nhường trục dọc cho cuộn
+  chạm — chạm chỉ còn swipe trái/phải, Dễ/Khó vẫn có nút và phím; chuột không
+  bị giới hạn này.
+- **Haptic**: rung nhẹ (`navigator.vibrate`, 15ms) ngay lúc chốt grade — mọi
+  ngả swipe/nút/phím; trình duyệt không hỗ trợ (iOS Safari) thì bỏ qua.
+- **Dấu son 合格 (DESIGN §5)**: từ chuyển sang **LEARNED** trong phiên → dấu son
+  `--seal` đóng một lần lên thẻ (kèm tên từ), tự mờ đi sau ~1,5s — animation chỉ
+  transform/opacity, có guard `prefers-reduced-motion` (hiện tĩnh rồi tự gỡ).
+  Hiện ở cả màn hết lô/hoàn thành để thẻ cuối phiên tốt nghiệp không mất khoảnh khắc.
 - **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.
 - **Chia lô ~20 thẻ**: phiên phục vụ từng lô `REVIEW_BATCH_SIZE` (=20) thẻ; hết
   lô mà còn thẻ đến hạn thì hiện lời mời **"Ôn tiếp N thẻ nữa"** (điểm dừng tự
@@ -141,8 +207,8 @@ lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
-cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
-cloud. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+cho FSRS về sau — cục bộ, chưa đồng bộ cloud; màn **Thống kê ôn tập** ([§9.12](#912-thống-kê-ôn-tập))
+đọc nhật ký này. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
 
 ## 4. Quản lý từ điển
 
@@ -251,6 +317,12 @@ cloud). Ba lớp bảo vệ giảm rủi ro mất trắng:
   gán entry về người đang dùng nên backup từ tài khoản/phiên khác vẫn hiện ra.
   Serialize/parse/validate thuần ở `review/domain/backup.ts`; đọc/ghi file +
   IndexedDB ở `review/data/backup.ts`.
+- **Sao lưu kèm lịch sử ôn (Premium, #165)**: với người đã kích hoạt Premium,
+  file xuất (format v2) đính kèm `review_log` đầy đủ. Nhập lại KHÔNG cần
+  Premium (gate nằm ở lúc xuất): chỉ ghi bổ sung các dòng chưa có
+  (`missingLogRows`, khoá `term+lang+ts+grade`) nên nhập cùng file hai lần
+  không nhân đôi lịch sử; `id` nguồn bị bỏ để IndexedDB đích tự cấp. File v1
+  không có trường này thì bỏ qua êm; có mà méo dạng thì chặn như entries hỏng.
 
 ## 7. Thông báo (Toasts)
 
@@ -278,11 +350,16 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   (`lookupError`); đồng bộ dữ liệu học phân biệt offline vs 401 và báo lên UI
   (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
+- Service worker (`public/sw.js`) precache **toàn bộ asset build, kể cả chunk
+  lazy** (Bộ thủ, Kanji, skin…) — danh sách được chèn lúc build (plugin
+  sw-precache trong `vite.config.ts`, logic ở `src/app/swPrecache.ts`) nên các
+  màn phụ mở được offline ngay cả khi chưa từng ghé; mỗi deploy SW chỉ tải phần
+  chunk đổi hash và dọn hash cũ khỏi cache ở `activate`.
 
 ## 9. Các tính năng bổ sung (2026)
 
 > Các màn/tính năng mọc sau bản SPEC gốc. Bảng dưới là mục lục nhanh (lối vào ·
-> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.11 kế tiếp. Khi thêm
+> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.12 kế tiếp. Khi thêm
 > tính năng mới, cập nhật cả bảng lẫn một mục chi tiết ở đây (cổng review mỗi PR
 > tính năng — xem CLAUDE.md).
 
@@ -290,16 +367,17 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 |---|---|---|---|
 | Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian | [§9.1](#91-đã-thuộc-learnedcloud) |
 | Thống kê kanji | ☰ | Lưới độ phủ kanji theo nhóm + "Đánh dấu nhanh" | [§9.2](#92-thống-kê-kanji) |
+| Thống kê ôn tập | ☰ | Retention theo ngày + dự báo đến hạn 7 ngày + đường từ đã thuộc | [§9.12](#912-thống-kê-ôn-tập) |
 | Học từ vựng | ☰ | Lưới ô từ (3 nguồn) để đánh dấu biết/không biết | [§9.3](#93-học-từ-vựng) |
 | Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB (nhập tay + AI) | [§9.4](#94-từ-điển-cá-nhân) |
 | Study list | (chưa nối vào UI) | Bộ từ lưu server; client mới chỉ đọc qua Học từ vựng | [§9.5](#95-study-list) |
 | Chia sẻ từ điển | Nút "Chia sẻ" ở mỗi từ điển trên máy | Link tải .zip sống ~5 phút để chuyển máy | [§9.6](#96-chia-sẻ-từ-điển) |
-| Premium | ☰ | Kích hoạt bằng mã; mở khoá sync từ điển cá nhân | [§9.7](#97-premium) |
+| Premium | ☰ | Trang giá trị retention + kích hoạt bằng mã | [§9.7](#97-premium) |
 | Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
-| Skin nền anime | Giao diện | 4 backdrop trang trí lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+| Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -340,6 +418,11 @@ luôn hiện. (`features/kanjistats/`, `App.tsx:293,399-406`)
 - **Đánh dấu nhanh** (checkbox): bật thì bấm một ô = ghi nhận kanji đó **đã biết**
   (`markKnownByTerm(kanji, "ja", "vi")` → tạo/tốt-nghiệp một entry `LEARNED` cho
   đúng một ký tự kanji), thay vì mở tra cứu; ô có affordance `.quick`.
+- **Tải ảnh PNG** (nút "Tải ảnh PNG" cạnh legend): vẽ lại đúng dữ liệu đang hiển
+  thị (nhóm/không nhóm, gồm cả ô `missing` nếu đang bật "Hiện kanji chưa biết")
+  lên canvas rồi tải xuống client-side — không qua server, không thư viện ngoài
+  (`ui/kanjiGridPng.ts`, layout thuần ở `domain/exportGrid.ts`). Word Cloud có
+  nút tương ứng — xem [§2](#2-word-cloud-bản-đồ-từ).
 
 ### 9.3 Học từ vựng
 
@@ -432,10 +515,16 @@ Chuyển một từ điển sang máy khác qua link tải `.zip` ngắn hạn. 
 
 ### 9.7 Premium
 
-Gói trả phí mở khoá **đồng bộ từ điển cá nhân đa thiết bị**; đồng bộ tiến trình
-học (SRS) vẫn **miễn phí**. Mục menu **Premium** (hiện "Premium ✓" khi đã kích
-hoạt). (`features/premium/`, `App.tsx:298,508`)
+Gói trả phí định vị quanh **retention** (#165): giữ lại và soi được lịch sử
+học, không chỉ đồng bộ. Mục menu **Premium** (hiện "Premium ✓" khi đã kích
+hoạt) mở **trang giá trị** — kể lợi ích trước, ô nhập mã sau; lợi ích hiện cả
+với khách (đọc được trước khi bị đòi đăng nhập). (`features/premium/`)
 
+- **Bốn giá trị** (hằng `BENEFITS` trong `PremiumModal.tsx`): thống kê nâng cao
+  (§9.12) · sao lưu kèm lịch sử ôn (§6) · đồng bộ từ điển cá nhân đa thiết bị
+  (§9.3; SRS vẫn đồng bộ **miễn phí**) · AI phân tích câu ví dụ (Deepseek, luồng
+  Yomitan "+"). Marker danh sách là chấm CSS `--accent`, không emoji
+  (`premium/ui/premium.css`).
 - **Kích hoạt (user)**: cần đăng nhập (Premium gắn theo tài khoản). Nhập mã dạng
   `ABCD-EFGH-JKMN` → `redeemPremiumCode` (`POST /api/premium/redeem`); thành công
   thì cập nhật cache phiên (`markSessionPremium`) để UI/cổng đồng bộ phản ánh
@@ -500,12 +589,22 @@ công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel cô
 
 ### 9.11 Skin nền anime
 
-Bộ backdrop trang trí lazy-load, chỉ đổi hoạ tiết nền (không đụng token chữ/nền).
-Lối vào: **Giao diện** → mục "Mẫu có sẵn" + công tắc "Hiện hoạ tiết nền của
-theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
+Bộ sưu tập skin gắn chuỗi ngày ôn (#162). Một skin CHỈ đổi backdrop + hai đầu
+heatmap (+ emblem nhận diện) — token chữ/nền của người dùng giữ nguyên
+(DESIGN §1), nên skin mặc được trên cả nền sáng lẫn tối. Lối vào: **Giao diện**
+→ mục "Bộ sưu tập skin" + công tắc "Hiện hoạ tiết nền". (`theme/domain/skins.ts`,
+`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 
-- **Bốn skin** (`presets/registry.ts`, khoá `BackgroundEffect`): `buu` (Majin
-  Buu), `cell`, `bamboo` (Rừng trúc — thư mục `panda/`), `akatsuki`.
+- **Bốn skin** (`domain/skins.ts`, hiệu ứng đăng ký ở `presets/registry.ts`,
+  khoá `BackgroundEffect`): `panda` (Rừng trúc, hiệu ứng `bamboo`) · `buu`
+  (Majin Buu) · `cell` · `akatsuki`.
+- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log` cục bộ
+  (`review/domain/streak.ts`, ngày theo 0h máy; hôm nay chưa ôn thì chuỗi kết
+  thúc hôm qua chưa coi là đứt). Mốc: Rừng trúc 3 · Majin Buu 7 · Cell 14 ·
+  Akatsuki 30 ngày, xét theo chuỗi **dài nhất** từng đạt. Skin đã mở giữ vĩnh
+  viễn (danh sách lưu `localStorage` khoá `gioitu.skins.v1`); skin đang mặc từ
+  trước khi có gating được giữ luôn. App inject `loadReviewStreak` vào
+  `ThemeSettings` — theme không import ngược sang review.
 - **Lazy-load**: mỗi hiệu ứng là một `lazy(() => import(...))` riêng, render trong
   `<Suspense fallback={null}>` ở lớp `.theme-backdrop` (fixed, `z-index: -1`,
   `pointer-events: none`) — skin không chọn thì không tải component/CSS/ảnh. Không
@@ -513,6 +612,57 @@ theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 - **Reduced-motion**: mỗi background đặt `data-speed` + biến `--fx-drift`; CSS
   đóng băng animation khi OS bật "giảm chuyển động" hoặc khi `data-speed="none"`
   (`styles.css:483-486`) — hoạ tiết vẫn hiện nhưng đứng yên.
+
+### 9.12 Thống kê ôn tập
+
+Overlay đọc `review_log` (IndexedDB, cục bộ) + danh sách entry, dựng bằng SVG
+thuần (không thư viện chart). Lối vào: ☰ → **Thống kê ôn tập**. Mở cho mọi
+người (guest lẫn đăng nhập); riêng mục "Nâng cao" gate Premium (#165).
+(`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats.ts`)
+
+- **Hàng ô số liệu**: Tỉ lệ nhớ 30 ngày · Lượt ôn 30 ngày · Đã thuộc (màu
+  `--seal` thành tựu) · Đến hạn 7 ngày tới.
+- **Tỉ lệ nhớ theo ngày** (30 ngày): chỉ tính lượt chấm có `interval_before`
+  ≥ 1 ngày — "true retention" kiểu Anki, các bước học 1–10 phút không tính;
+  ngày không ôn là khoảng hở thật trên biểu đồ (không nối xuyên).
+- **Dự báo đến hạn 7 ngày**: cột theo ngày từ `next_review`; thẻ đã quá hạn
+  dồn vào "Hôm nay". Giả định ôn đúng hạn, không mô phỏng reschedule.
+- **Từ đã thuộc theo thời gian**: đường luỹ kế theo `learned_at` (fallback
+  `last_lookup_at`), chỉ đếm entry đang LEARNED — điểm cuối luôn khớp "Đã
+  thuộc (N)"; từ tái quên rời khỏi đường (tả tài sản hiện có, không phải lịch
+  sử đầy đủ).
+- **Nâng cao · Premium (#165)**: tỉ lệ nhớ tách theo **khoảng ôn**
+  (`retentionByInterval`, 4 nhóm `INTERVAL_BANDS`: 1–6 ngày · 1–4 tuần ·
+  1–3 tháng · >3 tháng — thẻ non yếu ≠ thẻ chín yếu) + nút **tải toàn bộ lịch
+  sử ôn ra CSV** (`reviewLogToCsv` ở `domain/reviewLog.ts`; BOM UTF-8 cho
+  Excel, không lộ `user_id`/`id`). Người chưa Premium thấy khối này **mờ**
+  (blur + `inert`, dữ liệu vẫn là của chính họ — khoá ở thao tác, không ở bí
+  mật) kèm nút "Tìm hiểu Premium" mở trang giá trị (§9.7).
+- Toàn bộ phép tính là hàm thuần nhận `now` từ caller (không `Date.now()`
+  trong domain) — nền đối chiếu cho FSRS khi đủ log.
+
+### 9.13 Onboarding lần đầu (#152)
+
+Màn chào 3 bước (overlay, `app/Onboarding.tsx`) cho lần mở app đầu tiên:
+(1) triết lý tra-là-tín-hiệu-quên → bấm "+", (2) chọn nguồn từ điển + nút
+**"Tải từ điển đề xuất" một chạm**, (3) nhịp ôn mỗi ngày ở màn Hôm nay.
+
+- **Chỉ chào người mới thật sự**: quyết định thuần `decideOnboarding` ở
+  `app/onboarding.ts` — đã có dữ liệu học hoặc từ điển local (người dùng từ
+  trước khi có onboarding) thì đánh dấu "đã xem" trong im lặng; cờ nhớ ở
+  localStorage `gioitu.onboarded.v1`. Mọi ngả đóng (Bỏ qua / Bắt đầu /
+  Escape / Back) đều đánh dấu đã xem.
+- **Từ điển đề xuất host trên chính server** (cùng origin — không vướng
+  CORS): admin thả file .zip Yomitan + `manifest.json` (mảng
+  `{file, name, description?, source, target}`) vào thư mục
+  `GIOITU_DICTS_DIR` (mặc định `<cwd>/dicts`); client hỏi
+  `GET /api/dict/recommended?source&target` rồi tải qua `importYomitanUrl`
+  (`server/features/dictionary/recommendedRoutes.ts`,
+  `dictionary/data/recommended.ts`). Server chưa cấu hình gói đề xuất →
+  trả `[]`, UI tự ẩn nút (vẫn tra được bằng nguồn Server).
+- Cài xong, nguồn tra chuyển sang "Trên máy" cho phiên hiện tại nhưng
+  **không ghi lựa chọn** — cùng ngữ nghĩa auto-default lúc mở app; lựa chọn
+  chỉ được lưu khi người dùng tự chọn ở dropdown "Từ điển".
 
 ## 10. Bản đồ chức năng → tài liệu
 

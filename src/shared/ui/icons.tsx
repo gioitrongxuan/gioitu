@@ -68,3 +68,42 @@ export function LockIcon({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+export function DownloadIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M12 3v12" />
+      <polyline points="7 10 12 15 17 10" />
+      <path d="M5 19h14" />
+    </svg>
+  );
+}
+
+// --- Icon 4 khu cho tab bar / sidebar (#149) ---
+
+export function SunIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" />
+    </svg>
+  );
+}
+
+export function LayersIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="m12 3 9 5-9 5-9-5Z" />
+      <path d="m3 13 9 5 9-5" />
+    </svg>
+  );
+}
+
+export function UserIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}

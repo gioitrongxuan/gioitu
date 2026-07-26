@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { shouldRemindGuestBackup } from "../domain/backup";
+import "./review.css";
 
 const DISMISSED_KEY = "gioitu.guestBackupDismissed.v1";
 

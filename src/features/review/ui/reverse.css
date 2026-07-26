@@ -1,0 +1,5 @@
+/* Chế độ đảo chiều (#164): mặt trước là NGHĨA thay vì từ. Gloss có thể dài nên
+   chữ nhỏ hơn mặt từ (26px); nhiều dòng thì đánh số căn trái như .senses cho
+   quen mắt, một dòng thì giữ căn giữa sẵn có của .front. */
+.flashcard .front.front-meaning { font-size: 18px; font-weight: 500; }
+.front-meaning ol { margin: 0; padding-left: 1.5em; text-align: left; display: grid; gap: 6px; }

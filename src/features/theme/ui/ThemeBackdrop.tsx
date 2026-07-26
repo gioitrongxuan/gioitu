@@ -1,18 +1,19 @@
-// Lớp nền trang trí của preset đang chọn. Nằm sau toàn bộ nội dung (fixed,
+// Lớp nền trang trí của skin đang chọn. Nằm sau toàn bộ nội dung (fixed,
 // z-index âm, pointer-events none) và lazy-load qua presets/registry — chỉ
-// theme được chọn mới tải chunk hiệu ứng của nó. Không render gì khi người
-// dùng tắt hiệu ứng hoặc preset không có background.
+// skin được chọn mới tải chunk hiệu ứng của nó. Không render gì khi người
+// dùng tắt hiệu ứng hoặc không mặc skin nào.
 
 import { Suspense } from "react";
 import { useTheme } from "../ThemeProvider";
-import { presetById } from "../domain/theme";
+import { skinById } from "../domain/skins";
 import { BACKGROUNDS } from "../presets/registry";
+import "./backdrop.css";
 
 export function ThemeBackdrop() {
   const { decor } = useTheme();
   if (!decor.effectsEnabled) return null;
 
-  const background = presetById(decor.presetId)?.background;
+  const background = skinById(decor.presetId)?.background;
   if (!background) return null;
 
   const Effect = BACKGROUNDS[background.effect];

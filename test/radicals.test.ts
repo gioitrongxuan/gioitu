@@ -7,6 +7,7 @@ import {
   JISHO_GLYPHS,
   RadicalData,
 } from "@/features/dictionary/domain/radicals";
+import { loadRadicalData } from "@/features/dictionary/data/radicals";
 
 // Bảng bộ thủ nhỏ có kiểm soát:
 //   明 = 日 ; 村 = 木+寸 ; 林 = 木 ; 杳 = 木+日 ; 三 = 一 (không giao 木/日)
@@ -99,5 +100,23 @@ describe("applyJishoGlyphs", () => {
 
   it("mọi glyph đích đều khác ký tự nguồn (thực sự có remap)", () => {
     for (const [src, dst] of Object.entries(JISHO_GLYPHS)) expect(dst).not.toBe(src);
+  });
+});
+
+describe("loadRadicalData", () => {
+  // Chunk radkfile.json thô: bộ + số nét theo nhóm nét (chưa flatten/remap).
+  const rawRadkfile = {
+    radicals: [{ r: "木", s: 4 }],
+    map: { "木": "村" },
+    strokeGroups: { "7": "村" },
+  };
+
+  it("import hỏng (VD offline chưa cache) không ghim cache — lần sau thử lại được", async () => {
+    // Lần đầu hỏng: phải reject, KHÔNG được nuốt lỗi.
+    await expect(loadRadicalData(() => Promise.reject(new Error("offline")))).rejects.toThrow("offline");
+    // Cache không bị ghim promise lỗi → lần mở sau (đã có mạng) nạp thành công.
+    const data = await loadRadicalData(() => Promise.resolve({ default: rawRadkfile }));
+    expect(data.map["木"]).toBe("村");
+    expect(data.strokes["村"]).toBe(7);
   });
 });

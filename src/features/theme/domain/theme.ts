@@ -73,9 +73,10 @@ export type BackgroundEffect = "buu" | "cell" | "bamboo" | "akatsuki";
 export type BackgroundSpeed = "none" | "slow" | "medium";
 
 /**
- * Decorative page background of a preset, rendered by ui/ThemeBackdrop behind
- * all content. Pure data — the actual visuals (SVG/CSS/images) live in
- * presets/<effect>/ and are only downloaded when the preset is picked.
+ * Decorative page background of a skin (domain/skins.ts), rendered by
+ * ui/ThemeBackdrop behind all content. Pure data — the actual visuals
+ * (SVG/CSS/images) live in presets/<effect>/ and are only downloaded when the
+ * skin is picked.
  */
 export interface PresetBackground {
   effect: BackgroundEffect;
@@ -98,10 +99,6 @@ export interface ThemePreset {
   id: string;
   name: string;
   theme: Theme;
-  /** Decorative background; plain colour presets simply omit it. */
-  background?: PresetBackground;
-  /** Themed icon set; omit to keep the app's default glyphs. */
-  icons?: PresetIcons;
 }
 
 /**
@@ -109,6 +106,9 @@ export interface ThemePreset {
  * but swaps the heatmap gradient + accent so the word cloud reads as a real
  * heatmap (light → hot). Picking a preset is just a shortcut for setting all
  * fields at once; everything stays individually editable afterwards.
+ *
+ * Skin anime (backdrop + heat, mở khoá theo streak) KHÔNG nằm ở đây — xem
+ * domain/skins.ts.
  */
 export const THEME_PRESETS: ThemePreset[] = [
   {
@@ -141,81 +141,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     name: "Nho",
     theme: { ...DEFAULT_THEME, heatFrom: "#f3e8ff", heatTo: "#581c87", accent: "#9333ea" },
   },
-  // ---- Bộ theme trang trí: màu + icon + hiệu ứng nền (presets/<effect>/). ----
-  {
-    id: "buu",
-    name: "Majin Buu",
-    theme: {
-      heatFrom: "#fbcfe8",
-      heatTo: "#701a75",
-      accent: "#db2777",
-      warn: "#dc2626",
-      bg: "#fdf2f8",
-      surface: "#ffffff",
-      fg: "#4a1033",
-      muted: "#9d5c7d",
-      line: "#f3d3e3",
-    },
-    background: { effect: "buu", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "🍬" },
-  },
-  {
-    id: "cell",
-    name: "Cell",
-    theme: {
-      heatFrom: "#1d3524",
-      heatTo: "#a3e635",
-      accent: "#4ade80",
-      warn: "#f87171",
-      bg: "#0c1510",
-      surface: "#16241a",
-      fg: "#dcefe0",
-      muted: "#93ac9b",
-      line: "#28402e",
-    },
-    background: { effect: "cell", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🧬" },
-  },
-  {
-    id: "panda",
-    name: "Rừng trúc",
-    theme: {
-      heatFrom: "#e4efd8",
-      heatTo: "#1c1c1c",
-      accent: "#15803d",
-      warn: "#dc2626",
-      bg: "#f4f8ef",
-      surface: "#ffffff",
-      fg: "#232a20",
-      muted: "#6b7a64",
-      line: "#dde7d4",
-    },
-    background: { effect: "bamboo", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🐼" },
-  },
-  {
-    id: "akatsuki",
-    name: "Akatsuki",
-    theme: {
-      heatFrom: "#33212a",
-      heatTo: "#ef4444",
-      accent: "#ef4444",
-      warn: "#f59e0b",
-      bg: "#0f0b0d",
-      surface: "#1c1418",
-      fg: "#ece4e4",
-      muted: "#a18f93",
-      line: "#3a2b30",
-    },
-    background: { effect: "akatsuki", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "☁️" },
-  },
 ];
-
-/** The preset with the given id, or undefined (id null = no decor chosen). */
-export function presetById(id: string | null): ThemePreset | undefined {
-  return id == null ? undefined : THEME_PRESETS.find((p) => p.id === id);
-}
 
 /** Maps each editable field to its CSS custom property name. */
 const VAR_MAP: Record<keyof Theme, string> = {
@@ -280,7 +206,11 @@ export function saveTheme(theme: Theme): void {
 // giữ nguyên hợp đồng 9 màu (applyTheme và localStorage cũ không đổi).
 
 export interface ThemeDecor {
-  /** Preset cấp background/icons; null = chỉ dùng màu, không trang trí. */
+  /**
+   * Skin (domain/skins.ts) cấp background/icons; null = không trang trí.
+   * Giữ tên `presetId` (thời skin còn là preset màu) để không phải migrate
+   * JSON đã lưu trong localStorage.
+   */
   presetId: string | null;
   /** Công tắc riêng: tắt khi hiệu ứng nền gây xao nhãng lúc học. */
   effectsEnabled: boolean;
@@ -392,16 +322,29 @@ function bestTextFor(bgLum: number): string {
  * keeps every shade ≥ 4.5:1 across the built-in presets (see theme.test.ts);
  * the previously softened #f5f5f5/#1a1a1a pair did not.
  */
-export function heatTextColor(shade: number, theme: Theme): string {
+/** Linear RGB lerp between the theme's heatmap endpoints at the given shade —
+ * the same interpolation `heatBackground`'s CSS `color-mix` does, computed in
+ * JS so callers without a cascade context (e.g. canvas) can use it too. */
+function mixHeat(shade: number, theme: Theme): [number, number, number] {
   const t = clamp01(shade);
   const a = parseHex(theme.heatFrom);
   const b = parseHex(theme.heatTo);
-  const mixed: [number, number, number] = [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t,
-  ];
-  return bestTextFor(relativeLuminance(mixed));
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+export function heatTextColor(shade: number, theme: Theme): string {
+  return bestTextFor(relativeLuminance(mixHeat(shade, theme)));
+}
+
+/**
+ * Same background `heatBackground` paints via CSS `color-mix`, but resolved to
+ * a concrete `rgb()` string in JS — for contexts with no custom-property
+ * cascade to resolve `var(--heat-to)` against, namely a canvas 2D fillStyle
+ * (PNG export, issue #161).
+ */
+export function heatBackgroundRgb(shade: number, theme: Theme): string {
+  const [r, g, b] = mixHeat(shade, theme).map(Math.round);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 /**

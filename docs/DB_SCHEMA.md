@@ -89,6 +89,9 @@ interface DictEntry {
   score?: number;                         // điểm xếp hạng Yomitan
   dictionary?: string;                    // tên từ điển nguồn (hiển thị)
   dictId?: string;                        // id từ điển nguồn (để xoá hàng loạt)
+  updatedAt?: number;                     // mốc LWW theo TỪNG từ cho merge term-level
+                                          // của từ điển cá nhân (#166); vắng ở entry
+                                          // nhập .zip / legacy
 }
 ```
 
@@ -104,6 +107,14 @@ interface LocalDictionary {
   metaCount?: number;   // số dòng term-meta đóng góp — > 0 với từ điển chỉ-meta
   importedAt: number;
   revision?: string;
+  custom?: boolean;     // true = từ điển cá nhân người dùng tự soạn (#69)
+  description?: string; // mô tả tự do (chỉ từ điển cá nhân)
+  topic?: string;       // chủ đề (chỉ từ điển cá nhân)
+  updatedAt?: number;   // mốc LWW cho đồng bộ (#70); mặc định importedAt khi vắng
+  deletedAt?: number;   // tombstone cả cuốn — giữ registry để lan truyền xoá qua sync
+  deletedTerms?: Record<string, number>; // tombstone theo TỪNG từ (#166):
+                        // khoá terms (JSON [term_lang,native_lang,term,reading])
+                        // → epoch ms xoá, để merge term-level không hồi sinh từ đã xoá
 }
 ```
 
@@ -200,6 +211,9 @@ CREATE TABLE IF NOT EXISTS user_data (
   term_lang TEXT NOT NULL,
   payload TEXT NOT NULL,       -- full VocabEntry JSON
   updated_at BIGINT NOT NULL,
+  -- Server đóng dấu lúc nhận (migration 0012, #166): mốc hiệu lực LWW là
+  -- min(updated_at, received_at) nên client lệch đồng hồ không thắng oan.
+  received_at BIGINT NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, term, term_lang)
 );
 CREATE INDEX IF NOT EXISTS idx_user_updated ON user_data(user_id, updated_at);
@@ -225,8 +239,10 @@ xoá.
 
 **`user_data`** — chân lý của dữ liệu học (per tài khoản). Khoá chính `(user_id,
 term, term_lang)`. `payload` là **toàn bộ `VocabEntry` JSON**; `updated_at` (epoch
-ms) phục vụ last-write-wins. Index `idx_user_updated (user_id, updated_at)` tăng
-tốc pull `WHERE user_id = $1 AND updated_at >= $2`.
+ms, client đóng dấu) phục vụ last-write-wins; `received_at` (epoch ms, server
+đóng dấu lúc nhận — #166) ghìm mốc client chạy trước đồng hồ và làm tie-breaker
+khi hoà. Index `idx_user_updated (user_id, updated_at)` tăng tốc pull
+`WHERE user_id = $1 AND updated_at >= $2`.
 
 ### 3.3 Quan hệ
 
@@ -285,21 +301,29 @@ SELECT payload FROM user_data WHERE user_id = $1 AND updated_at >= $2
 ```
 Trả các `payload` (parse JSON). `user_id` lấy từ token, không từ client.
 
-**Push** `POST /api/sync` — mỗi entry upsert trong một transaction, LWW:
-```sql
-INSERT INTO user_data (user_id, term, term_lang, payload, updated_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (user_id, term, term_lang) DO UPDATE SET
-  payload    = EXCLUDED.payload,
-  updated_at = EXCLUDED.updated_at
-WHERE EXCLUDED.updated_at >= user_data.updated_at
-```
-Chỉ ghi đè khi `updated_at` mới `>=` bản hiện có; ngược lại bỏ qua. `user_id`
-trong payload bị **ép** về user của token (chống giả mạo). Sau khi upsert xong,
-trả **toàn bộ** tập của user (`SELECT payload FROM user_data WHERE user_id = $1`).
+**Push** `POST /api/sync` — trong một transaction, mỗi entry: `SELECT … FOR
+UPDATE` bản hiện có rồi **merge field-level** (`lookup_count`/`lapses` lấy max,
+phần còn lại LWW) và upsert lại cả `payload`, `updated_at`, `received_at`.
 
-Phía client (`repository.ts`) cũng merge LWW (`mergeByUpdatedAt`) trước khi push,
-nên hội tụ ở cả hai đầu. Chi tiết logic merge: [LOGIC.md §12](./LOGIC.md).
+Mốc so LWW phía server là **mốc hiệu lực** `min(updated_at, received_at)`
+(#166, logic thuần ở `server/src/features/sync/lww.ts`): `updated_at` do client
+đóng dấu nên máy lệch giờ về tương lai sẽ "thắng oan" mọi bản ghi thật sự mới
+hơn; server không biết bản ghi được sửa lúc nào nhưng biết chắc nó được sửa
+TRƯỚC lúc nhận, nên ghìm mốc về `received_at`. Hoà mốc hiệu lực → bản server
+nhận sau thắng (giữ hành vi `>=` cũ). Payload không bị sửa — client cũ không
+thấy khác biệt. `user_id` trong payload bị **ép** về user của token (chống giả
+mạo). Sau khi upsert xong, trả **toàn bộ** tập của user (`SELECT payload FROM
+user_data WHERE user_id = $1`).
+
+Phía client (`repository.ts`) cũng merge field-level (`mergeByUpdatedAt`) trước
+khi push, nên hội tụ ở cả hai đầu. Chi tiết logic merge: [LOGIC.md §12](./LOGIC.md).
+
+**Từ điển cá nhân** (`/api/dict-sync`, bảng `user_dictionaries`): server vẫn lưu
+blob nén per (user, dict) với guard LWW theo `registry.updatedAt`, nhưng client
+merge ở **mức từ** trước khi ghi cache/push (#166,
+`src/features/dictionary/domain/dictMerge.ts`): mỗi từ mang `updatedAt` riêng,
+registry giữ tombstone theo từ (`deletedTerms`) — hai máy cùng sửa một cuốn
+không còn nuốt sửa đổi của nhau, xoá một từ vẫn lan truyền được.
 
 ## 6. Xác thực
 

@@ -4,6 +4,7 @@
 
 import { isDue } from "./srs";
 import { isDeleted } from "./lifecycle";
+import { DEFAULT_SRS_CONFIG, SrsConfig } from "./constants";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
 import { meaningToLines } from "@/shared/meaning";
@@ -57,6 +58,12 @@ export type CloudLang = "all" | LangCode;
 
 /** Granularity of the "hiển thị theo ngày/tháng/năm" display mode. */
 export type TimeGrouping = "none" | "day" | "month" | "year";
+
+/**
+ * Cách nhóm Word Cloud mà người dùng chọn: theo thời gian (day/month/year) HOẶC
+ * theo tầng trí nhớ ("srs" — "Khu vườn ký ức", DESIGN §4). "none" = phẳng.
+ */
+export type CloudGrouping = TimeGrouping | "srs";
 
 export interface BuildCloudOptions extends ShadeOptions {
   sort?: CloudSort;
@@ -125,25 +132,36 @@ export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}):
 }
 
 /**
- * Nội dung tooltip (thuộc tính `title`) cho một thẻ trên Word Cloud:
- *   cách đọc · nghĩa đầu · lịch ôn · số lần tra
- * Bỏ qua phần nào thiếu dữ liệu (từ tiếng Anh không có `reading`, từ chưa lưu
- * nghĩa, thẻ chưa có lịch…) rồi nối bằng " · ". Lịch ôn đọc là "đến hạn" nếu quá
- * hạn, ngược lại "ôn sau X" (tái dùng formatRelative). Thuần để test dễ.
+ * Nội dung popover mini của một thẻ trên Word Cloud (#159): cách đọc, nghĩa
+ * đầu, lịch ôn và số lần tra — phần nào thiếu dữ liệu thì bỏ (từ tiếng Anh
+ * không có `reading`, từ chưa lưu nghĩa, thẻ chưa có lịch…). Lịch ôn đọc là
+ * "đến hạn" nếu quá hạn, ngược lại "ôn sau X" (tái dùng formatRelative).
+ * Thay cho tooltip `title` trước đây; thuần để test dễ.
  */
-export function tagTooltip(
+export interface TagPopoverContent {
+  reading?: string;
+  gloss?: string;
+  schedule?: string;
+  lookupText: string;
+}
+
+export function tagPopoverContent(
   entry: Pick<VocabEntry, "reading" | "meaning" | "lookup_count" | "card_state" | "next_review">,
   now: number,
-): string {
-  const parts: string[] = [];
-  if (entry.reading) parts.push(entry.reading);
+): TagPopoverContent {
   const gloss = meaningToLines(entry.meaning)[0];
-  if (gloss) parts.push(gloss);
-  if (entry.card_state != null && entry.next_review != null) {
-    parts.push(isDue(entry, now) ? "đến hạn" : `ôn ${formatRelative(entry.next_review, now)}`);
-  }
-  parts.push(`tra ${entry.lookup_count} lần`);
-  return parts.join(" · ");
+  const schedule =
+    entry.card_state != null && entry.next_review != null
+      ? isDue(entry, now)
+        ? "đến hạn"
+        : `ôn ${formatRelative(entry.next_review, now)}`
+      : undefined;
+  return {
+    reading: entry.reading || undefined,
+    gloss: gloss || undefined,
+    schedule,
+    lookupText: `tra ${entry.lookup_count} lần`,
+  };
 }
 
 /** A labelled time bucket of cloud tags, for the day/month/year display mode. */
@@ -210,6 +228,72 @@ export function groupByPeriod<T extends { entry: Pick<VocabEntry, "last_lookup_a
   }
   // Keys are zero-padded and year-first, so lexical-descending = newest-first.
   return [...groups.values()].sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
+}
+
+/**
+ * Ba tầng "Khu vườn ký ức" (DESIGN §4), xếp theo độ vững của trí nhớ từ mong
+ * manh đến gần trưởng thành. Chỉ áp cho từ đang hiện trên cloud (LEARNING /
+ * RELAPSED); từ đã thuộc (LEARNED) vốn đã ẩn khỏi bản đồ.
+ */
+export type SrsTier = "forgetting" | "rooting" | "maturing";
+
+/** Tiêu đề tiếng Việt cho mỗi tầng (DESIGN §4). */
+const SRS_TIER_LABEL: Record<SrsTier, string> = {
+  forgetting: "Sắp quên",
+  rooting: "Đang bén rễ",
+  maturing: "Sắp trưởng thành",
+};
+
+/** Thứ tự hiển thị: mong manh trước (cấp thiết nhất), trưởng thành sau. */
+const SRS_TIER_ORDER: SrsTier[] = ["forgetting", "rooting", "maturing"];
+
+/**
+ * Xếp một từ vào tầng trí nhớ dựa CHỈ trên trạng thái SRS sẵn có (không thêm hằng
+ * số mới):
+ *  - "forgetting" (Sắp quên): vừa tái quên (RELAPSED) hoặc chưa rời các bước
+ *    learning/relearning (`card_state ≠ REVIEW`) — trí nhớ còn mong manh, chưa
+ *    bén rễ.
+ *  - "maturing" (Sắp trưởng thành): thẻ REVIEW mà chỉ cần một lần "Nhớ" nữa là
+ *    chạm ngưỡng trưởng thành (`srs_interval × ease_factor ≥ matureThreshold`).
+ *  - "rooting" (Đang bén rễ): thẻ REVIEW còn lại — đã bén rễ và đang lớn dần.
+ */
+export function srsTier(
+  entry: Pick<VocabEntry, "status" | "card_state" | "srs_interval" | "ease_factor">,
+  cfg: SrsConfig = DEFAULT_SRS_CONFIG,
+): SrsTier {
+  if (entry.status === "RELAPSED" || entry.card_state !== "REVIEW") return "forgetting";
+  return entry.srs_interval * entry.ease_factor >= cfg.matureThreshold ? "maturing" : "rooting";
+}
+
+/**
+ * Phân các thẻ vào 3 tầng trí nhớ ("Khu vườn ký ức", DESIGN §4), giữ nguyên thứ
+ * tự đến của thẻ trong mỗi tầng (nên sắp xếp recent/frequency của caller được bảo
+ * toàn). Chỉ trả về tầng có thẻ, theo thứ tự mong manh → trưởng thành. Thuần để
+ * test độc lập, soi gương `groupByPeriod`.
+ */
+export function groupBySrsTier<
+  T extends { entry: Pick<VocabEntry, "status" | "card_state" | "srs_interval" | "ease_factor"> },
+>(items: T[], cfg: SrsConfig = DEFAULT_SRS_CONFIG): CloudGroup<T>[] {
+  const buckets = new Map<SrsTier, T[]>();
+  for (const item of items) {
+    const tier = srsTier(item.entry, cfg);
+    const bucket = buckets.get(tier);
+    if (bucket) bucket.push(item);
+    else buckets.set(tier, [item]);
+  }
+  return SRS_TIER_ORDER.filter((tier) => buckets.has(tier)).map((tier) => ({
+    key: tier,
+    label: SRS_TIER_LABEL[tier],
+    items: buckets.get(tier)!,
+  }));
+}
+
+/**
+ * Các entry đến hạn (due) trong một nhóm cloud — cấp N cho nút "Ôn N từ này"
+ * theo tầng trí nhớ (DESIGN §4). Chỉ nhóm "srs" hiển thị nút này ở UI.
+ */
+export function dueEntriesInGroup(group: Pick<CloudGroup, "items">): VocabEntry[] {
+  return group.items.filter((t) => t.due).map((t) => t.entry);
 }
 
 // Shade → colour mapping lives in the theme feature (`heatBackground` /

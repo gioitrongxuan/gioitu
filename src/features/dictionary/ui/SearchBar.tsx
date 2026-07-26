@@ -14,6 +14,7 @@ import { HandwritingPad } from "./HandwritingPad";
 import { RadicalPicker } from "./RadicalPicker";
 import { InstantActions } from "./InstantActions";
 import { CloseIcon, PencilIcon, SearchIcon } from "@/shared/ui/icons";
+import "./search.css";
 
 /** Công cụ nhập đang mở dưới ô tìm; chỉ một cái mở tại một thời điểm. */
 type Tool = "none" | "draw" | "radicals";

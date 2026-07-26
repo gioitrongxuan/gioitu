@@ -26,12 +26,23 @@ function flattenStrokes(groups: Record<string, string>): Record<string, number> 
   return strokes;
 }
 
-export function loadRadicalData(): Promise<RadicalData> {
+/** Nạp chunk radkfile.json (lười tải). Tách ra để test được nhánh lỗi mà không
+ * đụng dynamic import thật. */
+type RadkfileImport = () => Promise<{ default?: RawRadkfile } | RawRadkfile>;
+
+export function loadRadicalData(importer: RadkfileImport = () => import("./radkfile.json")): Promise<RadicalData> {
   if (!cache) {
-    cache = import("./radkfile.json").then((m) => {
-      const raw = (m.default ?? m) as unknown as RawRadkfile;
-      return applyJishoGlyphs({ radicals: raw.radicals, map: raw.map, strokes: flattenStrokes(raw.strokeGroups) });
-    });
+    cache = importer()
+      .then((m) => {
+        const raw = ("default" in m ? m.default : m) as RawRadkfile;
+        return applyJishoGlyphs({ radicals: raw.radicals, map: raw.map, strokes: flattenStrokes(raw.strokeGroups) });
+      })
+      .catch((err) => {
+        // Đừng ghim promise lỗi (VD chunk chưa cache mà đang offline) — nếu giữ
+        // lại thì mọi lần mở bảng bộ thủ sau đều treo. Xoá cache để lần sau tải lại.
+        cache = null;
+        throw err;
+      });
   }
   return cache;
 }

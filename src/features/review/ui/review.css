@@ -1,0 +1,182 @@
+/* Ôn tập (tách từ styles.css, #168): filter bar, word cloud + tag,
+   phiên ôn, banner sao lưu khách. Import bởi các component review chính. */
+
+/* Filter bar — desktop trải phẳng (display: contents), màn hẹp gom vào popover. */
+.filter-bar { position: relative; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-toggle { display: none; align-items: center; gap: 6px; }
+.filter-controls { display: contents; }
+@media (max-width: 759px) {
+  .filter-toggle { display: inline-flex; }
+  .filter-controls { display: none; }
+  .filter-controls.open {
+    display: grid; gap: 10px; justify-items: start;
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+    min-width: 230px; padding: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+}
+.sort-select { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sort-select select { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 13px; color: var(--fg); background: var(--surface); cursor: pointer; }
+
+/* Chip bật/tắt (thay checkbox): pill lặng khi tắt, nhuộm màu nhấn khi bật. */
+.chip-toggle {
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.chip-toggle:hover { border-color: var(--accent); }
+.chip-toggle.on {
+  background: color-mix(in oklab, var(--accent) 13%, var(--surface));
+  border-color: var(--accent); color: var(--accent);
+}
+.chip-toggle.danger:hover { border-color: var(--warn); }
+.chip-toggle.danger.on {
+  background: color-mix(in oklab, var(--warn) 12%, var(--surface));
+  border-color: var(--warn); color: var(--warn);
+}
+.review-btn {
+  margin-left: auto; background: var(--accent); color: #fff; border: none;
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
+}
+.review-btn:disabled { background: var(--disabled); cursor: not-allowed; }
+
+/* Word cloud — nằm trong một thẻ surface để nổi khối trên nền xám nhẹ. */
+.cloud-area {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px; min-height: 220px;
+}
+.cloud-area > .empty { display: grid; place-items: center; min-height: 180px; text-align: center; margin: 0; }
+.word-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+/* Time-grouped cloud (ngày/tháng/năm display mode) */
+.cloud-groups { display: flex; flex-direction: column; gap: 18px; }
+.cloud-group-head {
+  margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.cloud-group-head .link { font-size: 13px; }
+.tag {
+  position: relative; height: 38px; display: inline-flex; align-items: center;
+  padding: 0 14px; border: none; border-radius: 8px; cursor: pointer;
+  font-size: 15px; line-height: 1; transition: transform 0.05s ease;
+}
+.tag:hover { transform: translateY(-1px); }
+.tag.relapsed { box-shadow: inset 0 0 0 2px var(--warn); }
+.tag.due { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tag.dimmed { opacity: 0.35; }
+.tag .badge {
+  position: absolute; top: -6px; right: -6px; background: var(--warn); color: #fff;
+  width: 16px; height: 16px; border-radius: 50%; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.badge.inline { position: static; width: auto; height: auto; padding: 1px 6px; border-radius: 999px; }
+
+/* "Đã thuộc" achievement page */
+.learned-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 8px 0 4px; }
+.learned-head h2 { margin: 0; font-size: 20px; }
+
+/* Review session */
+.review-overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 50; }
+/* Form cố định theo viewport: cột flex với cao tối đa 90dvh. Header (tiến độ) và
+   footer (nút chấm / kết thúc) luôn nằm trong khung nhìn; phần thẻ (flashcard) là
+   vùng cuộn duy nhất khi nội dung dài — không bị tràn khỏi màn hình. */
+.review-card { background: var(--surface); border-radius: 16px; padding: 24px; width: min(520px, 92vw); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; }
+.review-progress { color: var(--muted); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+/* Thẻ leech (khó nhằn): huy hiệu + gợi ý hành động. Dùng --caution (hổ phách) để
+   tách khỏi --warn (đỏ "tái quên") — hai tín hiệu khác nhau. Chip theo mẫu
+   .srs-status: nền color-mix nhạt + chữ đậm, giữ tương phản AA, không hardcode màu. */
+.leech-note { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in oklab, var(--caution) 10%, var(--surface)); }
+.leech-badge { flex-shrink: 0; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: color-mix(in oklab, var(--caution) 16%, var(--surface)); color: color-mix(in oklab, var(--caution) 62%, var(--fg)); }
+.leech-hint { color: var(--fg); font-size: 13px; line-height: 1.5; }
+/* flex: 1 để chiếm phần còn lại của cột; min-height: 160px là sàn thị giác (cho
+   mặt trước chỉ có term) VÀ là giá trị tường minh thay cho min-height:auto mặc
+   định — nhờ đó flex-item co dưới kích thước nội dung được, overflow-y chạy. */
+.flashcard { border: 1px solid var(--line); border-radius: 12px; padding: 28px; margin: 14px 0; min-height: 160px; cursor: pointer; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.flashcard .front { font-size: 26px; font-weight: 600; text-align: center; }
+.flashcard .back { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 16px; }
+.flashcard .hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 16px; }
+.grade-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+/* Màu chữ (color) đặt inline theo contrast thật (ReviewSession tính bằng
+   readableTextOn) — không hardcode #fff, giữ AA dù đổi theme/preset (#124). */
+.grade {
+  display: flex; flex-direction: column; gap: 2px; border: none; border-radius: 10px;
+  padding: 10px 6px; cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.grade:hover { filter: brightness(1.08); }
+.grade:active { filter: brightness(0.92); transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .grade { transition: none; } }
+.grade-label { font-weight: 600; }
+.grade-key { opacity: 0.7; font-weight: 400; font-size: 11px; }
+.grade-interval { font-size: 11px; opacity: 0.9; }
+.grade.again { background: var(--warn); }
+.grade.hard { background: var(--caution); }
+.grade.good { background: var(--ok); }
+.grade.easy { background: var(--accent); }
+.grade-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* Luyện chủ động (BACKLOG GĐ3): gõ cách đọc trước khi lật — ô nhập theo mẫu
+   .search-input; feedback màu theo --ok/--warn như .srs-status, không hardcode hex. */
+.reading-attempt { display: grid; gap: 6px; margin-top: 16px; text-align: center; }
+.reading-attempt label { font-size: 13px; color: var(--muted); }
+.reading-attempt input {
+  height: 44px; padding: 0 14px; font-size: 16px; text-align: center;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg);
+}
+.reading-attempt input:focus { border-color: var(--accent); }
+.reading-feedback { margin: 0 0 12px; font-size: 13px; }
+.reading-feedback.correct { color: var(--ok); }
+.reading-feedback.wrong { color: var(--warn); }
+
+/* Màn tổng kết phiên ôn (#126) — breakdown + từ tốt nghiệp + từ vừa quên. */
+.review-summary { margin-top: 14px; text-align: left; display: grid; gap: 10px; }
+.review-breakdown {
+  list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap;
+  justify-content: center; font-size: 13px;
+}
+.review-breakdown li { display: inline-flex; align-items: center; gap: 6px; }
+.review-breakdown b { font-variant-numeric: tabular-nums; }
+.grade-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.grade-dot.again { background: var(--warn); }
+.grade-dot.hard { background: var(--caution); }
+.grade-dot.good { background: var(--ok); }
+.grade-dot.easy { background: var(--accent); }
+.review-graduated, .review-forgotten p, .review-forecast { margin: 0; font-size: 13px; color: var(--muted); }
+/* --seal: son đỏ CHỈ dành cho thành tựu (DESIGN §1/§5) — khoảnh khắc tốt nghiệp. */
+.seal-badge { color: var(--seal); font-weight: 700; }
+.review-forgotten { display: grid; gap: 6px; justify-items: start; }
+/* wrap: hai toggle luyện chủ động (#164) + Hoàn tác không vừa một dòng mobile. */
+.review-footer { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+/* Kết thúc phiên luôn nằm bên phải, dù nút Hoàn tác có hiện hay không. */
+.review-footer .close { margin-left: auto; }
+.review-footer .link[disabled] { opacity: 0.45; cursor: default; }
+.review-card.done { text-align: center; }
+
+/* Định nghĩa từ điển bật ra trong mặt sau thẻ ôn (lazy, sau nút "Xem định nghĩa").
+   Tái dùng .result/.dict-name/.senses đã có của DetailPanel cho cùng kiểu hiển thị. */
+.review-dict-toggle { margin-top: 10px; }
+.review-dict-status { margin: 8px 0 0; font-size: 13px; }
+.review-dict { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.review-dict-label { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+/* Bỏ đường kẻ đầu của .result đầu tiên (vùng đã có đường kẻ phía trên); các kết
+   quả sau vẫn phân tách bằng đường kẻ như trong DetailPanel. */
+.review-dict .result:first-child { border-top: none; padding-top: 0; }
+.review-dict .result + .result { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+
+/* Lời nhắc sao lưu cho khách — nhẹ, nằm trong dòng nội dung (không phải overlay).
+   Dùng --caution (đã đọc được trên cả 2 nền) chứ không --warn: đây là nhắc nhở,
+   không phải lỗi. */
+.guest-backup-banner {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px;
+  margin-bottom: 12px; padding: 10px 14px;
+  border: 1px solid color-mix(in oklab, var(--caution) 35%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--caution) 10%, var(--surface));
+}
+.guest-backup-banner .gbb-text { margin: 0; flex: 1 1 260px; font-size: 14px; color: var(--fg); }
+.guest-backup-banner .gbb-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.guest-backup-banner .gbb-actions .link { font-size: 14px; white-space: nowrap; }
+
+@media (pointer: coarse) {
+  .tag { height: 44px; padding: 0 16px; }
+}
