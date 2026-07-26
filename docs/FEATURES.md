@@ -12,19 +12,22 @@
 `src/app/App.tsx` lắp ráp app theo **4 khu** ([DESIGN.md §4](./DESIGN.md)),
 điều hướng bằng **tab bar dưới đáy** (mobile <760px) / **sidebar trái**
 (desktop) — `app/AppNav.tsx` + `app/shell.css`, khu "Hôm nay" đeo badge số từ
-đến hạn:
+đến hạn. **Thanh tra cứu (Search Bar) toàn cục, hiện trên mọi khu** — vòng
+lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên trang nào cũng tra
+được ngay; kết quả mở Detail Panel đè lên trang đang xem:
 
-- **Hôm nay** (`/`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi ngày
-  ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng); "Từ
-  hay quên" (3 thẻ rớt nhiều nhất, bấm mở chi tiết); tài sản "Đã thuộc N từ";
-  lối tắt sang Tra cứu (`app/TodayScreen.tsx`, `review/data/todayStats.ts`,
+- **Kho từ** (`/` — **trang chủ**, mở app là thấy bản đồ) — tab con: Bản đồ
+  từ (Word Cloud + Filter Bar) · Đã thuộc (`/words/learned`) · Kanji
+  (`/words/kanji`) · Học từ vựng (`/words/study`); kèm hàng hành động Thêm
+  nhanh · Từ điển cá nhân · Thống kê ôn tập. Path cũ `/learned` `/kanji`
+  `/vocabstudy` `/words` vẫn mở đúng trang.
+- **Hôm nay** (`/today`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi
+  ngày ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng);
+  "Từ hay quên" (3 thẻ rớt nhiều nhất, bấm mở chi tiết); tài sản "Đã thuộc N
+  từ"; lối tắt sang Tra cứu (`app/TodayScreen.tsx`, `review/data/todayStats.ts`,
   `activityByDay`/`mostForgotten` trong `review/domain/reviewStats.ts`).
-- **Tra cứu** (`/search`) — Search Bar (gợi ý live + viết tay/bộ thủ); kết quả
-  mở Detail Panel chiếm nguyên trang.
-- **Kho từ** (`/words`) — tab con: Bản đồ từ (Word Cloud + Filter Bar) ·
-  Đã thuộc (`/words/learned`) · Kanji (`/words/kanji`) · Học từ vựng
-  (`/words/study`); kèm hàng hành động Thêm nhanh · Từ điển cá nhân · Thống kê
-  ôn tập. Path cũ `/learned` `/kanji` `/vocabstudy` vẫn mở đúng trang.
+- **Tra cứu** (`/search`) — trang tra tập trung (không có nội dung khu nào
+  khác bên dưới thanh tra); Detail Panel chiếm nguyên trang.
 - **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
   diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
   từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
@@ -43,9 +46,10 @@ Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
 ```
 ┌ Sidebar ─┬ Header ────────────────────────────────────────────┐
 │ Hôm nay● │ 語 Gioitu        [Từ điển ▾ (cặp + nguồn + import)] │
-│ Tra cứu  ├ (dải theo khu: Search Bar / tab con + Filter Bar) ──┤
-│ Kho từ   ├ Nội dung khu ───────────────────────┐               │
-│ Tôi      │                          Detail Panel │ (khi mở)     │
+│ Tra cứu  ├ Search Bar (toàn cục, mọi khu) ─────────────────────┤
+│ Kho từ   ├ (dải theo khu: tab con + Filter Bar) ───────────────┤
+│ Tôi      ├ Nội dung khu ───────────────────────┐               │
+│          │                          Detail Panel │ (khi mở)     │
 └──────────┴─────────────────────────────────────┴───────────────┘
   (mobile: sidebar thành tab bar cố định dưới đáy) · Toasts (góc)
 ```

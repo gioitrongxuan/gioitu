@@ -10,14 +10,16 @@ describe("routeToPath / parsePath", () => {
       const r: Route = { kind: "page", page };
       expect(parsePath(routeToPath(r))).toEqual(r);
     }
-    expect(routeToPath({ kind: "page", page: "today" })).toBe("/");
-    expect(routeToPath({ kind: "page", page: "cloud" })).toBe("/words");
+    // Trang chủ là Bản đồ từ (map-first): mở app thấy ngay bản đồ + tra được liền.
+    expect(routeToPath({ kind: "page", page: "cloud" })).toBe("/");
+    expect(routeToPath({ kind: "page", page: "today" })).toBe("/today");
   });
 
   it("path thời chưa có 4 khu vẫn mở đúng trang mới", () => {
     expect(parsePath("/learned")).toEqual({ kind: "page", page: "learned" });
     expect(parsePath("/kanji")).toEqual({ kind: "page", page: "kanji" });
     expect(parsePath("/vocabstudy")).toEqual({ kind: "page", page: "vocabstudy" });
+    expect(parsePath("/words")).toEqual({ kind: "page", page: "cloud" });
   });
 
   it("khuOf gom các trang con về khu Kho từ", () => {
@@ -39,10 +41,10 @@ describe("routeToPath / parsePath", () => {
     expect(parsePath(routeToPath(tricky))).toEqual(tricky);
   });
 
-  it("path lạ hoặc %-escape hỏng → về trang chủ", () => {
-    expect(parsePath("/khong-ton-tai")).toEqual({ kind: "page", page: "today" });
-    expect(parsePath("/word/ja-vi/%E0%A4%A")).toEqual({ kind: "page", page: "today" });
-    expect(parsePath("/word/khong-hop-le")).toEqual({ kind: "page", page: "today" });
+  it("path lạ hoặc %-escape hỏng → về trang chủ (bản đồ từ)", () => {
+    expect(parsePath("/khong-ton-tai")).toEqual({ kind: "page", page: "cloud" });
+    expect(parsePath("/word/ja-vi/%E0%A4%A")).toEqual({ kind: "page", page: "cloud" });
+    expect(parsePath("/word/khong-hop-le")).toEqual({ kind: "page", page: "cloud" });
   });
 });
 

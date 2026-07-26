@@ -6,7 +6,7 @@
 //                      overlay thay vì thoát app (mobile hay thoát oan).
 
 import { useEffect, useRef, useState } from "react";
-import { Page, Route, createBackStack, parsePath, routeToPath } from "./routes";
+import { HOME_PAGE, Page, Route, createBackStack, parsePath, routeToPath } from "./routes";
 
 // Module-level: History của trình duyệt là tài nguyên toàn cục duy nhất, còn
 // MainApp có thể remount (đổi user) mà không được quên các entry đã đẩy.
@@ -17,7 +17,7 @@ export type WordRoute = Extract<Route, { kind: "word" }>;
 export function useAppRoute(onWordRoute: (route: WordRoute) => void) {
   const [page, setPage] = useState<Page>(() => {
     const route = parsePath(window.location.pathname);
-    return route.kind === "page" ? route.page : "today";
+    return route.kind === "page" ? route.page : HOME_PAGE;
   });
 
   // Ref mới nhất cho listener gắn một lần — không re-subscribe mỗi render.
@@ -37,7 +37,7 @@ export function useAppRoute(onWordRoute: (route: WordRoute) => void) {
     openedDeepLink.current = true;
     const route = parsePath(window.location.pathname);
     if (route.kind !== "word") return;
-    window.history.replaceState(null, "", routeToPath({ kind: "page", page: "today" }));
+    window.history.replaceState(null, "", routeToPath({ kind: "page", page: HOME_PAGE }));
     onWordRouteRef.current(route);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

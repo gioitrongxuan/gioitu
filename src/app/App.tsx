@@ -500,7 +500,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           </div>
         </header>
 
-        {page === "today" && (
+        {/* Thanh tra cứu toàn cục — trang nào cũng tra được ngay (vòng lặp gốc:
+            tra → "+" → thấy từ trên bản đồ); kết quả mở panel chi tiết đè lên
+            trang đang xem. */}
+        <div {...behindSheet}>
+          <SearchBar pair={pair} source={dictSource} onResult={onResult} />
+        </div>
+
+        {(page === "today" || page === "cloud") && (
           <div {...behindSheet}>
             <GuestBackupBanner
               isGuest={userId === GUEST_USER_ID}
@@ -508,12 +515,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               onLogin={onRequestLogin}
               onExport={store.exportBackup}
             />
-          </div>
-        )}
-
-        {page === "search" && (
-          <div {...behindSheet}>
-            <SearchBar pair={pair} source={dictSource} onResult={onResult} />
           </div>
         )}
 
