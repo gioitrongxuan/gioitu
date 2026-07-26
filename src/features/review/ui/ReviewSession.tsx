@@ -5,7 +5,7 @@
 // điển" — tải nghĩa từ các từ điển (kiểu DetailPanel) và render bằng `Definitions`
 // ngay trong thẻ, không rời phiên ôn. Lazy: chỉ tải khi bấm, cache cho thẻ hiện tại.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard, isLeech } from "../domain/srs";
 import { DAY } from "../domain/constants";
@@ -23,7 +23,10 @@ import { isReadingMatch } from "../domain/readingPractice";
 import { loadTypeReadingEnabled, saveTypeReadingEnabled } from "../domain/readingPracticeSettings";
 import { cardFront } from "../domain/reverseMode";
 import { loadReverseModeEnabled, saveReverseModeEnabled } from "../domain/reverseModeSettings";
+import { evaluateSwipe } from "../domain/swipe";
 import "./reverse.css";
+import "./swipe.css";
+import "./seal.css";
 import { formatInterval } from "@/shared/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -55,6 +58,28 @@ const GRADES: { grade: ReviewGrade; label: string; cls: string }[] = [
 ];
 
 const GRADE_KEYS: Record<string, ReviewGrade> = { "1": "again", "2": "hard", "3": "good", "4": "easy" };
+
+/** Tra nhanh nhãn/lớp màu theo grade — cho chỉ dấu swipe (#160). */
+const GRADE_META = Object.fromEntries(GRADES.map((g) => [g.grade, g])) as Record<
+  ReviewGrade,
+  (typeof GRADES)[number]
+>;
+
+// Cú kéo bắt đầu trên phần tử tương tác trong thẻ (nút xem từ điển, link…)
+// không phải swipe — click của chúng phải sống.
+const INTERACTIVE_SELECTOR = "button, a, input, textarea, select, [role='button']";
+
+// Rung nhẹ xác nhận chốt grade — trình duyệt không có vibrate (iOS Safari) bỏ qua êm.
+const GRADE_HAPTIC_MS = 15;
+
+// Chỉ dấu swipe mờ dần theo khoảng kéo: sàn opacity để nhãn đọc được ngay từ
+// đầu cú kéo, đạt 1 khi chạm ngưỡng chốt.
+const HINT_BASE_OPACITY = 0.25;
+
+// Thời gian dấu son 合格 sống trên thẻ: khớp thời lượng animation 1500ms trong
+// seal.css + đệm nhỏ. Gỡ bằng timeout thay vì animationend — người dùng bật
+// "giảm chuyển động" thì animation bị tắt và animationend không bao giờ bắn.
+const SEAL_FX_MS = 1600;
 
 interface GradeCounts {
   again: number;
@@ -93,6 +118,28 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
   // với headword furigana) đã là "toàn cảnh thẻ" nên không cần đổi. Độc lập với gõ
   // cách đọc: bật cả hai thì nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
   const [reverseEnabled, setReverseEnabled] = useState(loadReverseModeEnabled);
+
+  // Swipe 4 hướng (#160): theo dõi cú kéo trên thẻ ĐÃ LẬT bằng pointer events.
+  // Chỉ giữ vector (dx, dy); hướng/ngưỡng do domain/swipe.ts quyết định.
+  const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  // Sau một cú kéo thật (quá vùng chết), nuốt click phát sinh lúc thả tay —
+  // không thì thẻ KẾ TIẾP bị lật ngay khi swipe vừa chốt grade.
+  const suppressClickRef = useRef(false);
+
+  // touch-action phải chốt TRƯỚC khi gesture chạm bắt đầu, nên đo "thẻ có cuộn
+  // được không" liên tục bằng ResizeObserver trên mặt sau (nội dung lazy — từ
+  // điển/kanji — nở ra sau khi lật) thay vì đo lúc pointerdown. Thẻ cuộn được →
+  // nhường trục dọc cho cuộn chạm (swipe dọc vẫn chạy với chuột, touch-action
+  // chỉ áp cho chạm) — xem swipe.css.
+  const flashcardRef = useRef<HTMLDivElement | null>(null);
+  const backRef = useRef<HTMLDivElement | null>(null);
+  const [cardScrollable, setCardScrollable] = useState(false);
+
+  // Dấu son 合格 (DESIGN §5): đóng MỘT LẦN khi một từ chuyển sang LEARNED trong
+  // phiên. `id` tăng dần để hai lần tốt nghiệp liên tiếp vẫn remount overlay
+  // (animation chạy lại từ đầu).
+  const [sealFx, setSealFx] = useState<{ term: string; id: number } | null>(null);
 
   // Escape đóng, focus đầu/trả focus, bẫy Tab (#119). Gọi MỘT LẦN, không trong
   // nhánh `if (!card)` bên dưới (Rules of Hooks) — cả 3 màn (thẻ đang ôn, hết
@@ -137,14 +184,42 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
 
   const card = currentCard(session);
 
-  // Đổi thẻ (grade sang thẻ kế) → xoá cache định nghĩa và huỷ request cũ.
+  // Đổi thẻ (grade sang thẻ kế) → xoá cache định nghĩa, huỷ request cũ và dọn
+  // cú kéo dở (phòng hờ — pointerup/cancel thường đã dọn trước khi grade).
   useEffect(() => {
     detailReqRef.current++;
     setDictResults(null);
     setDictLoading(false);
     setDictError(null);
     setTypedReading("");
+    dragStartRef.current = null;
+    setDrag(null);
+    // Cờ nuốt-click thường được chính click lúc thả tay tiêu thụ (chạy trước
+    // effect này); nếu trình duyệt không bắn click thì dọn ở đây để không nuốt
+    // oan cú tap kế tiếp trên thẻ mới.
+    suppressClickRef.current = false;
   }, [card?.term]);
+
+  // Đo lại khả năng cuộn của thẻ khi lật/đổi thẻ và mỗi khi mặt sau đổi chiều
+  // cao (ResizeObserver bắt được các khối lazy nở ra) — xem chú thích ở state.
+  useEffect(() => {
+    if (!flipped) return;
+    const el = flashcardRef.current;
+    const back = backRef.current;
+    if (!el || !back) return;
+    const measure = () => setCardScrollable(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(back);
+    return () => observer.disconnect();
+  }, [flipped, card?.term]);
+
+  // Dấu son sống đúng SEAL_FX_MS rồi tự gỡ (vì sao timeout: xem hằng số).
+  useEffect(() => {
+    if (!sealFx) return;
+    const timer = setTimeout(() => setSealFx(null), SEAL_FX_MS);
+    return () => clearTimeout(timer);
+  }, [sealFx]);
 
   const previews = useMemo(() => {
     if (!card) return {} as Record<ReviewGrade, string>;
@@ -210,6 +285,18 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     />
   );
 
+  // Dấu son 合格 phủ lên thẻ. Render ở CẢ ba màn (đang ôn / hết lô / hoàn thành)
+  // — thẻ cuối phiên tốt nghiệp là chuyện thường, khoảnh khắc không được rơi mất.
+  // aria-hidden: trang trí thuần; màn tổng kết đã liệt kê từ tốt nghiệp bằng chữ.
+  const sealOverlay = sealFx && (
+    <div className="grad-seal" key={sealFx.id} aria-hidden>
+      <div className="grad-seal-fx">
+        <div className="grad-seal-stamp" lang="ja">合格</div>
+        <div className="grad-seal-term">「{sealFx.term}」 đã thuộc</div>
+      </div>
+    </div>
+  );
+
   // Hết lô hiện tại: nếu còn thẻ chờ thì mời ôn tiếp lô kế (điểm dừng tự nhiên),
   // ngược lại là màn tổng kết phiên. Tái dùng khung `.review-card done`.
   if (!card) {
@@ -218,6 +305,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
       return (
         <div className="review-overlay">
           <div className="review-card done" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
+            {sealOverlay}
             <h2>Xong một lô! 🎉</h2>
             <p>Đã ôn {session.reviewed} thẻ. Còn {session.pending.length} thẻ đến hạn.</p>
             {summary}
@@ -234,6 +322,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     return (
       <div className="review-overlay">
         <div className="review-card done" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
+          {sealOverlay}
           <h2>Hoàn thành! 🎉</h2>
           <p>Bạn đã ôn {session.reviewed} thẻ.</p>
           {summary}
@@ -245,6 +334,9 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
 
   async function grade(g: ReviewGrade) {
     if (!card || busy) return;
+    // Haptic nhẹ ngay lúc chốt grade (mọi ngả: swipe, nút, phím) — optional
+    // chaining nên môi trường không hỗ trợ chỉ đơn giản không rung.
+    navigator.vibrate?.(GRADE_HAPTIC_MS);
     setBusy(true);
     try {
       const prevStatus = card.status;
@@ -256,6 +348,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
       if (g === "again") setForgotten((list) => upsertByKey(list, graded));
       if (graded.status === "LEARNED" && prevStatus !== "LEARNED") {
         setGraduated((list) => upsertByKey(list, graded));
+        setSealFx((fx) => ({ term: graded.term, id: (fx?.id ?? 0) + 1 }));
       }
       setFlipped(false);
     } finally {
@@ -315,6 +408,57 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
     saveReverseModeEnabled(enabled);
   }
 
+  // --- Swipe 4 hướng (#160): pointer events trên thẻ đã lật ---
+
+  function onCardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (!flipped || busy) return;
+    if (e.target instanceof Element && e.target.closest(INTERACTIVE_SELECTOR)) return;
+    dragStartRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    // Capture để move/up vẫn về thẻ khi tay kéo vượt ra ngoài viền.
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onCardPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const start = dragStartRef.current;
+    if (!start || e.pointerId !== start.pointerId) return;
+    setDrag({ dx: e.clientX - start.x, dy: e.clientY - start.y });
+  }
+
+  function onCardPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const start = dragStartRef.current;
+    if (!start || e.pointerId !== start.pointerId) return;
+    dragStartRef.current = null;
+    setDrag(null);
+    const hint = evaluateSwipe(e.clientX - start.x, e.clientY - start.y);
+    if (!hint) return; // trong vùng chết: là tap, để click chạy bình thường
+    suppressClickRef.current = true;
+    if (hint.committed) grade(hint.grade);
+  }
+
+  function onCardPointerCancel() {
+    // Trình duyệt giành gesture (vd. cuộn chạm trên thẻ pan-y) → huỷ cú kéo êm.
+    dragStartRef.current = null;
+    setDrag(null);
+  }
+
+  function onCardClick() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    setFlipped(true);
+  }
+
+  const swipeHint = flipped && drag ? evaluateSwipe(drag.dx, drag.dy) : null;
+  const flashcardCls = [
+    "flashcard",
+    flipped ? "swipeable" : "",
+    flipped && cardScrollable ? "can-scroll" : "",
+    drag ? "dragging" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="review-overlay">
       <div className="review-card" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
@@ -334,7 +478,20 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
           </div>
         )}
 
-        <div className="flashcard" onClick={() => setFlipped(true)}>
+        <div
+          className={flashcardCls}
+          ref={flashcardRef}
+          style={
+            drag
+              ? ({ "--swipe-x": `${drag.dx}px`, "--swipe-y": `${drag.dy}px` } as CSSProperties)
+              : undefined
+          }
+          onClick={onCardClick}
+          onPointerDown={onCardPointerDown}
+          onPointerMove={onCardPointerMove}
+          onPointerUp={onCardPointerUp}
+          onPointerCancel={onCardPointerCancel}
+        >
           {front.kind === "term" ? (
             <div className="front">{front.text}</div>
           ) : (
@@ -351,7 +508,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
             </div>
           )}
           {flipped && (
-            <div className="back">
+            <div className="back" ref={backRef}>
               {showReadingInput && readingAttempt && (
                 <p className={`reading-feedback ${isReadingMatch(readingAttempt, card.reading) ? "correct" : "wrong"}`}>
                   Bạn gõ: <b>{readingAttempt}</b> ·{" "}
@@ -431,6 +588,24 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
           {!flipped && !showReadingInput && <p className="hint">Nhấn hoặc bấm Space để lật đáp án</p>}
         </div>
 
+        {/* Chỉ dấu hướng swipe: nhãn grade + interval xem trước, đậm dần theo
+            khoảng kéo (sàn HINT_BASE_OPACITY). Màu chữ tính như nút grade (#124). */}
+        {swipeHint && (
+          <div className="swipe-hint" aria-hidden>
+            <span
+              className={`swipe-hint-label ${GRADE_META[swipeHint.grade].cls}`}
+              style={{
+                opacity: HINT_BASE_OPACITY + (1 - HINT_BASE_OPACITY) * swipeHint.progress,
+                color: gradeTextColor[swipeHint.grade],
+              }}
+            >
+              {GRADE_META[swipeHint.grade].label}
+              <span className="swipe-hint-interval">{previews[swipeHint.grade]}</span>
+            </span>
+          </div>
+        )}
+        {sealOverlay}
+
         {flipped ? (
           <>
             <div className="grade-buttons">
@@ -448,7 +623,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
                 </button>
               ))}
             </div>
-            <p className="grade-hint">Phím tắt: 1 Quên · 2 Khó · 3 Nhớ · 4 Dễ</p>
+            <p className="grade-hint">Phím 1–4 hoặc kéo thẻ: ← Quên · → Nhớ · ↑ Dễ · ↓ Khó</p>
           </>
         ) : (
           <button className="primary flip" onClick={() => setFlipped(true)}>Lật thẻ</button>
