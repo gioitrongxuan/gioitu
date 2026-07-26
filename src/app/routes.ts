@@ -16,21 +16,28 @@ export type Route =
   | { kind: "page"; page: Page }
   | { kind: "word"; term_lang: string; native_lang: string; term: string };
 
+// "/" là Bản đồ từ chứ không phải Hôm nay: mở app phải thấy ngay bản đồ trí
+// nhớ và tra được liền — vòng lặp gốc của app (tra → "+" → thấy từ trên bản
+// đồ). Hôm nay vẫn là một khu, ở /today.
 const PAGE_PATHS: Record<Page, string> = {
-  today: "/",
+  today: "/today",
   search: "/search",
-  cloud: "/words",
+  cloud: "/",
   learned: "/words/learned",
   kanji: "/words/kanji",
   vocabstudy: "/words/study",
   me: "/me",
 };
 
+/** Trang chủ — đích của path lạ và của deep-link /word sau khi mở panel. */
+export const HOME_PAGE: Page = "cloud";
+
 // Path thời chưa có 4 khu (bookmark/link cũ còn sống) → trang mới tương ứng.
 const LEGACY_PATHS: Record<string, Page> = {
   "/learned": "learned",
   "/kanji": "kanji",
   "/vocabstudy": "vocabstudy",
+  "/words": "cloud", // thời bản đồ từ chưa là trang chủ
 };
 
 export function khuOf(page: Page): Khu {
@@ -67,7 +74,7 @@ export function parsePath(pathname: string): Route {
       // %-escape hỏng trong term → coi như path lạ
     }
   }
-  return { kind: "page", page: "today" };
+  return { kind: "page", page: HOME_PAGE };
 }
 
 // --- "Back đóng overlay" -----------------------------------------------------
