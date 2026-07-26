@@ -22,6 +22,7 @@ import { CustomDraft, dedupe, dictEntryToDraft, emptyDraft, isDraftFilled } from
 import { DictConfig } from "./DictConfig";
 import { GridRow, ManualGrid } from "./ManualGrid";
 import { AiPanel } from "./AiPanel";
+import "../form.css";
 import "./customdict.css";
 
 interface Props {

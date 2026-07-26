@@ -7,10 +7,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
-import { buildAiPrompt, CustomDraft, emptyDraft, isDraftFilled, parseAiResponse } from "../../domain/customEntry";
+import { CustomDraft, emptyDraft, isDraftFilled } from "../../domain/customEntry";
 import { guessPairForText, QuickAddRecord } from "../../domain/quickadd";
-import { generateVocab } from "../../data/aiGenerate";
+import { aiFillDraft } from "../../data/aiGenerate";
 import { INBOX_TITLE, saveQuickAdd } from "../../data/inbox";
+import "../form.css";
 import "./quickadd.css";
 
 export type { QuickAddRecord };
@@ -27,9 +28,11 @@ interface Props {
   onClose: () => void;
   /** Gọi sau mỗi lần lưu để app làm mới (đếm từ, đồng bộ, tra lại…). */
   onSaved?: () => void;
+  /** Cửa sổ popup riêng (?add_solo=1): form là cả trang — ẩn mục hướng dẫn lối tắt. */
+  solo?: boolean;
 }
 
-export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin, onRecordSrs, onClose, onSaved }: Props) {
+export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin, onRecordSrs, onClose, onSaved, solo }: Props) {
   // Có mặt chữ gợi ý thì đoán cặp theo chữ viết; không thì theo cặp đang tra ở app.
   const [pair, setPair] = useState<LangPair>(() => (initialTerm.trim() ? guessPairForText(initialTerm) : appPair));
   const [draft, setDraft] = useState<CustomDraft>(() => ({ ...emptyDraft(), term: initialTerm.trim() }));
@@ -48,8 +51,8 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // AI điền hộ: dùng chung trình dựng prompt & phân tích với Từ điển cá nhân; chỉ
-  // lấy mục đầu (thêm nhanh mỗi lần một từ). Giữ nguyên mặt chữ người dùng đã gõ.
+  // AI điền hộ (aiFillDraft — dùng chung với chế độ proxy của overlay ngoài
+  // trang). Chỉ điền vào ô trống: giữ nguyên những gì người dùng đã gõ.
   async function onAiFill() {
     if (!draft.term.trim()) {
       setStatus("Nhập mặt chữ trước đã.");
@@ -58,28 +61,14 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
     setAiBusy(true);
     setStatus("Đang nhờ AI điền…");
     try {
-      const prompt = buildAiPrompt({
-        words: [draft.term.trim()],
-        randomCount: 0,
-        wantExamples: true,
-        wantExplanation: true,
-        wantRelated: false,
-        extra: "",
-        pair,
-      });
-      const { rows, errors } = parseAiResponse(await generateVocab(prompt));
-      const row = rows[0];
-      if (!row) {
-        setStatus(errors[0] ?? "AI không trả về từ nào.");
-        return;
-      }
+      const filled = await aiFillDraft(draft.term.trim(), pair);
       setDraft((d) => ({
         ...d,
-        reading: row.reading || d.reading,
-        pos: row.pos || d.pos,
-        gloss: row.gloss || d.gloss,
-        example: row.example || d.example,
-        note: row.note || d.note,
+        reading: d.reading || filled.reading || "",
+        pos: d.pos || filled.pos || "",
+        gloss: d.gloss || filled.gloss || "",
+        example: d.example || filled.example || "",
+        note: d.note || filled.note || "",
       }));
       setStatus("AI đã điền — kiểm lại rồi lưu.");
     } catch (err) {
@@ -110,7 +99,7 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
   const termRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="manager-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`manager-overlay${solo ? " qa-solo" : ""}`} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="manager-card qa-card" role="dialog" aria-modal="true" aria-label="Thêm nhanh một từ">
         <header className="manager-head">
           <h2>Thêm nhanh</h2>
@@ -202,7 +191,7 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
 
           {status && <p className="dict-status">{status}</p>}
 
-          <QuickAddShortcut />
+          {!solo && <QuickAddShortcut />}
         </div>
       </div>
     </div>
@@ -229,7 +218,7 @@ function QuickAddShortcut() {
       "s.onload=function(){w.__gioituOverlay&&w.__gioituOverlay('')};" +
       "s.onerror=function(){var t=(''+(w.getSelection?w.getSelection():'')).trim();" +
       "t=t||w.prompt('Từ cần thêm vào Gioitu:','');" +
-      `if(t)w.open('${origin}/?add='+encodeURIComponent(t),'gioitu-add','width=520,height=680')};` +
+      `if(t)w.open('${origin}/?add_solo=1&add='+encodeURIComponent(t),'gioitu-add','width=520,height=680')};` +
       "d.documentElement.appendChild(s)})();"
     );
   }, []);

@@ -9,6 +9,7 @@ import { LangPair, DEFAULT_PAIR } from "@/shared/languages";
 import { PairSelect } from "./PairSelect";
 import { ImportTab } from "./ImportTab";
 import { EditTab } from "./EditTab";
+import "../form.css";
 import "./manager.css";
 
 interface Props {

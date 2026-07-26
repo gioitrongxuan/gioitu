@@ -34,20 +34,40 @@ export interface QuickAddRecord {
 }
 
 /** Toàn bộ query param của luồng ?add= — App xoá sạch khỏi URL sau khi đọc. */
-export const ADD_PARAM_KEYS = ["add", "add_title", "add_reading", "add_meaning", "add_pair", "add_save"] as const;
+export const ADD_PARAM_KEYS = [
+  "add",
+  "add_title",
+  "add_reading",
+  "add_meaning",
+  "add_pair",
+  "add_pos",
+  "add_example",
+  "add_note",
+  "add_save",
+  "add_ai",
+  "add_solo",
+  "add_origin",
+] as const;
 
 export interface AddRequest {
   draft: CustomDraft;
   pair: LangPair;
-  /** Người dùng đã soạn/duyệt ngay trên overlay của extension → app lưu ngầm, không mở form. */
+  /** Người dùng đã soạn/duyệt ngay trên overlay ngoài trang → app lưu ngầm, không mở form. */
   autosave: boolean;
+  /** Overlay nhờ AI điền hộ: app chỉ gọi AI, postMessage kết quả về cửa sổ mở mình rồi tự đóng. */
+  aiFill: boolean;
+  /** Cửa sổ popup riêng cho form → chỉ vẽ form, không dựng vỏ app xung quanh. */
+  solo: boolean;
+  /** Origin của trang đã mở cửa sổ này — đích targetOrigin khi postMessage kết quả AI. */
+  openerOrigin: string | null;
 }
 
 /**
  * Đọc yêu cầu thêm nhanh từ query param. `add` (hoặc `add_title` của Share
  * Target) là mặt chữ — vắng cả hai nghĩa là không có yêu cầu (null). Overlay
- * của extension gửi kèm nghĩa/cách đọc/cặp và `add_save=1` để lưu ngầm; cặp
- * không hợp lệ thì đoán lại theo chữ viết như form.
+ * ngoài trang gửi kèm nghĩa/cách đọc/cặp (và từ loại/ví dụ/ghi chú nếu AI đã
+ * điền) cùng `add_save=1` để lưu ngầm, hoặc `add_ai=1` để nhờ app gọi AI hộ;
+ * cặp không hợp lệ thì đoán lại theo chữ viết như form.
  */
 export function parseAddParams(params: URLSearchParams): AddRequest | null {
   const term = params.get("add") ?? params.get("add_title");
@@ -57,8 +77,18 @@ export function parseAddParams(params: URLSearchParams): AddRequest | null {
     term: term.trim(),
     reading: (params.get("add_reading") ?? "").trim(),
     gloss: (params.get("add_meaning") ?? "").trim(),
+    pos: (params.get("add_pos") ?? "").trim(),
+    example: (params.get("add_example") ?? "").trim(),
+    note: (params.get("add_note") ?? "").trim(),
   };
   const pairParam = params.get("add_pair");
   const pair = LANG_PAIRS.find((p) => p.id === pairParam) ?? guessPairForText(draft.term);
-  return { draft, pair, autosave: params.get("add_save") === "1" };
+  return {
+    draft,
+    pair,
+    autosave: params.get("add_save") === "1",
+    aiFill: params.get("add_ai") === "1",
+    solo: params.get("add_solo") === "1",
+    openerOrigin: params.get("add_origin"),
+  };
 }

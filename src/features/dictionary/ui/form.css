@@ -1,0 +1,21 @@
+/* Lớp form dùng chung của feature dictionary (Manager, Từ điển cá nhân, Thêm
+   nhanh). Tách riêng vì mỗi màn lazy-load một mình: để trong css của một màn
+   thì màn khác mở trước sẽ vỡ layout (QuickAdd trong cửa sổ ?add= từng dính
+   cảnh input trần không viền). Giá trị bám token §2 DESIGN. */
+
+.form-row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.form-field { flex: 1 1 160px; display: grid; gap: var(--space-1); }
+.form-field.grow { flex: 2 1 220px; }
+.field-label { font-size: var(--text-xs); color: var(--muted); font-weight: 600; }
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  background: var(--surface);
+  color: var(--fg);
+}

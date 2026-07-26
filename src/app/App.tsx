@@ -25,6 +25,7 @@ import { TermResult } from "@/features/dictionary/data/search";
 import { ADD_PARAM_KEYS, parseAddParams } from "@/features/dictionary/domain/quickadd";
 import { isDraftFilled } from "@/features/dictionary/domain/customEntry";
 import { saveQuickAdd } from "@/features/dictionary/data/inbox";
+import { aiFillDraft } from "@/features/dictionary/data/aiGenerate";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
 import { proposeWord } from "@/features/contribute/data/contribute";
 import { ContributionReview } from "@/features/contribute/ui/ContributionReview";
@@ -276,8 +277,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [contribReview, setContribReview] = useState(false);
   const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
-  // bookmarklet / Share Target; rỗng khi mở từ menu.
-  const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
+  // bookmarklet / Share Target; rỗng khi mở từ menu. `solo` = cửa sổ popup
+  // riêng (?add_solo=1): chỉ vẽ form, không dựng vỏ app xung quanh.
+  const [quickAdd, setQuickAdd] = useState<{ term: string; solo?: boolean } | null>(null);
+  // Cửa sổ proxy AI tí hon của overlay ngoài trang (?add_ai=1) — xem effect ?add=.
+  const [aiProxy, setAiProxy] = useState(false);
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
   // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
   // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
@@ -327,11 +331,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   }, [dueCount]);
 
   // Bookmarklet (máy tính) và Share Target (điện thoại) mở app kèm ?add=<mặt chữ>
-  // → mở form Thêm nhanh điền sẵn. Overlay của extension thì gửi đủ trường kèm
-  // add_save=1 (người dùng đã duyệt ngay trên trang) → lưu ngầm rồi tự đóng tab
-  // nền do extension mở; tab mở tay không đóng được thì toast của recordLookup
-  // vẫn báo kết quả. Đọc một lần lúc mount, xoá param khỏi URL để refresh không
-  // lặp lại và mặt chữ không đọng trên thanh địa chỉ.
+  // → mở form Thêm nhanh điền sẵn. Overlay ngoài trang (extension/bookmarklet)
+  // dùng thêm hai chế độ ngầm: add_save=1 (đã duyệt ngay trên trang → lưu rồi tự
+  // đóng cửa sổ; đóng không được thì toast của recordLookup vẫn báo) và add_ai=1
+  // (gọi AI first-party hộ overlay — token nằm trong localStorage origin app —
+  // rồi postMessage kết quả về trang qua window.opener và tự đóng). Đọc một lần
+  // lúc mount, xoá param khỏi URL để refresh không lặp lại và mặt chữ không đọng
+  // trên thanh địa chỉ.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const req = parseAddParams(params);
@@ -339,12 +345,26 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     for (const key of ADD_PARAM_KEYS) params.delete(key);
     const qs = params.toString();
     window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
-    if (req.autosave && isDraftFilled(req.draft)) {
+    const opener = window.opener as Window | null;
+    if (req.aiFill && opener) {
+      setAiProxy(true);
+      // Thiếu add_origin thì thà không gửi ("/") còn hơn phát "*" cho mọi trang.
+      const targetOrigin = req.openerOrigin ?? "/";
+      aiFillDraft(req.draft.term, req.pair)
+        .then((filled) => opener.postMessage({ kind: "gioitu-ai-fill", term: req.draft.term, filled }, targetOrigin))
+        .catch((err: unknown) =>
+          opener.postMessage(
+            { kind: "gioitu-ai-fill", term: req.draft.term, error: (err as Error).message },
+            targetOrigin,
+          ),
+        )
+        .then(() => window.close());
+    } else if (req.autosave && isDraftFilled(req.draft)) {
       saveQuickAdd(req.pair, req.draft, store.recordLookup)
         .then(() => window.close())
-        .catch(() => setQuickAdd({ term: req.draft.term }));
+        .catch(() => setQuickAdd({ term: req.draft.term, solo: req.solo }));
     } else {
-      setQuickAdd({ term: req.draft.term });
+      setQuickAdd({ term: req.draft.term, solo: req.solo });
     }
   }, []);
 
@@ -480,6 +500,45 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   );
 
   const khu = khuOf(page);
+
+  // Cửa sổ proxy AI của overlay ngoài trang: chỉ một dòng trạng thái trong lúc
+  // gọi model — không dựng vỏ app; xong việc effect ?add= tự đóng cửa sổ.
+  if (aiProxy) {
+    return (
+      <div className="qa-proxy" aria-busy="true">
+        ✨ Đang nhờ AI điền…
+      </div>
+    );
+  }
+
+  // Cửa sổ popup riêng cho form (?add_solo=1): chỉ form + toast, không vỏ app.
+  if (quickAdd?.solo) {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <QuickAdd
+            pair={pair}
+            initialTerm={quickAdd.term}
+            solo
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              // Rơi về app đầy đủ (ngay trong cửa sổ này) để đăng nhập.
+              setQuickAdd(null);
+              onRequestLogin();
+            }}
+            onRecordSrs={store.recordLookup}
+            onClose={() => {
+              window.close();
+              // Cửa sổ không cho script đóng (mở tay) → rơi về app đầy đủ.
+              setQuickAdd(null);
+            }}
+            onSaved={syncDicts}
+          />
+        </Suspense>
+        <ToastHost />
+      </>
+    );
+  }
 
   return (
     <div className="app">

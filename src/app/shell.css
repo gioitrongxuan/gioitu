@@ -342,3 +342,16 @@
   align-items: center;
   gap: var(--space-3);
 }
+
+/* Cửa sổ proxy AI tí hon của luồng Thêm nhanh (?add_ai=1) — App.tsx chỉ vẽ một
+   dòng trạng thái này thay cho cả vỏ app trong lúc chờ model. */
+.qa-proxy {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}

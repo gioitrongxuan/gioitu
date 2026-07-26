@@ -4,7 +4,9 @@
 // trình dựng prompt và MỘT trình phân tích. Ở đây chỉ gọi mạng và lấy văn bản
 // thô model trả về. Cần đăng nhập (endpoint gated để tránh lạm dụng LLM ẩn danh).
 
+import { LangPair } from "@/shared/languages";
 import { authToken } from "@/features/auth/data/auth";
+import { buildAiPrompt, CustomDraft, parseAiResponse } from "../domain/customEntry";
 
 /**
  * Gửi prompt tới máy chủ và nhận VĂN BẢN thô do model trả về (kỳ vọng là JSON).
@@ -29,4 +31,26 @@ export async function generateVocab(prompt: string): Promise<string> {
   const data = (await res.json().catch(() => ({}))) as { content?: string; error?: string };
   if (!res.ok) throw new Error(data.error ?? "Yêu cầu thất bại");
   return data.content ?? "";
+}
+
+/**
+ * Nhờ AI điền hộ MỘT từ: dựng prompt, gọi model, lấy dòng đầu. Dùng chung cho
+ * form Thêm nhanh trong app và chế độ proxy AI của overlay ngoài trang
+ * (?add_ai=1). Ném lỗi (chưa đăng nhập, model không trả từ nào…) để nơi gọi
+ * hiển thị/chuyển tiếp.
+ */
+export async function aiFillDraft(term: string, pair: LangPair): Promise<Partial<CustomDraft>> {
+  const prompt = buildAiPrompt({
+    words: [term],
+    randomCount: 0,
+    wantExamples: true,
+    wantExplanation: true,
+    wantRelated: false,
+    extra: "",
+    pair,
+  });
+  const { rows, errors } = parseAiResponse(await generateVocab(prompt));
+  const row = rows[0];
+  if (!row) throw new Error(errors[0] ?? "AI không trả về từ nào.");
+  return { reading: row.reading, pos: row.pos, gloss: row.gloss, example: row.example, note: row.note };
 }
