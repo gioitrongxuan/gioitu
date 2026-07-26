@@ -7,6 +7,7 @@ import express from "express";
 import cors from "cors";
 import { authRoutes } from "./features/auth/authRoutes.js";
 import { dictRoutes } from "./features/dictionary/dictRoutes.js";
+import { recommendedRoutes } from "./features/dictionary/recommendedRoutes.js";
 import { kanjiRoutes } from "./features/dictionary/kanjiRoutes.js";
 import { handwritingRoutes } from "./features/dictionary/handwritingRoutes.js";
 import { syncRoutes } from "./features/sync/syncRoutes.js";
@@ -27,6 +28,8 @@ export function createApp() {
 
   // Feature routers (each owns its sub-paths).
   app.use("/api/auth", authRoutes);
+  // Trước dictRoutes để /recommended không bị route động của dict nuốt.
+  app.use("/api/dict/recommended", recommendedRoutes);
   app.use("/api/dict", dictRoutes);
   app.use("/api/kanji", kanjiRoutes);
   app.use("/api/handwriting", handwritingRoutes);
