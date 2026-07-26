@@ -278,6 +278,11 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   (`lookupError`); đồng bộ dữ liệu học phân biệt offline vs 401 và báo lên UI
   (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
+- Service worker (`public/sw.js`) precache **toàn bộ asset build, kể cả chunk
+  lazy** (Bộ thủ, Kanji, skin…) — danh sách được chèn lúc build (plugin
+  sw-precache trong `vite.config.ts`, logic ở `src/app/swPrecache.ts`) nên các
+  màn phụ mở được offline ngay cả khi chưa từng ghé; mỗi deploy SW chỉ tải phần
+  chunk đổi hash và dọn hash cũ khỏi cache ở `activate`.
 
 ## 9. Các tính năng bổ sung (2026)
 

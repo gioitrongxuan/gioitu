@@ -67,10 +67,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).
-- [ ] SW: precache chunk lazy theo manifest build (hoặc vite-plugin-pwa);
-  catch cho loadRadicalData (hiện offline bấm Bộ thủ treo "Đang tải…" vĩnh
-  viễn); dọn ASSET_CACHE cũ sau activate. `sw.js:9-12,28-36,76-92 ·
-  RadicalPicker.tsx:19-25`
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 
