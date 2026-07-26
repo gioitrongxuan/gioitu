@@ -693,12 +693,25 @@ export async function deleteWordComment(id: string): Promise<boolean> {
 }
 
 /** Xoá một từ (word + entry/heading cascade). Trả false nếu không có. */
-export async function deleteTerm(term: string, src: string, tgt: string): Promise<boolean> {
-  const del = await pool.query(
-    `DELETE FROM word WHERE id IN (
-       SELECT word_id FROM heading_lookup WHERE term_lang = $1 AND native_lang = $2 AND base = $3
-     )`,
-    [src, tgt, term],
-  );
+/**
+ * Xoá một từ. `wordId` là cách gọi đúng: khoá của `heading_lookup` gồm cả
+ * `reading`, nên khớp theo mình `base` sẽ quét luôn mọi từ đồng âm — 生 (せい) và
+ * 生 (なま) là hai word khác nhau, xoá một mà mất cả hai. Đường theo `base` chỉ
+ * còn cho caller cũ không cầm `wordId`.
+ */
+export async function deleteTerm(
+  term: string,
+  src: string,
+  tgt: string,
+  wordId?: string,
+): Promise<boolean> {
+  const del = wordId
+    ? await pool.query("DELETE FROM word WHERE id = $1", [wordId])
+    : await pool.query(
+        `DELETE FROM word WHERE id IN (
+           SELECT word_id FROM heading_lookup WHERE term_lang = $1 AND native_lang = $2 AND base = $3
+         )`,
+        [src, tgt, term],
+      );
   return Boolean(del.rowCount);
 }

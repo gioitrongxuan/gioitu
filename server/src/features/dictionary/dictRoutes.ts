@@ -329,7 +329,8 @@ dictRoutes.delete(
     const term = String(req.body?.term ?? "");
     const term_lang = String(req.body?.term_lang ?? "");
     const native_lang = String(req.body?.native_lang ?? "");
-    const found = await dictStore.deleteTerm(term, term_lang, native_lang);
+    const word_id = req.body?.word_id ? String(req.body.word_id) : undefined;
+    const found = await dictStore.deleteTerm(term, term_lang, native_lang, word_id);
     if (!found) return res.status(404).json({ error: "Không tìm thấy từ" });
     res.json({ ok: true });
   }),

@@ -80,13 +80,17 @@ export async function saveNote(
       },
       now,
     );
+    // `received_at` bắt buộc phải đóng dấu ở đây như syncStore: cột mặc định 0,
+    // mà mốc hiệu lực LWW là min(updated_at, received_at) — bỏ trống thì mọi từ
+    // thêm qua Yomitan có mốc 0 và THUA mọi bản đồng bộ đến sau, dù nó mới hơn.
     await client.query(
-      `INSERT INTO user_data (user_id, term, term_lang, payload, updated_at)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO user_data (user_id, term, term_lang, payload, updated_at, received_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id, term, term_lang) DO UPDATE SET
          payload = EXCLUDED.payload,
-         updated_at = EXCLUDED.updated_at`,
-      [userId, term, term_lang, JSON.stringify(entry), entry.updated_at],
+         updated_at = EXCLUDED.updated_at,
+         received_at = EXCLUDED.received_at`,
+      [userId, term, term_lang, JSON.stringify(entry), entry.updated_at, now],
     );
     await client.query("COMMIT");
   } catch (err) {

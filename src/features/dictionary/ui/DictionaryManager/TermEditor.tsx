@@ -37,9 +37,11 @@ export function TermEditor({
   }
 
   async function remove() {
-    if (!confirm(`Xóa từ “${row.term}”?`)) return;
+    // Kèm âm đọc: hai từ đồng âm hiện cùng mặt chữ, thiếu nó không biết đang xoá cái nào.
+    const label = row.reading ? `${row.term}（${row.reading}）` : row.term;
+    if (!confirm(`Xóa từ “${label}”?`)) return;
     try {
-      await deleteTerm(row.term, pair.source, pair.target);
+      await deleteTerm(row.term, pair.source, pair.target, row.wordId);
       onChanged();
     } catch (err) {
       onError((err as Error).message);
