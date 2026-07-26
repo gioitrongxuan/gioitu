@@ -129,15 +129,17 @@ export function saveTerm(entry: EditableTerm & { word_id?: string }): Promise<{ 
   });
 }
 
+/** `wordId` để xoá đúng một từ đồng âm (thiếu nó server phải khớp theo mặt chữ). */
 export function deleteTerm(
   term: string,
   term_lang: string,
   native_lang: string,
+  wordId?: string,
 ): Promise<{ ok: true }> {
   return request<{ ok: true }>("/dict/term", {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ term, term_lang, native_lang }),
+    body: JSON.stringify({ term, term_lang, native_lang, word_id: wordId }),
   });
 }
 

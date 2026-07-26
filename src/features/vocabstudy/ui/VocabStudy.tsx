@@ -33,10 +33,17 @@ import "./vocabstudy.css";
 type SourceKind = "studylist" | "custom" | "history";
 type StatusFilter = "all" | VocabProgress;
 
+/**
+ * `none` = đã chọn nguồn nhưng chưa chọn danh sách (đang ở màn chọn). Thiếu nó
+ * thì "đổi danh sách" phải giả lập bằng `{ kind } as Selection` — một object
+ * không có `list`/`dict` mà `selectionIs` vẫn cho qua, và `selectionTitle` đọc
+ * `s.dict.title` là ném TypeError.
+ */
 type Selection =
   | { kind: "studylist"; list: studyListSrc.StudyListSummary }
   | { kind: "custom"; dict: customDictSrc.LocalDictionary }
-  | { kind: "history" };
+  | { kind: "history" }
+  | { kind: "none" };
 
 const SOURCE_LABEL: Record<SourceKind, string> = {
   studylist: "Study list",
@@ -89,7 +96,9 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
     };
     const finish = () => alive && setLoading(false);
 
-    if (selection.kind === "history") {
+    if (selection.kind === "none") {
+      finish(); // chưa chọn danh sách — không có gì để tải
+    } else if (selection.kind === "history") {
       // Lịch sử: dùng luôn entries của người dùng (lọc theo cặp đang chọn).
       done(
         entries
@@ -118,11 +127,12 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
   );
   const learnedPct = percent(counts.learned, counts.total);
 
-  // Chuyển nguồn — reset lựa chọn về mặc định (history không cần chọn thêm).
+  // Chuyển nguồn — reset lựa chọn (history dùng được ngay, hai nguồn kia phải
+  // chọn danh sách trước; giữ lựa chọn cũ sẽ hiện lưới của nguồn vừa rời).
   const pickSource = (k: SourceKind) => {
     setSource(k);
     setFilter("all");
-    if (k === "history") setSelection({ kind: "history" });
+    setSelection(k === "history" ? { kind: "history" } : { kind: "none" });
   };
 
   return (
@@ -153,7 +163,7 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
           <div className="vocab-head">
             <h2>{selectionTitle(selection)}</h2>
             {(selectionIs(selection, "studylist") || selectionIs(selection, "custom")) && (
-              <button className="link" onClick={() => setSelection({ kind: selection.kind } as Selection)}>
+              <button className="link" onClick={() => setSelection({ kind: "none" })}>
                 ← Đổi
               </button>
             )}
@@ -238,7 +248,8 @@ function selectionIs<S extends SourceKind>(s: Selection, kind: S): s is Extract<
 function selectionTitle(s: Selection): string {
   if (s.kind === "studylist") return s.list.name;
   if (s.kind === "custom") return s.dict.title;
-  return "Lịch sử tra cứu";
+  if (s.kind === "history") return "Lịch sử tra cứu";
+  return ""; // chưa chọn — khối tiêu đề không render ở trạng thái này
 }
 
 function SourceBar({ source, onSourceChange }: { source: SourceKind; onSourceChange: (k: SourceKind) => void }) {

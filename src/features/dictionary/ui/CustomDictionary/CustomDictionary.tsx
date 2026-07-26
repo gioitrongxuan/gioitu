@@ -53,6 +53,10 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [conflict, setConflict] = useState<{ fresh: CustomDraft[]; duplicates: CustomDraft[] } | null>(null);
+  // Nạp hỏng thì lưới rỗng KHÔNG có nghĩa là từ điển rỗng — mà `saveCustomDict`
+  // xoá mọi từ của dict không còn trong lưới, nên lưu lúc này là xoá sạch từ điển
+  // (kèm tombstone đẩy sang máy khác). Chặn lưu cho tới khi nạp lại được.
+  const [loadFailed, setLoadFailed] = useState(false);
   const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   const refreshDicts = useCallback(() => {
@@ -68,6 +72,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
     const sel = dicts.find((d) => d.id === existingDictId);
     if (sel?.custom) {
       setLoading(true);
+      setLoadFailed(false);
       listCustomEntries(sel.id)
         .then((entries) => {
           if (!alive) return;
@@ -80,8 +85,14 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
           setTopic(sel.topic ?? "");
           setLoading(false);
         })
-        .catch(() => alive && setLoading(false));
+        .catch((err) => {
+          if (!alive) return;
+          setLoadFailed(true);
+          setStatus(`Không nạp được từ của từ điển này: ${(err as Error).message}. Đóng và mở lại để thử lần nữa — chưa nạp được thì chưa lưu được, tránh ghi đè mất từ.`);
+          setLoading(false);
+        });
     } else {
+      setLoadFailed(false);
       setRows([{ ...emptyDraft(), isNew: true }]);
       if (!existingDictId) {
         setTitle("");
@@ -131,6 +142,11 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
   // Chế độ sửa: lưu "khớp đúng" (thêm/sửa/xoá từng từ + metadata) — không qua
   // dedupe/conflict vì lưới CHÍNH là toàn bộ nội dung từ điển.
   async function saveEdit() {
+    // Chặn ở đây chứ không chỉ ở nút: lưới rỗng do nạp hỏng mà lưu thì mất sạch từ.
+    if (loadFailed) {
+      setStatus("Chưa nạp được nội dung từ điển nên không thể lưu — lưu lúc này sẽ xoá hết từ đang có.");
+      return;
+    }
     if (!title.trim()) {
       setStatus("Tên từ điển không được để trống.");
       return;
@@ -268,7 +284,7 @@ export function CustomDictionary({ pair: initialPair, loggedIn, onRequestLogin, 
           <span className="muted">{editMode ? `${filledCount} từ` : `${filledCount} từ sẵn sàng lưu`}</span>
           <button
             className="primary"
-            disabled={saving || loading || (!editMode && filledCount === 0)}
+            disabled={saving || loading || loadFailed || (!editMode && filledCount === 0)}
             onClick={onSaveClick}
           >
             {saving ? "Đang lưu…" : editMode ? "Lưu thay đổi" : "Lưu vào từ điển"}

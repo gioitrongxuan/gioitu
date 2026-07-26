@@ -17,6 +17,17 @@ const FOCUSABLE_SELECTOR =
 export function useDialog<T extends HTMLElement>(onClose: () => void): RefObject<T> {
   const ref = useRef<T>(null);
 
+  // `onClose` gần như luôn là arrow inline ở nơi gọi, nên để nó trong deps thì
+  // effect chạy lại mỗi lần component cha render — mà cleanup trả focus về nút
+  // đã mở dialog rồi setup lại focus vào phần tử đầu. Hệ quả thấy được: store ôn
+  // tập bump `dueTick` mỗi 60s (và mỗi lần tab quay lại), nên đang gõ dở giữa
+  // dialog thì cứ một phút con trỏ lại nhảy về đầu. Giữ trong ref để effect chỉ
+  // chạy đúng lúc mount/unmount, vẫn luôn gọi bản onClose mới nhất.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
@@ -28,7 +39,7 @@ export function useDialog<T extends HTMLElement>(onClose: () => void): RefObject
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -53,7 +64,7 @@ export function useDialog<T extends HTMLElement>(onClose: () => void): RefObject
       // mở nó (thường là nút bấm mở dialog), không để focus rơi về <body>.
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return ref;
 }
