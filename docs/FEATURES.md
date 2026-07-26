@@ -105,9 +105,11 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
   + migration `0011_dict_comments`.
 - **Đừng nhầm với "Bình luận cộng đồng · Mazii"** — đó là khu khác, read-only,
   nhập kèm từ điển (`entry.comments`, `ui/Media.tsx` → `CommentList`), nằm ngay
-  dưới phần nghĩa. Khu này hiện sẵn `COLLAPSED_COMMENT_COUNT` bình luận đầu +
-  nút **"Xem thêm (N)" / "Thu gọn"**; dữ liệu đã nằm sẵn trong entry nên chỉ là
-  thu/mở, không gọi mạng.
+  dưới phần nghĩa. Khu này **xếp theo số like giảm dần**
+  (`domain/communityComments.ts` → `rankByLikes`, bằng like thì giữ thứ tự gốc)
+  rồi hiện sẵn `COLLAPSED_COMMENT_COUNT` cái đầu + nút **"Xem thêm (N)" /
+  "Thu gọn"** — thu gọn nhưng vẫn là những ý kiến được tán thành nhất. Dữ liệu
+  đã nằm sẵn trong entry nên chỉ là thu/mở, không gọi mạng.
 
 ### Tự định nghĩa & thêm thủ công
 
