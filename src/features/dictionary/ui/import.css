@@ -1,0 +1,34 @@
+/* Nhập/chọn từ điển trên header (tách từ styles.css, #168). Các lớp dùng
+   chéo nhiều feature (.import-label, .url-row, .dict-status, .menu-backdrop)
+   vẫn ở styles.css. */
+
+.menu-group-label {
+  margin: 8px 6px 4px; font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.dict-import-panel .menu-group-label:first-child { margin-top: 2px; }
+.dict-import-panel .scope-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.dict-import-panel .scope-list button {
+  width: 100%; text-align: left; border: none; background: none; cursor: pointer;
+  padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--fg);
+}
+.dict-import-panel .scope-list button:hover { background: var(--surface-2); }
+.dict-import-panel .scope-list button.active {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  color: var(--accent); font-weight: 600;
+}
+
+/* Dictionary import */
+.dict-import { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.dict-import-panel {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 6px;
+  width: min(360px, 90vw); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 12px;
+  display: grid; gap: 10px;
+}
+
+.local-dict-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.local-dict-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.ld-title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-meta { color: var(--muted); font-size: 12px; }

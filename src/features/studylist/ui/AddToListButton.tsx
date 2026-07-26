@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { authToken } from "@/features/auth/data/auth";
 import { addWord, createList, listMine, StudyListSummary, WordRef } from "../data/studyListApi";
+import "./studylist.css";
 
 export function AddToListButton({ word }: { word: WordRef }) {
   const [open, setOpen] = useState(false);

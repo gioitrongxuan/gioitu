@@ -22,6 +22,7 @@ import { CustomDraft, dedupe, dictEntryToDraft, emptyDraft, isDraftFilled } from
 import { DictConfig } from "./DictConfig";
 import { GridRow, ManualGrid } from "./ManualGrid";
 import { AiPanel } from "./AiPanel";
+import "./customdict.css";
 
 interface Props {
   /** Cặp ngôn ngữ khởi tạo (thường là cặp đang tra ở app). */

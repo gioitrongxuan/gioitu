@@ -19,6 +19,7 @@ import { LANG_PAIRS, LangPair } from "@/shared/languages";
 import { DictSource, SOURCE_OPTIONS } from "../domain/source";
 import { pairId } from "@/shared/languages";
 import { ChevronDownIcon } from "@/shared/ui/icons";
+import "./import.css";
 
 interface Props {
   pair: LangPair;

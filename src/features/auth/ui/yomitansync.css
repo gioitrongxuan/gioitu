@@ -1,0 +1,7 @@
+/* Kết nối Yomitan (tách từ styles.css, #168). .yk-hint/.yk-error nhiều
+   feature dùng nên ở styles.css. */
+
+.yk-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.yk-copy { margin-top: 0; white-space: nowrap; }
+.yk-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
+.yk-steps em { font-style: normal; font-weight: 600; }

@@ -1,0 +1,53 @@
+/* Cài đặt giao diện (tách từ styles.css, #168). Vỏ modal .theme-overlay/
+   .theme-card/.theme-section nhiều feature dùng nên ở styles.css. */
+
+.preset-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.preset-chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px 5px 6px; cursor: pointer; font-size: 13px; color: var(--fg); }
+.preset-chip:hover { border-color: var(--accent); }
+.preset-chip.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.preset-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); }
+.preset-emblem { font-size: 14px; line-height: 1; }
+
+/* Công tắc hiệu ứng nền trong cài đặt giao diện. */
+.fx-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; cursor: pointer; }
+.fx-toggle input { margin: 2px 0 0; accent-color: var(--accent); }
+.fx-hint { margin: 6px 0 0 24px; font-size: 12px; color: var(--muted); }
+
+.heat-preview { margin-bottom: 12px; gap: 6px; }
+.heat-preview .tag { cursor: default; font-size: 13px; height: 32px; padding: 0 12px; }
+.heat-preview .tag:hover { transform: none; }
+
+.color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+@media (max-width: 420px) { .color-grid { grid-template-columns: 1fr; } }
+.color-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.cf-label { color: var(--muted); }
+.cf-controls { display: flex; align-items: center; gap: 8px; }
+.cf-swatch { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; flex: none; }
+.cf-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+.cf-swatch::-webkit-color-swatch { border: none; border-radius: 5px; }
+.cf-hex { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.cf-hex:focus { border-color: var(--accent); }
+
+/* Cảnh báo contrast (#128) khi palette đang soạn dở có fg≈bg/surface — màu
+   CỐ ĐỊNH như chân modal bên dưới: banner này tồn tại ĐỂ báo fg đang hỏng, nên
+   không thể tự vẽ bằng var(--fg) (sẽ vô hình đúng lúc cần thấy nhất — bug thật
+   bắt được khi test tay). Không dùng var(--surface) làm nền vì cùng lý do. */
+.theme-contrast-warning {
+  margin: 0 0 10px; padding: 8px 12px; font-size: 13px;
+  color: #78350f;
+  border: 1px solid #f4d29a;
+  border-radius: var(--radius-md);
+  background: #fef3c7;
+}
+
+/* Chân modal luôn thoát được (#128): màu CỐ ĐỊNH, KHÔNG dùng var(--fg)/--bg/
+   --accent — đó chính là các biến người dùng đang chỉnh ở trên; fg≈bg hay
+   accent≈surface không được phép làm mất luôn cả lối thoát "Mặc định"/"Xong". */
+.theme-actions {
+  display: flex; align-items: center; gap: 16px; margin-top: 22px;
+  padding: 10px 12px; border-radius: var(--radius-md); background: #211f1a;
+}
+.theme-actions .link { color: #c9c4b8; }
+.theme-actions .link:hover { color: #f7f4ee; }
+.theme-actions .primary { margin: 0 0 0 auto; background: #2b4c7e; color: #f7f4ee; }
+.theme-actions .primary:hover { filter: brightness(1.1); }

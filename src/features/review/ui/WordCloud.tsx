@@ -19,6 +19,7 @@ import { heatBackground, heatTextColor } from "@/features/theme/domain/theme";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { VocabEntry } from "@/shared/types";
 import "./cloud.css";
+import "./review.css";
 
 interface Props {
   entries: VocabEntry[];

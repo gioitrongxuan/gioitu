@@ -48,3 +48,10 @@
   color: var(--muted);
   line-height: var(--leading-body);
 }
+
+/* Trạng thái + danh sách mã kích hoạt (tách từ styles.css, #168). */
+.premium-status { color: var(--ok); font-weight: 600; }
+.premium-code-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.premium-code-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.premium-code-list code { font-family: monospace; letter-spacing: 0.5px; }
+.premium-code-list code.used { text-decoration: line-through; color: var(--muted); }

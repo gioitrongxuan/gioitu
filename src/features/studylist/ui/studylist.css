@@ -1,0 +1,15 @@
+/* Thêm vào study list (tách từ styles.css, #168). */
+
+/* Thêm vào study list */
+.add-to-list { position: relative; margin: 4px 0; }
+.add-to-list-menu {
+  position: absolute; z-index: 10; top: 100%; left: 0; min-width: 220px; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 8px;
+}
+.atl-new { display: flex; gap: 6px; margin-bottom: 6px; }
+.atl-new input { flex: 1; min-width: 0; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.add-to-list-menu ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 180px; overflow-y: auto; }
+.add-to-list-menu li button { width: 100%; text-align: left; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+.add-to-list-menu li button:hover { background: var(--line); }
+.atl-status { margin: 6px 0 0; font-size: 12px; }

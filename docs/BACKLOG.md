@@ -64,5 +64,4 @@ _(trống — cả ba mục giai đoạn 3 đã xong)_
 
 ## Nợ tài liệu & dọn dẹp
 
-- [ ] Tách styles.css (1089 dòng) theo feature như preset đã làm; quét selector
-  chết (.source-toggle). `styles.css:1036`
+_(trống — styles.css đã tách theo feature, #168)_

@@ -27,6 +27,7 @@ import {
   updateEarnedSkins,
 } from "../domain/skins";
 import "./skins.css";
+import "./settings.css";
 
 /** Ngưỡng AA cho chữ thường (DESIGN §3.4) — dưới ngưỡng này thì cảnh báo. */
 const MIN_TEXT_CONTRAST = 4.5;
