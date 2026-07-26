@@ -11,6 +11,9 @@ import {
   forecastDayLabel,
   STATS_WINDOW_DAYS,
   FORECAST_DAYS,
+  activityByDay,
+  ACTIVITY_DAYS,
+  mostForgotten,
 } from "@/features/review/domain/reviewStats";
 import { DAY } from "@/features/review/domain/constants";
 import { ReviewLogEntry } from "@/shared/types";
@@ -213,5 +216,51 @@ describe("nhãn trục thời gian", () => {
     expect(forecastDayLabel(0, midnightDaysAgo(0))).toBe("Hôm nay");
     expect(forecastDayLabel(1, midnightDaysAgo(-1))).toBe("Ngày mai");
     expect(forecastDayLabel(2, new Date(2026, 6, 28).getTime())).toBe("28/07");
+  });
+});
+
+describe("activityByDay (#150)", () => {
+  it("trả đủ 7 phần tử cũ → mới, phần tử cuối là hôm nay", () => {
+    const days = activityByDay([], NOW);
+    expect(days).toHaveLength(ACTIVITY_DAYS);
+    expect(days[days.length - 1].dayStart).toBe(midnightDaysAgo(0));
+    expect(days[0].dayStart).toBe(midnightDaysAgo(ACTIVITY_DAYS - 1));
+    expect(days.every((d) => d.count === 0)).toBe(true);
+  });
+
+  it("đếm MỌI lượt (kể cả learning step) theo ngày địa phương; ngoài cửa sổ bỏ qua", () => {
+    const yesterday = midnightDaysAgo(1);
+    const log = [
+      makeLog({ ts: yesterday + 1000, interval_before: 0 }), // thẻ NEW vẫn đếm
+      makeLog({ ts: yesterday + 2000, interval_before: 10 }), // step 10 phút vẫn đếm
+      makeLog({ ts: NOW }),
+      makeLog({ ts: midnightDaysAgo(ACTIVITY_DAYS) + 1000 }), // rơi trước cửa sổ
+    ];
+
+    const days = activityByDay(log, NOW);
+    expect(days[days.length - 2].count).toBe(2);
+    expect(days[days.length - 1].count).toBe(1);
+    expect(days.reduce((sum, d) => sum + d.count, 0)).toBe(3);
+  });
+});
+
+describe("mostForgotten (#150)", () => {
+  it("xếp theo lapses giảm dần, đồng hạng thì từ tra gần đây trước, cắt đúng limit", () => {
+    const entries = [
+      makeEntry({ term: "it", lapses: 1 }),
+      makeEntry({ term: "top", lapses: 5 }),
+      makeEntry({ term: "mid-old", lapses: 3, last_lookup_at: 1_000 }),
+      makeEntry({ term: "mid-new", lapses: 3, last_lookup_at: 2_000 }),
+    ];
+    expect(mostForgotten(entries).map((e) => e.term)).toEqual(["top", "mid-new", "mid-old"]);
+  });
+
+  it("bỏ từ chưa từng rớt và từ đã xoá", () => {
+    const entries = [
+      makeEntry({ term: "never", lapses: 0 }),
+      makeEntry({ term: "gone", lapses: 9, deleted_at: 123 }),
+      makeEntry({ term: "real", lapses: 2 }),
+    ];
+    expect(mostForgotten(entries).map((e) => e.term)).toEqual(["real"]);
   });
 });

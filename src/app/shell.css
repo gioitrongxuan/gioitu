@@ -141,6 +141,56 @@
 .today-hero-sub { margin: 0; color: var(--muted); }
 .today-hero-cta { margin-top: 0; font-size: var(--text-md); padding: 10px 20px; }
 
+/* Chuỗi ngày + dải hoạt động 7 ngày (#150) — thẻ surface như hero, hàng ngang
+   wrap được trên màn hẹp. */
+.today-activity {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.today-streak { margin: 0; }
+.today-streak-sub { color: var(--muted); font-size: var(--text-sm); }
+
+.today-days { display: flex; gap: var(--space-2); }
+.today-day { display: grid; justify-items: center; gap: 2px; }
+.today-day-track {
+  display: flex;
+  align-items: flex-end;
+  width: 14px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.today-day-fill { width: 100%; background: var(--accent); border-radius: inherit; }
+.today-day-label { font-size: var(--text-xs); color: var(--muted); }
+
+/* Từ hay quên (#150): chip từ + số lần rớt, bấm mở chi tiết. */
+.today-forgotten { display: grid; gap: var(--space-2); justify-items: start; }
+.today-section-title { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.today-forgotten-words { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.today-forgotten-word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.today-forgotten-word:hover { border-color: var(--accent); }
+.today-forgotten-count { color: var(--muted); font-size: var(--text-xs); }
+
 .today-asset { font-size: var(--text-md); padding: 0; }
 
 .today-search {
