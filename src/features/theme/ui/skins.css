@@ -1,0 +1,44 @@
+/* Bộ sưu tập skin gắn streak (#162) — chỉ vài nét riêng, chip dùng chung lớp
+   preset-chip/preset-swatch có sẵn trong styles.css. Giá trị bám token §2 DESIGN. */
+
+.skin-streak {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.skin-streak strong {
+  color: var(--fg);
+}
+
+/* Skeleton một dòng thay chữ "Đang tải…" trơ (DESIGN §3.9); giữ đúng chiều cao
+   dòng streak để danh sách chip không nhảy khi số liệu về. */
+.skin-streak-loading {
+  max-width: 200px;
+  margin-bottom: var(--space-2);
+}
+
+/* Chip khoá: nhìn "chưa có" (viền đứt, chữ phụ) nhưng vẫn đọc được mốc cần đạt. */
+.preset-chip.skin-locked {
+  border-style: dashed;
+  color: var(--muted);
+  cursor: not-allowed;
+  padding-left: var(--space-3);
+}
+.preset-chip.skin-locked:hover {
+  border-color: var(--line);
+}
+
+.skin-lock-icon {
+  flex-shrink: 0;
+}
+
+.skin-req {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.skin-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}

@@ -16,14 +16,14 @@ import {
   saveTheme,
   loadDecor,
   saveDecor,
-  presetById,
 } from "./domain/theme";
+import { ThemeSkin, skinById } from "./domain/skins";
 
 interface ThemeContextValue {
   theme: Theme;
-  /** Preset đang cấp trang trí + công tắc hiệu ứng nền. */
+  /** Skin đang cấp trang trí + công tắc hiệu ứng nền. */
   decor: ThemeDecor;
-  /** Icon set của preset đang chọn; null = glyph mặc định của app. */
+  /** Icon set của skin đang chọn; null = glyph mặc định của app. */
   icons: PresetIcons | null;
   /** Replace the whole theme (live-applied + persisted). */
   setTheme: (theme: Theme) => void;
@@ -31,8 +31,10 @@ interface ThemeContextValue {
   setField: (key: keyof Theme, value: string) => void;
   /** Replace decor (live-applied + persisted). */
   setDecor: (decor: ThemeDecor) => void;
-  /** Apply a preset wholesale: colours + background/icon set. */
+  /** Apply a colour preset wholesale (rời skin đang mặc — xem applyPreset). */
   applyPreset: (preset: ThemePreset) => void;
+  /** Mặc một skin: chỉ backdrop + hai đầu heatmap, token chữ/nền giữ nguyên. */
+  applySkin: (skin: ThemeSkin) => void;
   /** Restore the built-in default palette (and drop any decor). */
   reset: () => void;
 }
@@ -63,17 +65,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setDecor = useCallback((next: ThemeDecor) => setDecorState(next), []);
   const applyPreset = useCallback((preset: ThemePreset) => {
     setThemeState({ ...preset.theme });
-    setDecorState((d) => ({ ...d, presetId: preset.id }));
+    // Preset màu không cấp trang trí: chọn palette là rời skin (giữ hành vi cũ
+    // — trước đây presetId trỏ sang palette cũng làm backdrop tắt).
+    setDecorState((d) => ({ ...d, presetId: null }));
+  }, []);
+  const applySkin = useCallback((skin: ThemeSkin) => {
+    // Skin chỉ chạm hai đầu heatmap + backdrop; bảng màu nền/chữ người dùng
+    // đang dùng (sáng hay tối) giữ nguyên để không phá tương phản (DESIGN §1).
+    setThemeState((t) => ({ ...t, ...skin.heat }));
+    setDecorState((d) => ({ ...d, presetId: skin.id }));
   }, []);
   const reset = useCallback(() => {
     setThemeState({ ...DEFAULT_THEME });
     setDecorState((d) => ({ ...d, presetId: null }));
   }, []);
 
-  const icons = presetById(decor.presetId)?.icons ?? null;
+  const icons = skinById(decor.presetId)?.icons ?? null;
 
   return (
-    <ThemeContext.Provider value={{ theme, decor, icons, setTheme, setField, setDecor, applyPreset, reset }}>
+    <ThemeContext.Provider
+      value={{ theme, decor, icons, setTheme, setField, setDecor, applyPreset, applySkin, reset }}
+    >
       {children}
     </ThemeContext.Provider>
   );
