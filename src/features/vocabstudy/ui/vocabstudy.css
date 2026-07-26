@@ -28,7 +28,7 @@
 /* Ô đã thuộc: viền accent nhẹ + dấu ✓ góc trên-phải để nhận biết nhanh khi lướt. */
 .vocab-cell.known { border-color: var(--accent); }
 .vocab-known-mark {
-  position: absolute; top: 2px; right: 4px; font-size: 11px; line-height: 1; opacity: 0.85;
+  position: absolute; top: 2px; right: 4px; display: flex; line-height: 1; opacity: 0.85;
 }
 .vocab-term { font-size: 17px; line-height: 1.1; }
 .vocab-reading { font-size: 11px; opacity: 0.8; line-height: 1; }

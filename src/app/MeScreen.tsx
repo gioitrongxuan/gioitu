@@ -3,7 +3,7 @@
 // đăng nhập đeo ổ khoá cho khách (tường đăng nhập nhất quán, không giấu hẳn
 // cũng không mời-rồi-chặn).
 
-import { LockIcon } from "@/shared/ui/icons";
+import { CheckIcon, LockIcon } from "@/shared/ui/icons";
 import "./shell.css";
 
 export interface MeItem {
@@ -11,6 +11,8 @@ export interface MeItem {
   run: () => void;
   /** Cần đăng nhập mới dùng được: hiện ổ khoá + gợi ý, thay vì giấu hay chặn bất ngờ. */
   locked?: boolean;
+  /** Đã bật/đã có (vd. Premium đã kích hoạt): đeo dấu tích thay vì nhét vào nhãn. */
+  done?: boolean;
 }
 
 export interface MeSection {
@@ -39,6 +41,7 @@ export function MeScreen({ email, sections }: { email: string | null; sections: 
                 title={item.locked ? "Cần đăng nhập" : undefined}
               >
                 <span className="me-item-label">{item.label}</span>
+                {item.done && <CheckIcon size={16} className="me-item-check" />}
                 {item.locked && <LockIcon className="me-item-lock" />}
               </button>
             ))}

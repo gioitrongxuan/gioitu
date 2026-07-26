@@ -6,18 +6,32 @@ import * as commentStore from "./commentStore.js";
 
 export const commentRoutes = Router();
 
-// Công khai: đọc bình luận của một từ theo khoá (term_lang, native_lang, term, reading).
+/** Con trỏ "cũ hơn" từ query; thiếu hoặc hỏng thì coi như xin trang đầu. */
+function cursorFrom(ts: unknown, id: unknown): commentStore.CommentCursor | null {
+  const created_at = Number(ts);
+  if (ts == null || id == null || !Number.isFinite(created_at)) return null;
+  return { created_at, id: String(id) };
+}
+
+// Công khai: đọc một trang bình luận của một từ theo khoá (term_lang,
+// native_lang, term, reading) — mới → cũ, "Xem thêm" gửi kèm before_ts/before_id.
 commentRoutes.get(
   "/",
   wrap(async (req, res) => {
     const q = req.query;
     res.json(
-      await commentStore.listForWord({
-        term_lang: String(q.term_lang ?? ""),
-        native_lang: String(q.native_lang ?? ""),
-        term: String(q.term ?? ""),
-        reading: q.reading != null ? String(q.reading) : null,
-      }),
+      await commentStore.listForWord(
+        {
+          term_lang: String(q.term_lang ?? ""),
+          native_lang: String(q.native_lang ?? ""),
+          term: String(q.term ?? ""),
+          reading: q.reading != null ? String(q.reading) : null,
+        },
+        {
+          limit: q.limit != null ? Number(q.limit) : undefined,
+          before: cursorFrom(q.before_ts, q.before_id),
+        },
+      ),
     );
   }),
 );

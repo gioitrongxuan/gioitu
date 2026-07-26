@@ -23,7 +23,7 @@ import { Skeleton } from "@/shared/ui/Skeleton";
 import { AddToListButton } from "@/features/studylist/ui/AddToListButton";
 import { WordComments } from "@/features/wordcomments/ui/WordComments";
 import { KanjiBreakdown } from "./KanjiPanel";
-import { CloseIcon } from "@/shared/ui/icons";
+import { CheckIcon, CloseIcon, PlusIcon, TrashIcon, UndoIcon } from "@/shared/ui/icons";
 import "./detail.css";
 
 /** Kết quả của một lần "+" — cho biết recordLookup có thực sự ghi nhận gì không
@@ -211,11 +211,11 @@ export function DetailPanel({
               {entry.status === "LEARNED"
                 ? onMarkForgotten && (
                     <button className="srs-act" title="Đánh dấu đã quên" aria-label="Đã quên"
-                      onClick={() => onMarkForgotten(entry)}>↺</button>
+                      onClick={() => onMarkForgotten(entry)}><UndoIcon /></button>
                   )
                 : onMarkKnown && (
                     <button className="srs-act" title="Đánh dấu đã nhớ" aria-label="Đã nhớ"
-                      onClick={() => onMarkKnown(entry)}>✓</button>
+                      onClick={() => onMarkKnown(entry)}><CheckIcon /></button>
                   )}
               {onDelete && (
                 <button
@@ -226,7 +226,7 @@ export function DetailPanel({
                     if (confirm(`Xoá từ “${entry.term}”? Toàn bộ tiến độ học sẽ mất.`)) onDelete(entry);
                   }}
                 >
-                  🗑
+                  <TrashIcon />
                 </button>
               )}
             </span>
@@ -238,10 +238,10 @@ export function DetailPanel({
           <div className="srs-bar">
             <span className="srs-status neutral">Chưa học</span>
             <button
-              className="srs-mark-known"
+              className="srs-mark-known icon-label"
               onClick={() => onMarkKnownNew!(term, term_lang, native_lang)}
             >
-              ✓ Đánh dấu đã biết
+              <CheckIcon size={14} /> Đánh dấu đã biết
             </button>
           </div>
         )}
@@ -420,7 +420,7 @@ function NoMatch({
 function AddResultButton({
   res,
   onAdd,
-  className = "link add-result",
+  className = "link add-result icon-label",
 }: {
   res: TermResult;
   onAdd: (res: TermResult) => Promise<AddResultEvents | void>;
@@ -452,7 +452,15 @@ function AddResultButton({
           }
         }}
       >
-        {added ? "✓ Đã học" : "＋ Học từ này"}
+        {added ? (
+          <>
+            <CheckIcon size={14} /> Đã học
+          </>
+        ) : (
+          <>
+            <PlusIcon size={14} /> Học từ này
+          </>
+        )}
       </button>
       {addError && <span className="danger add-error">{addError}</span>}
     </>
@@ -540,7 +548,7 @@ function ResultView({
           <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
         </span>
         {verified && (
-          <span className="verified-badge" title="Từ đã được kiểm duyệt">✓</span>
+          <span className="verified-badge" title="Từ đã được kiểm duyệt"><CheckIcon size={14} /></span>
         )}
         {entry.dictionary && <span className="dict-name">{entry.dictionary}</span>}
         {onAdd && <AddResultButton res={res} onAdd={onAdd} />}
@@ -553,8 +561,14 @@ function ResultView({
       {/* Kiểm duyệt nội dung — chỉ admin, chỉ kết quả server. */}
       {canModerate && (
         <div className="admin-actions">
-          <button className="link" disabled={verifyBusy} onClick={toggleVerified}>
-            {verified ? "Bỏ duyệt" : "✓ Duyệt từ này"}
+          <button className="link icon-label" disabled={verifyBusy} onClick={toggleVerified}>
+            {verified ? (
+              "Bỏ duyệt"
+            ) : (
+              <>
+                <CheckIcon size={14} /> Duyệt từ này
+              </>
+            )}
           </button>
           {onAdminEdit && (
             <button className="link" onClick={() => onAdminEdit(entry.term)}>Sửa từ</button>
@@ -574,7 +588,7 @@ function ResultView({
 
       {onPropose && loggedIn && (
         <button
-          className="link propose-btn"
+          className="link propose-btn icon-label"
           disabled={proposed}
           title="Gợi ý từ này cho từ điển dùng chung (admin sẽ duyệt)"
           onClick={() => {
@@ -582,7 +596,13 @@ function ResultView({
             setProposed(true);
           }}
         >
-          {proposed ? "Đã đề xuất ✓" : "Đề xuất lên hệ thống"}
+          {proposed ? (
+            <>
+              Đã đề xuất <CheckIcon size={14} />
+            </>
+          ) : (
+            "Đề xuất lên hệ thống"
+          )}
         </button>
       )}
 

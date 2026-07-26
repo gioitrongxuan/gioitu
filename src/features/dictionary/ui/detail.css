@@ -76,7 +76,9 @@
 .srs-count b { color: var(--fg); font-weight: 600; }
 /* Nút thao tác dạng icon, đẩy về cuối hàng. */
 .srs-acts { margin-left: auto; display: flex; gap: 2px; }
-.srs-act { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 4px 7px; border-radius: 7px; color: var(--fg); }
+/* inline-flex + canh giữa: nút icon SVG (Xoá) mới cao bằng nút ký tự (✓ ↺) bên
+   cạnh, không bị phần chân chữ của inline SVG đội lên. */
+.srs-act { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 4px 7px; border-radius: 7px; color: var(--fg); display: inline-flex; align-items: center; justify-content: center; }
 .srs-act:hover { background: var(--surface-2); }
 .srs-act.danger { color: var(--warn); }
 .srs-act.danger:hover { background: color-mix(in oklab, var(--warn) 14%, var(--surface)); }
@@ -164,10 +166,14 @@
 /* Bình luận / góp ý của người dùng cho từ (#23) — cuối panel, dưới phần nghĩa. */
 .word-comments { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; display: grid; gap: 10px; }
 .comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+/* Tải thêm phần cũ hơn — đứng trên danh sách vì bình luận cũ mọc ngược lên. */
+.comment-more { justify-self: start; font-size: var(--text-xs); }
 .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
 .comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
 .comment-author { font-weight: 600; color: var(--fg); }
-.comment-del { margin-left: auto; font-size: 13px; padding: 0 4px; }
+/* Icon SVG không có baseline chữ để bám: canh giữa thay vì để hàng meta
+   (align-items: baseline) dìm nó xuống dưới tên người viết. */
+.comment-del { margin-left: auto; align-self: center; display: inline-flex; padding: 0 4px; }
 .comment-body { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .comment-form { display: grid; gap: 8px; }
 .comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }

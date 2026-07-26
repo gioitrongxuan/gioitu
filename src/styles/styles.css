@@ -227,8 +227,12 @@ summary:focus-visible,
 .export-btn:hover { border-color: var(--accent); }
 .export-btn:disabled { opacity: 0.6; cursor: default; }
 .link.danger { color: var(--warn); }
+/* Nút/nhãn ghép icon SVG với chữ (DESIGN §3.5): icon không có baseline chữ để
+   bám nên phải canh giữa theo trục dọc, khoảng cách một token. Chỉ lo phần bố
+   cục — màu sắc, padding vẫn thuộc class riêng của từng chỗ. */
+.icon-label { display: inline-flex; align-items: center; gap: var(--space-1); }
 /* Tích xanh "đã kiểm duyệt" cạnh từ — dùng cả ở kết quả tra lẫn trình quản lý. */
-.verified-badge { color: var(--ok); font-weight: 700; font-size: 14px; white-space: nowrap; }
+.verified-badge { color: var(--ok); font-weight: 700; font-size: 14px; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); }
 .furigana ruby { ruby-align: center; }
 .furigana rt { font-size: 0.5em; color: var(--muted); font-weight: 400; user-select: none; }
 .yk-hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }

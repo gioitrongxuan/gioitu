@@ -96,9 +96,13 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 - **Công khai**: guest đọc được; **đăng nhập mới viết** (guest thấy nút "Đăng
   nhập để bình luận"). Tác giả xoá bình luận của mình; **admin xoá bất kỳ**.
 - Post-moderation: bình luận hiện ngay (cột `status` để admin ẩn về sau).
-- Client `features/wordcomments/` (`domain/` thuần + test, `data/` gọi
-  `/api/comments`, `ui/WordComments.tsx`); server `features/comments/` +
-  migration `0011_dict_comments`.
+- **Phân trang**: mở panel thấy ngay `COMMENTS_PAGE_SIZE` bình luận **mới nhất**
+  (nhãn khu kèm tổng số); nút **"Xem thêm (N)"** trên đầu danh sách kéo dần phần
+  cũ hơn. Server phân trang bằng **con trỏ `(created_at, id)`** (`before_ts` /
+  `before_id`), không OFFSET — bình luận mới chèn giữa chừng không làm lệch trang.
+- Client `features/wordcomments/` (`domain/` thuần + `test/wordComments.test.ts`,
+  `data/` gọi `/api/comments`, `ui/WordComments.tsx`); server `features/comments/`
+  + migration `0011_dict_comments`.
 
 ### Tự định nghĩa & thêm thủ công
 

@@ -1,5 +1,6 @@
 // Bộ icon SVG inline dùng chung (DESIGN §3.5): stroke="currentColor", cỡ
-// 16/20px, thay các emoji/ký tự dùng làm icon chức năng (🔍 ✏️ ✕ ☰ ▾ ↞ ×).
+// 16/20px, thay các emoji/ký tự dùng làm icon chức năng (🔍 ✏️ ✕ ☰ ▾ ↞ × 🗑 ✓ ↺ ＋).
+// Ghép icon với chữ thì thêm class .icon-label cho phần tử bọc ngoài.
 // Icon luôn `aria-hidden` — nút/label bọc ngoài tự khai `aria-label` riêng.
 
 interface IconProps {
@@ -75,6 +76,42 @@ export function DownloadIcon({ size = 16, className }: IconProps) {
       <path d="M12 3v12" />
       <polyline points="7 10 12 15 17 10" />
       <path d="M5 19h14" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function CheckIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <polyline points="4 12 9 17 20 6" />
+    </svg>
+  );
+}
+
+/** Quay lại trạng thái trước — dùng cho "Đã quên" (thả từ đã thuộc về hàng ôn). */
+export function UndoIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M4 5v6h6" />
+      <path d="M4.5 15a8 8 0 1 0 2-8.5L4 11" />
+    </svg>
+  );
+}
+
+export function TrashIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M4 7h16" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
     </svg>
   );
 }

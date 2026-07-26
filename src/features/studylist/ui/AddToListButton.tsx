@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { authToken } from "@/features/auth/data/auth";
+import { PlusIcon } from "@/shared/ui/icons";
 import { addWord, createList, listMine, StudyListSummary, WordRef } from "../data/studyListApi";
 import "./studylist.css";
 
@@ -57,8 +58,13 @@ export function AddToListButton({ word }: { word: WordRef }) {
 
   return (
     <div className="add-to-list">
-      <button className="link" onClick={toggle} aria-expanded={open} title="Thêm vào danh sách học">
-        ＋ Danh sách
+      <button
+        className="link icon-label"
+        onClick={toggle}
+        aria-expanded={open}
+        title="Thêm vào danh sách học"
+      >
+        <PlusIcon size={14} /> Danh sách
       </button>
       {open && (
         <div className="add-to-list-menu">
