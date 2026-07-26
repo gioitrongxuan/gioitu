@@ -480,12 +480,16 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       <div className="app-main">
         <header className="app-header" {...behindSheet}>
-          {/* Header chỉ còn wordmark + nhập từ điển: điều hướng nằm ở AppNav,
-              action phụ nằm ở màn "Tôi" và hàng tab con của Kho từ. */}
+          {/* Header = thanh tra cứu toàn cục (trang nào cũng tra được ngay —
+              vòng lặp gốc: tra → "+" → thấy từ trên bản đồ) + nhập từ điển.
+              Điều hướng nằm ở AppNav, action phụ ở màn "Tôi" và hàng tab con
+              của Kho từ. Wordmark chỉ hiện trên mobile: desktop brand đã nằm
+              ở đỉnh sidebar (AppNav), lặp lại ở đây vừa thừa vừa tốn một hàng. */}
           <h1 className="wordmark">
             <span className="logo-mark" lang="ja" aria-hidden>語</span>
             Gioitu
           </h1>
+          <SearchBar pair={pair} source={dictSource} onResult={onResult} />
           <div className="header-actions">
             <DictionaryImport
               pair={pair}
@@ -499,13 +503,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             />
           </div>
         </header>
-
-        {/* Thanh tra cứu toàn cục — trang nào cũng tra được ngay (vòng lặp gốc:
-            tra → "+" → thấy từ trên bản đồ); kết quả mở panel chi tiết đè lên
-            trang đang xem. */}
-        <div {...behindSheet}>
-          <SearchBar pair={pair} source={dictSource} onResult={onResult} />
-        </div>
 
         {(page === "today" || page === "cloud") && (
           <div {...behindSheet}>

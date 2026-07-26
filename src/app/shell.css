@@ -11,6 +11,10 @@
 
 /* --- Điều hướng 4 khu ------------------------------------------------------ */
 
+/* SearchBar giờ nằm trong .app-header (một hàng với nút phạm vi trên desktop,
+   hàng riêng trên mobile) — khoảng cách dưới do margin/gap của header lo. */
+.app-header .searchbar { margin-bottom: 0; }
+
 .app-nav-item {
   display: grid;
   justify-items: center;
@@ -47,6 +51,11 @@
 /* Mobile: bar cố định đáy màn hình, dưới sheet chi tiết (z 19/20) nên sheet
    mở sẽ phủ lên bar. */
 @media (max-width: 759px) {
+  /* Brand không có chỗ trên tab bar đáy — wordmark trong header đảm nhận. */
+  .app-nav-brand { display: none; }
+  /* Header 2 hàng: wordmark + nút phạm vi trên, ô tìm trải hết hàng dưới. */
+  .app-header { flex-wrap: wrap; }
+  .app-header .searchbar { order: 1; flex-basis: 100%; }
   .app-nav {
     position: fixed;
     left: 0;
@@ -90,6 +99,28 @@
     text-align: left;
   }
   .app-nav-item.active { background: color-mix(in oklab, var(--accent) 10%, transparent); }
+
+  /* Brand ở đỉnh sidebar — cùng cỡ với wordmark cũ, thẳng mép với các mục nav. */
+  .app-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* Brand đã lên sidebar — header nhường trọn hàng cho ô tìm + nút phạm vi. */
+  .wordmark { display: none; }
+  /* flex-start thay vì center: panel viết tay/bộ thủ bung trong .searchbar làm
+     hàng cao lên, nút phạm vi phải neo trên cùng chứ không trôi lơ lửng giữa. */
+  .app-header { align-items: flex-start; }
+  .app-header .searchbar { flex: 1; }
+  /* 46px = chiều cao .search-input (search.css) — canh giữa nút phạm vi 38px
+     với ô tìm trong trạng thái thường. */
+  .app-header .header-actions { min-height: 46px; }
 }
 
 .app-main { min-width: 0; }
