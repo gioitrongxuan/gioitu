@@ -130,6 +130,16 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   "Khó nhằn" + gợi ý (sửa nghĩa cho dễ nhớ hoặc tạm gác để học riêng). Chỉ
   **cảnh báo**, không tự hoãn/xoá. (`srs.isLeech`, [LOGIC §4.6](./LOGIC.md))
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
+- **Luyện chủ động (tuỳ chọn, #164)** — hai toggle ở footer phiên, lưu
+  `localStorage`, mặc định tắt:
+  - *Gõ cách đọc trước khi lật* (`gioitu.reviewTypeReading.v1`): thẻ tiếng Nhật
+    có `reading` hiện ô nhập romaji/kana trước khi lật; sau khi lật hiện gợi ý
+    đúng/sai (`domain/readingPractice.ts`). Chỉ là gợi ý mềm — không chặn lật,
+    không đụng self-grade/SRS.
+  - *Đảo chiều: nghĩa → từ* (`gioitu.reviewReverse.v1`): mặt trước là **nghĩa**,
+    người học nhớ lại từ; lật ra từ + cách đọc (mặt sau giữ nguyên MeaningView).
+    Thẻ không có nghĩa đọc được thì rơi về mặt từ (`domain/reverseMode.ts`).
+    Bật cùng gõ cách đọc: nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
 - **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.

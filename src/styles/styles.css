@@ -971,7 +971,8 @@ summary:focus-visible,
 /* --seal: son đỏ CHỈ dành cho thành tựu (DESIGN §1/§5) — khoảnh khắc tốt nghiệp. */
 .seal-badge { color: var(--seal); font-weight: 700; }
 .review-forgotten { display: grid; gap: 6px; justify-items: start; }
-.review-footer { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+/* wrap: hai toggle luyện chủ động (#164) + Hoàn tác không vừa một dòng mobile. */
+.review-footer { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 /* Kết thúc phiên luôn nằm bên phải, dù nút Hoàn tác có hiện hay không. */
 .review-footer .close { margin-left: auto; }
 .review-footer .link[disabled] { opacity: 0.45; cursor: default; }

@@ -83,8 +83,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   `theme.ts:154,187 · WordCloud.tsx:31`
 - [ ] Thống kê từ review_log: retention chart, forecast 7 ngày, số từ thuộc
   theo thời gian. Nền cho FSRS (đổi scheduler khi đủ log).
-- [ ] Chế độ luyện chủ động tuỳ chọn: gõ cách đọc kana trước khi lật / đảo
-  chiều nghĩa→từ (self-grade hiện dễ "ảo giác đã biết").
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
 - [ ] LWW: server đóng dấu received_at làm tie-breaker chống lệch đồng hồ;
