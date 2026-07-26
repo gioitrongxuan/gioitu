@@ -18,6 +18,7 @@ import {
   wordKey,
   type Comment,
 } from "../domain/comment";
+import "./wordcomments.css";
 
 interface Props {
   term: string;

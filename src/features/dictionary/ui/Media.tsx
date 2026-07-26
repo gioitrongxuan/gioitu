@@ -43,8 +43,8 @@ export function CommentList({ comments }: { comments?: DictComment[] }) {
   const shown = expanded ? ranked : ranked.slice(0, COLLAPSED_COMMENT_COUNT);
   const hiddenCount = ranked.length - shown.length;
   return (
-    <div className="word-comments">
-      <div className="word-comments-head">
+    <div className="community-comments">
+      <div className="community-comments-head">
         Bình luận cộng đồng ({ranked.length}) <span className="muted">· Mazii</span>
       </div>
       <ul>
