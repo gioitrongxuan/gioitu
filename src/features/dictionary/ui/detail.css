@@ -115,7 +115,11 @@
 /* Kết quả phụ (#172) — gợi ý gần đúng + khớp theo định nghĩa — hiện gọn một
    dòng như ô gợi ý (.sug-*), để danh sách dài (gõ một cụm tiếng Việt ra chục
    từ) quét được; bấm mở chi tiết đầy đủ, nút "＋" thêm thẳng vào lịch sử. */
-.detail-panel .results-secondary { display: grid; gap: 2px; }
+/* minmax(0,…) + min-width:0 như .results ở trên: `white-space: nowrap` của
+   .sug-def làm min-content của hàng bằng cả câu nghĩa, nên track auto phình
+   rộng hơn panel — nghĩa dài tràn ra ngoài mép thay vì cắt "…". */
+.detail-panel .results-secondary { display: grid; gap: 2px; grid-template-columns: minmax(0, 1fr); }
+.detail-panel .results-secondary > * { min-width: 0; }
 .result-compact { display: flex; align-items: baseline; gap: 8px; }
 .result-compact-main {
   display: flex; gap: 8px; align-items: baseline; flex: 1; min-width: 0;
