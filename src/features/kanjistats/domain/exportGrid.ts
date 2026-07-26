@@ -1,6 +1,6 @@
 // Pure layout helpers for exporting the kanji grid to a PNG (issue #161,
-// bounded to the kanji grid — Word Cloud export needs its own text-measuring
-// line-wrap algorithm and is left for a separate PR). These mirror the CSS
+// bounded to the kanji grid — the Word Cloud's text-measuring line-wrap lives
+// in review/domain/exportCloud.ts). These mirror the CSS
 // grid's `repeat(auto-fill, Npx)` column math so the exported image reflows
 // the same way the on-screen `.kanji-grid` does.
 

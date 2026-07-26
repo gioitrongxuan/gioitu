@@ -118,7 +118,18 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Sắp xếp** | `recent` (mới tra nhất) hoặc `frequency` (tra nhiều nhất) |
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
+| **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
+
+### Tải ảnh PNG (`review/ui/wordCloudPng.ts`)
+
+Vẽ lại đúng bản đồ đang hiển thị (cùng bộ lọc ngôn ngữ/sắp xếp/nhóm/chỉ-từ-cần-ôn,
+kèm huy hiệu "!" tái quên, màu bám theme hiện hành) lên canvas rồi tải xuống
+client-side — không qua server, không thư viện ngoài. Bố cục xếp dòng kiểu
+flex-wrap tính thuần ở `domain/exportCloud.ts` (đo chữ bằng `measureText` do lớp
+UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
+`shared/ui/pngExport.ts`. Trạng thái nổi bật/làm mờ "từ cần ôn" là tín hiệu hành
+động nhất thời, cố ý không tái tạo trong ảnh.
 
 ## 3. Phiên ôn tập SRS
 
@@ -363,8 +374,8 @@ luôn hiện. (`features/kanjistats/`, `App.tsx:293,399-406`)
 - **Tải ảnh PNG** (nút "Tải ảnh PNG" cạnh legend): vẽ lại đúng dữ liệu đang hiển
   thị (nhóm/không nhóm, gồm cả ô `missing` nếu đang bật "Hiện kanji chưa biết")
   lên canvas rồi tải xuống client-side — không qua server, không thư viện ngoài
-  (`ui/kanjiGridPng.ts`, layout thuần ở `domain/exportGrid.ts`). Word Cloud chưa
-  có nút tương ứng — xem BACKLOG #161.
+  (`ui/kanjiGridPng.ts`, layout thuần ở `domain/exportGrid.ts`). Word Cloud có
+  nút tương ứng — xem [§2](#2-word-cloud-bản-đồ-từ).
 
 ### 9.3 Học từ vựng
 

@@ -5,6 +5,7 @@
 // domain/exportGrid.ts.
 
 import { Theme, heatBackgroundRgb, heatTextColor } from "@/features/theme/domain/theme";
+import { roundRectPath, downloadCanvasPng } from "@/shared/ui/pngExport";
 import { computeGridColumns, chunkIntoRows } from "../domain/exportGrid";
 
 export interface ExportCell {
@@ -65,12 +66,7 @@ export function exportKanjiGridPng(sections: ExportSection[], theme: Theme, file
     y += SECTION_GAP - GAP;
   });
 
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      if (blob) downloadBlob(blob, filename);
-      resolve();
-    }, "image/png");
-  });
+  return downloadCanvasPng(canvas, filename);
 }
 
 function drawCell(ctx: CanvasRenderingContext2D, x: number, y: number, cell: ExportCell, theme: Theme) {
@@ -98,23 +94,3 @@ function drawCell(ctx: CanvasRenderingContext2D, x: number, y: number, cell: Exp
   ctx.fillText(cell.kanji, x + CELL / 2, y + CELL / 2 + 1);
 }
 
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}

@@ -72,8 +72,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   actions thay deleteMode toàn cục. `domain/wordcloud.ts`
 - [ ] Swipe 4 hướng + haptic cho phiên ôn (route full-screen thay modal);
   hiệu ứng tốt nghiệp (dấu son 合格).
-- [ ] Chia sẻ Word Cloud/kanji grid ra PNG client-side (canvas) — hiện không
-  có gì để khoe, share duy nhất là link zip sống 5 phút.
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
 
