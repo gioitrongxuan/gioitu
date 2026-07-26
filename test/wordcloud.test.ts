@@ -10,7 +10,7 @@ import {
   isVisibleOnCloud,
   periodOf,
   srsTier,
-  tagTooltip,
+  tagPopoverContent,
 } from "@/features/review/domain/wordcloud";
 import { DAY, DEFAULT_SRS_CONFIG } from "@/features/review/domain/constants";
 import { makeEntry } from "./fixtures";
@@ -239,11 +239,11 @@ describe("dueEntriesInGroup", () => {
   });
 });
 
-describe("tagTooltip", () => {
+describe("tagPopoverContent (nội dung popover mini, #159 — thay tooltip title)", () => {
   const now = 10_000_000;
   const DAY = 24 * 60 * 60 * 1000;
 
-  it("joins reading · nghĩa đầu · lịch ôn · số lần tra", () => {
+  it("gồm cách đọc, nghĩa đầu, lịch ôn và số lần tra", () => {
     const e = makeEntry({
       reading: "たべる",
       meaning: JSON.stringify(["ăn", "xơi"]),
@@ -251,10 +251,15 @@ describe("tagTooltip", () => {
       card_state: "REVIEW",
       next_review: now + 2 * DAY,
     });
-    expect(tagTooltip(e, now)).toBe("たべる · ăn · ôn sau 2.0 ngày · tra 5 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: "たべる",
+      gloss: "ăn",
+      schedule: "ôn sau 2.0 ngày",
+      lookupText: "tra 5 lần",
+    });
   });
 
-  it("reads 'đến hạn' for a due card and skips a missing reading", () => {
+  it("đọc 'đến hạn' cho thẻ quá hạn và bỏ reading khi thiếu", () => {
     const e = makeEntry({
       term_lang: "en",
       reading: undefined,
@@ -263,10 +268,15 @@ describe("tagTooltip", () => {
       card_state: "REVIEW",
       next_review: now - 1,
     });
-    expect(tagTooltip(e, now)).toBe("empathy · đến hạn · tra 1 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: undefined,
+      gloss: "empathy",
+      schedule: "đến hạn",
+      lookupText: "tra 1 lần",
+    });
   });
 
-  it("omits the schedule when the word has no card yet", () => {
+  it("bỏ lịch ôn khi từ chưa có thẻ SRS", () => {
     const e = makeEntry({
       reading: "か",
       meaning: JSON.stringify(["nghĩa"]),
@@ -274,14 +284,19 @@ describe("tagTooltip", () => {
       card_state: null,
       next_review: null,
     });
-    expect(tagTooltip(e, now)).toBe("か · nghĩa · tra 3 lần");
+    expect(tagPopoverContent(e, now)).toEqual({
+      reading: "か",
+      gloss: "nghĩa",
+      schedule: undefined,
+      lookupText: "tra 3 lần",
+    });
   });
 
-  it("accepts plain-text meaning and drops an empty gloss", () => {
-    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now))
-      .toBe("chào · tra 2 lần");
-    expect(tagTooltip(makeEntry({ reading: undefined, meaning: "", lookup_count: 2, card_state: null }), now))
-      .toBe("tra 2 lần");
+  it("nhận meaning dạng chữ trơn và bỏ gloss rỗng", () => {
+    expect(tagPopoverContent(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now).gloss)
+      .toBe("chào");
+    expect(tagPopoverContent(makeEntry({ reading: undefined, meaning: "", lookup_count: 2, card_state: null }), now).gloss)
+      .toBeUndefined();
   });
 });
 

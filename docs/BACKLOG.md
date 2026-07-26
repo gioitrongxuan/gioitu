@@ -64,9 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 
-- [ ] Khu vườn ký ức: grouping "srs" 3 tầng (Sắp quên/Đang bén rễ/Sắp trưởng
-  thành) + nút "Ôn N từ này" theo tầng + popover mini + long-press quick
-  actions thay deleteMode toàn cục. `domain/wordcloud.ts`
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
 
