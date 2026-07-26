@@ -9,7 +9,6 @@ import {
   saveTheme,
   loadDecor,
   saveDecor,
-  presetById,
   isHexColor,
   isDarkColor,
   heatBackground,
@@ -273,49 +272,8 @@ describe("THEME_PRESETS", () => {
   });
 });
 
-describe("decorated presets (background + icons)", () => {
-  const decorated = THEME_PRESETS.filter((p) => p.background != null);
-
-  it("ships the four character presets", () => {
-    expect(decorated.map((p) => p.id)).toEqual(["buu", "cell", "panda", "akatsuki"]);
-  });
-
-  it("keeps the background subtle: opacity in (0, 0.5]", () => {
-    for (const preset of decorated) {
-      expect(preset.background!.opacity, preset.id).toBeGreaterThan(0);
-      expect(preset.background!.opacity, preset.id).toBeLessThanOrEqual(0.5);
-    }
-  });
-
-  it("every decorated preset names an emblem (decorative chip only)", () => {
-    for (const preset of decorated) {
-      expect(preset.icons, preset.id).toBeDefined();
-      expect(preset.icons!.emblem.length, preset.id).toBeGreaterThan(0);
-    }
-  });
-
-  it("no skin themes the relapse badge — it stays a warning signal (DESIGN §1)", () => {
-    for (const preset of decorated) {
-      // Skin trang trí không được thay glyph cảnh báo tái quên bằng emoji dễ
-      // thương: badge luôn là "!" trắng trên nền --warn ở WordCloud.
-      expect(Object.keys(preset.icons!), preset.id).toEqual(["emblem"]);
-    }
-  });
-
-  it("plain colour presets carry no decor", () => {
-    for (const preset of THEME_PRESETS.filter((p) => p.background == null)) {
-      expect(preset.icons, preset.id).toBeUndefined();
-    }
-  });
-});
-
-describe("presetById", () => {
-  it("finds a preset and returns undefined for null/unknown", () => {
-    expect(presetById("akatsuki")?.name).toBe("Akatsuki");
-    expect(presetById(null)).toBeUndefined();
-    expect(presetById("no-such-theme")).toBeUndefined();
-  });
-});
+// Skin anime (backdrop + heat, mở khoá theo streak) tách sang domain/skins.ts
+// — các bất biến trang trí (opacity, emblem-only…) giờ khoá ở test/skins.test.ts.
 
 describe("loadDecor / saveDecor", () => {
   beforeEach(() => {

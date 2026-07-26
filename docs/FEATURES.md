@@ -318,7 +318,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
-| Skin nền anime | Giao diện | 4 backdrop trang trí lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+| Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -524,12 +524,22 @@ công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel cô
 
 ### 9.11 Skin nền anime
 
-Bộ backdrop trang trí lazy-load, chỉ đổi hoạ tiết nền (không đụng token chữ/nền).
-Lối vào: **Giao diện** → mục "Mẫu có sẵn" + công tắc "Hiện hoạ tiết nền của
-theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
+Bộ sưu tập skin gắn chuỗi ngày ôn (#162). Một skin CHỈ đổi backdrop + hai đầu
+heatmap (+ emblem nhận diện) — token chữ/nền của người dùng giữ nguyên
+(DESIGN §1), nên skin mặc được trên cả nền sáng lẫn tối. Lối vào: **Giao diện**
+→ mục "Bộ sưu tập skin" + công tắc "Hiện hoạ tiết nền". (`theme/domain/skins.ts`,
+`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 
-- **Bốn skin** (`presets/registry.ts`, khoá `BackgroundEffect`): `buu` (Majin
-  Buu), `cell`, `bamboo` (Rừng trúc — thư mục `panda/`), `akatsuki`.
+- **Bốn skin** (`domain/skins.ts`, hiệu ứng đăng ký ở `presets/registry.ts`,
+  khoá `BackgroundEffect`): `panda` (Rừng trúc, hiệu ứng `bamboo`) · `buu`
+  (Majin Buu) · `cell` · `akatsuki`.
+- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log` cục bộ
+  (`review/domain/streak.ts`, ngày theo 0h máy; hôm nay chưa ôn thì chuỗi kết
+  thúc hôm qua chưa coi là đứt). Mốc: Rừng trúc 3 · Majin Buu 7 · Cell 14 ·
+  Akatsuki 30 ngày, xét theo chuỗi **dài nhất** từng đạt. Skin đã mở giữ vĩnh
+  viễn (danh sách lưu `localStorage` khoá `gioitu.skins.v1`); skin đang mặc từ
+  trước khi có gating được giữ luôn. App inject `loadReviewStreak` vào
+  `ThemeSettings` — theme không import ngược sang review.
 - **Lazy-load**: mỗi hiệu ứng là một `lazy(() => import(...))` riêng, render trong
   `<Suspense fallback={null}>` ở lớp `.theme-backdrop` (fixed, `z-index: -1`,
   `pointer-events: none`) — skin không chọn thì không tải component/CSS/ảnh. Không

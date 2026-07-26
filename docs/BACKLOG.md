@@ -74,9 +74,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   hiệu ứng tốt nghiệp (dấu son 合格).
 - [ ] Chia sẻ Word Cloud/kanji grid ra PNG client-side (canvas) — hiện không
   có gì để khoe, share duy nhất là link zip sống 5 phút.
-- [ ] Skin anime = bộ sưu tập gắn streak (chỉ đổi backdrop+heatmap, không đụng
-  token chữ/nền; glyph relapse giữ họ cảnh báo — hiện 🐾/💢 làm nhoè tín hiệu).
-  `theme.ts:154,187 · WordCloud.tsx:31`
 - [ ] Thống kê từ review_log: retention chart, forecast 7 ngày, số từ thuộc
   theo thời gian. Nền cho FSRS (đổi scheduler khi đủ log).
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,

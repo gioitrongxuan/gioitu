@@ -31,6 +31,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
+import { loadReviewStreak } from "@/features/review/data/streak";
 import { guestAdoptionPrompt } from "@/features/auth/domain/guestAdoption";
 import { ToastHost } from "@/shared/ui/Toasts";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -565,7 +566,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {theming && (
         <Suspense fallback={null}>
-          <ThemeSettings onClose={() => setTheming(false)} />
+          <ThemeSettings onClose={() => setTheming(false)} loadStreak={() => loadReviewStreak(userId)} />
         </Suspense>
       )}
 
