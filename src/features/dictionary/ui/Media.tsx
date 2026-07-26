@@ -1,7 +1,8 @@
 // Nội dung cộng đồng nhập từ Mazii: gallery ảnh minh hoạ và bình luận.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { DictImage, DictComment } from "@/shared/dictionary";
+import { rankByLikes } from "../domain/communityComments";
 
 /** Số bình luận cộng đồng hiện sẵn; từ phổ biến có hàng chục cái, đổ hết ra thì
  *  phần nghĩa bị đẩy khỏi tầm mắt. Phần còn lại nằm sau nút "Xem thêm". */
@@ -30,17 +31,21 @@ export function ImageGallery({ images }: { images?: DictImage[] }) {
   );
 }
 
-/** Bình luận cộng đồng (read-only, nhập từ Mazii). Chỉ hiện vài cái đầu, phần
- *  còn lại mở ra khi bấm — dữ liệu đã có sẵn nên chỉ là chuyện thu/mở. */
+/** Bình luận cộng đồng (read-only, nhập từ Mazii). Xếp theo like rồi chỉ hiện
+ *  vài cái đầu, phần còn lại mở ra khi bấm — dữ liệu đã có sẵn nên chỉ là
+ *  chuyện thu/mở. */
 export function CommentList({ comments }: { comments?: DictComment[] }) {
   const [expanded, setExpanded] = useState(false);
-  if (!comments || !comments.length) return null;
-  const shown = expanded ? comments : comments.slice(0, COLLAPSED_COMMENT_COUNT);
-  const hiddenCount = comments.length - shown.length;
+  // Xếp trước khi cắt, nếu không phần thu gọn lại là ba cái đầu tuỳ nguồn nhập.
+  // useMemo trước mọi return sớm để không phạm rules-of-hooks.
+  const ranked = useMemo(() => rankByLikes(comments ?? []), [comments]);
+  if (!ranked.length) return null;
+  const shown = expanded ? ranked : ranked.slice(0, COLLAPSED_COMMENT_COUNT);
+  const hiddenCount = ranked.length - shown.length;
   return (
     <div className="word-comments">
       <div className="word-comments-head">
-        Bình luận cộng đồng ({comments.length}) <span className="muted">· Mazii</span>
+        Bình luận cộng đồng ({ranked.length}) <span className="muted">· Mazii</span>
       </div>
       <ul>
         {shown.map((c, i) => (
@@ -68,7 +73,7 @@ export function CommentList({ comments }: { comments?: DictComment[] }) {
         ))}
       </ul>
       {/* Nút đứng dưới danh sách: phần mở thêm mọc xuống, không đẩy chỗ đang đọc. */}
-      {comments.length > COLLAPSED_COMMENT_COUNT && (
+      {ranked.length > COLLAPSED_COMMENT_COUNT && (
         <button
           className="link comment-more"
           aria-expanded={expanded}
