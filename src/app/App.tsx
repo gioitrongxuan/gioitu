@@ -159,7 +159,8 @@ interface MainAppProps {
 }
 
 function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogout, onRequestLogin, onSessionExpired }: MainAppProps) {
-  const store = useAppStore(userId, onSessionExpired);
+  // isPremium vào store chỉ để bản "Xuất dữ liệu học" kèm lịch sử ôn (#165).
+  const store = useAppStore(userId, onSessionExpired, isPremium);
   // Tăng mỗi khi sync từ điển kéo dữ liệu về → buộc danh sách từ điển đọc lại
   // (để dict mới hiện ngay, khỏi phải tải lại trang trên máy khác).
   const [syncTick, setSyncTick] = useState(0);
@@ -699,7 +700,16 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {reviewStats && (
         <Suspense fallback={null}>
-          <ReviewStats userId={userId} entries={store.entries} onClose={() => setReviewStats(false)} />
+          <ReviewStats
+            userId={userId}
+            entries={store.entries}
+            isPremium={isPremium}
+            onOpenPremium={() => {
+              setReviewStats(false);
+              setPremium(true);
+            }}
+            onClose={() => setReviewStats(false)}
+          />
         </Suspense>
       )}
 

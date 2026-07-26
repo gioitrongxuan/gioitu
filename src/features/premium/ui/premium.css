@@ -1,0 +1,50 @@
+/* Trang giá trị Premium (#165) — chỉ phần danh sách lợi ích; overlay/card/ô
+   nhập mã dùng lớp chung (theme-overlay, theme-card, url-row, premium-*).
+   Màu qua token DESIGN §1-2: marker dùng --accent (tương tác/nhấn), KHÔNG dùng
+   --seal — đây là lời mời, không phải thành tựu. */
+
+.pm-intro {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+}
+
+.pm-benefits {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.pm-benefits li {
+  position: relative;
+  padding-left: var(--space-5);
+}
+
+/* Marker chấm tròn thuần CSS thay bullet/emoji (DESIGN cấm emoji-icon). */
+.pm-benefits li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  /* Neo giữa dòng đầu (tiêu đề): nửa line-height heading trừ nửa đường kính. */
+  top: calc(var(--text-md) * var(--leading-heading) / 2 - var(--space-1));
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.pm-benefits h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: var(--leading-heading);
+}
+
+.pm-benefits p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: var(--leading-body);
+}

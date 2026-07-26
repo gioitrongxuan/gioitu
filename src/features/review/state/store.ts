@@ -42,8 +42,10 @@ function undoAction(term: string, undo: () => Promise<void>): ToastAction {
  * `onSessionExpired` để App phản ứng khi token hết hạn (401) trong lúc đồng bộ —
  * kể cả từ luồng ngầm: đăng xuất + mời đăng nhập lại. Phụ thuộc một chiều
  * (store → App qua callback), store không biết gì về màn đăng nhập.
+ * `isPremium` chỉ quyết một việc ở đây: bản sao lưu xuất ra có kèm lịch sử ôn
+ * (`review_log`) hay không — xem #165.
  */
-export function useAppStore(userId: string, onSessionExpired?: () => void) {
+export function useAppStore(userId: string, onSessionExpired?: () => void, isPremium = false) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => readLastSync(userId));
@@ -344,16 +346,21 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
     [scheduleSync],
   );
 
-  /** Xuất toàn bộ dữ liệu học ra file JSON tải về. */
+  /** Xuất toàn bộ dữ liệu học ra file JSON tải về (Premium: kèm lịch sử ôn). */
   const exportBackup = useCallback(async () => {
     try {
-      const count = await exportBackupFile(userId);
-      pushToast(`Đã xuất ${count} từ ra tệp sao lưu`, "success");
+      const { entryCount, logCount } = await exportBackupFile(userId, isPremium);
+      pushToast(
+        logCount > 0
+          ? `Đã xuất ${entryCount} từ + ${logCount} lượt ôn ra tệp sao lưu`
+          : `Đã xuất ${entryCount} từ ra tệp sao lưu`,
+        "success",
+      );
     } catch (e) {
       console.error("export backup failed", e);
       pushToast("Không xuất được tệp sao lưu", "warn");
     }
-  }, [userId]);
+  }, [userId, isPremium]);
 
   /**
    * Nhập dữ liệu học từ một file backup JSON: chọn file → trộn last-write-wins
@@ -365,10 +372,15 @@ export function useAppStore(userId: string, onSessionExpired?: () => void) {
     if (!file) return;
     try {
       const backup = await readBackupFile(file);
-      const count = await importBackupData(userId, backup);
+      const { entryCount, logCount } = await importBackupData(userId, backup);
       await reload();
       scheduleSync();
-      pushToast(`Đã nhập ${count} từ từ tệp sao lưu`, "success");
+      pushToast(
+        logCount > 0
+          ? `Đã nhập ${entryCount} từ + ${logCount} lượt ôn từ tệp sao lưu`
+          : `Đã nhập ${entryCount} từ từ tệp sao lưu`,
+        "success",
+      );
     } catch (e) {
       console.error("import backup failed", e);
       pushToast((e as Error).message ?? "Không nhập được tệp sao lưu", "warn");

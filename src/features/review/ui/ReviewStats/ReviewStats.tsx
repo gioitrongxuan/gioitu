@@ -2,18 +2,23 @@
 // sách entry rồi vẽ ba biểu đồ SVG thuần — tỉ lệ nhớ theo ngày, dự báo đến hạn
 // 7 ngày, đường luỹ kế từ đã thuộc. Mọi phép tính nằm ở domain/reviewStats.ts;
 // ở đây chỉ đọc dữ liệu (một lần lúc mở) và dựng hình.
+// Mục "Nâng cao" (#165) gate Premium: retention theo khoảng ôn + tải CSV lịch
+// sử — người thường thấy khối mờ (dữ liệu thật, không tương tác) + lời mời.
 
 import { useEffect, useMemo, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
-import { CloseIcon } from "@/shared/ui/icons";
+import { CloseIcon, LockIcon } from "@/shared/ui/icons";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { ReviewLogEntry, VocabEntry } from "@/shared/types";
 import { getReviewLog } from "../../data/reviewLog";
+import { reviewLogToCsv } from "../../domain/reviewLog";
 import {
   RetentionDay,
   ForecastDay,
   LearnedDay,
+  IntervalRetention,
   retentionByDay,
+  retentionByInterval,
   retentionRate,
   summarizeRetention,
   countReviewsSince,
@@ -29,6 +34,10 @@ import "./reviewstats.css";
 interface Props {
   userId: string;
   entries: VocabEntry[];
+  /** Mở khoá mục "Nâng cao" (retention theo khoảng ôn + tải CSV lịch sử). */
+  isPremium: boolean;
+  /** Mở trang giá trị Premium khi người chưa kích hoạt bấm "Tìm hiểu Premium". */
+  onOpenPremium: () => void;
   onClose: () => void;
 }
 
@@ -62,7 +71,23 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
 
 const pct = (rate: number) => Math.round(rate * 100);
 
-export function ReviewStats({ userId, entries, onClose }: Props) {
+/** Tên file CSV theo ngày, cùng quy ước với tệp sao lưu JSON. */
+function csvFilename(now: number): string {
+  return `gioitu-review-log-${new Date(now).toISOString().slice(0, 10)}.csv`;
+}
+
+/** Đẩy CSV xuống trình duyệt; BOM đầu file để Excel nhận UTF-8 (từ vựng JA/VI). */
+function downloadCsv(log: ReviewLogEntry[], now: number): void {
+  const blob = new Blob(["\uFEFF" + reviewLogToCsv(log)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = csvFilename(now);
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function ReviewStats({ userId, entries, isPremium, onOpenPremium, onClose }: Props) {
   const dialogRef = useDialog<HTMLDivElement>(onClose);
   // Chụp "bây giờ" một lần lúc mở: mọi biểu đồ cùng một mốc, không trôi giữa render.
   const [now] = useState(() => Date.now());
@@ -81,6 +106,7 @@ export function ReviewStats({ userId, entries, onClose }: Props) {
   const retention = useMemo(() => (log ? retentionByDay(log, now) : null), [log, now]);
   const forecast = useMemo(() => forecastDueByDay(entries, now), [entries, now]);
   const learned = useMemo(() => learnedOverTime(entries, now), [entries, now]);
+  const byInterval = useMemo(() => (log ? retentionByInterval(log, now) : null), [log, now]);
 
   const summary = retention ? summarizeRetention(retention) : null;
   const overallRate = summary ? retentionRate(summary) : null;
@@ -168,10 +194,71 @@ export function ReviewStats({ userId, entries, onClose }: Props) {
                 <p className="rs-empty">Chưa có từ nào đạt mức đã thuộc.</p>
               )}
             </section>
+
+            <section className="rs-section">
+              <h3>Nâng cao · Premium</h3>
+              <div className="rs-premium">
+                {/* Nội dung thật cho cả hai phía: Premium dùng được, người thường
+                    thấy mờ (dữ liệu là của chính họ nên không có gì phải giấu —
+                    khoá nằm ở thao tác, không ở bí mật). */}
+                <div
+                  className={isPremium ? undefined : "rs-premium-dimmed"}
+                  {...(isPremium ? {} : { inert: "", "aria-hidden": true })}
+                >
+                  {byInterval && <IntervalRetentionList rows={byInterval} />}
+                  <p className="rs-note">
+                    Tỉ lệ nhớ tách theo khoảng ôn ({STATS_WINDOW_DAYS} ngày gần nhất): nhóm nào
+                    tụt sâu là chỗ đang rò rỉ — thẻ non (vài ngày) yếu thì nên ôn dày hơn, thẻ
+                    chín (vài tháng) yếu là dấu hiệu học vẹt.
+                  </p>
+                  <button
+                    type="button"
+                    className="link"
+                    disabled={!isPremium || log == null || log.length === 0}
+                    onClick={() => log && downloadCsv(log, now)}
+                  >
+                    Tải toàn bộ lịch sử ôn (CSV · {log?.length ?? 0} lượt)
+                  </button>
+                </div>
+                {!isPremium && (
+                  <div className="rs-premium-gate">
+                    <LockIcon size={16} />
+                    <p>Thống kê nâng cao và xuất lịch sử ôn dành cho Premium.</p>
+                    <button type="button" className="primary" onClick={onOpenPremium}>
+                      Tìm hiểu Premium
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/** Bảng retention theo khoảng ôn — thanh ngang thuần div, không cần hệ toạ độ SVG.
+ *  Export cùng lý do với ba chart: SSR smoke test render độc lập được. */
+export function IntervalRetentionList({ rows }: { rows: IntervalRetention[] }) {
+  return (
+    <ul className="rs-bands">
+      {rows.map((r) => {
+        const rate = retentionRate(r);
+        return (
+          <li key={r.band.label}>
+            <span className="rs-band-label">{r.band.label}</span>
+            <span className="rs-band-bar" aria-hidden>
+              {rate != null && <span style={{ width: `${pct(rate)}%` }} />}
+            </span>
+            <span className="rs-band-value">{rate != null ? `${pct(rate)}%` : "—"}</span>
+            <span className="rs-band-detail">
+              {r.total > 0 ? `${r.remembered}/${r.total} lượt` : "chưa có lượt"}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

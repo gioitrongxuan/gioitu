@@ -313,6 +313,12 @@ cloud). Ba lớp bảo vệ giảm rủi ro mất trắng:
   gán entry về người đang dùng nên backup từ tài khoản/phiên khác vẫn hiện ra.
   Serialize/parse/validate thuần ở `review/domain/backup.ts`; đọc/ghi file +
   IndexedDB ở `review/data/backup.ts`.
+- **Sao lưu kèm lịch sử ôn (Premium, #165)**: với người đã kích hoạt Premium,
+  file xuất (format v2) đính kèm `review_log` đầy đủ. Nhập lại KHÔNG cần
+  Premium (gate nằm ở lúc xuất): chỉ ghi bổ sung các dòng chưa có
+  (`missingLogRows`, khoá `term+lang+ts+grade`) nên nhập cùng file hai lần
+  không nhân đôi lịch sử; `id` nguồn bị bỏ để IndexedDB đích tự cấp. File v1
+  không có trường này thì bỏ qua êm; có mà méo dạng thì chặn như entries hỏng.
 
 ## 7. Thông báo (Toasts)
 
@@ -362,7 +368,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB (nhập tay + AI) | [§9.4](#94-từ-điển-cá-nhân) |
 | Study list | (chưa nối vào UI) | Bộ từ lưu server; client mới chỉ đọc qua Học từ vựng | [§9.5](#95-study-list) |
 | Chia sẻ từ điển | Nút "Chia sẻ" ở mỗi từ điển trên máy | Link tải .zip sống ~5 phút để chuyển máy | [§9.6](#96-chia-sẻ-từ-điển) |
-| Premium | ☰ | Kích hoạt bằng mã; mở khoá sync từ điển cá nhân | [§9.7](#97-premium) |
+| Premium | ☰ | Trang giá trị retention + kích hoạt bằng mã | [§9.7](#97-premium) |
 | Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
@@ -505,10 +511,16 @@ Chuyển một từ điển sang máy khác qua link tải `.zip` ngắn hạn. 
 
 ### 9.7 Premium
 
-Gói trả phí mở khoá **đồng bộ từ điển cá nhân đa thiết bị**; đồng bộ tiến trình
-học (SRS) vẫn **miễn phí**. Mục menu **Premium** (hiện "Premium ✓" khi đã kích
-hoạt). (`features/premium/`, `App.tsx:298,508`)
+Gói trả phí định vị quanh **retention** (#165): giữ lại và soi được lịch sử
+học, không chỉ đồng bộ. Mục menu **Premium** (hiện "Premium ✓" khi đã kích
+hoạt) mở **trang giá trị** — kể lợi ích trước, ô nhập mã sau; lợi ích hiện cả
+với khách (đọc được trước khi bị đòi đăng nhập). (`features/premium/`)
 
+- **Bốn giá trị** (hằng `BENEFITS` trong `PremiumModal.tsx`): thống kê nâng cao
+  (§9.12) · sao lưu kèm lịch sử ôn (§6) · đồng bộ từ điển cá nhân đa thiết bị
+  (§9.3; SRS vẫn đồng bộ **miễn phí**) · AI phân tích câu ví dụ (Deepseek, luồng
+  Yomitan "+"). Marker danh sách là chấm CSS `--accent`, không emoji
+  (`premium/ui/premium.css`).
 - **Kích hoạt (user)**: cần đăng nhập (Premium gắn theo tài khoản). Nhập mã dạng
   `ABCD-EFGH-JKMN` → `redeemPremiumCode` (`POST /api/premium/redeem`); thành công
   thì cập nhật cache phiên (`markSessionPremium`) để UI/cổng đồng bộ phản ánh
@@ -601,8 +613,8 @@ heatmap (+ emblem nhận diện) — token chữ/nền của người dùng gi�
 
 Overlay đọc `review_log` (IndexedDB, cục bộ) + danh sách entry, dựng bằng SVG
 thuần (không thư viện chart). Lối vào: ☰ → **Thống kê ôn tập**. Mở cho mọi
-người (guest lẫn đăng nhập); #165 sau này mới bàn gate "stats nâng cao" sau
-Premium. (`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats.ts`)
+người (guest lẫn đăng nhập); riêng mục "Nâng cao" gate Premium (#165).
+(`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats.ts`)
 
 - **Hàng ô số liệu**: Tỉ lệ nhớ 30 ngày · Lượt ôn 30 ngày · Đã thuộc (màu
   `--seal` thành tựu) · Đến hạn 7 ngày tới.
@@ -615,6 +627,13 @@ Premium. (`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats
   `last_lookup_at`), chỉ đếm entry đang LEARNED — điểm cuối luôn khớp "Đã
   thuộc (N)"; từ tái quên rời khỏi đường (tả tài sản hiện có, không phải lịch
   sử đầy đủ).
+- **Nâng cao · Premium (#165)**: tỉ lệ nhớ tách theo **khoảng ôn**
+  (`retentionByInterval`, 4 nhóm `INTERVAL_BANDS`: 1–6 ngày · 1–4 tuần ·
+  1–3 tháng · >3 tháng — thẻ non yếu ≠ thẻ chín yếu) + nút **tải toàn bộ lịch
+  sử ôn ra CSV** (`reviewLogToCsv` ở `domain/reviewLog.ts`; BOM UTF-8 cho
+  Excel, không lộ `user_id`/`id`). Người chưa Premium thấy khối này **mờ**
+  (blur + `inert`, dữ liệu vẫn là của chính họ — khoá ở thao tác, không ở bí
+  mật) kèm nút "Tìm hiểu Premium" mở trang giá trị (§9.7).
 - Toàn bộ phép tính là hàm thuần nhận `now` từ caller (không `Date.now()`
   trong domain) — nền đối chiếu cho FSRS khi đủ log.
 

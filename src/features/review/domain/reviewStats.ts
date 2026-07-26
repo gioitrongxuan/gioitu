@@ -103,6 +103,64 @@ export function countReviewsSince(log: ReviewLogEntry[], since: number): number 
   return log.filter((r) => r.ts >= since).length;
 }
 
+/**
+ * Một nhóm khoảng ôn cho bảng retention nâng cao (Premium): lượt chấm được xếp
+ * nhóm theo `interval_before` — thẻ vừa tốt nghiệp (vài ngày) và thẻ đã chín
+ * (vài tháng) có độ khó rất khác nhau, gộp chung một tỉ lệ sẽ che mất chỗ đang
+ * rò rỉ. `maxDays` = null là nhóm mở (không trần).
+ */
+export interface IntervalBand {
+  label: string;
+  minDays: number; // biên dưới (đóng), đơn vị ngày
+  maxDays: number | null; // biên trên (mở); null = vô hạn
+}
+
+/** Các mốc theo nhịp interval SM-2 (tuần đầu → chín muồi ≥ 3 tháng). */
+export const INTERVAL_BANDS: IntervalBand[] = [
+  { label: "1–6 ngày", minDays: 1, maxDays: 7 },
+  { label: "1–4 tuần", minDays: 7, maxDays: 30 },
+  { label: "1–3 tháng", minDays: 30, maxDays: 90 },
+  { label: "Trên 3 tháng", minDays: 90, maxDays: null },
+];
+
+/** Retention gộp của một nhóm khoảng ôn (cùng cửa sổ với các thống kê khác). */
+export interface IntervalRetention {
+  band: IntervalBand;
+  total: number;
+  remembered: number;
+}
+
+/**
+ * Tỉ lệ nhớ tách theo nhóm khoảng ôn trong `days` ngày gần nhất. Cùng quy tắc
+ * "true retention" với retentionByDay (bỏ learning step < 1 ngày — chúng cũng
+ * nằm dưới biên nhóm đầu nên loại tự nhiên); trả đủ mọi nhóm, nhóm không có
+ * lượt nào giữ `total: 0` để UI hiện "chưa có dữ liệu" thay vì biến mất.
+ */
+export function retentionByInterval(
+  log: ReviewLogEntry[],
+  now: number,
+  days: number = STATS_WINDOW_DAYS,
+): IntervalRetention[] {
+  const { starts, end } = dayStarts(now, days);
+  const out: IntervalRetention[] = INTERVAL_BANDS.map((band) => ({
+    band,
+    total: 0,
+    remembered: 0,
+  }));
+  for (const row of log) {
+    if (row.ts < starts[0] || row.ts >= end) continue;
+    const bucket = out.find(
+      ({ band }) =>
+        row.interval_before >= band.minDays * DAY &&
+        (band.maxDays == null || row.interval_before < band.maxDays * DAY),
+    );
+    if (!bucket) continue; // interval < 1 ngày: learning step, không đo trí nhớ dài hạn
+    bucket.total += 1;
+    if (row.grade !== "again") bucket.remembered += 1;
+  }
+  return out;
+}
+
 /** Một ngày trong dự báo đến hạn. */
 export interface ForecastDay {
   dayStart: number; // nửa đêm địa phương, epoch ms
