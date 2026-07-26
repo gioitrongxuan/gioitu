@@ -17,7 +17,7 @@ export type WordRoute = Extract<Route, { kind: "word" }>;
 export function useAppRoute(onWordRoute: (route: WordRoute) => void) {
   const [page, setPage] = useState<Page>(() => {
     const route = parsePath(window.location.pathname);
-    return route.kind === "page" ? route.page : "home";
+    return route.kind === "page" ? route.page : "today";
   });
 
   // Ref mới nhất cho listener gắn một lần — không re-subscribe mỗi render.
@@ -37,7 +37,7 @@ export function useAppRoute(onWordRoute: (route: WordRoute) => void) {
     openedDeepLink.current = true;
     const route = parsePath(window.location.pathname);
     if (route.kind !== "word") return;
-    window.history.replaceState(null, "", routeToPath({ kind: "page", page: "home" }));
+    window.history.replaceState(null, "", routeToPath({ kind: "page", page: "today" }));
     onWordRouteRef.current(route);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

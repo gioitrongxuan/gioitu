@@ -1,0 +1,194 @@
+/* Vỏ ứng dụng 4 khu (#149, DESIGN.md §4): AppNav + TodayScreen + MeScreen +
+   hàng tab con của Kho từ. Cùng một DOM cho AppNav, hai bố cục do CSS quyết
+   theo breakpoint 760px duy nhất của app: bottom tab bar (mobile) / sidebar
+   dính trái (desktop). */
+
+:root {
+  /* Chiều cao tab bar mobile — .app đệm đáy đúng bằng này để nội dung không
+     bị bar che. */
+  --app-nav-h: 56px;
+}
+
+/* --- Điều hướng 4 khu ------------------------------------------------------ */
+
+.app-nav-item {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.app-nav-item:hover { color: var(--fg); }
+.app-nav-item.active { color: var(--accent); }
+
+.app-nav-icon { position: relative; display: inline-flex; }
+
+/* Badge số từ đến hạn — son đỏ thành tựu/nhắc nhở (--seal), không phải --warn. */
+.app-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -10px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--seal);
+  color: #fff;
+  font-size: var(--text-xs);
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Mobile: bar cố định đáy màn hình, dưới sheet chi tiết (z 19/20) nên sheet
+   mở sẽ phủ lên bar. */
+@media (max-width: 759px) {
+  .app-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    height: calc(var(--app-nav-h) + env(safe-area-inset-bottom));
+    padding: var(--space-1) max(var(--space-2), env(safe-area-inset-right))
+      env(safe-area-inset-bottom) max(var(--space-2), env(safe-area-inset-left));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  /* Đệm đáy cho nội dung khỏi bị bar che (đè lên padding gốc của .app). */
+  .app { padding-bottom: calc(var(--app-nav-h) + var(--space-3) + env(safe-area-inset-bottom)); }
+}
+
+/* Desktop: .app thành lưới [sidebar | nội dung]; sidebar dính khi cuộn. */
+@media (min-width: 760px) {
+  .app {
+    display: grid;
+    grid-template-columns: 176px minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+    max-width: 1160px; /* 176 sidebar + gap + ~960 nội dung như cũ */
+  }
+  .app-nav {
+    position: sticky;
+    top: var(--space-4);
+    display: grid;
+    gap: var(--space-1);
+    align-content: start;
+  }
+  .app-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-base);
+    text-align: left;
+  }
+  .app-nav-item.active { background: color-mix(in oklab, var(--accent) 10%, transparent); }
+}
+
+.app-main { min-width: 0; }
+
+/* --- Tab con khu "Kho từ" -------------------------------------------------- */
+
+.words-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.words-tab {
+  padding: 6px var(--space-3);
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.words-tab:hover { color: var(--fg); }
+.words-tab.active {
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+/* Hành động phụ (Từ điển cá nhân, Thêm nhanh, Thống kê…) dạt phải trên desktop. */
+.words-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-left: auto; }
+
+/* --- Màn "Hôm nay" --------------------------------------------------------- */
+
+.today-screen { display: grid; gap: var(--space-4); justify-items: start; }
+
+.today-hero {
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.today-hero-title { margin: 0; font-size: var(--text-2xl); line-height: var(--leading-heading); }
+.today-hero-est { color: var(--muted); font-size: var(--text-lg); font-weight: normal; }
+.today-hero-sub { margin: 0; color: var(--muted); }
+.today-hero-cta { margin-top: 0; font-size: var(--text-md); padding: 10px 20px; }
+
+.today-asset { font-size: var(--text-md); padding: 0; }
+
+.today-search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: var(--text-base);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.today-search:hover { color: var(--fg); border-color: var(--accent); }
+
+/* --- Màn "Tôi" ------------------------------------------------------------- */
+
+.me-screen { display: grid; gap: var(--space-5); max-width: 560px; }
+
+.me-account {
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.me-account-name { font-weight: 600; font-size: var(--text-md); }
+.me-account-sub { color: var(--muted); font-size: var(--text-sm); }
+
+.me-section { display: grid; justify-items: stretch; }
+.me-section-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.me-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-base);
+  text-align: left;
+}
+.me-section .me-item:last-child { border-bottom: none; }
+.me-item-lock { color: var(--muted); flex: none; }

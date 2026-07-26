@@ -5,17 +5,45 @@
 
 import { pairId } from "@/shared/languages";
 
-export type Page = "home" | "learned" | "kanji" | "vocabstudy";
+// IA 4 khu (#149, DESIGN.md §4): Hôm nay / Tra cứu / Kho từ / Tôi. Khu "Kho
+// từ" có các trang con (bản đồ từ, đã thuộc, kanji, học từ vựng) — mỗi trang
+// vẫn là một Page phẳng để App switch đơn giản; khuOf() gom về khu cho tab bar.
+export type Page = "today" | "search" | "cloud" | "learned" | "kanji" | "vocabstudy" | "me";
+
+export type Khu = "today" | "search" | "words" | "me";
 
 export type Route =
   | { kind: "page"; page: Page }
   | { kind: "word"; term_lang: string; native_lang: string; term: string };
 
 const PAGE_PATHS: Record<Page, string> = {
-  home: "/",
-  learned: "/learned",
-  kanji: "/kanji",
-  vocabstudy: "/vocabstudy",
+  today: "/",
+  search: "/search",
+  cloud: "/words",
+  learned: "/words/learned",
+  kanji: "/words/kanji",
+  vocabstudy: "/words/study",
+  me: "/me",
+};
+
+// Path thời chưa có 4 khu (bookmark/link cũ còn sống) → trang mới tương ứng.
+const LEGACY_PATHS: Record<string, Page> = {
+  "/learned": "learned",
+  "/kanji": "kanji",
+  "/vocabstudy": "vocabstudy",
+};
+
+export function khuOf(page: Page): Khu {
+  if (page === "today" || page === "search" || page === "me") return page;
+  return "words";
+}
+
+/** Trang mở ra khi bấm một khu trên tab bar (khu "Kho từ" mở bản đồ từ). */
+export const KHU_HOME: Record<Khu, Page> = {
+  today: "today",
+  search: "search",
+  words: "cloud",
+  me: "me",
 };
 
 export function routeToPath(route: Route): string {
@@ -29,6 +57,7 @@ export function routeToPath(route: Route): string {
 export function parsePath(pathname: string): Route {
   const page = (Object.keys(PAGE_PATHS) as Page[]).find((p) => PAGE_PATHS[p] === pathname);
   if (page) return { kind: "page", page };
+  if (pathname in LEGACY_PATHS) return { kind: "page", page: LEGACY_PATHS[pathname] };
 
   const word = pathname.match(/^\/word\/([a-z]{2})-([a-z]{2})\/(.+)$/);
   if (word) {
@@ -38,7 +67,7 @@ export function parsePath(pathname: string): Route {
       // %-escape hỏng trong term → coi như path lạ
     }
   }
-  return { kind: "page", page: "home" };
+  return { kind: "page", page: "today" };
 }
 
 // --- "Back đóng overlay" -----------------------------------------------------
