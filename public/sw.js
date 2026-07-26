@@ -3,7 +3,8 @@
 // từ màn hình chính mở được không mạng. Chiến lược:
 //   • điều hướng  → network-first (bản deploy mới luôn thắng), offline rơi về
 //     shell đã cache;
-//   • asset build → cache-first (tên file có hash, bất biến);
+//   • asset build → cache-first (tên file có hash, bất biến), precache đủ cả
+//     chunk lazy lúc install, dọn hash cũ lúc activate;
 //   • /api/*      → không đụng (dữ liệu động, kèm auth);
 //   • cross-origin (ảnh Mazii, KanjiVG…) → không đụng, trình duyệt tự lo.
 // Đổi VERSION khi cần xoá sạch cache cũ ở activate.
@@ -20,19 +21,52 @@ const SHELL = [
   "/icons/apple-touch-icon.png",
 ];
 
+// Danh sách MỌI asset của build hiện hành — kể cả chunk lazy (Bộ thủ, Kanji,
+// skin…) không xuất hiện trong index.html. Plugin sw-precache (vite.config.ts,
+// logic ở src/app/swPrecache.ts) thay placeholder bằng mảng JSON lúc build;
+// hash đổi ⇒ byte sw.js đổi ⇒ trình duyệt cài lại SW, nên install/activate
+// chạy lại mỗi deploy dù VERSION đứng yên. Ở dev placeholder còn nguyên
+// (chuỗi) → coi như rỗng.
+const BUILD_ASSETS = "__SW_BUILD_ASSETS__";
+const buildAssets = Array.isArray(BUILD_ASSETS) ? BUILD_ASSETS : [];
+
 // Lần đầu cài, trang đang mở CHƯA bị SW kiểm soát nên asset của nó không đi
-// qua fetch handler — phải precache chủ động: đọc index.html vừa cache, nhặt
-// mọi đường dẫn /assets/* (tên file có hash) và nạp trước. Deploy mới không
-// đổi sw.js vẫn ổn: navigate network-first cập nhật "/", asset mới được
-// runtime-cache khi trang (đã bị kiểm soát) tải chúng.
+// qua fetch handler — phải precache chủ động. Nguồn: BUILD_ASSETS (đủ cả chunk
+// lazy, để offline lần đầu vẫn mở được màn phụ) + quét index.html vừa cache
+// (lưới an toàn khi placeholder chưa được chèn). Chỉ tải phần còn thiếu: giữa
+// hai deploy phần lớn chunk giữ nguyên hash, addAll cả danh sách sẽ tải lại
+// toàn bộ vô ích.
 async function precacheShell() {
   const shell = await caches.open(SHELL_CACHE);
   await shell.addAll(SHELL);
   const index = await shell.match("/");
   const html = await index.text();
-  const assets = [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]))];
+  const fromHtml = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+  const assets = [...new Set([...fromHtml, ...buildAssets])];
   const assetCache = await caches.open(ASSET_CACHE);
-  await assetCache.addAll(assets);
+  const missing = [];
+  for (const path of assets) {
+    if (!(await assetCache.match(path, { ignoreVary: true }))) missing.push(path);
+  }
+  await assetCache.addAll(missing);
+}
+
+// VERSION giữ "v1" qua các deploy nên nhánh dọn-theo-tên-cache ở activate
+// không đụng tới ASSET_CACHE hiện hành — hash cũ cứ thế tích luỹ. Dọn theo
+// nội dung: entry dưới /assets/ (tên có hash, bất biến) mà không còn trong
+// build hiện hành chắc chắn là rác deploy cũ. File ngoài /assets/ được
+// runtime-cache thì không đủ căn cứ phán, để nguyên. Không có BUILD_ASSETS
+// (dev/chưa chèn) thì đứng yên — thiếu danh sách chuẩn thì đừng xoá bậy.
+async function pruneStaleAssets() {
+  if (buildAssets.length === 0) return;
+  const keep = new Set(buildAssets);
+  const assetCache = await caches.open(ASSET_CACHE);
+  const cached = await assetCache.keys();
+  const stale = cached.filter((request) => {
+    const path = new URL(request.url).pathname;
+    return path.startsWith("/assets/") && !keep.has(path);
+  });
+  await Promise.all(stale.map((request) => assetCache.delete(request)));
 }
 
 self.addEventListener("install", (event) => {
@@ -48,6 +82,7 @@ self.addEventListener("activate", (event) => {
           keys.filter((k) => k !== SHELL_CACHE && k !== ASSET_CACHE).map((k) => caches.delete(k)),
         ),
       )
+      .then(pruneStaleAssets)
       .then(() => self.clients.claim()),
   );
 });
