@@ -31,6 +31,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
+import { loadReviewStreak } from "@/features/review/data/streak";
 import { guestAdoptionPrompt } from "@/features/auth/domain/guestAdoption";
 import { ToastHost } from "@/shared/ui/Toasts";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -38,6 +39,7 @@ import { MOBILE_MEDIA_QUERY, useMediaQuery } from "@/shared/ui/useMediaQuery";
 import { VocabEntry } from "@/shared/types";
 import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
+import { useAppRoute, useBackEntry, useWordUrl } from "./useHistoryRouting";
 import { HeaderMenu, MenuItem } from "./HeaderMenu";
 
 // React.lazy cho các màn phụ (không cần ngay lúc mở app) — giữ chunk chính nhẹ.
@@ -242,8 +244,32 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu.
   const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
-  const [page, setPage] = useState<"home" | "learned" | "kanji" | "vocabstudy">("home");
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
+  // Routing History API (#148): mỗi trang một URL (F5 giữ chỗ, Back/Forward đi
+  // giữa các trang), deep-link /word/:pair/:term mở panel chi tiết lúc tải trang.
+  const { page, gotoPage } = useAppRoute((w) =>
+    openWord({ term: w.term, term_lang: w.term_lang, native_lang: w.native_lang }),
+  );
+
+  // Back đóng overlay thay vì thoát app: mỗi overlay đang mở chiếm một entry
+  // History; panel chi tiết còn phản chiếu từ đang xem lên URL để chia sẻ được.
+  useBackEntry(view != null, closeView);
+  useWordUrl(
+    view?.kind === "detail"
+      ? { kind: "word", term_lang: view.term_lang, native_lang: view.native_lang, term: view.term }
+      : null,
+  );
+  useBackEntry(reviewQueue != null, () => setReviewQueue(null));
+  useBackEntry(managing, () => {
+    setManaging(false);
+    setManageEditQuery(null);
+  });
+  useBackEntry(customDict, () => setCustomDict(false));
+  useBackEntry(theming, () => setTheming(false));
+  useBackEntry(connectingYomitan, () => setConnectingYomitan(false));
+  useBackEntry(premium, () => setPremium(false));
+  useBackEntry(contribReview, () => setContribReview(false));
+  useBackEntry(quickAdd != null, () => setQuickAdd(null));
 
   // Số từ đến hạn hiện lên tiêu đề tab + huy hiệu ứng dụng (PWA app badge) để
   // nhắc ôn kể cả khi app ở tab nền hoặc đã cài. dueEntries đã tự tick mỗi phút
@@ -340,10 +366,10 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         ]
       : []),
     // Luôn hiện (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
-    { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => setPage("learned") },
-    { label: "Thống kê kanji", run: () => setPage("kanji") },
+    { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => gotoPage("learned") },
+    { label: "Thống kê kanji", run: () => gotoPage("kanji") },
     { label: "Thống kê ôn tập", run: () => setReviewStats(true) },
-    { label: "Học từ vựng", run: () => setPage("vocabstudy") },
+    { label: "Học từ vựng", run: () => gotoPage("vocabstudy") },
     { label: "Thêm nhanh", run: () => setQuickAdd({ term: "" }) },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
     { label: "Giao diện", run: () => setTheming(true) },
@@ -393,7 +419,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {page === "learned" ? (
         <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
           <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
           <CloudViewControls
             lang={cloudLang}
@@ -404,12 +430,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         </div>
       ) : page === "kanji" ? (
         <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
           <h2>Thống kê Kanji <span lang="ja" aria-hidden>漢</span></h2>
         </div>
       ) : page === "vocabstudy" ? (
         <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => setPage("home")}>← Quay lại</button>
+          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
           <h2>Học từ vựng</h2>
         </div>
       ) : (
@@ -545,7 +571,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {theming && (
         <Suspense fallback={null}>
-          <ThemeSettings onClose={() => setTheming(false)} />
+          <ThemeSettings onClose={() => setTheming(false)} loadStreak={() => loadReviewStreak(userId)} />
         </Suspense>
       )}
 

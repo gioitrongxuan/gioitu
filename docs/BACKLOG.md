@@ -54,9 +54,6 @@ _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
-- [ ] Routing History API (không cần thư viện): 4 khu + `/word/:lang/:term`
-  deep-link + push history khi mở overlay (back đóng overlay thay vì thoát
-  app — hiện toàn useState, F5 mất chỗ). `App.tsx:158-174`
 - [ ] Bottom tab bar mobile (<760px) / sidebar desktop; bỏ dồn hết vào ☰
   (hiện 9-11 mục phẳng trộn 4 loại khái niệm). `App.tsx:231-253`
 - [ ] Màn "Hôm nay": hero "N từ đến hạn · ~X phút" → vào phiên; streak (store
@@ -67,10 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).
-- [ ] SW: precache chunk lazy theo manifest build (hoặc vite-plugin-pwa);
-  catch cho loadRadicalData (hiện offline bấm Bộ thủ treo "Đang tải…" vĩnh
-  viễn); dọn ASSET_CACHE cũ sau activate. `sw.js:9-12,28-36,76-92 ·
-  RadicalPicker.tsx:19-25`
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 
@@ -81,16 +74,8 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   hiệu ứng tốt nghiệp (dấu son 合格).
 - [ ] Chia sẻ Word Cloud/kanji grid ra PNG client-side (canvas) — hiện không
   có gì để khoe, share duy nhất là link zip sống 5 phút.
-- [ ] Skin anime = bộ sưu tập gắn streak (chỉ đổi backdrop+heatmap, không đụng
-  token chữ/nền; glyph relapse giữ họ cảnh báo — hiện 🐾/💢 làm nhoè tín hiệu).
-  `theme.ts:154,187 · WordCloud.tsx:31`
-- [ ] Chế độ luyện chủ động tuỳ chọn: gõ cách đọc kana trước khi lật / đảo
-  chiều nghĩa→từ (self-grade hiện dễ "ảo giác đã biết").
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
-- [ ] LWW: server đóng dấu received_at làm tie-breaker chống lệch đồng hồ;
-  custom dict merge term-level thay vì nguyên blob.
-  `syncStore.ts:36 · customDictSync.ts:48-82`
 
 ## Nợ tài liệu & dọn dẹp
 

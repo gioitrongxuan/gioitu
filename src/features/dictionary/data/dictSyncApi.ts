@@ -2,14 +2,12 @@
 // mọi lệnh chịu được backend vắng / chưa đăng nhập / chưa Premium (403) → trả null
 // để bản local đứng vững. Server scope theo user qua bearer token nên không gửi user_id.
 
-import { DictEntry, LocalDictionary } from "@/shared/db";
 import { authToken } from "@/features/auth/data/auth";
+import type { SyncedDict } from "../domain/dictMerge";
 
-/** Một từ điển cá nhân dạng blob đồng bộ: registry + toàn bộ từ của nó. */
-export interface SyncedDict {
-  registry: LocalDictionary;
-  terms: DictEntry[];
-}
+// Shape blob đồng bộ (registry + terms) định nghĩa ở domain/dictMerge — nơi có
+// logic merge thuần; re-export để caller của lớp mạng không phải biết điều đó.
+export type { SyncedDict } from "../domain/dictMerge";
 
 const BASE = "/api";
 

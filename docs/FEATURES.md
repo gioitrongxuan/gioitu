@@ -9,11 +9,15 @@
 
 ## 0. Bố cục màn hình chính
 
-`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** chuyển bằng state
-nội bộ (`page`: home / learned / kanji / vocabstudy — chưa có URL/route), cộng
-các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
+`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** có URL riêng qua
+History API (`/` · `/learned` · `/kanji` · `/vocabstudy` — F5/refresh giữ chỗ,
+Back/Forward đi giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`),
+cộng các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
 Dictionary Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Auth.
+Contribution Review, Quick Add, Auth. Mỗi overlay đang mở chiếm một entry
+History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
+Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
+`/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
 
 ```
 ┌ Header ─────────────────────────────────────────────────────────┐
@@ -126,6 +130,16 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   "Khó nhằn" + gợi ý (sửa nghĩa cho dễ nhớ hoặc tạm gác để học riêng). Chỉ
   **cảnh báo**, không tự hoãn/xoá. (`srs.isLeech`, [LOGIC §4.6](./LOGIC.md))
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
+- **Luyện chủ động (tuỳ chọn, #164)** — hai toggle ở footer phiên, lưu
+  `localStorage`, mặc định tắt:
+  - *Gõ cách đọc trước khi lật* (`gioitu.reviewTypeReading.v1`): thẻ tiếng Nhật
+    có `reading` hiện ô nhập romaji/kana trước khi lật; sau khi lật hiện gợi ý
+    đúng/sai (`domain/readingPractice.ts`). Chỉ là gợi ý mềm — không chặn lật,
+    không đụng self-grade/SRS.
+  - *Đảo chiều: nghĩa → từ* (`gioitu.reviewReverse.v1`): mặt trước là **nghĩa**,
+    người học nhớ lại từ; lật ra từ + cách đọc (mặt sau giữ nguyên MeaningView).
+    Thẻ không có nghĩa đọc được thì rơi về mặt từ (`domain/reverseMode.ts`).
+    Bật cùng gõ cách đọc: nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
 - **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.
@@ -278,6 +292,11 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   (`lookupError`); đồng bộ dữ liệu học phân biệt offline vs 401 và báo lên UI
   (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
+- Service worker (`public/sw.js`) precache **toàn bộ asset build, kể cả chunk
+  lazy** (Bộ thủ, Kanji, skin…) — danh sách được chèn lúc build (plugin
+  sw-precache trong `vite.config.ts`, logic ở `src/app/swPrecache.ts`) nên các
+  màn phụ mở được offline ngay cả khi chưa từng ghé; mỗi deploy SW chỉ tải phần
+  chunk đổi hash và dọn hash cũ khỏi cache ở `activate`.
 
 ## 9. Các tính năng bổ sung (2026)
 
@@ -300,7 +319,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
-| Skin nền anime | Giao diện | 4 backdrop trang trí lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+| Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -506,12 +525,22 @@ công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel cô
 
 ### 9.11 Skin nền anime
 
-Bộ backdrop trang trí lazy-load, chỉ đổi hoạ tiết nền (không đụng token chữ/nền).
-Lối vào: **Giao diện** → mục "Mẫu có sẵn" + công tắc "Hiện hoạ tiết nền của
-theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
+Bộ sưu tập skin gắn chuỗi ngày ôn (#162). Một skin CHỈ đổi backdrop + hai đầu
+heatmap (+ emblem nhận diện) — token chữ/nền của người dùng giữ nguyên
+(DESIGN §1), nên skin mặc được trên cả nền sáng lẫn tối. Lối vào: **Giao diện**
+→ mục "Bộ sưu tập skin" + công tắc "Hiện hoạ tiết nền". (`theme/domain/skins.ts`,
+`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 
-- **Bốn skin** (`presets/registry.ts`, khoá `BackgroundEffect`): `buu` (Majin
-  Buu), `cell`, `bamboo` (Rừng trúc — thư mục `panda/`), `akatsuki`.
+- **Bốn skin** (`domain/skins.ts`, hiệu ứng đăng ký ở `presets/registry.ts`,
+  khoá `BackgroundEffect`): `panda` (Rừng trúc, hiệu ứng `bamboo`) · `buu`
+  (Majin Buu) · `cell` · `akatsuki`.
+- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log` cục bộ
+  (`review/domain/streak.ts`, ngày theo 0h máy; hôm nay chưa ôn thì chuỗi kết
+  thúc hôm qua chưa coi là đứt). Mốc: Rừng trúc 3 · Majin Buu 7 · Cell 14 ·
+  Akatsuki 30 ngày, xét theo chuỗi **dài nhất** từng đạt. Skin đã mở giữ vĩnh
+  viễn (danh sách lưu `localStorage` khoá `gioitu.skins.v1`); skin đang mặc từ
+  trước khi có gating được giữ luôn. App inject `loadReviewStreak` vào
+  `ThemeSettings` — theme không import ngược sang review.
 - **Lazy-load**: mỗi hiệu ứng là một `lazy(() => import(...))` riêng, render trong
   `<Suspense fallback={null}>` ở lớp `.theme-backdrop` (fixed, `z-index: -1`,
   `pointer-events: none`) — skin không chọn thì không tải component/CSS/ảnh. Không
