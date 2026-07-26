@@ -18,11 +18,26 @@ async function baseUrl() {
   return (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
 }
 
-/** Cửa sổ popup nhỏ mở form đầy đủ của app (fallback + nút "Form đầy đủ" trên overlay). */
-async function openFullForm(term) {
+/** Điền các trường tuỳ chọn (đã gõ/AI điền trên overlay) vào params ?add=. */
+function setDraftParams(params, { reading, gloss, pairId, pos, example, note }) {
+  if (reading) params.set("add_reading", reading);
+  if (gloss) params.set("add_meaning", gloss);
+  if (pairId) params.set("add_pair", pairId);
+  if (pos) params.set("add_pos", pos);
+  if (example) params.set("add_example", example);
+  if (note) params.set("add_note", note);
+}
+
+/**
+ * Cửa sổ popup nhỏ mở form đầy đủ của app (fallback + nút "Form đầy đủ" trên
+ * overlay) — add_solo=1 để app chỉ vẽ form, mang theo những gì đã soạn dở.
+ */
+async function openFullForm(draft) {
   const base = await baseUrl();
+  const params = new URLSearchParams({ add: (draft?.term || "").trim(), add_solo: "1" });
+  setDraftParams(params, draft || {});
   await chrome.windows.create({
-    url: `${base}/?add=${encodeURIComponent((term || "").trim())}`,
+    url: `${base}/?${params}`,
     type: "popup",
     width: 520,
     height: 680,
@@ -30,26 +45,29 @@ async function openFullForm(term) {
 }
 
 /** Lưu ngầm một từ đã soạn trên overlay: tab nền mở app kèm add_save=1, app ghi xong tự đóng. */
-async function saveInBackground({ term, reading, gloss, pairId }) {
+async function saveInBackground(draft) {
   const base = await baseUrl();
-  const params = new URLSearchParams({ add: term, add_save: "1" });
-  if (reading) params.set("add_reading", reading);
-  if (gloss) params.set("add_meaning", gloss);
-  if (pairId) params.set("add_pair", pairId);
+  const params = new URLSearchParams({ add: draft.term, add_save: "1" });
+  setDraftParams(params, draft);
   await chrome.tabs.create({ url: `${base}/?${params}`, active: false });
 }
 
-/** Chèn overlay vào tab; term rỗng thì overlay tự đọc window.getSelection(). */
+/**
+ * Chèn overlay vào tab; term rỗng thì overlay tự đọc window.getSelection().
+ * Truyền kèm base để overlay tự mở cửa sổ proxy AI (?add_ai=1) đúng origin app
+ * và chỉ nhận postMessage từ origin đó.
+ */
 async function showOverlay(tabId, term) {
+  const base = await baseUrl();
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: ["overlay.js"] });
     await chrome.scripting.executeScript({
       target: { tabId },
-      func: (t) => window.__gioituOverlay(t),
-      args: [term || ""],
+      func: (t, b) => window.__gioituOverlay(t, b),
+      args: [term || "", base],
     });
   } catch {
-    await openFullForm(term);
+    await openFullForm({ term });
   }
 }
 
@@ -85,5 +103,5 @@ chrome.action.onClicked.addListener((tab) => {
 // Overlay (content script) nhờ background làm phần cần quyền extension.
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.kind === "gioitu-quick-save") saveInBackground(msg);
-  else if (msg?.kind === "gioitu-open-full") openFullForm(msg.term);
+  else if (msg?.kind === "gioitu-open-full") openFullForm(msg);
 });

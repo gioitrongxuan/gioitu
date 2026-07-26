@@ -62,4 +62,28 @@ describe("parseAddParams", () => {
   it("add_save khác '1' → không autosave", () => {
     expect(parseAddParams(new URLSearchParams("add=coffee&add_save=0"))?.autosave).toBe(false);
   });
+
+  it("mặc định không aiFill/solo, openerOrigin null", () => {
+    const req = parseAddParams(new URLSearchParams("add=coffee"));
+    expect(req).toMatchObject({ aiFill: false, solo: false, openerOrigin: null });
+  });
+
+  it("add_pos/add_example/add_note đổ vào draft (AI điền trên overlay gửi kèm lúc lưu)", () => {
+    const req = parseAddParams(
+      new URLSearchParams("add=勉強&add_pos=n vs&add_example=毎日勉強する :: Học mỗi ngày&add_note=ghi chú"),
+    );
+    expect(req?.draft).toMatchObject({ pos: "n vs", example: "毎日勉強する :: Học mỗi ngày", note: "ghi chú" });
+  });
+
+  it("add_ai=1 + add_origin → yêu cầu proxy AI kèm origin trang mở", () => {
+    const req = parseAddParams(
+      new URLSearchParams("add=勉強&add_ai=1&add_origin=" + encodeURIComponent("https://example.com")),
+    );
+    expect(req?.aiFill).toBe(true);
+    expect(req?.openerOrigin).toBe("https://example.com");
+  });
+
+  it("add_solo=1 → chỉ vẽ form, không vỏ app", () => {
+    expect(parseAddParams(new URLSearchParams("add=coffee&add_solo=1"))?.solo).toBe(true);
+  });
 });

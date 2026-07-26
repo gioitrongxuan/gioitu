@@ -5,6 +5,28 @@
   max-width: 34rem;
 }
 
+/* Nhịp dọc của form: Manager tự lo bằng .term-form, ở đây .manager-body đảm nhận. */
+.qa-card .manager-body {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.qa-card .dict-status {
+  margin: 0;
+}
+
+/* Cửa sổ popup riêng (?add_solo=1): form là cả trang — nền phẳng thay màn mờ,
+   card neo lên đỉnh để không nhảy dọc khi mở "Thêm chi tiết". */
+.qa-solo {
+  background: var(--bg);
+  place-items: start center;
+}
+
+.qa-solo .qa-card {
+  box-shadow: none;
+}
+
 .qa-more,
 .qa-shortcut {
   border: 1px solid var(--line);
@@ -28,6 +50,10 @@
   margin-bottom: var(--space-2);
 }
 
+.qa-more[open] > .form-field + .form-field {
+  margin-top: var(--space-2);
+}
+
 .qa-actions {
   display: flex;
   align-items: center;
@@ -38,10 +64,6 @@
 
 .qa-ai-hint {
   font-size: var(--text-sm);
-}
-
-.qa-shortcut {
-  margin-top: var(--space-2);
 }
 
 .qa-shortcut p {

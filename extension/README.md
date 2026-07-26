@@ -12,8 +12,12 @@ Ba cách gọi (đều hiện **overlay nhỏ ngay cạnh vùng bôi đen**):
 Trên overlay sửa được mặt chữ / cách đọc / nghĩa và cặp ngôn ngữ (đoán sẵn theo
 chữ viết). Bấm **Lưu** → extension mở một tab nền `?add=…&add_save=1`; chính app
 ghi vào hàng ôn + hộp thư "Từ nhặt được" rồi tự đóng tab — bạn vẫn ở nguyên
-trang. Cần ✨ AI điền hộ thì bấm **Form đầy đủ** (cửa sổ popup nhỏ mở form của
-app). Trang cấm chèn script (chrome://, cửa hàng tiện ích…) tự rơi về popup này.
+trang. **✨ AI điền** (cần đăng nhập Gioitu ở trình duyệt này) mượn app gọi model
+hộ qua một cửa sổ tí hon `?add_ai=1` ở góc màn hình — kết quả `postMessage` về
+overlay (chỉ nhận từ đúng origin app), điền vào ô còn trống; từ loại/ví dụ/ghi
+chú AI trả thêm được gửi kèm lúc lưu. **Form đầy đủ** mở cửa sổ popup chỉ có
+form (`add_solo=1`), mang theo phần đã soạn dở. Trang cấm chèn script
+(chrome://, cửa hàng tiện ích…) tự rơi về popup này.
 
 Extension không gọi API riêng, không đọc trang ngoài phần bạn chủ động bôi đen —
 nên chỉ xin quyền tối thiểu (`contextMenus`, `activeTab`, `scripting`,

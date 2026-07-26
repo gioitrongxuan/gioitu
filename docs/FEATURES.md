@@ -681,7 +681,7 @@ xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
   chữ/cách đọc/nghĩa tại chỗ; Lưu → extension mở tab nền
   `?add=…&add_save=1` — app tự lưu (khi đủ mặt chữ + nghĩa) rồi tự đóng tab.
   Trang cấm chèn script thì rơi về cửa sổ popup mở form đầy đủ. Nút "Form đầy
-  đủ" trên overlay cũng mở popup đó (cần AI điền hộ thì đi đường này).
+  đủ" trên overlay cũng mở popup đó, mang theo phần đã soạn dở.
 - **Bookmarklet "＋ Gioitu"** (kéo từ cuối form lên thanh dấu trang): mồi tải
   `public/qa-overlay.js` (bản song sinh của overlay extension — lưu qua cửa sổ
   tí hon góc màn hình, app ghi xong tự đóng) → cùng trải nghiệm soạn tại chỗ.
@@ -691,6 +691,21 @@ xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
 
 Cặp ngôn ngữ đoán theo chữ viết (`guessPairForText`: có chữ Nhật → Nhật→Việt,
 còn lại → Anh→Việt), đổi được trong form/overlay.
+
+**✨ AI điền trên overlay ngoài trang**: overlay không gọi được API app (khác
+origin, token nằm trong localStorage origin app) nên mượn app làm hộ — nút "✨
+AI điền" mở cửa sổ tí hon `?add=…&add_ai=1&add_origin=<origin trang>`; App nhận
+`add_ai` (`parseAddParams`) chỉ vẽ một dòng trạng thái (`.qa-proxy`), gọi
+`aiFillDraft` (`dictionary/data/aiGenerate.ts` — dùng chung với nút AI trong
+form) rồi `postMessage({kind:"gioitu-ai-fill", filled|error})` về
+`window.opener` đúng `add_origin` và tự đóng. Overlay chỉ nhận message từ đúng
+origin app, chỉ điền ô trống; từ loại/ví dụ/ghi chú AI trả về được giữ lại gửi
+kèm lúc lưu (`add_pos`/`add_example`/`add_note`). Chưa đăng nhập → báo lỗi ngay
+trên overlay.
+
+**Cửa sổ popup riêng cho form** (`add_solo=1` — extension/bookmarklet mở "Form
+đầy đủ" hoặc fallback CSP): App chỉ vẽ form Thêm nhanh + toast, không dựng vỏ
+app; đóng form là đóng cửa sổ.
 
 ## 10. Bản đồ chức năng → tài liệu
 

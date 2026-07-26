@@ -9,7 +9,6 @@
   background: var(--surface); color: var(--fg);
 }
 .ai-panel .chk { justify-content: flex-start; }
-.form-field.grow { flex: 2 1 220px; }
 .cd-existing-note { font-size: 13px; margin: 0; }
 
 .cd-tabs { margin: 4px 0 8px; }

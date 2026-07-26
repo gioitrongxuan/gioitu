@@ -6,13 +6,18 @@
 //   • Lưu = mở cửa sổ tí hon ở góc màn hình `?add=…&add_save=1` — app ghi vào
 //     IndexedDB của origin app rồi tự đóng cửa sổ (iframe nhúng không dùng được:
 //     trình duyệt phân vùng storage bên thứ ba);
-//   • "Form đầy đủ" = cửa sổ popup 520×680 như bookmarklet cũ.
+//   • "✨ AI điền" cũng mượn app: cửa sổ tí hon `?add_ai=1` — app (đăng nhập
+//     sẵn, token first-party) gọi model, postMessage kết quả về đây rồi tự
+//     đóng; overlay chỉ nhận message từ đúng origin app;
+//   • "Form đầy đủ" = cửa sổ popup 520×680 kèm add_solo=1 (app chỉ vẽ form).
 // Trang có CSP chặn script ngoài sẽ không tải được file này — bookmarklet tự
 // rơi về popup form đầy đủ (xem loader trong QuickAdd.tsx).
 
 (function () {
   const HOST_ID = "gioitu-quick-add-host";
   const BASE = new URL(document.currentScript.src).origin;
+  // AI có thể chậm; quá ngưỡng này coi như cửa sổ proxy không quay về được.
+  const AI_TIMEOUT_MS = 60000;
 
   // Sao chép tối thiểu từ app (shared/languages + domain/quickadd).
   const LANG_PAIRS = [
@@ -45,28 +50,47 @@
     select { width: auto; flex: 0 0 auto; }
     .grow { flex: 1 1 auto; min-width: 0; }
     .actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .links { display: flex; align-items: center; gap: 10px; }
     .link { border: 0; background: none; padding: 0; color: #4f7cff; cursor: pointer; font-size: 12.5px; }
     .link:hover { text-decoration: underline; }
+    .link:disabled { opacity: 0.45; cursor: default; text-decoration: none; }
     .save { border: 0; background: #4f7cff; color: #fff; font-weight: 600; padding: 7px 16px;
       border-radius: 8px; cursor: pointer; font-size: 13px; }
     .save:disabled { opacity: 0.45; cursor: default; }
+    .status { margin-top: 8px; font-size: 12.5px; color: rgba(28, 33, 48, 0.65); }
+    .status.err { color: #d5484f; }
     .done { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
     @media (prefers-color-scheme: dark) {
       .card { background: #232837; color: #e8ebf4; border-color: rgba(255, 255, 255, 0.09); }
       input, select { background: #1b1f2b; border-color: rgba(255, 255, 255, 0.14); }
       .link { color: #8ba7ff; }
+      .status { color: rgba(232, 235, 244, 0.65); }
+      .status.err { color: #ff8087; }
     }
   `;
 
-  /** Cửa sổ tí hon góc dưới-phải làm "đường ghi": app lưu xong tự đóng nó. */
-  function openSaveWindow(params) {
+  /** Cửa sổ tí hon góc dưới-phải: app làm việc hộ (ghi / gọi AI) rồi tự đóng. */
+  function openCornerWindow(name, params) {
     const left = Math.max(0, (window.screen.availWidth || 1280) - 320);
     const top = Math.max(0, (window.screen.availHeight || 800) - 220);
-    window.open(`${BASE}/?${params}`, "gioitu-save", `width=300,height=180,left=${left},top=${top}`);
+    window.open(`${BASE}/?${params}`, name, `width=300,height=180,left=${left},top=${top}`);
   }
 
-  function openFullForm(term) {
-    window.open(`${BASE}/?add=${encodeURIComponent(term || "")}`, "gioitu-add", "width=520,height=680");
+  /** Điền các trường tuỳ chọn của draft vào params ?add= (bỏ trường rỗng). */
+  function setDraftParams(params, d) {
+    if (d.reading) params.set("add_reading", d.reading);
+    if (d.gloss) params.set("add_meaning", d.gloss);
+    if (d.pairId) params.set("add_pair", d.pairId);
+    if (d.pos) params.set("add_pos", d.pos);
+    if (d.example) params.set("add_example", d.example);
+    if (d.note) params.set("add_note", d.note);
+  }
+
+  function openFullForm(d) {
+    // Mang theo những gì đã soạn dở — form đầy đủ mở ra không mất công gõ lại.
+    const params = new URLSearchParams({ add: d.term || "", add_solo: "1" });
+    setDraftParams(params, d);
+    window.open(`${BASE}/?${params}`, "gioitu-add", "width=520,height=680");
   }
 
   function show(prefill) {
@@ -97,9 +121,13 @@
       <div class="row"><input name="reading" placeholder="Cách đọc (tuỳ chọn)" aria-label="Cách đọc"></div>
       <div class="row"><input name="gloss" placeholder="Nghĩa (ngăn nhiều nghĩa bằng ;)" aria-label="Nghĩa"></div>
       <div class="actions">
-        <button class="link" type="button">Form đầy đủ</button>
+        <span class="links">
+          <button class="link ai" type="button">✨ AI điền</button>
+          <button class="link full" type="button">Form đầy đủ</button>
+        </span>
         <button class="save" type="button" disabled>Lưu</button>
       </div>
+      <div class="status" hidden></div>
     `;
     root.appendChild(card);
 
@@ -108,6 +136,8 @@
     const readingInput = card.querySelector('[name="reading"]');
     const glossInput = card.querySelector('[name="gloss"]');
     const saveBtn = card.querySelector(".save");
+    const aiBtn = card.querySelector(".ai");
+    const statusEl = card.querySelector(".status");
     for (const p of LANG_PAIRS) {
       const opt = document.createElement("option");
       opt.value = p.id;
@@ -117,11 +147,17 @@
     termInput.value = term;
     pairSelect.value = guessPairId(term);
 
-    // Gỡ toàn bộ listener mức document cùng lúc với overlay — không rơi rớt.
+    // Gỡ toàn bộ listener mức document/window cùng lúc với overlay — không rơi rớt.
     const ac = new AbortController();
     const close = () => {
       ac.abort();
       host.remove();
+    };
+
+    const showStatus = (msg, isErr) => {
+      statusEl.hidden = !msg;
+      statusEl.textContent = msg || "";
+      statusEl.classList.toggle("err", !!isErr);
     };
 
     const refreshSaveable = () => {
@@ -136,6 +172,55 @@
       if (!pairTouched) pairSelect.value = guessPairId(termInput.value);
     });
 
+    // Từ loại/ví dụ/ghi chú AI trả về — overlay không có ô riêng, giữ lại để gửi
+    // kèm lúc lưu. Đổi mặt chữ là bỏ (kết quả thuộc về từ cũ).
+    let extras = { pos: "", example: "", note: "" };
+    termInput.addEventListener("input", () => (extras = { pos: "", example: "", note: "" }));
+
+    // Kết quả AI quay về từ cửa sổ proxy của app — chỉ tin đúng origin app, đúng kind.
+    let aiTimer = 0;
+    window.addEventListener(
+      "message",
+      (e) => {
+        if (e.origin !== BASE) return;
+        const data = e.data;
+        if (!data || data.kind !== "gioitu-ai-fill") return;
+        clearTimeout(aiTimer);
+        aiBtn.disabled = false;
+        if (data.error) {
+          showStatus(data.error, true);
+          return;
+        }
+        const filled = data.filled || {};
+        // Chỉ điền ô trống — không đè phần người dùng đã gõ.
+        if (!readingInput.value.trim() && filled.reading) readingInput.value = filled.reading;
+        if (!glossInput.value.trim() && filled.gloss) glossInput.value = filled.gloss;
+        extras = { pos: filled.pos || "", example: filled.example || "", note: filled.note || "" };
+        showStatus("✨ AI đã điền — kiểm lại rồi lưu.");
+        refreshSaveable();
+      },
+      { signal: ac.signal },
+    );
+
+    aiBtn.addEventListener("click", () => {
+      const t = termInput.value.trim();
+      if (!t) {
+        showStatus("Nhập mặt chữ trước đã.", true);
+        return;
+      }
+      aiBtn.disabled = true;
+      showStatus("Đang nhờ AI điền… (app mở ở cửa sổ góc màn hình)");
+      openCornerWindow(
+        "gioitu-ai",
+        new URLSearchParams({ add: t, add_ai: "1", add_pair: pairSelect.value, add_origin: window.location.origin }),
+      );
+      clearTimeout(aiTimer);
+      aiTimer = setTimeout(() => {
+        aiBtn.disabled = false;
+        showStatus("Không nhận được phản hồi từ Gioitu — đã đăng nhập app chưa?", true);
+      }, AI_TIMEOUT_MS);
+    });
+
     const showSaved = (added) => {
       const done = document.createElement("div");
       done.className = "done";
@@ -147,16 +232,24 @@
       }, 1400);
     };
 
+    const draft = () => ({
+      term: termInput.value.trim(),
+      reading: readingInput.value.trim(),
+      gloss: glossInput.value.trim(),
+      pairId: pairSelect.value,
+      pos: extras.pos,
+      example: extras.example,
+      note: extras.note,
+    });
+
     const save = () => {
-      const t = termInput.value.trim();
-      const gloss = glossInput.value.trim();
-      if (!t || !gloss) return;
-      const params = new URLSearchParams({ add: t, add_save: "1", add_meaning: gloss, add_pair: pairSelect.value });
-      const reading = readingInput.value.trim();
-      if (reading) params.set("add_reading", reading);
-      openSaveWindow(params);
+      const d = draft();
+      if (!d.term || !d.gloss) return;
+      const params = new URLSearchParams({ add: d.term, add_save: "1" });
+      setDraftParams(params, d);
+      openCornerWindow("gioitu-save", params);
       // Báo xong ngay (cửa sổ góc lo phần ghi) — không bắt người đọc chờ.
-      showSaved(t);
+      showSaved(d.term);
     };
     saveBtn.addEventListener("click", save);
     card.addEventListener("keydown", (e) => {
@@ -164,8 +257,8 @@
     });
 
     card.querySelector(".close").addEventListener("click", close);
-    card.querySelector(".link").addEventListener("click", () => {
-      openFullForm(termInput.value.trim());
+    card.querySelector(".full").addEventListener("click", () => {
+      openFullForm(draft());
       close();
     });
     document.addEventListener("keydown", (e) => e.key === "Escape" && close(), { signal: ac.signal });
