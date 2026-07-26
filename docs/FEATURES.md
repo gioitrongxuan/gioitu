@@ -7,36 +7,45 @@
 > Kiến trúc: [ARCHITECTURE.md](./ARCHITECTURE.md). Lược đồ dữ liệu:
 > [DB_SCHEMA.md](./DB_SCHEMA.md).
 
-## 0. Bố cục màn hình chính
+## 0. Bố cục màn hình chính — IA 4 khu
 
-`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** có URL riêng qua
-History API (`/` · `/learned` · `/kanji` · `/vocabstudy` — F5/refresh giữ chỗ,
-Back/Forward đi giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`),
-cộng các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
-Dictionary Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
+`src/app/App.tsx` lắp ráp app theo **4 khu** ([DESIGN.md §4](./DESIGN.md)),
+điều hướng bằng **tab bar dưới đáy** (mobile <760px) / **sidebar trái**
+(desktop) — `app/AppNav.tsx` + `app/shell.css`, khu "Hôm nay" đeo badge số từ
+đến hạn:
+
+- **Hôm nay** (`/`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn, tài sản
+  "Đã thuộc N từ", lối tắt sang Tra cứu (`app/TodayScreen.tsx`).
+- **Tra cứu** (`/search`) — Search Bar (gợi ý live + viết tay/bộ thủ); kết quả
+  mở Detail Panel chiếm nguyên trang.
+- **Kho từ** (`/words`) — tab con: Bản đồ từ (Word Cloud + Filter Bar) ·
+  Đã thuộc (`/words/learned`) · Kanji (`/words/kanji`) · Học từ vựng
+  (`/words/study`); kèm hàng hành động Thêm nhanh · Từ điển cá nhân · Thống kê
+  ôn tập. Path cũ `/learned` `/kanji` `/vocabstudy` vẫn mở đúng trang.
+- **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
+  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
+  từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
+  được khi đăng nhập hiện **ổ khoá** (icon SVG) — tường đăng nhập nhất quán,
+  không giấu hẳn cũng không mời-rồi-chặn.
+
+Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward đi
+giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
+phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
+Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
 Contribution Review, Quick Add, Auth. Mỗi overlay đang mở chiếm một entry
 History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
 Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
 `/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
 
 ```
-┌ Header ─────────────────────────────────────────────────────────┐
-│ 語 Gioitu                [Từ điển ▾ (cặp + nguồn + import)]  [☰] │
-├ Search Bar — ô tra cứu + gợi ý live + viết tay/bộ thủ ───────────┤
-├ Filter Bar — sắp xếp · nổi bật/chỉ-hiện từ cần ôn · [Ôn tập hôm nay]│
-├ Word Cloud — bản đồ nhiệt các từ đang học ──────────┐            │
-│                                          Detail Panel │ (khi mở) │
-└──────────────────────────────────────────────────────┴──────────┘
-        Toasts (góc) · các màn còn lại là mục trong menu ☰
+┌ Sidebar ─┬ Header ────────────────────────────────────────────┐
+│ Hôm nay● │ 語 Gioitu        [Từ điển ▾ (cặp + nguồn + import)] │
+│ Tra cứu  ├ (dải theo khu: Search Bar / tab con + Filter Bar) ──┤
+│ Kho từ   ├ Nội dung khu ───────────────────────┐               │
+│ Tôi      │                          Detail Panel │ (khi mở)     │
+└──────────┴─────────────────────────────────────┴───────────────┘
+  (mobile: sidebar thành tab bar cố định dưới đáy) · Toasts (góc)
 ```
-
-Menu **☰** chứa toàn bộ lối vào còn lại (thay đổi theo đăng nhập/quyền):
-Đã thuộc · Thống kê kanji · Học từ vựng · Từ điển cá nhân · Giao diện ·
-Kết nối Yomitan · Premium · Xuất/Nhập dữ liệu học · Đồng bộ · Đăng nhập/Đăng xuất;
-admin thêm Quản lý từ điển · Duyệt đề xuất. (IA đích 4 khu: [DESIGN.md](./DESIGN.md).)
-Với **khách**, các mục chỉ dùng được khi đăng nhập (**Kết nối Yomitan**,
-**Premium**) hiện **ổ khoá** (icon SVG) kèm gợi ý "cần đăng nhập" — tường đăng
-nhập nhất quán, không giấu hẳn cũng không mời-rồi-chặn. (`app/HeaderMenu.tsx`)
 
 ## 1. Tra cứu từ điển
 

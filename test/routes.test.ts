@@ -1,18 +1,32 @@
-// Routing thuần (#148): URL ↔ Route hai chiều + stack "Back đóng overlay".
+// Routing thuần (#148, IA 4 khu #149): URL ↔ Route hai chiều + stack "Back đóng overlay".
 
 import { describe, expect, it, vi } from "vitest";
-import { createBackStack, parsePath, Route, routeToPath } from "@/app/routes";
+import { createBackStack, khuOf, Page, parsePath, Route, routeToPath } from "@/app/routes";
 
 describe("routeToPath / parsePath", () => {
   it("mỗi trang một path riêng, round-trip được", () => {
-    const pages: Route[] = [
-      { kind: "page", page: "home" },
-      { kind: "page", page: "learned" },
-      { kind: "page", page: "kanji" },
-      { kind: "page", page: "vocabstudy" },
-    ];
-    for (const r of pages) expect(parsePath(routeToPath(r))).toEqual(r);
-    expect(routeToPath({ kind: "page", page: "home" })).toBe("/");
+    const pages: Page[] = ["today", "search", "cloud", "learned", "kanji", "vocabstudy", "me"];
+    for (const page of pages) {
+      const r: Route = { kind: "page", page };
+      expect(parsePath(routeToPath(r))).toEqual(r);
+    }
+    expect(routeToPath({ kind: "page", page: "today" })).toBe("/");
+    expect(routeToPath({ kind: "page", page: "cloud" })).toBe("/words");
+  });
+
+  it("path thời chưa có 4 khu vẫn mở đúng trang mới", () => {
+    expect(parsePath("/learned")).toEqual({ kind: "page", page: "learned" });
+    expect(parsePath("/kanji")).toEqual({ kind: "page", page: "kanji" });
+    expect(parsePath("/vocabstudy")).toEqual({ kind: "page", page: "vocabstudy" });
+  });
+
+  it("khuOf gom các trang con về khu Kho từ", () => {
+    expect(khuOf("today")).toBe("today");
+    expect(khuOf("search")).toBe("search");
+    expect(khuOf("me")).toBe("me");
+    for (const page of ["cloud", "learned", "kanji", "vocabstudy"] as const) {
+      expect(khuOf(page)).toBe("words");
+    }
   });
 
   it("deep-link từ: mã hoá term (kể cả tiếng Nhật, ký tự đặc biệt) và round-trip", () => {
@@ -26,9 +40,9 @@ describe("routeToPath / parsePath", () => {
   });
 
   it("path lạ hoặc %-escape hỏng → về trang chủ", () => {
-    expect(parsePath("/khong-ton-tai")).toEqual({ kind: "page", page: "home" });
-    expect(parsePath("/word/ja-vi/%E0%A4%A")).toEqual({ kind: "page", page: "home" });
-    expect(parsePath("/word/khong-hop-le")).toEqual({ kind: "page", page: "home" });
+    expect(parsePath("/khong-ton-tai")).toEqual({ kind: "page", page: "today" });
+    expect(parsePath("/word/ja-vi/%E0%A4%A")).toEqual({ kind: "page", page: "today" });
+    expect(parsePath("/word/khong-hop-le")).toEqual({ kind: "page", page: "today" });
   });
 });
 
