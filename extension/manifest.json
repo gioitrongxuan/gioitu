@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Gioitu — Thêm nhanh từ",
+  "version": "1.0.0",
+  "description": "Bôi đen một từ ở bất kỳ trang nào rồi thêm nhanh vào Gioitu (từ điển + SRS).",
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
+  "background": { "service_worker": "background.js" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": {
+    "default_title": "Thêm từ đang bôi đen vào Gioitu",
+    "default_icon": { "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "commands": {
+    "add-selection": {
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "description": "Thêm từ đang bôi đen vào Gioitu"
+    }
+  }
+}
