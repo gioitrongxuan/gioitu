@@ -103,6 +103,11 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
 - Client `features/wordcomments/` (`domain/` thuần + `test/wordComments.test.ts`,
   `data/` gọi `/api/comments`, `ui/WordComments.tsx`); server `features/comments/`
   + migration `0011_dict_comments`.
+- **Đừng nhầm với "Bình luận cộng đồng · Mazii"** — đó là khu khác, read-only,
+  nhập kèm từ điển (`entry.comments`, `ui/Media.tsx` → `CommentList`), nằm ngay
+  dưới phần nghĩa. Khu này hiện sẵn `COLLAPSED_COMMENT_COUNT` bình luận đầu +
+  nút **"Xem thêm (N)" / "Thu gọn"**; dữ liệu đã nằm sẵn trong entry nên chỉ là
+  thu/mở, không gọi mạng.
 
 ### Tự định nghĩa & thêm thủ công
 
