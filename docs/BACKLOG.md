@@ -54,9 +54,6 @@ _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
-- [ ] Routing History API (không cần thư viện): 4 khu + `/word/:lang/:term`
-  deep-link + push history khi mở overlay (back đóng overlay thay vì thoát
-  app — hiện toàn useState, F5 mất chỗ). `App.tsx:158-174`
 - [ ] Bottom tab bar mobile (<760px) / sidebar desktop; bỏ dồn hết vào ☰
   (hiện 9-11 mục phẳng trộn 4 loại khái niệm). `App.tsx:231-253`
 - [ ] Màn "Hôm nay": hero "N từ đến hạn · ~X phút" → vào phiên; streak (store

@@ -9,11 +9,15 @@
 
 ## 0. Bố cục màn hình chính
 
-`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** chuyển bằng state
-nội bộ (`page`: home / learned / kanji / vocabstudy — chưa có URL/route), cộng
-các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
+`src/app/App.tsx` lắp ráp một màn hình chính + các **trang** có URL riêng qua
+History API (`/` · `/learned` · `/kanji` · `/vocabstudy` — F5/refresh giữ chỗ,
+Back/Forward đi giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`),
+cộng các lớp phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session,
 Dictionary Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Auth.
+Contribution Review, Quick Add, Auth. Mỗi overlay đang mở chiếm một entry
+History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
+Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
+`/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
 
 ```
 ┌ Header ─────────────────────────────────────────────────────────┐
