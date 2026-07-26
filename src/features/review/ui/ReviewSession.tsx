@@ -21,6 +21,9 @@ import {
 } from "../domain/session";
 import { isReadingMatch } from "../domain/readingPractice";
 import { loadTypeReadingEnabled, saveTypeReadingEnabled } from "../domain/readingPracticeSettings";
+import { cardFront } from "../domain/reverseMode";
+import { loadReverseModeEnabled, saveReverseModeEnabled } from "../domain/reverseModeSettings";
+import "./reverse.css";
 import { formatInterval } from "@/shared/format";
 import { MeaningView } from "@/shared/ui/MeaningView";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -85,6 +88,11 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
   // xử okurigana/nhiều cách đọc hợp lệ ở v1 (xem readingPractice.ts).
   const [typeReadingEnabled, setTypeReadingEnabled] = useState(loadTypeReadingEnabled);
   const [typedReading, setTypedReading] = useState("");
+
+  // Chế độ đảo chiều (#164): mặt trước là NGHĨA, nhớ lại TỪ — mặt sau (MeaningView
+  // với headword furigana) đã là "toàn cảnh thẻ" nên không cần đổi. Độc lập với gõ
+  // cách đọc: bật cả hai thì nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
+  const [reverseEnabled, setReverseEnabled] = useState(loadReverseModeEnabled);
 
   // Escape đóng, focus đầu/trả focus, bẫy Tab (#119). Gọi MỘT LẦN, không trong
   // nhánh `if (!card)` bên dưới (Rules of Hooks) — cả 3 màn (thẻ đang ôn, hết
@@ -294,9 +302,17 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
   const showReadingInput = typeReadingEnabled && card.term_lang === "ja" && !!card.reading;
   const readingAttempt = typedReading.trim();
 
+  // Mặt trước theo chế độ (thẻ không có nghĩa đọc được thì rơi về mặt từ — xem domain).
+  const front = cardFront(reverseEnabled, card);
+
   function toggleTypeReading(enabled: boolean) {
     setTypeReadingEnabled(enabled);
     saveTypeReadingEnabled(enabled);
+  }
+
+  function toggleReverseMode(enabled: boolean) {
+    setReverseEnabled(enabled);
+    saveReverseModeEnabled(enabled);
   }
 
   return (
@@ -319,7 +335,21 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
         )}
 
         <div className="flashcard" onClick={() => setFlipped(true)}>
-          <div className="front">{card.term}</div>
+          {front.kind === "term" ? (
+            <div className="front">{front.text}</div>
+          ) : (
+            <div className="front front-meaning">
+              {front.lines.length === 1 ? (
+                front.lines[0]
+              ) : (
+                <ol>
+                  {front.lines.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
           {flipped && (
             <div className="back">
               {showReadingInput && readingAttempt && (
@@ -381,7 +411,11 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
           )}
           {!flipped && showReadingInput && (
             <div className="reading-attempt" onClick={(e) => e.stopPropagation()}>
-              <label htmlFor="reading-attempt-input">Gõ cách đọc (romaji hoặc kana):</label>
+              <label htmlFor="reading-attempt-input">
+                {front.kind === "meaning"
+                  ? "Nhớ lại từ rồi gõ cách đọc (romaji hoặc kana):"
+                  : "Gõ cách đọc (romaji hoặc kana):"}
+              </label>
               <input
                 id="reading-attempt-input"
                 type="text"
@@ -438,6 +472,14 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
               onChange={(e) => toggleTypeReading(e.target.checked)}
             />
             Gõ cách đọc trước khi lật
+          </label>
+          <label className="chk reverse-toggle">
+            <input
+              type="checkbox"
+              checked={reverseEnabled}
+              onChange={(e) => toggleReverseMode(e.target.checked)}
+            />
+            Đảo chiều: nghĩa → từ
           </label>
           <button className="link close" onClick={onClose}>Kết thúc phiên</button>
         </div>

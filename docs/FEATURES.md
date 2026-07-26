@@ -141,6 +141,16 @@ UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
   "Khó nhằn" + gợi ý (sửa nghĩa cho dễ nhớ hoặc tạm gác để học riêng). Chỉ
   **cảnh báo**, không tự hoãn/xoá. (`srs.isLeech`, [LOGIC §4.6](./LOGIC.md))
 - **Lật thẻ**: mặt trước là từ; bấm để lật xem nghĩa.
+- **Luyện chủ động (tuỳ chọn, #164)** — hai toggle ở footer phiên, lưu
+  `localStorage`, mặc định tắt:
+  - *Gõ cách đọc trước khi lật* (`gioitu.reviewTypeReading.v1`): thẻ tiếng Nhật
+    có `reading` hiện ô nhập romaji/kana trước khi lật; sau khi lật hiện gợi ý
+    đúng/sai (`domain/readingPractice.ts`). Chỉ là gợi ý mềm — không chặn lật,
+    không đụng self-grade/SRS.
+  - *Đảo chiều: nghĩa → từ* (`gioitu.reviewReverse.v1`): mặt trước là **nghĩa**,
+    người học nhớ lại từ; lật ra từ + cách đọc (mặt sau giữ nguyên MeaningView).
+    Thẻ không có nghĩa đọc được thì rơi về mặt từ (`domain/reverseMode.ts`).
+    Bật cùng gõ cách đọc: nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
 - **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.
@@ -156,8 +166,8 @@ lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
-cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
-cloud. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+cho FSRS về sau — cục bộ, chưa đồng bộ cloud; màn **Thống kê ôn tập** ([§9.12](#912-thống-kê-ôn-tập))
+đọc nhật ký này. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
 
 ## 4. Quản lý từ điển
 
@@ -293,11 +303,16 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
   (`lookupError`); đồng bộ dữ liệu học phân biệt offline vs 401 và báo lên UI
   (`syncStatus`).
 - Cài như PWA tuỳ môi trường; lõi dữ liệu nằm trên máy nên mở lại là có ngay.
+- Service worker (`public/sw.js`) precache **toàn bộ asset build, kể cả chunk
+  lazy** (Bộ thủ, Kanji, skin…) — danh sách được chèn lúc build (plugin
+  sw-precache trong `vite.config.ts`, logic ở `src/app/swPrecache.ts`) nên các
+  màn phụ mở được offline ngay cả khi chưa từng ghé; mỗi deploy SW chỉ tải phần
+  chunk đổi hash và dọn hash cũ khỏi cache ở `activate`.
 
 ## 9. Các tính năng bổ sung (2026)
 
 > Các màn/tính năng mọc sau bản SPEC gốc. Bảng dưới là mục lục nhanh (lối vào ·
-> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.11 kế tiếp. Khi thêm
+> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.12 kế tiếp. Khi thêm
 > tính năng mới, cập nhật cả bảng lẫn một mục chi tiết ở đây (cổng review mỗi PR
 > tính năng — xem CLAUDE.md).
 
@@ -305,6 +320,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 |---|---|---|---|
 | Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian | [§9.1](#91-đã-thuộc-learnedcloud) |
 | Thống kê kanji | ☰ | Lưới độ phủ kanji theo nhóm + "Đánh dấu nhanh" | [§9.2](#92-thống-kê-kanji) |
+| Thống kê ôn tập | ☰ | Retention theo ngày + dự báo đến hạn 7 ngày + đường từ đã thuộc | [§9.12](#912-thống-kê-ôn-tập) |
 | Học từ vựng | ☰ | Lưới ô từ (3 nguồn) để đánh dấu biết/không biết | [§9.3](#93-học-từ-vựng) |
 | Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB (nhập tay + AI) | [§9.4](#94-từ-điển-cá-nhân) |
 | Study list | (chưa nối vào UI) | Bộ từ lưu server; client mới chỉ đọc qua Học từ vựng | [§9.5](#95-study-list) |
@@ -314,7 +330,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
-| Skin nền anime | Giao diện | 4 backdrop trang trí lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+| Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -520,12 +536,22 @@ công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel cô
 
 ### 9.11 Skin nền anime
 
-Bộ backdrop trang trí lazy-load, chỉ đổi hoạ tiết nền (không đụng token chữ/nền).
-Lối vào: **Giao diện** → mục "Mẫu có sẵn" + công tắc "Hiện hoạ tiết nền của
-theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
+Bộ sưu tập skin gắn chuỗi ngày ôn (#162). Một skin CHỈ đổi backdrop + hai đầu
+heatmap (+ emblem nhận diện) — token chữ/nền của người dùng giữ nguyên
+(DESIGN §1), nên skin mặc được trên cả nền sáng lẫn tối. Lối vào: **Giao diện**
+→ mục "Bộ sưu tập skin" + công tắc "Hiện hoạ tiết nền". (`theme/domain/skins.ts`,
+`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 
-- **Bốn skin** (`presets/registry.ts`, khoá `BackgroundEffect`): `buu` (Majin
-  Buu), `cell`, `bamboo` (Rừng trúc — thư mục `panda/`), `akatsuki`.
+- **Bốn skin** (`domain/skins.ts`, hiệu ứng đăng ký ở `presets/registry.ts`,
+  khoá `BackgroundEffect`): `panda` (Rừng trúc, hiệu ứng `bamboo`) · `buu`
+  (Majin Buu) · `cell` · `akatsuki`.
+- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log` cục bộ
+  (`review/domain/streak.ts`, ngày theo 0h máy; hôm nay chưa ôn thì chuỗi kết
+  thúc hôm qua chưa coi là đứt). Mốc: Rừng trúc 3 · Majin Buu 7 · Cell 14 ·
+  Akatsuki 30 ngày, xét theo chuỗi **dài nhất** từng đạt. Skin đã mở giữ vĩnh
+  viễn (danh sách lưu `localStorage` khoá `gioitu.skins.v1`); skin đang mặc từ
+  trước khi có gating được giữ luôn. App inject `loadReviewStreak` vào
+  `ThemeSettings` — theme không import ngược sang review.
 - **Lazy-load**: mỗi hiệu ứng là một `lazy(() => import(...))` riêng, render trong
   `<Suspense fallback={null}>` ở lớp `.theme-backdrop` (fixed, `z-index: -1`,
   `pointer-events: none`) — skin không chọn thì không tải component/CSS/ảnh. Không
@@ -533,6 +559,27 @@ theme". (`theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
 - **Reduced-motion**: mỗi background đặt `data-speed` + biến `--fx-drift`; CSS
   đóng băng animation khi OS bật "giảm chuyển động" hoặc khi `data-speed="none"`
   (`styles.css:483-486`) — hoạ tiết vẫn hiện nhưng đứng yên.
+
+### 9.12 Thống kê ôn tập
+
+Overlay đọc `review_log` (IndexedDB, cục bộ) + danh sách entry, dựng bằng SVG
+thuần (không thư viện chart). Lối vào: ☰ → **Thống kê ôn tập**. Mở cho mọi
+người (guest lẫn đăng nhập); #165 sau này mới bàn gate "stats nâng cao" sau
+Premium. (`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats.ts`)
+
+- **Hàng ô số liệu**: Tỉ lệ nhớ 30 ngày · Lượt ôn 30 ngày · Đã thuộc (màu
+  `--seal` thành tựu) · Đến hạn 7 ngày tới.
+- **Tỉ lệ nhớ theo ngày** (30 ngày): chỉ tính lượt chấm có `interval_before`
+  ≥ 1 ngày — "true retention" kiểu Anki, các bước học 1–10 phút không tính;
+  ngày không ôn là khoảng hở thật trên biểu đồ (không nối xuyên).
+- **Dự báo đến hạn 7 ngày**: cột theo ngày từ `next_review`; thẻ đã quá hạn
+  dồn vào "Hôm nay". Giả định ôn đúng hạn, không mô phỏng reschedule.
+- **Từ đã thuộc theo thời gian**: đường luỹ kế theo `learned_at` (fallback
+  `last_lookup_at`), chỉ đếm entry đang LEARNED — điểm cuối luôn khớp "Đã
+  thuộc (N)"; từ tái quên rời khỏi đường (tả tài sản hiện có, không phải lịch
+  sử đầy đủ).
+- Toàn bộ phép tính là hàm thuần nhận `now` từ caller (không `Date.now()`
+  trong domain) — nền đối chiếu cho FSRS khi đủ log.
 
 ## 10. Bản đồ chức năng → tài liệu
 

@@ -1,7 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi } from "vitest";
 import {
-  mergeDictsByUpdatedAt,
   localSyncableDicts,
   writeMergedDicts,
   syncCustomDicts,
@@ -14,7 +13,7 @@ vi.mock("@/features/dictionary/data/dictSyncApi", () => ({
   pushCustomDicts: vi.fn(async () => []),
 }));
 const mockPull = pullCustomDicts as unknown as ReturnType<typeof vi.fn>;
-import { getDb, LocalDictionary } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import { createLocalDictionary, upsertCustomEntries } from "@/features/dictionary/data/customDict";
 import { listLocalDictionaries } from "@/features/dictionary/data/yomitan";
 import { buildDictEntry, emptyDraft, type CustomDraft } from "@/features/dictionary/domain/customEntry";
@@ -25,44 +24,7 @@ const JA_VI = pairById("ja-vi");
 function draft(over: Partial<CustomDraft>): CustomDraft {
   return { ...emptyDraft(), ...over };
 }
-function reg(over: Partial<LocalDictionary>): LocalDictionary {
-  return { id: "d", title: "t", term_lang: "ja", native_lang: "vi", termCount: 0, importedAt: 0, custom: true, ...over };
-}
-function blob(over: Partial<LocalDictionary>, terms: SyncedDict["terms"] = []): SyncedDict {
-  return { registry: reg(over), terms };
-}
-
-describe("mergeDictsByUpdatedAt (thuần)", () => {
-  it("LWW: updatedAt mới hơn thắng", () => {
-    const merged = mergeDictsByUpdatedAt(
-      [blob({ id: "x", updatedAt: 10, title: "cũ" })],
-      [blob({ id: "x", updatedAt: 20, title: "mới" })],
-    );
-    expect(merged).toHaveLength(1);
-    expect(merged[0].registry.title).toBe("mới");
-  });
-
-  it("tombstone mới hơn thắng bản live", () => {
-    const merged = mergeDictsByUpdatedAt(
-      [blob({ id: "x", updatedAt: 10 }, [{} as never])],
-      [blob({ id: "x", updatedAt: 20, deletedAt: 20 })],
-    );
-    expect(merged[0].registry.deletedAt).toBe(20);
-  });
-
-  it("thiếu updatedAt → dùng importedAt", () => {
-    const merged = mergeDictsByUpdatedAt(
-      [blob({ id: "x", importedAt: 3, updatedAt: undefined, title: "thấp" })],
-      [blob({ id: "x", importedAt: 5, updatedAt: undefined, title: "cao" })],
-    );
-    expect(merged[0].registry.title).toBe("cao");
-  });
-
-  it("id khác nhau → giữ cả hai", () => {
-    const merged = mergeDictsByUpdatedAt([blob({ id: "a" })], [blob({ id: "b" })]);
-    expect(merged.map((d) => d.registry.id).sort()).toEqual(["a", "b"]);
-  });
-});
+// Logic merge thuần (term-level, #166) test riêng ở test/dictMerge.test.ts.
 
 describe("localSyncableDicts + writeMergedDicts (IndexedDB)", () => {
   it("đọc blob, dựng lại cache khi remote thắng, tombstone xoá term + ẩn khỏi danh sách", async () => {
@@ -117,5 +79,27 @@ describe("syncCustomDicts (kết quả để phản hồi)", () => {
     expect(r.ok).toBe(true);
     expect(r.pushed).toBe(true);
     expect(r.count).toBeGreaterThanOrEqual(1);
+  });
+
+  it("hai máy sửa cùng một cuốn: merge term-level giữ từ của cả hai (#166)", async () => {
+    const id = await createLocalDictionary({ title: "Ghép", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Ghép", JA_VI, [draft({ term: "水", reading: "みず", gloss: "nước" })]);
+
+    // "Máy kia" đã push bản có 火 nhưng CHƯA thấy 水, registry mới hơn —
+    // blob-LWW cũ sẽ nuốt mất 水 vừa thêm ở máy này.
+    const mine = (await localSyncableDicts()).find((d) => d.registry.id === id)!;
+    const newer = (mine.registry.updatedAt ?? 0) + 1000;
+    const other: SyncedDict = {
+      registry: { ...mine.registry, updatedAt: newer, termCount: 1 },
+      terms: [
+        { ...buildDictEntry(draft({ term: "火", reading: "ひ", gloss: "lửa" }), JA_VI, "Ghép"), dictId: id, updatedAt: newer },
+      ],
+    };
+    mockPull.mockResolvedValueOnce([other]);
+    await syncCustomDicts();
+
+    const db = await getDb();
+    const terms = await db.getAllFromIndex("terms", "by_dict", id);
+    expect(terms.map((t) => t.term).sort()).toEqual(["水", "火"]);
   });
 });

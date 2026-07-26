@@ -31,6 +31,7 @@ import { YomitanSync } from "@/features/auth/ui/YomitanSync";
 import { PremiumModal } from "@/features/premium/ui/PremiumModal";
 import { useAuth } from "@/features/auth/useAuth";
 import { GUEST_USER_ID, Session } from "@/features/auth/data/auth";
+import { loadReviewStreak } from "@/features/review/data/streak";
 import { guestAdoptionPrompt } from "@/features/auth/domain/guestAdoption";
 import { ToastHost } from "@/shared/ui/Toasts";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -56,6 +57,9 @@ const ThemeSettings = lazy(() =>
 );
 const QuickAdd = lazy(() =>
   import("@/features/dictionary/ui/QuickAdd").then((m) => ({ default: m.QuickAdd })),
+);
+const ReviewStats = lazy(() =>
+  import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
 );
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
@@ -236,6 +240,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu.
   const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
@@ -363,6 +368,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     // Luôn hiện (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
     { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => gotoPage("learned") },
     { label: "Thống kê kanji", run: () => gotoPage("kanji") },
+    { label: "Thống kê ôn tập", run: () => setReviewStats(true) },
     { label: "Học từ vựng", run: () => gotoPage("vocabstudy") },
     { label: "Thêm nhanh", run: () => setQuickAdd({ term: "" }) },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
@@ -566,7 +572,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {theming && (
         <Suspense fallback={null}>
-          <ThemeSettings onClose={() => setTheming(false)} />
+          <ThemeSettings onClose={() => setTheming(false)} loadStreak={() => loadReviewStreak(userId)} />
         </Suspense>
       )}
 
@@ -603,6 +609,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
+
+      {reviewStats && (
+        <Suspense fallback={null}>
+          <ReviewStats userId={userId} entries={store.entries} onClose={() => setReviewStats(false)} />
+        </Suspense>
+      )}
 
       {premium && (
         <PremiumModal

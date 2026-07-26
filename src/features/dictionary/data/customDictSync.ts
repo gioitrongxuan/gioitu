@@ -1,9 +1,12 @@
 // Đồng bộ từ điển cá nhân hai chiều (#70 — 6.2), soi gương review/data/repository
-// (user_data). IndexedDB là CACHE; blob trên server là nguồn sự thật. Đơn vị đồng
-// bộ là CẢ một từ điển (registry + toàn bộ từ), LWW theo `updatedAt`. Chỉ đụng từ
-// điển `custom` — từ điển đã nhập (.zip) re-import được nên không đồng bộ.
+// (user_data). IndexedDB là CACHE; blob trên server là nguồn sự thật. Đơn vị
+// truyền tải vẫn là CẢ một từ điển (registry + toàn bộ từ), nhưng hợp nhất ở MỨC
+// TỪ (#166, logic thuần ở domain/dictMerge) — hai máy cùng sửa một cuốn không còn
+// nuốt sửa đổi của nhau. Chỉ đụng từ điển `custom` — từ điển đã nhập (.zip)
+// re-import được nên không đồng bộ.
 
 import { getDb, LocalDictionary } from "@/shared/db";
+import { mergeSyncedDicts } from "../domain/dictMerge";
 import { SyncedDict, pullCustomDicts, pushCustomDicts } from "./dictSyncApi";
 
 /**
@@ -17,11 +20,6 @@ export const SYNCABLE_MAX_TERMS = 2000;
 /** Từ điển này có nằm trong diện đồng bộ không (tự soạn, hoặc bản nhập đủ nhỏ)? */
 export function isSyncable(registry: LocalDictionary): boolean {
   return registry.custom === true || (registry.termCount ?? 0) <= SYNCABLE_MAX_TERMS;
-}
-
-/** Mốc thời gian LWW của một từ điển: updatedAt, hoặc importedAt khi vắng. */
-export function dictUpdatedAt(registry: LocalDictionary): number {
-  return registry.updatedAt ?? registry.importedAt ?? 0;
 }
 
 /**
@@ -39,21 +37,6 @@ export async function localSyncableDicts(): Promise<SyncedDict[]> {
     out.push({ registry, terms });
   }
   return out;
-}
-
-/**
- * Hợp nhất hai danh sách blob theo `registry.id`, LWW theo `updatedAt`. Thuần để
- * test độc lập với IndexedDB/mạng.
- */
-export function mergeDictsByUpdatedAt(a: SyncedDict[], b: SyncedDict[]): SyncedDict[] {
-  const map = new Map<string, SyncedDict>();
-  for (const d of [...a, ...b]) {
-    const existing = map.get(d.registry.id);
-    if (!existing || dictUpdatedAt(d.registry) >= dictUpdatedAt(existing.registry)) {
-      map.set(d.registry.id, d);
-    }
-  }
-  return [...map.values()];
 }
 
 /**
@@ -92,8 +75,9 @@ export interface SyncResult {
 }
 
 /**
- * Đồng bộ hai chiều: (1) đọc local, (2) pull remote, (3) merge LWW, (4) ghi lại
- * cache, (5) push. Không đổi cache (giữ local) khi offline / chưa Premium.
+ * Đồng bộ hai chiều: (1) đọc local, (2) pull remote, (3) merge term-level,
+ * (4) ghi lại cache, (5) push. Không đổi cache (giữ local) khi offline / chưa
+ * Premium.
  */
 export async function syncCustomDicts(): Promise<SyncResult> {
   const local = await localSyncableDicts();
@@ -101,7 +85,7 @@ export async function syncCustomDicts(): Promise<SyncResult> {
   const remote = await pullCustomDicts();
   if (remote == null) return { ok: false, count: 0, pushed: false }; // offline / chưa quyền
 
-  const merged = mergeDictsByUpdatedAt(local, remote);
+  const merged = mergeSyncedDicts(local, remote);
   await writeMergedDicts(merged);
   const pushed = (await pushCustomDicts(merged)) != null;
   return { ok: true, count: merged.filter((d) => !d.registry.deletedAt).length, pushed };
