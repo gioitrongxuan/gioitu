@@ -54,8 +54,6 @@ _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
-- [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
-  (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
   "thêm 1 từ" có 5 cửa, "quản lý từ điển" 3 màn, ShareDialog gần như không
   thể khám phá. Thực thi quyết định mở #3 (study list).

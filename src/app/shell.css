@@ -242,3 +242,72 @@
 }
 .me-section .me-item:last-child { border-bottom: none; }
 .me-item-lock { color: var(--muted); flex: none; }
+
+/* ---- Onboarding lần đầu (#152) ---- */
+
+.ob-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ob-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-heading);
+}
+
+.ob-lead {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+}
+
+.ob-hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: var(--leading-body);
+}
+
+.ob-dicts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.ob-status {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: var(--leading-body);
+}
+
+.ob-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.ob-dots {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ob-dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--line);
+}
+
+.ob-dot.active { background: var(--accent); }
+
+.ob-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

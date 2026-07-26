@@ -35,7 +35,7 @@ Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward
 giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
 phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
 Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Quick Add, Auth. Mỗi overlay đang mở chiếm một entry
+Contribution Review, Quick Add, Auth, Onboarding. Mỗi overlay đang mở chiếm một entry
 History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
 Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
 `/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
@@ -636,6 +636,29 @@ người (guest lẫn đăng nhập); riêng mục "Nâng cao" gate Premium (#16
   mật) kèm nút "Tìm hiểu Premium" mở trang giá trị (§9.7).
 - Toàn bộ phép tính là hàm thuần nhận `now` từ caller (không `Date.now()`
   trong domain) — nền đối chiếu cho FSRS khi đủ log.
+
+### 9.13 Onboarding lần đầu (#152)
+
+Màn chào 3 bước (overlay, `app/Onboarding.tsx`) cho lần mở app đầu tiên:
+(1) triết lý tra-là-tín-hiệu-quên → bấm "+", (2) chọn nguồn từ điển + nút
+**"Tải từ điển đề xuất" một chạm**, (3) nhịp ôn mỗi ngày ở màn Hôm nay.
+
+- **Chỉ chào người mới thật sự**: quyết định thuần `decideOnboarding` ở
+  `app/onboarding.ts` — đã có dữ liệu học hoặc từ điển local (người dùng từ
+  trước khi có onboarding) thì đánh dấu "đã xem" trong im lặng; cờ nhớ ở
+  localStorage `gioitu.onboarded.v1`. Mọi ngả đóng (Bỏ qua / Bắt đầu /
+  Escape / Back) đều đánh dấu đã xem.
+- **Từ điển đề xuất host trên chính server** (cùng origin — không vướng
+  CORS): admin thả file .zip Yomitan + `manifest.json` (mảng
+  `{file, name, description?, source, target}`) vào thư mục
+  `GIOITU_DICTS_DIR` (mặc định `<cwd>/dicts`); client hỏi
+  `GET /api/dict/recommended?source&target` rồi tải qua `importYomitanUrl`
+  (`server/features/dictionary/recommendedRoutes.ts`,
+  `dictionary/data/recommended.ts`). Server chưa cấu hình gói đề xuất →
+  trả `[]`, UI tự ẩn nút (vẫn tra được bằng nguồn Server).
+- Cài xong, nguồn tra chuyển sang "Trên máy" cho phiên hiện tại nhưng
+  **không ghi lựa chọn** — cùng ngữ nghĩa auto-default lúc mở app; lựa chọn
+  chỉ được lưu khi người dùng tự chọn ở dropdown "Từ điển".
 
 ## 10. Bản đồ chức năng → tài liệu
 

@@ -43,6 +43,8 @@ import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
 import { useAppRoute, useBackEntry, useWordUrl } from "./useHistoryRouting";
 import { khuOf, KHU_HOME } from "./routes";
+import { loadOnboarded, markOnboarded, decideOnboarding } from "./firstRun";
+import { Onboarding } from "./Onboarding";
 import { AppNav } from "./AppNav";
 import { TodayScreen } from "./TodayScreen";
 import { MeScreen, MeSection } from "./MeScreen";
@@ -228,6 +230,30 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     setDictSource(s);
     saveSource(s);
   };
+  // Onboarding lần đầu (#152): chỉ chào người mới thật sự — ai đã có dữ liệu
+  // học hoặc từ điển trên máy (dùng app từ trước khi có onboarding) được đánh
+  // dấu "đã xem" trong im lặng. Đọc IndexedDB trực tiếp thay vì store.entries
+  // để không đua với lượt load async đầu tiên của store.
+  const [onboarding, setOnboarding] = useState(false);
+  const closeOnboarding = () => {
+    markOnboarded();
+    setOnboarding(false);
+  };
+  useEffect(() => {
+    if (loadOnboarded()) return;
+    let cancelled = false;
+    Promise.all([getAllEntries(userId), hasLocalDict(pair)]).then(([entries, hasDict]) => {
+      if (cancelled) return;
+      const decision = decideOnboarding(false, entries.length > 0, hasDict);
+      if (decision === "adopt") markOnboarded();
+      if (decision === "show") setOnboarding(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Chạy một lần lúc mở app (MainApp remount theo userId nên mỗi phiên một lần).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
@@ -280,6 +306,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
+  useBackEntry(onboarding, closeOnboarding);
 
   // Số từ đến hạn hiện lên tiêu đề tab + huy hiệu ứng dụng (PWA app badge) để
   // nhắc ôn kể cả khi app ở tab nền hoặc đã cài. dueEntries đã tự tick mỗi phút
@@ -725,6 +752,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           }}
           onClose={() => setPremium(false)}
         />
+      )}
+
+      {onboarding && (
+        // Cài xong gói đề xuất thì chuyển nguồn tra sang local NHƯNG không lưu
+        // (setDictSource, không chooseSource): cùng ngữ nghĩa với auto-default
+        // lúc mount — lựa chọn chỉ được ghi khi người dùng tự chọn ở dropdown.
+        <Onboarding pair={pair} onImported={() => setDictSource("local")} onClose={closeOnboarding} />
       )}
 
       {/* Subtree riêng, subscribe thẳng vào kho toast module-level — toast tự
