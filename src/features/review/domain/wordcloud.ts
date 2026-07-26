@@ -277,5 +277,13 @@ export function groupBySrsTier<
   }));
 }
 
+/**
+ * Các entry đến hạn (due) trong một nhóm cloud — cấp N cho nút "Ôn N từ này"
+ * theo tầng trí nhớ (DESIGN §4). Chỉ nhóm "srs" hiển thị nút này ở UI.
+ */
+export function dueEntriesInGroup(group: Pick<CloudGroup, "items">): VocabEntry[] {
+  return group.items.filter((t) => t.due).map((t) => t.entry);
+}
+
 // Shade → colour mapping lives in the theme feature (`heatBackground` /
 // `heatTextColor`), so the word-cloud "heatmap" follows the user's palette.

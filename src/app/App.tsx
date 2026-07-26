@@ -224,7 +224,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // Shared by both maps (home + "Đã thuộc") so the view reads the same way.
   const [cloudLang, setCloudLang] = useState<CloudLang>("all");
   const [grouping, setGrouping] = useState<CloudGrouping>("none");
-  const [reviewing, setReviewing] = useState(false);
+  // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
+  // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
+  const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
   const [managing, setManaging] = useState(false);
   // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
   const [manageEditQuery, setManageEditQuery] = useState<string | null>(null);
@@ -429,7 +431,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             onSortChange={setSort}
             onLangChange={setCloudLang}
             onGroupingChange={setGrouping}
-            onStartReview={() => setReviewing(true)}
+            onStartReview={() => setReviewQueue(store.dueEntries)}
           />
         </div>
       )}
@@ -481,6 +483,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               deleteMode={deleteMode}
               onSelect={onSelectTag}
               onDelete={store.deleteEntry}
+              onReviewTier={setReviewQueue}
             />
           )}
         </section>
@@ -488,13 +491,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         {detailPanel}
       </main>
 
-      {reviewing && (
+      {reviewQueue && (
         <ReviewSession
-          queue={store.dueEntries}
+          queue={reviewQueue}
           onGrade={store.gradeReview}
           onUndo={store.undoReview}
           onLookupDetails={lookupDetails}
-          onClose={() => setReviewing(false)}
+          onClose={() => setReviewQueue(null)}
         />
       )}
 

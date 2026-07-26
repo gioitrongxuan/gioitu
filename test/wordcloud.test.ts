@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildCloud,
   computeShade,
+  dueEntriesInGroup,
   effectiveCount,
   filterByLang,
   groupByPeriod,
@@ -213,6 +214,28 @@ describe("groupBySrsTier", () => {
     const groups = groupBySrsTier(items);
     expect(groups.map((g) => g.label)).toEqual(["Sắp quên"]); // chỉ một tầng có thẻ
     expect(groups[0].items.map((i) => i.entry.term)).toEqual(["a", "b"]);
+  });
+});
+
+describe("dueEntriesInGroup", () => {
+  const now = 10_000_000;
+
+  it("chỉ giữ entry đến hạn trong nhóm, bỏ entry chưa đến hạn", () => {
+    const entries = [
+      makeEntry({ term: "quá hạn", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now - 1 }),
+      makeEntry({ term: "chưa hạn", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now + DAY }),
+    ];
+    const groups = groupBySrsTier(buildCloud(entries, { now }));
+    expect(groups).toHaveLength(1); // cả hai cùng tầng "rooting"
+    expect(dueEntriesInGroup(groups[0]).map((e) => e.term)).toEqual(["quá hạn"]);
+  });
+
+  it("trả về mảng rỗng khi không có entry nào due trong nhóm", () => {
+    const entries = [
+      makeEntry({ term: "a", status: "LEARNING", card_state: "REVIEW", srs_interval: 3 * DAY, ease_factor: 2.5, next_review: now + DAY }),
+    ];
+    const groups = groupBySrsTier(buildCloud(entries, { now }));
+    expect(dueEntriesInGroup(groups[0])).toEqual([]);
   });
 });
 
