@@ -76,8 +76,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   actions thay deleteMode toàn cục. `domain/wordcloud.ts`
 - [ ] Swipe 4 hướng + haptic cho phiên ôn (route full-screen thay modal);
   hiệu ứng tốt nghiệp (dấu son 合格).
-- [ ] Chia sẻ Word Cloud/kanji grid ra PNG client-side (canvas) — hiện không
-  có gì để khoe, share duy nhất là link zip sống 5 phút.
 - [ ] Skin anime = bộ sưu tập gắn streak (chỉ đổi backdrop+heatmap, không đụng
   token chữ/nền; glyph relapse giữ họ cảnh báo — hiện 🐾/💢 làm nhoè tín hiệu).
   `theme.ts:154,187 · WordCloud.tsx:31`

@@ -443,6 +443,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           <SearchBar pair={pair} source={dictSource} onResult={onResult} />
 
           <FilterBar
+            entries={store.entries}
             dueCount={store.dueEntries.length}
             highlightDue={highlightDue}
             onlyDue={onlyDue}
