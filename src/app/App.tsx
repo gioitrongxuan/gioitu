@@ -22,6 +22,9 @@ import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
 import { TermResult } from "@/features/dictionary/data/search";
+import { ADD_PARAM_KEYS, parseAddParams } from "@/features/dictionary/domain/quickadd";
+import { isDraftFilled } from "@/features/dictionary/domain/customEntry";
+import { saveQuickAdd } from "@/features/dictionary/data/inbox";
 import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
 import { proposeWord } from "@/features/contribute/data/contribute";
 import { ContributionReview } from "@/features/contribute/ui/ContributionReview";
@@ -323,18 +326,26 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     else nav.clearAppBadge?.().catch(() => {});
   }, [dueCount]);
 
-  // Bookmarklet (máy tính) và Share Target (điện thoại) mở app kèm ?add=<mặt chữ>.
-  // Đọc một lần lúc mount → mở form Thêm nhanh, rồi xoá param khỏi URL để refresh
-  // không mở lại và mặt chữ không đọng trên thanh địa chỉ.
+  // Bookmarklet (máy tính) và Share Target (điện thoại) mở app kèm ?add=<mặt chữ>
+  // → mở form Thêm nhanh điền sẵn. Overlay của extension thì gửi đủ trường kèm
+  // add_save=1 (người dùng đã duyệt ngay trên trang) → lưu ngầm rồi tự đóng tab
+  // nền do extension mở; tab mở tay không đóng được thì toast của recordLookup
+  // vẫn báo kết quả. Đọc một lần lúc mount, xoá param khỏi URL để refresh không
+  // lặp lại và mặt chữ không đọng trên thanh địa chỉ.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const term = params.get("add") ?? params.get("add_title");
-    if (term == null) return;
-    setQuickAdd({ term });
-    params.delete("add");
-    params.delete("add_title");
+    const req = parseAddParams(params);
+    if (!req) return;
+    for (const key of ADD_PARAM_KEYS) params.delete(key);
     const qs = params.toString();
     window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    if (req.autosave && isDraftFilled(req.draft)) {
+      saveQuickAdd(req.pair, req.draft, store.recordLookup)
+        .then(() => window.close())
+        .catch(() => setQuickAdd({ term: req.draft.term }));
+    } else {
+      setQuickAdd({ term: req.draft.term });
+    }
   }, []);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>

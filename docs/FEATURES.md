@@ -664,6 +664,32 @@ Màn chào 3 bước (overlay, `app/Onboarding.tsx`) cho lần mở app đầu t
   **không ghi lựa chọn** — cùng ngữ nghĩa auto-default lúc mở app; lựa chọn
   chỉ được lưu khi người dùng tự chọn ở dropdown "Từ điển".
 
+### 9.14 Thêm nhanh khi lướt web (#194)
+
+Lượm một từ gặp ngoài app (từ chưa có trong từ điển) mà không đứt mạch đọc.
+Form Thêm nhanh (`dictionary/ui/QuickAdd/`) lưu vào **cả hai kho**: hàng ôn SRS
+(`recordLookup`) + hộp thư "Từ nhặt được" trong từ điển cá nhân
+(`dictionary/data/inbox.ts` — tra lại thấy ở nguồn *Trên máy*). Nút ✨ AI điền hộ
+(cần đăng nhập) dùng chung engine với Từ điển cá nhân.
+
+Các ngả vào, đều quy về query param `?add=<mặt chữ>` (đọc một lần lúc mount rồi
+xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
+
+- **Menu ☰ → Thêm nhanh**: form trống ngay trong app.
+- **Extension Chrome/Edge** (`extension/` — chuột phải / `Ctrl/⌘+Shift+Y` / nút
+  toolbar): overlay Shadow DOM hiện **ngay trên trang đang đọc**, soạn mặt
+  chữ/cách đọc/nghĩa tại chỗ; Lưu → extension mở tab nền
+  `?add=…&add_save=1` — app tự lưu (khi đủ mặt chữ + nghĩa) rồi tự đóng tab.
+  Trang cấm chèn script thì rơi về cửa sổ popup mở form đầy đủ. Nút "Form đầy
+  đủ" trên overlay cũng mở popup đó (cần AI điền hộ thì đi đường này).
+- **Bookmarklet "＋ Gioitu"** (kéo từ cuối form lên thanh dấu trang): mở cửa sổ
+  popup 520×680 của app với mặt chữ bôi đen điền sẵn.
+- **Share Target Android** (`manifest.webmanifest`): bôi đen ở app bất kỳ →
+  Chia sẻ → Gioitu (map `text→add`, `title→add_title`; cần cài PWA). iOS chưa có.
+
+Cặp ngôn ngữ đoán theo chữ viết (`guessPairForText`: có chữ Nhật → Nhật→Việt,
+còn lại → Anh→Việt), đổi được trong form/overlay.
+
 ## 10. Bản đồ chức năng → tài liệu
 
 | Nhóm chức năng | Quy tắc nghiệp vụ | Lưu trữ |

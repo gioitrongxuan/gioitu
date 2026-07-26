@@ -7,22 +7,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LANG_PAIRS, LangPair } from "@/shared/languages";
-import { buildAiPrompt, buildDictEntry, CustomDraft, emptyDraft, isDraftFilled, parseAiResponse } from "../../domain/customEntry";
-import { guessPairForText } from "../../domain/quickadd";
+import { buildAiPrompt, CustomDraft, emptyDraft, isDraftFilled, parseAiResponse } from "../../domain/customEntry";
+import { guessPairForText, QuickAddRecord } from "../../domain/quickadd";
 import { generateVocab } from "../../data/aiGenerate";
-import { addToInbox, INBOX_TITLE } from "../../data/inbox";
+import { INBOX_TITLE, saveQuickAdd } from "../../data/inbox";
 import "./quickadd.css";
 
-/** Các trường tối thiểu để ghi một từ vào hàng ôn SRS (khớp recordLookup của store). */
-export interface QuickAddRecord {
-  term: string;
-  term_lang: string;
-  native_lang: string;
-  meaning: string;
-  reading?: string;
-  pos?: string;
-  is_custom?: boolean;
-}
+export type { QuickAddRecord };
 
 interface Props {
   /** Cặp ngôn ngữ đang chọn ở app — dùng khi mở form trống (không có từ gợi ý). */
@@ -102,19 +93,8 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
     setSaving(true);
     setStatus("");
     try {
-      const entry = buildDictEntry(draft, pair, INBOX_TITLE);
       // Đổ vào CẢ hai kho: hàng ôn (để ôn) + hộp thư lượm nhặt (để tra lại sau).
-      await onRecordSrs({
-        term: entry.term,
-        term_lang: entry.term_lang,
-        native_lang: entry.native_lang,
-        meaning: JSON.stringify(entry.definitions),
-        reading: entry.reading || undefined,
-        pos: draft.pos.trim() || undefined,
-        is_custom: true,
-      });
-      await addToInbox(pair, draft);
-      const added = entry.term;
+      const added = await saveQuickAdd(pair, draft, onRecordSrs);
       // Sẵn sàng lượm từ tiếp: xoá form, giữ cặp ngôn ngữ, con trỏ về ô mặt chữ.
       setDraft(emptyDraft());
       setStatus(`Đã thêm “${added}” vào hàng ôn và “${INBOX_TITLE}”.`);
