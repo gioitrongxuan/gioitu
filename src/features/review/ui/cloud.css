@@ -1,0 +1,57 @@
+/* Word Cloud — popover mini trên thẻ (#159), thay tooltip `title` và "Chế độ
+   xoá" toàn cục. Hover mở dạng thẻ tin nhanh; long-press/chuột phải ghim lại
+   như menu (backdrop + focus qua useDialog). Token theo DESIGN §2. */
+
+/* Long-press cần nuốt hành vi mặc định trên mobile: chọn chữ + callout iOS. */
+.word-cloud .tag {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tag-popover {
+  position: fixed;
+  z-index: var(--z-sheet); /* trên .menu-backdrop (29), dưới modal */
+  width: 260px; /* = POPOVER_WIDTH_PX (domain/tagPopover.ts) */
+  max-width: calc(100vw - var(--space-4));
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: tag-popover-in var(--dur-base) var(--ease-out);
+}
+@keyframes tag-popover-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tag-popover { animation: none; }
+}
+
+.tag-popover-head { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.tag-popover-term { font-size: var(--text-lg); font-weight: 600; line-height: var(--leading-heading); }
+.tag-popover-reading { color: var(--muted); font-size: var(--text-sm); }
+.tag-popover-gloss {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  /* Nghĩa dài kẹp 2 dòng — popover là bản tóm tắt, chi tiết đã có panel. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tag-popover-meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tag-popover-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+@media (pointer: coarse) {
+  .tag-popover-actions .chip-toggle { min-height: 44px; padding: 0 var(--space-4); }
+}

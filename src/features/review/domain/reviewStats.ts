@@ -255,6 +255,46 @@ export function contiguousRuns<T>(items: T[], hasData: (item: T) => boolean): T[
   return runs;
 }
 
+/** Cửa sổ dải hoạt động màn "Hôm nay": 7 ngày gần nhất. */
+export const ACTIVITY_DAYS = 7;
+
+/** Một ngày trong dải hoạt động. `count === 0` = ngày không ôn. */
+export interface ActivityDay {
+  dayStart: number; // nửa đêm địa phương, epoch ms
+  count: number; // số lượt chấm trong ngày (mọi loại thẻ)
+}
+
+/**
+ * Số lượt chấm mỗi ngày trong `days` ngày gần nhất (phần tử cuối = hôm nay) —
+ * dải hoạt động màn "Hôm nay" (#150). Khác retention: đếm MỌI lượt (kể cả
+ * learning step) vì đo "hôm đó có ngồi ôn không", không đo trí nhớ dài hạn.
+ */
+export function activityByDay(
+  log: ReviewLogEntry[],
+  now: number,
+  days: number = ACTIVITY_DAYS,
+): ActivityDay[] {
+  const { starts, end } = dayStarts(now, days);
+  const out: ActivityDay[] = starts.map((dayStart) => ({ dayStart, count: 0 }));
+  for (const row of log) {
+    const i = bucketIndex(row.ts, starts, end);
+    if (i !== -1) out[i].count += 1;
+  }
+  return out;
+}
+
+/**
+ * Những từ hay quên nhất — thẻ rớt (`lapses`) nhiều lần nhất, từ tái quên gần
+ * đây xếp trước khi đồng hạng. Cho khối "3 từ hay quên" màn "Hôm nay" (#150):
+ * mời người dùng chạm mặt đúng những từ đang trượt khỏi trí nhớ.
+ */
+export function mostForgotten(entries: VocabEntry[], limit: number = 3): VocabEntry[] {
+  return entries
+    .filter((e) => !isDeleted(e) && e.lapses > 0)
+    .sort((a, b) => b.lapses - a.lapses || b.last_lookup_at - a.last_lookup_at)
+    .slice(0, limit);
+}
+
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /** Nhãn ngày ngắn "dd/MM" cho trục thời gian. */
