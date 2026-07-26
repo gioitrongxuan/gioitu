@@ -7,20 +7,33 @@
    avatar-cạnh-nội-dung) nên các rule đè chéo nhau: `.comment { display: flex }`
    của Mazii đứng sau trong bundle nên thắng, biến thẻ bình luận ở đây thành hàng
    ngang. Nay tách về đúng feature và bọc MỌI rule trong `.word-comments` để hai
-   hệ không còn với tới nhau. */
+   hệ không còn với tới nhau.
 
-.word-comments { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; display: grid; gap: 10px; }
-.word-comments .comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+   Giá trị đều là token DESIGN §2. Ba chỗ vốn lệch thang đã dịch về bậc gần
+   nhất: gap 10px → --space-3, padding thẻ 8px 10px → --space-2 (đều 4 phía),
+   meta/lỗi 12px → --text-xs; line-height 1.5 → --leading-body theo quy ước
+   "1.6 cho nội dung". */
+
+.word-comments { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-3); display: grid; gap: var(--space-3); }
+.word-comments .comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
 /* Tải thêm phần cũ hơn — đứng trên danh sách vì bình luận cũ mọc ngược lên. */
 .word-comments .comment-more { justify-self: start; font-size: var(--text-xs); }
-.word-comments .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
-.word-comments .comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
+.word-comments .comment { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-2); }
+.word-comments .comment-meta { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
 .word-comments .comment-author { font-weight: 600; color: var(--fg); }
 /* Icon SVG không có baseline chữ để bám: canh giữa thay vì để hàng meta
    (align-items: baseline) dìm nó xuống dưới tên người viết. */
-.word-comments .comment-del { margin-left: auto; align-self: center; display: inline-flex; padding: 0 4px; }
-.word-comments .comment-body { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.word-comments .comment-form { display: grid; gap: 8px; }
-.word-comments .comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+.word-comments .comment-del { margin-left: auto; align-self: center; display: inline-flex; padding: 0 var(--space-1); }
+.word-comments .comment-body { margin: var(--space-1) 0 0; line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.word-comments .comment-form { display: grid; gap: var(--space-2); }
+.word-comments .comment-form textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-2); font: inherit; }
 .word-comments .comment-form .primary { justify-self: start; }
-.word-comments .comment-error { font-size: 12px; margin: 0; }
+.word-comments .comment-error { font-size: var(--text-xs); margin: 0; }
+
+/* `font: inherit` ở trên đặt cả font-size (= --text-base, 15px) và đặc thù
+   (0,2,1) thắng rule mobile chung `input, select, textarea` (0,0,1) trong
+   styles.css — nên ô này lọt lưới và Safari iOS vẫn tự zoom khi focus. Nhắc lại
+   ngưỡng 16px ngay tại đây (DESIGN §3.7), giữ 15px trên desktop. */
+@media (max-width: 759px) {
+  .word-comments .comment-form textarea { font-size: max(16px, 1em); }
+}

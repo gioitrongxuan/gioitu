@@ -93,7 +93,7 @@
 
 /* Bấm một thẻ: nghĩa cá nhân đã lưu ở trên, định nghĩa từ điển ở dưới. Nhãn nhỏ
    và đường kẻ tách hai vùng khi cùng xuất hiện. */
-.detail-panel .section-label { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.detail-panel .section-label { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
 .detail-panel .saved-meaning + .results { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .result { border-top: 1px solid var(--line); padding-top: 12px; }
 .result:first-child { border-top: none; padding-top: 0; }
@@ -189,15 +189,17 @@
    class con trong cùng file này và đè chéo lên nhau. Mọi rule bọc trong gốc để
    giữ nguyên như vậy. Giá trị dưới đây là hiệu lực THỰC TẾ trước khi tách, gồm
    cả phần thừa hưởng từ khối kia (nền thẻ, bọc chữ) nên nhìn không đổi gì. */
-.community-comments { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 10px; }
-.community-comments-head { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-.community-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.community-comments .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; display: flex; gap: 8px; }
+.community-comments { margin-top: var(--space-3); border-top: 1px solid var(--line); padding-top: var(--space-3); display: grid; gap: var(--space-3); }
+/* Bỏ margin-bottom 6px cũ: gốc là grid có gap nên nó cộng dồn thành hai lớp
+   khoảng cách chồng nhau — để gap lo một mình. */
+.community-comments-head { font-size: var(--text-sm); font-weight: 600; }
+.community-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.community-comments .comment { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-2); display: flex; gap: var(--space-2); }
 .community-comments .comment-avatar { width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto; }
 /* pre-wrap/anywhere là thuộc tính DI TRUYỀN: `.comment-mean` bên trong dựa vào
    chúng để giữ dòng và không tràn panel (#227) — bỏ đi là chữ dài phá layout. */
-.community-comments .comment-body { margin: 4px 0 0; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
-.community-comments .comment-meta { display: flex; align-items: baseline; gap: 8px; font-size: 11px; margin-top: 1px; color: var(--muted); }
+.community-comments .comment-body { margin: var(--space-1) 0 0; font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-comments .comment-meta { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
 .community-comments .comment-author { font-weight: 600; color: var(--fg); }
 .community-comments .comment-more { justify-self: start; font-size: var(--text-xs); }
 
