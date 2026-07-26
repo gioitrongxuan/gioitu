@@ -19,6 +19,7 @@ import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCl
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { ChevronDownIcon, DownloadIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
+import "./review.css";
 
 interface Props {
   /** Toàn bộ entry của bản đồ — chỉ dùng cho nút "Tải ảnh PNG" (issue #161). */

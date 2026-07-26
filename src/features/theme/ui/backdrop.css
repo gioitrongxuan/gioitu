@@ -1,0 +1,14 @@
+/* Hiệu ứng nền trang trí (tách từ styles.css, #168). */
+
+/* Hiệu ứng nền trang trí của theme (features/theme/ui/ThemeBackdrop).
+   Cố định sau toàn bộ nội dung: z-index âm + pointer-events none nên không
+   che chuột/chạm; chỉ animate transform (không layout/paint thuộc tính khác)
+   để cuộn và word cloud dày thẻ vẫn mượt. */
+.theme-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.fx-layer { position: absolute; inset: 0; }
+/* Người dùng bật "giảm chuyển động" (hoặc chọn speed "none"): hoạ tiết vẫn
+   hiện nhưng đứng yên. */
+@media (prefers-reduced-motion: reduce) {
+  .fx-layer *, .fx-layer { animation: none !important; }
+}
+.fx-layer[data-speed="none"] *, .fx-layer[data-speed="none"] { animation: none !important; }

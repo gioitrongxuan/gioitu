@@ -6,6 +6,7 @@ import { getAuthConfig } from "../data/auth";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon } from "@/shared/ui/icons";
 import { GoogleSignInButton } from "./GoogleSignInButton";
+import "./auth.css";
 
 interface Props {
   onCredential: (credential: string) => Promise<void>;

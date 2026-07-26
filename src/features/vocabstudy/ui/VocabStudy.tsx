@@ -27,6 +27,7 @@ import {
 } from "../domain/vocablist";
 import * as studyListSrc from "../data/studyListSource";
 import * as customDictSrc from "../data/customDictSource";
+import "./vocabstudy.css";
 
 type SourceKind = "studylist" | "custom" | "history";
 type StatusFilter = "all" | VocabProgress;

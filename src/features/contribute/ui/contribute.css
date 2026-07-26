@@ -1,0 +1,8 @@
+/* Đề xuất sửa nghĩa + màn duyệt (tách từ styles.css, #168). */
+
+.proposal-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.proposal { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-radius: 8px; background: var(--surface-2); }
+.proposal-body { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.proposal-head { font-weight: 600; }
+.proposal-gloss { font-size: 13px; }
+.proposal-acts { display: flex; flex-direction: column; gap: 4px; white-space: nowrap; }

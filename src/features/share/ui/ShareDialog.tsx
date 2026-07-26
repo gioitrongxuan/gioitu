@@ -6,6 +6,7 @@ import { exportDictAsZip } from "@/features/dictionary/data/yomitanZip";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon } from "@/shared/ui/icons";
 import { createShareLink, ShareLink } from "../data/share";
+import "./share.css";
 
 interface Props {
   loggedIn: boolean;

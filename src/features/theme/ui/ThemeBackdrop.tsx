@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { useTheme } from "../ThemeProvider";
 import { skinById } from "../domain/skins";
 import { BACKGROUNDS } from "../presets/registry";
+import "./backdrop.css";
 
 export function ThemeBackdrop() {
   const { decor } = useTheme();

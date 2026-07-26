@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon } from "@/shared/ui/icons";
+import "./contribute.css";
 
 export function ContributionReview({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<Proposal[] | null>(null);

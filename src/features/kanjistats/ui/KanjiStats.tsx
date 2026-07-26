@@ -23,6 +23,7 @@ import {
 } from "../domain/kanjigrid";
 import { KANJI_GROUPINGS } from "../data/groupings";
 import { exportKanjiGridPng, ExportSection } from "./kanjiGridPng";
+import "./kanjistats.css";
 
 type SourceKind = "learned" | "all";
 

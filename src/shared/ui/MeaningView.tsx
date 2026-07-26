@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { Furigana } from "./Furigana";
 import { meaningToLines, exampleToLines, analysisToMap } from "@/shared/meaning";
+import "./meaning.css";
 
 // Các bộ phân tích payload (nghĩa/ví dụ/phân tích AI) sống ở @/shared/meaning để
 // logic thuần tái dùng được; re-export ở đây để chỗ cũ (DetailPanel…) không đổi.

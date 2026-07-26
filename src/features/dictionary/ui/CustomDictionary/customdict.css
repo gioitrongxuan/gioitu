@@ -1,0 +1,63 @@
+/* Từ điển cá nhân (tách từ styles.css, #168). */
+
+/* Từ điển cá nhân (Issue #69) — cấu hình, lưới nhập, panel AI, dialog trùng. */
+.cd-config { display: grid; gap: 10px; }
+/* Text-like fields fill their cell; checkboxes keep their native size. */
+.cd-config input:not([type="checkbox"]), .cd-config select,
+.ai-panel input:not([type="checkbox"]), .ai-panel select, .ai-panel textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit;
+  background: var(--surface); color: var(--fg);
+}
+.ai-panel .chk { justify-content: flex-start; }
+.form-field.grow { flex: 2 1 220px; }
+.cd-existing-note { font-size: 13px; margin: 0; }
+
+.cd-tabs { margin: 4px 0 8px; }
+.cd-help { font-size: 12px; margin: 0; }
+
+/* min-width:0 lets the wide grid shrink inside the modal and scroll on its own
+   instead of forcing the whole card past the viewport on narrow screens. */
+.custom-grid-wrap { display: grid; gap: 8px; overflow-x: auto; min-width: 0; }
+.custom-grid { width: 100%; border-collapse: collapse; font-size: 14px; }
+.custom-grid th { text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); padding: 2px 4px; }
+.custom-grid td { padding: 2px; }
+.custom-grid input {
+  width: 100%; min-width: 88px; border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit;
+  background: var(--surface); color: var(--fg);
+}
+.custom-grid input:focus { border-color: var(--accent); }
+.custom-grid .row-x { padding: 0 4px; }
+
+/* Chế độ sửa: nhãn "Mới" + nền nhạt cho dòng vừa thêm trong phiên này. */
+.custom-grid .cd-status { width: 1%; white-space: nowrap; padding: 2px 4px; text-align: center; }
+.custom-grid .cd-new-badge {
+  display: inline-block; font-size: 10px; font-weight: 600; line-height: 1.4;
+  padding: 1px 6px; border-radius: 999px; color: var(--bg); background: var(--accent);
+  letter-spacing: 0.02em;
+}
+.custom-grid tr.is-new { background: color-mix(in oklab, var(--accent) 8%, var(--surface)); }
+
+/* Ô tìm trong lưới (chế độ sửa). */
+.cd-search { margin-bottom: 6px; }
+.cd-search input {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
+  font: inherit; background: var(--surface); color: var(--fg);
+}
+.cd-search input:focus { border-color: var(--accent); }
+
+.ai-panel { display: grid; gap: 10px; }
+.ai-checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.ai-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.prompt-fallback { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+.cd-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+
+.cd-conflict-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: var(--overlay); }
+.cd-conflict {
+  width: min(420px, 96vw); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+.cd-conflict p { margin: 0 0 14px; font-size: 14px; }

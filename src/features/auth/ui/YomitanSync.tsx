@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon } from "@/shared/ui/icons";
 import { getYomitanKey, regenerateYomitanKey } from "../data/auth";
+import "./yomitansync.css";
 
 interface Props {
   loggedIn: boolean;

@@ -36,6 +36,7 @@ import { KanjiBreakdown } from "@/features/dictionary/ui/KanjiPanel";
 import { TermResult } from "@/features/dictionary/data/search";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { FIXED_CAUTION, FIXED_OK, readableTextOn } from "@/features/theme/domain/theme";
+import "./review.css";
 
 interface Props {
   queue: VocabEntry[];
