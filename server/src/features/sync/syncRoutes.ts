@@ -2,6 +2,7 @@
 // authenticated user via the bearer token. SQL lives in syncStore.
 import { Router } from "express";
 import { wrap, requireAuth, AuthedRequest } from "../../core/middleware.js";
+import { sinceParam } from "../../core/queryParams.js";
 import * as syncStore from "./syncStore.js";
 
 export const syncRoutes = Router();
@@ -11,8 +12,7 @@ syncRoutes.get(
   "/",
   requireAuth,
   wrap(async (req: AuthedRequest, res) => {
-    const since = Number(req.query.since ?? 0);
-    res.json(await syncStore.pull(req.userId!, since));
+    res.json(await syncStore.pull(req.userId!, sinceParam(req.query.since)));
   }),
 );
 

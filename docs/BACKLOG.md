@@ -46,9 +46,9 @@ _(trống — mọi mục engine SRS của giai đoạn 1 đã xong)_
 _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 ### Quick wins lặt vặt (mỗi cái <1h)
-- [ ] Key React đồng âm `${term}:${reading}` ở SearchBar:166 + InstantActions:69.
-- [ ] Loading state khi confirm tra (nguồn server tới 12 round-trip tuần tự —
-  song song hoá luôn bằng Promise.all). `sources.ts:41-63`
+
+_(trống — key React đồng âm đã xong ở SearchBar/InstantActions; sources.ts đã
+song song hoá bằng Promise.all và useLookup có cờ `pending`)_
 
 ## Giai đoạn 2 — "Nhịp ngày" (~2–3 tuần)
 

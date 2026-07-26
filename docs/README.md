@@ -9,7 +9,7 @@ Spaced Repetition System (SRS). Tổng quan vận hành và cách chạy: xem
 | [FEATURES.md](./FEATURES.md) | Chức năng hệ thống (góc nhìn người dùng): bố cục màn hình, tra cứu, Word Cloud, ôn tập SRS, quản lý từ điển, theme, tài khoản/đồng bộ, thông báo, offline-first. |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Kiến trúc: tầng feature (data/domain/ui), hướng phụ thuộc, luồng dữ liệu runtime (lookup / review / sync), từ điển hai nguồn, backend, topology triển khai, guest/auth, theme. |
 | [LOGIC.md](./LOGIC.md) | Logic thuần: 9 ràng buộc SPEC, `VocabEntry`, gating tra cứu, engine SM-2 (gradeCard/relapse), Word Cloud, deinflection, import Yomitan, structured content, term-meta, furigana, merge LWW, heatmap. |
-| [DB_SCHEMA.md](./DB_SCHEMA.md) | Lược đồ lưu trữ: 4 object store IndexedDB (khoá/index/value), 4 bảng PostgreSQL (DDL nguyên văn + quan hệ), API HTTP, giao thức đồng bộ LWW, xác thực, bootstrap/seed, biến môi trường. |
+| [DB_SCHEMA.md](./DB_SCHEMA.md) | Lược đồ lưu trữ: 5 object store IndexedDB (khoá/index/value), 17 bảng PostgreSQL (DDL nguyên văn + quan hệ), API HTTP, giao thức đồng bộ LWW, xác thực, bootstrap/seed, biến môi trường. |
 
 ## Đọc theo nhu cầu
 

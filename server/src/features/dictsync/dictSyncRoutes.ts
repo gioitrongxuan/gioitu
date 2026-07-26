@@ -4,6 +4,7 @@
 import { Router } from "express";
 import { wrap, requireAuth, AuthedRequest } from "../../core/middleware.js";
 import { canSyncDicts } from "../../core/entitlements.js";
+import { sinceParam } from "../../core/queryParams.js";
 import * as dictSyncStore from "./dictSyncStore.js";
 
 export const dictSyncRoutes = Router();
@@ -15,8 +16,7 @@ dictSyncRoutes.get(
   requireAuth,
   wrap(async (req: AuthedRequest, res) => {
     if (!(await canSyncDicts(req.userId!))) return res.status(403).json({ error: NEED_PREMIUM });
-    const since = Number(req.query.since ?? 0);
-    res.json(await dictSyncStore.pull(req.userId!, since));
+    res.json(await dictSyncStore.pull(req.userId!, sinceParam(req.query.since)));
   }),
 );
 

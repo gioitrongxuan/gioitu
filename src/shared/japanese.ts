@@ -51,15 +51,6 @@ export function isCodePointKanji(cp: number): boolean {
   return inRanges(cp, CJK_IDEOGRAPH_RANGES);
 }
 
-/** Whether the string contains at least one Japanese (kana/kanji) character. */
-export function isStringPartiallyJapanese(str: string): boolean {
-  for (const c of str) {
-    const cp = c.codePointAt(0) ?? 0;
-    if (isCodePointKana(cp) || isCodePointKanji(cp)) return true;
-  }
-  return false;
-}
-
 /** Vowel a prolonged-sound-mark (ー) lengthens, for katakana→hiragana mapping. */
 const VOWEL_OF = new Map<string, "a" | "i" | "u" | "e" | "o">();
 for (const [v, chars] of [

@@ -31,10 +31,6 @@
   border-color: var(--accent); color: var(--accent);
 }
 .chip-toggle.danger:hover { border-color: var(--warn); }
-.chip-toggle.danger.on {
-  background: color-mix(in oklab, var(--warn) 12%, var(--surface));
-  border-color: var(--warn); color: var(--warn);
-}
 .review-btn {
   margin-left: auto; background: var(--accent); color: #fff; border: none;
   padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;

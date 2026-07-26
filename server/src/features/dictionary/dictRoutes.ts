@@ -4,9 +4,21 @@
 import express, { Router } from "express";
 import type { EditableSense, JlptLevel, PitchAccent } from "@/shared/dictionary";
 import { wrap, requireAdmin } from "../../core/middleware.js";
+import { clampInt } from "../../core/queryParams.js";
 import * as dictStore from "./dictStore.js";
 
 export const dictRoutes = Router();
+
+/** Trang duyệt từ của trình quản trị: cỡ mặc định và trần cứng cho một lượt. */
+const DEFAULT_BROWSE_LIMIT = 50;
+const MAX_BROWSE_LIMIT = 200;
+
+/** Postgres foreign_key_violation — dùng để phân biệt "sai id" với lỗi hạ tầng. */
+const PG_FOREIGN_KEY_VIOLATION = "23503";
+
+function isForeignKeyViolation(err: unknown): boolean {
+  return (err as { code?: string } | null)?.code === PG_FOREIGN_KEY_VIOLATION;
+}
 
 // --- Nắn body của PUT /term (tin admin, nhưng vẫn chuẩn hoá kiểu) ---
 
@@ -176,8 +188,8 @@ dictRoutes.get(
     const src = String(req.query.src ?? "");
     const tgt = String(req.query.tgt ?? "");
     const q = String(req.query.q ?? "").trim();
-    const limit = Math.min(Number(req.query.limit ?? 50), 200);
-    const offset = Math.max(Number(req.query.offset ?? 0), 0);
+    const limit = clampInt(req.query.limit, DEFAULT_BROWSE_LIMIT, 1, MAX_BROWSE_LIMIT);
+    const offset = clampInt(req.query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
     res.json(await dictStore.browseTerms(src, tgt, q, limit, offset));
   }),
 );
@@ -273,8 +285,11 @@ dictRoutes.post(
       const image = await dictStore.addWordImage(wordId, url);
       if (!image) return res.status(404).json({ error: "Không tìm thấy từ" });
       res.json(image);
-    } catch {
-      // FK gãy khi word_id không tồn tại — báo 404 thay vì 500.
+    } catch (err) {
+      // Chỉ FK gãy (word_id không tồn tại) mới là 404. Bắt trống thì mất điện
+      // DB hay vi phạm ràng buộc cũng bị báo "không tìm thấy từ" — admin sửa
+      // mãi không ra, mà log thì chẳng có gì.
+      if (!isForeignKeyViolation(err)) throw err;
       res.status(404).json({ error: "Không tìm thấy từ" });
     }
   }),
