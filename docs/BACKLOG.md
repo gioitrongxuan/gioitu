@@ -74,8 +74,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   hiệu ứng tốt nghiệp (dấu son 合格).
 - [ ] Chia sẻ Word Cloud/kanji grid ra PNG client-side (canvas) — hiện không
   có gì để khoe, share duy nhất là link zip sống 5 phút.
-- [ ] Thống kê từ review_log: retention chart, forecast 7 ngày, số từ thuộc
-  theo thời gian. Nền cho FSRS (đổi scheduler khi đủ log).
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
 

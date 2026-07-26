@@ -58,6 +58,9 @@ const ThemeSettings = lazy(() =>
 const QuickAdd = lazy(() =>
   import("@/features/dictionary/ui/QuickAdd").then((m) => ({ default: m.QuickAdd })),
 );
+const ReviewStats = lazy(() =>
+  import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
+);
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
@@ -237,6 +240,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu.
   const [quickAdd, setQuickAdd] = useState<{ term: string } | null>(null);
@@ -364,6 +368,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     // Luôn hiện (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
     { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => gotoPage("learned") },
     { label: "Thống kê kanji", run: () => gotoPage("kanji") },
+    { label: "Thống kê ôn tập", run: () => setReviewStats(true) },
     { label: "Học từ vựng", run: () => gotoPage("vocabstudy") },
     { label: "Thêm nhanh", run: () => setQuickAdd({ term: "" }) },
     { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
@@ -603,6 +608,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
+
+      {reviewStats && (
+        <Suspense fallback={null}>
+          <ReviewStats userId={userId} entries={store.entries} onClose={() => setReviewStats(false)} />
+        </Suspense>
+      )}
 
       {premium && (
         <PremiumModal

@@ -155,8 +155,8 @@ lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
-cho thống kê retention/forecast + FSRS về sau — cục bộ, chưa có UI, chưa đồng bộ
-cloud. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+cho FSRS về sau — cục bộ, chưa đồng bộ cloud; màn **Thống kê ôn tập** ([§9.12](#912-thống-kê-ôn-tập))
+đọc nhật ký này. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
 
 ## 4. Quản lý từ điển
 
@@ -301,7 +301,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 ## 9. Các tính năng bổ sung (2026)
 
 > Các màn/tính năng mọc sau bản SPEC gốc. Bảng dưới là mục lục nhanh (lối vào ·
-> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.11 kế tiếp. Khi thêm
+> mục đích · nơi cài đặt); chi tiết UX ở các mục §9.1–§9.12 kế tiếp. Khi thêm
 > tính năng mới, cập nhật cả bảng lẫn một mục chi tiết ở đây (cổng review mỗi PR
 > tính năng — xem CLAUDE.md).
 
@@ -309,6 +309,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 |---|---|---|---|
 | Đã thuộc | ☰ (chỉ hiện khi N>0) | Trang trưng từ đã LEARNED, nhóm theo thời gian | [§9.1](#91-đã-thuộc-learnedcloud) |
 | Thống kê kanji | ☰ | Lưới độ phủ kanji theo nhóm + "Đánh dấu nhanh" | [§9.2](#92-thống-kê-kanji) |
+| Thống kê ôn tập | ☰ | Retention theo ngày + dự báo đến hạn 7 ngày + đường từ đã thuộc | [§9.12](#912-thống-kê-ôn-tập) |
 | Học từ vựng | ☰ | Lưới ô từ (3 nguồn) để đánh dấu biết/không biết | [§9.3](#93-học-từ-vựng) |
 | Từ điển cá nhân | ☰ | Soạn từ điển riêng trong IndexedDB (nhập tay + AI) | [§9.4](#94-từ-điển-cá-nhân) |
 | Study list | (chưa nối vào UI) | Bộ từ lưu server; client mới chỉ đọc qua Học từ vựng | [§9.5](#95-study-list) |
@@ -547,6 +548,27 @@ heatmap (+ emblem nhận diện) — token chữ/nền của người dùng gi�
 - **Reduced-motion**: mỗi background đặt `data-speed` + biến `--fx-drift`; CSS
   đóng băng animation khi OS bật "giảm chuyển động" hoặc khi `data-speed="none"`
   (`styles.css:483-486`) — hoạ tiết vẫn hiện nhưng đứng yên.
+
+### 9.12 Thống kê ôn tập
+
+Overlay đọc `review_log` (IndexedDB, cục bộ) + danh sách entry, dựng bằng SVG
+thuần (không thư viện chart). Lối vào: ☰ → **Thống kê ôn tập**. Mở cho mọi
+người (guest lẫn đăng nhập); #165 sau này mới bàn gate "stats nâng cao" sau
+Premium. (`review/ui/ReviewStats/`, logic thuần ở `review/domain/reviewStats.ts`)
+
+- **Hàng ô số liệu**: Tỉ lệ nhớ 30 ngày · Lượt ôn 30 ngày · Đã thuộc (màu
+  `--seal` thành tựu) · Đến hạn 7 ngày tới.
+- **Tỉ lệ nhớ theo ngày** (30 ngày): chỉ tính lượt chấm có `interval_before`
+  ≥ 1 ngày — "true retention" kiểu Anki, các bước học 1–10 phút không tính;
+  ngày không ôn là khoảng hở thật trên biểu đồ (không nối xuyên).
+- **Dự báo đến hạn 7 ngày**: cột theo ngày từ `next_review`; thẻ đã quá hạn
+  dồn vào "Hôm nay". Giả định ôn đúng hạn, không mô phỏng reschedule.
+- **Từ đã thuộc theo thời gian**: đường luỹ kế theo `learned_at` (fallback
+  `last_lookup_at`), chỉ đếm entry đang LEARNED — điểm cuối luôn khớp "Đã
+  thuộc (N)"; từ tái quên rời khỏi đường (tả tài sản hiện có, không phải lịch
+  sử đầy đủ).
+- Toàn bộ phép tính là hàm thuần nhận `now` từ caller (không `Date.now()`
+  trong domain) — nền đối chiếu cho FSRS khi đủ log.
 
 ## 10. Bản đồ chức năng → tài liệu
 
