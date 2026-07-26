@@ -27,8 +27,16 @@
   border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 12px;
   display: grid; gap: 10px;
 }
+/* min-width mặc định (auto) của grid item = min-content: một hàng từ điển dài
+   nới track vượt bề rộng panel, đẩy MỌI hàng tràn mép phải (grid blowout). */
+.dict-import-panel > * { min-width: 0; }
 
 .local-dict-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
-.local-dict-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
-.ld-title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ld-meta { color: var(--muted); font-size: 12px; }
+.local-dict-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); min-width: 0; }
+/* Nhãn nút không gãy giữa chừng ("Tải / ZIP") khi hàng chật — để .ld-title
+   cắt bớt bằng ellipsis thay vì nút gãy dòng. */
+.local-dict-list .link { white-space: nowrap; }
+/* Hàng chật: tiêu đề giữ tối thiểu vài ký tự (không biến mất hẳn), phần dư
+   cắt bằng ellipsis; meta cũng ellipsis thay vì gãy xuống dòng thứ hai. */
+.ld-title { font-weight: 600; flex: 1; min-width: 6ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-meta { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
