@@ -1,0 +1,154 @@
+/* Thống kê ôn tập (#163) — chỉ vài nét riêng; overlay/nút dùng lớp chung
+   (manager-overlay, manager-card, auth-close). Màu đi qua token DESIGN §1-2:
+   --accent cho dữ liệu thường, --seal DÀNH RIÊNG cho đường "đã thuộc" (thành
+   tựu), chữ trong biểu đồ luôn là --fg/--muted chứ không ăn màu series. */
+
+.rs-card {
+  width: min(640px, 96vw);
+}
+
+.rs-loading {
+  margin-top: var(--space-4);
+}
+
+.rs-error {
+  margin: var(--space-4) 0 0;
+  color: var(--warn);
+}
+
+/* --- Hàng ô số liệu --- */
+
+.rs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.rs-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.rs-tile-label {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rs-tile-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Đã thuộc" là ô thành tựu duy nhất — chỗ duy nhất --seal xuất hiện dạng chữ. */
+.rs-tile-value-seal {
+  color: var(--seal);
+}
+
+.rs-tile-detail {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* --- Khung mục + biểu đồ --- */
+
+.rs-section {
+  margin-top: var(--space-5);
+}
+
+.rs-section h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rs-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rs-empty,
+.rs-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: var(--leading-body);
+}
+
+.rs-note {
+  margin-top: var(--space-2);
+}
+
+/* --- Các mark SVG (đơn vị thuộc hệ toạ độ viewBox, không phải px layout) --- */
+
+.rs-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.rs-axis {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rs-dot {
+  fill: var(--accent);
+  /* Viền màu nền tách điểm khỏi đường khi các điểm sát nhau. */
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+
+.rs-bar {
+  fill: var(--accent);
+}
+
+.rs-value {
+  fill: var(--fg);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-value-zero {
+  fill: var(--muted);
+  font-weight: 400;
+}
+
+/* Đường luỹ kế "đã thuộc" = tài sản → màu son thành tựu (DESIGN §5). */
+.rs-learned-line {
+  fill: none;
+  stroke: var(--seal);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rs-area {
+  fill: var(--seal);
+  fill-opacity: 0.12;
+}
+
+/* Cột hover trong suốt — chỉ để bắt chuột cho <title>. */
+.rs-hit {
+  fill: transparent;
+}

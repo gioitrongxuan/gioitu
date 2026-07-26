@@ -84,8 +84,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 - [ ] Skin anime = bộ sưu tập gắn streak (chỉ đổi backdrop+heatmap, không đụng
   token chữ/nền; glyph relapse giữ họ cảnh báo — hiện 🐾/💢 làm nhoè tín hiệu).
   `theme.ts:154,187 · WordCloud.tsx:31`
-- [ ] Thống kê từ review_log: retention chart, forecast 7 ngày, số từ thuộc
-  theo thời gian. Nền cho FSRS (đổi scheduler khi đủ log).
 - [ ] Chế độ luyện chủ động tuỳ chọn: gõ cách đọc kana trước khi lật / đảo
   chiều nghĩa→từ (self-grade hiện dễ "ảo giác đã biết").
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
