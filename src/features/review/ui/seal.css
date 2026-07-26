@@ -1,0 +1,39 @@
+/* Khoảnh khắc tốt nghiệp (#160 — DESIGN §5): dấu son 合格 đóng MỘT LẦN lên thẻ
+   khi một từ chuyển sang LEARNED trong phiên. --seal là son đỏ dành riêng cho
+   thành tựu; animation chỉ transform/opacity. UI gỡ overlay bằng timeout (không
+   nghe animationend — bị guard reduced-motion tắt animation thì event không bắn). */
+
+.grad-seal {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  display: grid; place-content: center; justify-items: center; gap: var(--space-2);
+}
+/* Nhịp đóng dấu: ập vào nhanh (to → đúng cỡ), nghỉ cho kịp đọc, rồi tự mờ đi.
+   Dài hơn --dur-slow có chủ đích — đây là điểm thưởng một-lần, không phải
+   transition điều hướng; UI dọn overlay sau SEAL_FX_MS khớp với thời lượng này. */
+.grad-seal-fx {
+  display: grid; justify-items: center; gap: var(--space-2);
+  animation: grad-seal-stamp 1500ms var(--ease-out) both;
+}
+.grad-seal-stamp {
+  padding: var(--space-4); aspect-ratio: 1; display: grid; place-items: center;
+  border: 3px solid var(--seal); border-radius: var(--radius-lg);
+  color: var(--seal); font-size: var(--text-3xl); font-weight: 700; line-height: 1;
+  /* Nền giấy mờ để dấu đọc được trên mặt thẻ đầy chữ. */
+  background: color-mix(in oklab, var(--seal) 8%, var(--surface));
+  transform: rotate(-8deg);
+}
+.grad-seal-term {
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
+  background: var(--surface); box-shadow: var(--shadow-sm);
+  color: var(--fg); font-size: var(--text-sm); font-weight: 600;
+}
+@keyframes grad-seal-stamp {
+  0% { opacity: 0; transform: scale(1.9); }
+  16% { opacity: 1; transform: scale(1); }
+  82% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Không đóng dấu động: dấu hiện tĩnh trong SEAL_FX_MS rồi được UI gỡ. */
+  .grad-seal-fx { animation: none; }
+}

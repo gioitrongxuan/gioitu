@@ -40,7 +40,10 @@ import { VocabEntry } from "@/shared/types";
 import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
 import { useAppRoute, useBackEntry, useWordUrl } from "./useHistoryRouting";
-import { HeaderMenu, MenuItem } from "./HeaderMenu";
+import { khuOf, KHU_HOME } from "./routes";
+import { AppNav } from "./AppNav";
+import { TodayScreen } from "./TodayScreen";
+import { MeScreen, MeSection } from "./MeScreen";
 
 // React.lazy cho các màn phụ (không cần ngay lúc mở app) — giữ chunk chính nhẹ.
 // Mỗi module export theo tên (không có default) nên bọc lại thành { default }.
@@ -355,170 +358,247 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     />
   );
 
-  // Các action phụ của header gom vào một menu ☰ (HeaderMenu), hiện ở mọi bề
-  // rộng — không có hàng nút desktop riêng.
-  const menuItems: MenuItem[] = [
-    ...(isAdmin
-      ? [
-          { label: "Quản lý từ điển", run: () => setManaging(true) },
-          { label: "Duyệt đề xuất", run: () => setContribReview(true) },
-        ]
-      : []),
-    // Luôn hiện (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
-    { label: `Đã thuộc (${store.learnedEntries.length})`, run: () => gotoPage("learned") },
-    { label: "Thống kê kanji", run: () => gotoPage("kanji") },
-    { label: "Thống kê ôn tập", run: () => setReviewStats(true) },
-    { label: "Học từ vựng", run: () => gotoPage("vocabstudy") },
-    { label: "Thêm nhanh", run: () => setQuickAdd({ term: "" }) },
-    { label: "Từ điển cá nhân", run: () => setCustomDict(true) },
-    { label: "Giao diện", run: () => setTheming(true) },
-    // Hai mục này chỉ dùng được khi đăng nhập (Yomitan cần định danh cloud,
-    // Premium kích hoạt theo tài khoản). Gắn ổ khoá cho khách để "tường đăng
-    // nhập" nhất quán — không giấu hẳn cũng không mời-rồi-chặn bất ngờ.
-    { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true), locked: !email },
-    { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true), locked: !email },
-    { label: "Xuất dữ liệu học", run: store.exportBackup },
-    { label: "Nhập dữ liệu học", run: store.importBackup },
-    ...(email
-      ? [
-          {
-            // Nhãn kèm "lần cuối hh:mm" khi đã đồng bộ thành công ít nhất một lần.
-            label: store.lastSyncedAt != null ? `Đồng bộ · ${formatLastSync(store.lastSyncedAt)}` : "Đồng bộ",
-            run: runFullSync,
-          },
-          { label: "Đăng xuất", run: onLogout },
-        ]
-      : [{ label: "Đăng nhập", run: onRequestLogin }]),
+  // Menu ☰ cũ (9-11 mục phẳng) tách về hai chỗ theo khái niệm (#149): các trang
+  // trong "Kho từ" thành tab con; phần còn lại thành các mục màn "Tôi".
+  const meSections: MeSection[] = [
+    {
+      title: "Tài khoản",
+      items: email
+        ? [
+            {
+              // Nhãn kèm "lần cuối hh:mm" khi đã đồng bộ thành công ít nhất một lần.
+              label: store.lastSyncedAt != null ? `Đồng bộ · ${formatLastSync(store.lastSyncedAt)}` : "Đồng bộ",
+              run: runFullSync,
+            },
+            { label: "Đăng xuất", run: onLogout },
+          ]
+        : [{ label: "Đăng nhập", run: onRequestLogin }],
+    },
+    {
+      title: "Cài đặt",
+      items: [
+        { label: "Giao diện", run: () => setTheming(true) },
+        // Hai mục này chỉ dùng được khi đăng nhập (Yomitan cần định danh cloud,
+        // Premium kích hoạt theo tài khoản). Gắn ổ khoá cho khách để "tường đăng
+        // nhập" nhất quán — không giấu hẳn cũng không mời-rồi-chặn bất ngờ.
+        { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true), locked: !email },
+        { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true), locked: !email },
+      ],
+    },
+    {
+      title: "Dữ liệu học",
+      items: [
+        { label: "Xuất dữ liệu học", run: store.exportBackup },
+        { label: "Nhập dữ liệu học", run: store.importBackup },
+      ],
+    },
+    {
+      title: "Quản trị",
+      items: isAdmin
+        ? [
+            { label: "Quản lý từ điển", run: () => setManaging(true) },
+            { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+          ]
+        : [],
+    },
   ];
+
+  // Tab con của khu "Kho từ" + hành động phụ về từ (dùng chung cho 4 trang con).
+  const wordsTabs = (
+    <div className="words-tabs">
+      {(
+        [
+          { page: "cloud", label: "Bản đồ từ" },
+          // Luôn hiện số (kể cả 0) để "tài sản đã thuộc" thường trực, không chỉ khi có nợ.
+          { page: "learned", label: `Đã thuộc (${store.learnedEntries.length})` },
+          { page: "kanji", label: "Kanji" },
+          { page: "vocabstudy", label: "Học từ vựng" },
+        ] as const
+      ).map((tab) => (
+        <button
+          key={tab.page}
+          type="button"
+          className={`words-tab${page === tab.page ? " active" : ""}`}
+          aria-current={page === tab.page ? "page" : undefined}
+          onClick={() => gotoPage(tab.page)}
+        >
+          {tab.label}
+        </button>
+      ))}
+      <div className="words-actions">
+        <button className="link" onClick={() => setQuickAdd({ term: "" })}>Thêm nhanh</button>
+        <button className="link" onClick={() => setCustomDict(true)}>Từ điển cá nhân</button>
+        <button className="link" onClick={() => setReviewStats(true)}>Thống kê ôn tập</button>
+      </div>
+    </div>
+  );
+
+  const khu = khuOf(page);
 
   return (
     <div className="app">
       <ThemeBackdrop />
-      <header className="app-header" {...behindSheet}>
-        {/* Header kiểu jisho: chỉ wordmark + nhập từ điển + ☰; mọi action phụ
-            nằm trong menu để phần đầu trang nhường đất cho ô tìm kiếm. */}
-        <h1 className="wordmark">
-          <span className="logo-mark" lang="ja" aria-hidden>語</span>
-          Gioitu
-        </h1>
-        <div className="header-actions">
-          <DictionaryImport
-            pair={pair}
-            onPairChange={choosePair}
-            source={dictSource}
-            onSourceChange={chooseSource}
-            onImported={syncDicts}
-            loggedIn={email != null}
-            onRequestLogin={onRequestLogin}
-            reloadToken={syncTick}
-          />
-          <HeaderMenu items={menuItems} email={email} />
-        </div>
-      </header>
+      {/* Điều hướng 4 khu: tab bar (mobile) / sidebar (desktop). Khi sheet chi
+          tiết mở trên mobile, backdrop của sheet đã phủ bar; inert chặn nốt
+          focus bàn phím như phần nội dung nền. */}
+      <AppNav active={khu} dueCount={dueCount} onSelect={(k) => gotoPage(KHU_HOME[k])} behindSheet={behindSheet} />
 
-      {page === "learned" ? (
-        <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
-          <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
-          <CloudViewControls
-            lang={cloudLang}
-            grouping={grouping === "srs" ? "none" : grouping}
-            onLangChange={setCloudLang}
-            onGroupingChange={setGrouping}
-          />
-        </div>
-      ) : page === "kanji" ? (
-        <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
-          <h2>Thống kê Kanji <span lang="ja" aria-hidden>漢</span></h2>
-        </div>
-      ) : page === "vocabstudy" ? (
-        <div className="learned-head" {...behindSheet}>
-          <button className="link" onClick={() => gotoPage("home")}>← Quay lại</button>
-          <h2>Học từ vựng</h2>
-        </div>
-      ) : (
-        <div {...behindSheet}>
-          <GuestBackupBanner
-            isGuest={userId === GUEST_USER_ID}
-            wordCount={store.entries.length}
-            onLogin={onRequestLogin}
-            onExport={store.exportBackup}
-          />
-          <SearchBar pair={pair} source={dictSource} onResult={onResult} />
-
-          <FilterBar
-            entries={store.entries}
-            dueCount={store.dueEntries.length}
-            highlightDue={highlightDue}
-            onlyDue={onlyDue}
-            sort={sort}
-            lang={cloudLang}
-            grouping={grouping}
-            onToggleHighlight={() => setHighlightDue((v) => !v)}
-            onToggleOnlyDue={() => setOnlyDue((v) => !v)}
-            onSortChange={setSort}
-            onLangChange={setCloudLang}
-            onGroupingChange={setGrouping}
-            onStartReview={() => setReviewQueue(store.dueEntries)}
-          />
-        </div>
-      )}
-
-      <main className="content">
-        <section className="cloud-area" {...behindSheet}>
-          {!store.loaded ? (
-            <Skeleton lines={3} className="empty" />
-          ) : page === "learned" ? (
-            <LearnedCloud
-              entries={store.learnedEntries}
-              lang={cloudLang}
-              grouping={grouping === "srs" ? "none" : grouping}
-              onSelect={onSelectTag}
+      <div className="app-main">
+        <header className="app-header" {...behindSheet}>
+          {/* Header chỉ còn wordmark + nhập từ điển: điều hướng nằm ở AppNav,
+              action phụ nằm ở màn "Tôi" và hàng tab con của Kho từ. */}
+          <h1 className="wordmark">
+            <span className="logo-mark" lang="ja" aria-hidden>語</span>
+            Gioitu
+          </h1>
+          <div className="header-actions">
+            <DictionaryImport
+              pair={pair}
+              onPairChange={choosePair}
+              source={dictSource}
+              onSourceChange={chooseSource}
+              onImported={syncDicts}
+              loggedIn={email != null}
+              onRequestLogin={onRequestLogin}
+              reloadToken={syncTick}
             />
-          ) : page === "kanji" ? (
-            <Suspense fallback={<Skeleton lines={3} className="empty" />}>
-              <KanjiStats
+          </div>
+        </header>
+
+        {page === "today" && (
+          <div {...behindSheet}>
+            <GuestBackupBanner
+              isGuest={userId === GUEST_USER_ID}
+              wordCount={store.entries.length}
+              onLogin={onRequestLogin}
+              onExport={store.exportBackup}
+            />
+          </div>
+        )}
+
+        {page === "search" && (
+          <div {...behindSheet}>
+            <SearchBar pair={pair} source={dictSource} onResult={onResult} />
+          </div>
+        )}
+
+        {khu === "words" && (
+          <div {...behindSheet}>
+            {wordsTabs}
+            {page === "cloud" && (
+              <FilterBar
                 entries={store.entries}
-                onSelectKanji={lookupKanji}
-                onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
+                dueCount={store.dueEntries.length}
+                highlightDue={highlightDue}
+                onlyDue={onlyDue}
+                sort={sort}
+                lang={cloudLang}
+                grouping={grouping}
+                onToggleHighlight={() => setHighlightDue((v) => !v)}
+                onToggleOnlyDue={() => setOnlyDue((v) => !v)}
+                onSortChange={setSort}
+                onLangChange={setCloudLang}
+                onGroupingChange={setGrouping}
+                onStartReview={() => setReviewQueue(store.dueEntries)}
               />
-            </Suspense>
-          ) : page === "vocabstudy" ? (
-            <Suspense fallback={<Skeleton lines={3} className="empty" />}>
-              <VocabStudy
-                entries={store.entries}
-                pair={pair}
-                onPairChange={choosePair}
-                onSelect={(w) => openWord(w)}
-                onToggle={(w, entry) => {
-                  // Đánh dấu nhanh: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược
-                  // lại → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
-                  // Bật undo để lỡ tay bấm còn hoàn tác được (toast "Hoàn tác").
-                  if (entry?.status === "LEARNED") store.markForgottenEntry(entry, true);
-                  else store.markKnownByTerm(w.term, w.term_lang, w.native_lang, true);
-                }}
-                onRequestLogin={onRequestLogin}
-              />
-            </Suspense>
+            )}
+            {page === "learned" && (
+              <div className="learned-head">
+                <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
+                <CloudViewControls
+                  lang={cloudLang}
+                  grouping={grouping === "srs" ? "none" : grouping}
+                  onLangChange={setCloudLang}
+                  onGroupingChange={setGrouping}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <main className="content">
+          {page === "today" ? (
+            <section {...behindSheet}>
+              {!store.loaded ? (
+                <Skeleton lines={3} className="empty" />
+              ) : (
+                <TodayScreen
+                  dueCount={dueCount}
+                  learnedCount={store.learnedEntries.length}
+                  onStartReview={() => setReviewQueue(store.dueEntries)}
+                  onGoSearch={() => gotoPage("search")}
+                  onGoLearned={() => gotoPage("learned")}
+                />
+              )}
+            </section>
+          ) : page === "me" ? (
+            <section {...behindSheet}>
+              <MeScreen email={email} sections={meSections} />
+            </section>
+          ) : page === "search" ? (
+            // Khi panel chi tiết mở, không render cột trống bên cạnh — panel
+            // chiếm nguyên bề rộng trang tra cứu.
+            view?.kind !== "detail" && (
+              <section {...behindSheet}>
+                <p className="empty">Tra một từ ở ô bên trên — kết quả hiện ở đây.</p>
+              </section>
+            )
           ) : (
-            <WordCloud
-              entries={store.entries}
-              highlightDue={highlightDue}
-              onlyDue={onlyDue}
-              sort={sort}
-              lang={cloudLang}
-              grouping={grouping}
-              onSelect={onSelectTag}
-              onDelete={store.deleteEntry}
-              onMarkKnown={store.markKnownEntry}
-              onReview={setReviewQueue}
-            />
+            <section className="cloud-area" {...behindSheet}>
+              {!store.loaded ? (
+                <Skeleton lines={3} className="empty" />
+              ) : page === "learned" ? (
+                <LearnedCloud
+                  entries={store.learnedEntries}
+                  lang={cloudLang}
+                  grouping={grouping === "srs" ? "none" : grouping}
+                  onSelect={onSelectTag}
+                />
+              ) : page === "kanji" ? (
+                <Suspense fallback={<Skeleton lines={3} className="empty" />}>
+                  <KanjiStats
+                    entries={store.entries}
+                    onSelectKanji={lookupKanji}
+                    onMarkKnown={(kanji) => store.markKnownByTerm(kanji, "ja", "vi")}
+                  />
+                </Suspense>
+              ) : page === "vocabstudy" ? (
+                <Suspense fallback={<Skeleton lines={3} className="empty" />}>
+                  <VocabStudy
+                    entries={store.entries}
+                    pair={pair}
+                    onPairChange={choosePair}
+                    onSelect={(w) => openWord(w)}
+                    onToggle={(w, entry) => {
+                      // Đánh dấu nhanh: đã thuộc → "không nhớ" (relapse về hàng ôn); ngược
+                      // lại → "nhớ" (graduate thẳng sang LEARNED, tạo entry nếu chưa có).
+                      // Bật undo để lỡ tay bấm còn hoàn tác được (toast "Hoàn tác").
+                      if (entry?.status === "LEARNED") store.markForgottenEntry(entry, true);
+                      else store.markKnownByTerm(w.term, w.term_lang, w.native_lang, true);
+                    }}
+                    onRequestLogin={onRequestLogin}
+                  />
+                </Suspense>
+              ) : (
+                <WordCloud
+                  entries={store.entries}
+                  highlightDue={highlightDue}
+                  onlyDue={onlyDue}
+                  sort={sort}
+                  lang={cloudLang}
+                  grouping={grouping}
+                  onSelect={onSelectTag}
+                  onDelete={store.deleteEntry}
+                  onMarkKnown={store.markKnownEntry}
+                  onReview={setReviewQueue}
+                />
+              )}
+            </section>
           )}
-        </section>
 
-        {detailPanel}
-      </main>
+          {detailPanel}
+        </main>
+      </div>
 
       {reviewQueue && (
         <ReviewSession

@@ -54,11 +54,8 @@ _(trống — 11 mục #119-#129 của giai đoạn 1 đã xong)_
 
 Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
-- [ ] Bottom tab bar mobile (<760px) / sidebar desktop; bỏ dồn hết vào ☰
-  (hiện 9-11 mục phẳng trộn 4 loại khái niệm). `App.tsx:231-253`
 - [ ] Màn "Hôm nay": hero "N từ đến hạn · ~X phút" → vào phiên; streak (store
   activity_log nhẹ, sync best-effort); dải hoạt động 7 ngày; 3 từ hay quên.
-- [ ] Due badge: `document.title` + `navigator.setAppBadge` (PWA sẵn).
 - [ ] Onboarding first-run 3 bước + nút "Tải từ điển đề xuất" một chạm
   (importYomitanUrl có sẵn; host zip trên chính server để khỏi vướng CORS).
 - [ ] Trang "Từ điển của tôi" hợp nhất (Đã cài · Tự soạn · Chia sẻ) — hiện
@@ -67,8 +64,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
 
 ## Giai đoạn 3 — "Khu vườn & phần thưởng" (~3 tuần)
 
-- [ ] Swipe 4 hướng + haptic cho phiên ôn (route full-screen thay modal);
-  hiệu ứng tốt nghiệp (dấu son 合格).
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
 

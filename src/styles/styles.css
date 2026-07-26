@@ -980,7 +980,6 @@ summary:focus-visible,
 .review-dict .result + .result { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
 
 /* Auth */
-.user-email { font-size: 12px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--surface-2); }
 .auth-card { width: min(380px, 92vw); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
 .auth-card h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
@@ -1277,32 +1276,9 @@ summary:focus-visible,
 .yk-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
 .yk-steps em { font-style: normal; font-weight: 600; }
 
-/* ---- Header menu (☰) & mobile ----
+/* ---- Mobile ----
    Breakpoint duy nhất của app là 760px — khớp mọi @media min-width: 760px ở
    trên (CSS không cho dùng var() trong @media nên giữ bằng quy ước). */
-.header-menu { position: relative; }
-.menu-button {
-  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
-  border-radius: 9px; padding: 7px 11px; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.menu-button:hover { border-color: var(--accent); }
-.header-menu-panel {
-  position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 40;
-  min-width: 210px; background: var(--surface); border: 1px solid var(--line);
-  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 8px;
-  display: grid; gap: 2px;
-}
-.header-menu-panel .link { text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 15px; }
-.header-menu-panel .link:hover { background: var(--surface-2); }
-.header-menu-panel .menu-item { display: flex; align-items: center; gap: 8px; }
-/* Ổ khoá dồn về mép phải, tông chữ phụ — dấu hiệu "cần đăng nhập" nhã, không cướp nhãn. */
-.header-menu-panel .menu-lock { margin-left: auto; color: var(--muted); flex: none; }
-.header-menu-panel .user-email {
-  max-width: none; padding: 4px 10px 8px;
-  border-bottom: 1px solid var(--line); margin-bottom: 4px;
-}
-
 @media (max-width: 759px) {
   .app {
     padding: 12px max(12px, env(safe-area-inset-right))
@@ -1322,7 +1298,6 @@ summary:focus-visible,
   .suggestions li button { padding: 12px 10px; }
   .kanji-toggles .link { padding: 6px 0; }
   .srs-act { padding: 8px 10px; }
-  .header-menu-panel .link { padding: 12px 10px; }
   .tag { height: 44px; padding: 0 16px; }
   .radical-btn { min-width: 44px; height: 44px; }
   .kanji-grid { grid-template-columns: repeat(auto-fill, 44px); }
