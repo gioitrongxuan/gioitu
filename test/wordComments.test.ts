@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_COMMENT_LENGTH,
   canDeleteComment,
+  mergeComments,
+  olderCursor,
+  remainingComments,
   sortComments,
   validateComment,
   wordKey,
   type Comment,
-} from "./comment";
+} from "@/features/wordcomments/domain/comment";
 
 function mk(id: string, user_id: string, created_at: number): Comment {
   return {
@@ -70,6 +73,55 @@ describe("sortComments", () => {
     const sorted = sortComments(input);
     expect(sorted.map((c) => c.id)).toEqual(["a", "c", "b"]);
     expect(input.map((c) => c.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("olderCursor", () => {
+  it("trả null khi chưa tải bình luận nào", () => {
+    expect(olderCursor([])).toBeNull();
+  });
+
+  it("lấy bình luận cũ nhất bất kể thứ tự mảng", () => {
+    expect(olderCursor([mk("b", "u", 30), mk("a", "u", 10), mk("c", "u", 20)])).toEqual({
+      created_at: 10,
+      id: "a",
+    });
+  });
+
+  it("trùng mốc thời gian thì lấy id nhỏ hơn — khớp thứ tự con trỏ của server", () => {
+    expect(olderCursor([mk("b", "u", 10), mk("a", "u", 10)])).toEqual({ created_at: 10, id: "a" });
+  });
+});
+
+describe("mergeComments", () => {
+  it("gộp trang cũ hơn vào đầu danh sách, giữ thứ tự cũ → mới", () => {
+    const loaded = [mk("c", "u", 30), mk("d", "u", 40)];
+    const older = [mk("b", "u", 20), mk("a", "u", 10)];
+    expect(mergeComments(loaded, older).map((c) => c.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("khử trùng theo id (trang chồng lấn) và ưu tiên bản mới tải", () => {
+    const loaded = [mk("a", "u", 10)];
+    const incoming = [{ ...mk("a", "u", 10), body: "đã sửa" }, mk("b", "u", 20)];
+    const merged = mergeComments(loaded, incoming);
+    expect(merged.map((c) => c.id)).toEqual(["a", "b"]);
+    expect(merged[0].body).toBe("đã sửa");
+  });
+
+  it("không đột biến mảng đang hiện", () => {
+    const loaded = [mk("b", "u", 20)];
+    mergeComments(loaded, [mk("a", "u", 10)]);
+    expect(loaded.map((c) => c.id)).toEqual(["b"]);
+  });
+});
+
+describe("remainingComments", () => {
+  it("đếm phần cũ hơn chưa tải", () => {
+    expect(remainingComments(25, 10)).toBe(15);
+  });
+
+  it("không âm khi số đã tải vượt tổng (vừa gửi thêm bình luận)", () => {
+    expect(remainingComments(3, 4)).toBe(0);
   });
 });
 

@@ -1,12 +1,18 @@
 // Bình luận / góp ý của người dùng cho một từ (#23), đặt dưới phần nghĩa trong
 // panel kết quả tra từ. Guest đọc được; đăng nhập mới viết/xoá được (admin xoá
-// bất kỳ). Logic thuần (kiểm tra, quyền xoá, sắp xếp) ở domain/comment.ts.
+// bất kỳ). Tải theo trang: mở panel thấy ngay phần mới nhất, "Xem thêm" kéo dần
+// phần cũ hơn. Logic thuần (kiểm tra, quyền xoá, gộp trang) ở domain/comment.ts.
 
 import { useEffect, useState } from "react";
 import { addComment, deleteComment, listComments } from "../data/comments";
 import { Skeleton } from "@/shared/ui/Skeleton";
+import { TrashIcon } from "@/shared/ui/icons";
 import {
+  COMMENTS_PAGE_SIZE,
   canDeleteComment,
+  mergeComments,
+  olderCursor,
+  remainingComments,
   sortComments,
   validateComment,
   wordKey,
@@ -52,7 +58,10 @@ export function WordComments({
 }: Props) {
   const key = wordKey(termLang, nativeLang, term, reading);
   const [comments, setComments] = useState<Comment[]>([]);
+  /** Tổng bình luận của từ trên server — để biết còn bao nhiêu cái cũ hơn chưa tải. */
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -62,9 +71,11 @@ export function WordComments({
     let alive = true;
     setLoading(true);
     setError(null);
-    listComments(key)
-      .then((list) => {
-        if (alive) setComments(sortComments(list));
+    listComments(key, { limit: COMMENTS_PAGE_SIZE })
+      .then((page) => {
+        if (!alive) return;
+        setComments(sortComments(page.items));
+        setTotal(page.total);
       })
       .catch(() => {
         if (alive) setError("Không tải được bình luận");
@@ -79,6 +90,27 @@ export function WordComments({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [termLang, nativeLang, term, reading]);
 
+  async function loadOlder() {
+    setLoadingOlder(true);
+    setError(null);
+    try {
+      const page = await listComments(key, {
+        limit: COMMENTS_PAGE_SIZE,
+        before: olderCursor(comments),
+      });
+      const merged = mergeComments(comments, page.items);
+      setComments(merged);
+      // Về ít hơn mức xin nghĩa là đã chạm đáy: chốt tổng theo số đã tải, đừng
+      // giữ `total` mới (nó có thể vừa tăng vì bình luận MỚI của người khác —
+      // thứ mà nút "xem phần cũ hơn" này không bao giờ với tới).
+      setTotal(page.items.length < COMMENTS_PAGE_SIZE ? merged.length : page.total);
+    } catch {
+      setError("Không tải được bình luận cũ hơn");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+
   async function submit() {
     const check = validateComment(draft);
     if (!check.ok) {
@@ -89,7 +121,8 @@ export function WordComments({
     setError(null);
     try {
       const created = await addComment(key, check.body);
-      setComments((prev) => sortComments([...prev, created]));
+      setComments((prev) => mergeComments(prev, [created]));
+      setTotal((n) => n + 1);
       setDraft("");
     } catch (e) {
       setError((e as Error).message);
@@ -103,41 +136,63 @@ export function WordComments({
     try {
       await deleteComment(id);
       setComments((prev) => prev.filter((c) => c.id !== id));
+      setTotal((n) => Math.max(0, n - 1));
     } catch (e) {
       setError((e as Error).message);
     }
   }
 
+  const olderCount = remainingComments(total, comments.length);
+
   return (
     <section className="word-comments">
-      <p className="section-label">Bình luận / góp ý</p>
+      <p className="section-label">Bình luận / góp ý{total > 0 && ` (${total})`}</p>
 
       {loading ? (
         <Skeleton lines={2} />
       ) : comments.length === 0 ? (
-        <p className="muted">Chưa có bình luận. Hãy là người đầu tiên góp ý.</p>
+        // Tải lỗi thì im lặng nhường chỗ cho thông báo lỗi ở cuối khu: chưa đọc
+        // được khác hẳn với "chưa ai bình luận".
+        !error && <p className="muted">Chưa có bình luận. Hãy là người đầu tiên góp ý.</p>
       ) : (
-        <ul className="comment-list">
-          {comments.map((c) => (
-            <li key={c.id} className="comment">
-              <div className="comment-meta">
-                <span className="comment-author">{c.author_name}</span>
-                <span className="comment-when">{formatWhen(c.created_at)}</span>
-                {canDeleteComment(c, currentUserId ?? null, isAdmin === true) && (
-                  <button
-                    className="link comment-del"
-                    title="Xoá bình luận"
-                    aria-label="Xoá bình luận"
-                    onClick={() => remove(c.id)}
-                  >
-                    🗑
-                  </button>
-                )}
-              </div>
-              <p className="comment-body">{c.body}</p>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Phần cũ hơn nằm phía trên dòng thời gian nên nút tải cũng đứng trên
+              danh sách — bấm xong nội dung mọc lên, chỗ đang đọc không bị đẩy. */}
+          {loadingOlder ? (
+            <Skeleton lines={2} />
+          ) : (
+            olderCount > 0 && (
+              <button
+                className="link comment-more"
+                title="Tải thêm bình luận cũ hơn"
+                onClick={loadOlder}
+              >
+                Xem thêm ({olderCount})
+              </button>
+            )
+          )}
+          <ul className="comment-list">
+            {comments.map((c) => (
+              <li key={c.id} className="comment">
+                <div className="comment-meta">
+                  <span className="comment-author">{c.author_name}</span>
+                  <span className="comment-when">{formatWhen(c.created_at)}</span>
+                  {canDeleteComment(c, currentUserId ?? null, isAdmin === true) && (
+                    <button
+                      className="link comment-del"
+                      title="Xoá bình luận"
+                      aria-label="Xoá bình luận"
+                      onClick={() => remove(c.id)}
+                    >
+                      <TrashIcon size={14} />
+                    </button>
+                  )}
+                </div>
+                <p className="comment-body">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {loggedIn ? (

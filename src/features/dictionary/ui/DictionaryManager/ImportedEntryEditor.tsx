@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { ImportedEntryEdit } from "@/shared/dictionary";
+import { CheckIcon } from "@/shared/ui/icons";
 import { saveEntrySenses } from "../../data/dictAdmin";
 import { SenseDraft, SenseEditorList, toEditableSenses, toSenseDrafts } from "./SenseEditorList";
 
@@ -76,7 +77,9 @@ export function ImportedEntryEditor({
         <button className="link danger" disabled={busy} onClick={removeSource}>
           Gỡ nguồn khỏi từ
         </button>
-        {saved && <span className="verified-badge">✓ Đã lưu</span>}
+        {saved && (
+          <span className="verified-badge"><CheckIcon size={14} /> Đã lưu</span>
+        )}
       </div>
     </details>
   );

@@ -9,6 +9,9 @@ import { pool } from "../../core/db.js";
 import { isAdminEmail } from "../auth/auth.js";
 
 const MAX_BODY = 2000;
+/** Trang bình luận: cỡ mặc định khi client không nói gì, và trần cứng cho một lượt. */
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
 
 export interface WordKey {
   term_lang: string;
@@ -67,19 +70,61 @@ function displayName(email: string): string {
   return email.split("@")[0]?.trim() || "Người dùng";
 }
 
-/** Bình luận đang hiển thị của một từ, cũ → mới. Guest đọc được (không cần auth). */
-export async function listForWord(key: WordKey): Promise<Comment[]> {
+/** Mốc của bình luận cũ nhất client đã có; xin phần cũ hơn nó. */
+export interface CommentCursor {
+  created_at: number;
+  id: string;
+}
+
+export interface PageRequest {
+  limit?: number;
+  before?: CommentCursor | null;
+}
+
+/** Một trang bình luận: `items` mới → cũ, `total` là tổng của cả từ. */
+export interface CommentPage {
+  total: number;
+  items: Comment[];
+}
+
+function clampLimit(raw: number | undefined): number {
+  if (raw == null || !Number.isFinite(raw) || raw < 1) return DEFAULT_PAGE_SIZE;
+  return Math.min(Math.floor(raw), MAX_PAGE_SIZE);
+}
+
+/**
+ * Một trang bình luận đang hiển thị của một từ, mới → cũ. Guest đọc được (không
+ * cần auth). Phân trang bằng con trỏ `(created_at, id)` chứ không OFFSET: bình
+ * luận mới luôn chèn ở đầu, nên OFFSET sẽ đẩy lệch trang khi có người gửi giữa
+ * chừng người khác đang bấm "Xem thêm". `total` để client biết còn bao nhiêu.
+ */
+export async function listForWord(key: WordKey, page: PageRequest = {}): Promise<CommentPage> {
   const term = key.term.trim();
-  if (!term || !key.term_lang || !key.native_lang) return [];
+  if (!term || !key.term_lang || !key.native_lang) return { total: 0, items: [] };
   const reading = key.reading?.trim() || null;
-  const { rows } = await pool.query<CommentRow>(
-    `SELECT * FROM dict_comments
-     WHERE status = 'visible' AND term_lang = $1 AND native_lang = $2 AND term = $3
-       AND reading IS NOT DISTINCT FROM $4
-     ORDER BY created_at ASC`,
-    [key.term_lang, key.native_lang, term, reading],
-  );
-  return rows.map(rowToComment);
+  const where = `status = 'visible' AND term_lang = $1 AND native_lang = $2 AND term = $3
+       AND reading IS NOT DISTINCT FROM $4`;
+  const scope = [key.term_lang, key.native_lang, term, reading];
+
+  const params: unknown[] = [...scope];
+  let olderThanCursor = "";
+  if (page.before) {
+    olderThanCursor = ` AND (created_at, id) < ($${params.length + 1}::bigint, $${params.length + 2})`;
+    params.push(page.before.created_at, page.before.id);
+  }
+  params.push(clampLimit(page.limit));
+
+  const [total, rows] = await Promise.all([
+    pool.query<{ c: string }>(`SELECT COUNT(*) AS c FROM dict_comments WHERE ${where}`, scope),
+    pool.query<CommentRow>(
+      `SELECT * FROM dict_comments
+       WHERE ${where}${olderThanCursor}
+       ORDER BY created_at DESC, id DESC
+       LIMIT $${params.length}`,
+      params,
+    ),
+  ]);
+  return { total: Number(total.rows[0].c), items: rows.rows.map(rowToComment) };
 }
 
 /** Thêm một bình luận (đã có userId từ requireAuth). Trả về bản ghi vừa tạo. */

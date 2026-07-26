@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LangPair } from "@/shared/languages";
 import type { TermEditState } from "@/shared/dictionary";
 import { glossToText } from "@/shared/structured-content";
+import { CheckIcon } from "@/shared/ui/icons";
 import { TermRow, deleteTerm, fetchTermForEdit } from "../../data/dictAdmin";
 import { TermForm } from "./TermForm";
 
@@ -49,7 +50,9 @@ export function TermEditor({
     <li className="term-row">
       <div className="term-head">
         <b>{row.term}</b>
-        {row.verified && <span className="verified-badge" title="Từ đã được kiểm duyệt">✓</span>}
+        {row.verified && (
+          <span className="verified-badge" title="Từ đã được kiểm duyệt"><CheckIcon size={14} /></span>
+        )}
         {row.reading && <span className="reading">{row.reading}</span>}
         <span className="term-actions">
           {state ? (

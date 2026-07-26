@@ -25,6 +25,7 @@ import {
   VocabListWord,
   VocabProgress,
 } from "../domain/vocablist";
+import { CheckIcon } from "@/shared/ui/icons";
 import * as studyListSrc from "../data/studyListSource";
 import * as customDictSrc from "../data/customDictSource";
 import "./vocabstudy.css";
@@ -409,7 +410,7 @@ function VocabTile({
     >
       <span className="vocab-term">{cell.word.term}</span>
       {cell.word.reading && <span className="vocab-reading">{cell.word.reading}</span>}
-      {known && <span className="vocab-known-mark" aria-hidden>✓</span>}
+      {known && <span className="vocab-known-mark" aria-hidden><CheckIcon size={11} /></span>}
     </button>
   );
 }

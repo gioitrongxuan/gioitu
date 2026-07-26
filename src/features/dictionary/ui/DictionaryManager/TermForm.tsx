@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { LangPair } from "@/shared/languages";
 import type { JlptLevel, PitchAccent, TermEditState } from "@/shared/dictionary";
+import { CheckIcon } from "@/shared/ui/icons";
 import {
   addTermImage,
   deleteTermComment,
@@ -169,7 +170,9 @@ export function TermForm({
       {wordId && (
         <div className="verify-row">
           {verified ? (
-            <span className="verified-badge" title="Từ đã được kiểm duyệt">✓ Đã kiểm duyệt</span>
+            <span className="verified-badge" title="Từ đã được kiểm duyệt">
+              <CheckIcon size={14} /> Đã kiểm duyệt
+            </span>
           ) : (
             <span className="muted">Chưa kiểm duyệt</span>
           )}

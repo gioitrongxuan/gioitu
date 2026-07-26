@@ -273,6 +273,8 @@
 }
 .me-section .me-item:last-child { border-bottom: none; }
 .me-item-lock { color: var(--muted); flex: none; }
+/* Dấu tích "đã bật" (vd. Premium) — cùng hàng với ổ khoá, màu trạng thái tốt. */
+.me-item-check { color: var(--ok); flex: none; }
 
 /* ---- Onboarding lần đầu (#152) ---- */
 

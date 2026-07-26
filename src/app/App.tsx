@@ -448,7 +448,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         // Premium kích hoạt theo tài khoản). Gắn ổ khoá cho khách để "tường đăng
         // nhập" nhất quán — không giấu hẳn cũng không mời-rồi-chặn bất ngờ.
         { label: "Kết nối Yomitan", run: () => setConnectingYomitan(true), locked: !email },
-        { label: isPremium ? "Premium ✓" : "Premium", run: () => setPremium(true), locked: !email },
+        { label: "Premium", done: isPremium, run: () => setPremium(true), locked: !email },
       ],
     },
     {

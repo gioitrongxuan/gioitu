@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
-import { CloseIcon } from "@/shared/ui/icons";
+import { CheckIcon, CloseIcon } from "@/shared/ui/icons";
 import {
   redeemPremiumCode,
   generatePremiumCodes,
@@ -108,7 +108,9 @@ export function PremiumModal({ loggedIn, isAdmin, isPremium, onActivated, onRequ
           </section>
         ) : done ? (
           <section className="theme-section">
-            <p className="premium-status">✓ Tài khoản đã kích hoạt Premium.</p>
+            <p className="premium-status icon-label">
+              <CheckIcon size={14} /> Tài khoản đã kích hoạt Premium.
+            </p>
           </section>
         ) : (
           <section className="theme-section">
