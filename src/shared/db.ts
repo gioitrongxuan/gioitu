@@ -67,6 +67,13 @@ export interface DictEntry {
   wordId?: string;
   /** Đã được admin kiểm duyệt nội dung (tích xanh cạnh từ). */
   verified?: boolean;
+
+  /**
+   * Mốc LWW theo TỪNG TỪ cho merge term-level của từ điển cá nhân (#166).
+   * Chỉ đóng dấu khi nội dung từ thật sự đổi; vắng ở entry nhập .zip / legacy
+   * (khi đó merge dùng mốc của cả registry làm fallback).
+   */
+  updatedAt?: number;
 }
 
 /** A registry entry for one imported dictionary (client side). */
@@ -93,6 +100,12 @@ export interface LocalDictionary {
   updatedAt?: number;
   /** Tombstone: đã xoá — giữ lại registry để lan truyền việc xoá qua sync. */
   deletedAt?: number;
+  /**
+   * Tombstone theo TỪNG TỪ (#166): khoá term (termMergeKey) → epoch ms lúc xoá,
+   * để merge term-level lan truyền việc xoá một từ thay vì hồi sinh nó từ cache
+   * của máy khác. Chỉ dùng cho từ điển `custom`; gỡ khi từ được thêm lại.
+   */
+  deletedTerms?: Record<string, number>;
 }
 
 interface GioituDB extends DBSchema {

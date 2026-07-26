@@ -90,9 +90,6 @@ Mở app là thấy việc hôm nay. IA đích: [DESIGN.md §IA](./DESIGN.md).
   chiều nghĩa→từ (self-grade hiện dễ "ảo giác đã biết").
 - [ ] Premium chuyển sang giá trị retention (stats nâng cao, backup lịch sử,
   AI ví dụ — hạ tầng Deepseek có sẵn); viết lại modal thành trang giá trị.
-- [ ] LWW: server đóng dấu received_at làm tie-breaker chống lệch đồng hồ;
-  custom dict merge term-level thay vì nguyên blob.
-  `syncStore.ts:36 · customDictSync.ts:48-82`
 
 ## Nợ tài liệu & dọn dẹp
 

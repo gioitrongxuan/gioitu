@@ -8,6 +8,7 @@ import {
   saveCustomDict,
 } from "@/features/dictionary/data/customDict";
 import { lookupTerm, listLocalDictionaries } from "@/features/dictionary/data/yomitan";
+import { getDb } from "@/shared/db";
 import { emptyDraft, termReadingKey, type CustomDraft } from "@/features/dictionary/domain/customEntry";
 import { pairById } from "@/shared/languages";
 
@@ -89,5 +90,49 @@ describe("saveCustomDict (xem/sửa)", () => {
     const mine = (await listLocalDictionaries("ja", "vi")).find((d) => d.id === id)!;
     expect(mine.title).toBe("Tên mới");
     expect(mine.termCount).toBe(1);
+  });
+});
+
+describe("saveCustomDict — mốc LWW theo từ + tombstone (#166)", () => {
+  it("từ không đổi giữ nguyên updatedAt, từ sửa được đóng dấu mới", async () => {
+    const id = await createLocalDictionary({ title: "Dấu", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Dấu", JA_VI, [
+      draft({ term: "海", reading: "うみ", gloss: "biển" }),
+      draft({ term: "空", reading: "そら", gloss: "trời" }),
+    ]);
+    const before = new Map((await listCustomEntries(id)).map((e) => [e.term, e.updatedAt]));
+    expect(before.get("海")).toBeTypeOf("number");
+
+    // Đợi qua mốc ms rồi save: chỉ sửa nghĩa 空, giữ nguyên 海.
+    await new Promise((r) => setTimeout(r, 5));
+    await saveCustomDict(id, JA_VI, { title: "Dấu" }, [
+      draft({ term: "海", reading: "うみ", gloss: "biển" }),
+      draft({ term: "空", reading: "そら", gloss: "bầu trời" }),
+    ]);
+    const after = new Map((await listCustomEntries(id)).map((e) => [e.term, e.updatedAt]));
+    expect(after.get("海")).toBe(before.get("海")); // không đổi → không đóng dấu lại
+    expect(after.get("空")!).toBeGreaterThan(before.get("空")!);
+  });
+
+  it("xoá từ ghi tombstone theo khoá; thêm lại thì gỡ tombstone", async () => {
+    const id = await createLocalDictionary({ title: "Mộ", term_lang: "ja", native_lang: "vi" });
+    await upsertCustomEntries(id, "Mộ", JA_VI, [
+      draft({ term: "森", reading: "もり", gloss: "rừng" }),
+      draft({ term: "林", reading: "はやし", gloss: "rừng thưa" }),
+    ]);
+
+    await saveCustomDict(id, JA_VI, { title: "Mộ" }, [
+      draft({ term: "森", reading: "もり", gloss: "rừng" }),
+    ]);
+    const db = await getDb();
+    let dict = (await db.get("dictionaries", id))!;
+    const key = JSON.stringify(["ja", "vi", "林", "はやし"]);
+    expect(dict.deletedTerms).toBeDefined();
+    expect(dict.deletedTerms![key]).toBeTypeOf("number");
+
+    // Thêm lại đúng khoá đã xoá → tombstone phải biến mất để từ sống qua merge.
+    await upsertCustomEntries(id, "Mộ", JA_VI, [draft({ term: "林", reading: "はやし", gloss: "rừng thưa" })]);
+    dict = (await db.get("dictionaries", id))!;
+    expect(dict.deletedTerms).toBeUndefined();
   });
 });
