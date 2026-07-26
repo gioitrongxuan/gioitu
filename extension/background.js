@@ -1,4 +1,4 @@
-// Service worker (MV3) — ba đường thêm nhanh một từ vào Gioitu, đều chỉ mở tab
+// Service worker (MV3) — ba đường thêm nhanh một từ vào Gioitu, đều chỉ mở
 // `<base>/?add=<từ>` để chính web app xử lý (form Thêm nhanh). Extension KHÔNG
 // gọi API, KHÔNG đọc nội dung trang ngoài phần người dùng chủ động bôi đen:
 //   • chuột phải trên vùng bôi đen → dùng luôn info.selectionText (không cần scripting)
@@ -21,7 +21,14 @@ async function openAdd(text) {
   const term = (text || "").trim();
   if (!term) return;
   const base = await baseUrl();
-  await chrome.tabs.create({ url: `${base}/?add=${encodeURIComponent(term)}` });
+  // Cửa sổ popup nhỏ đè lên trang đang lướt (cùng cỡ với bookmarklet của app),
+  // không phải tab mới — người dùng lượm từ xong đóng lại, không rời mạch đọc.
+  await chrome.windows.create({
+    url: `${base}/?add=${encodeURIComponent(term)}`,
+    type: "popup",
+    width: 520,
+    height: 680,
+  });
 }
 
 /** Lấy phần bôi đen của tab đang mở (cho phím tắt & nút thanh công cụ). */
