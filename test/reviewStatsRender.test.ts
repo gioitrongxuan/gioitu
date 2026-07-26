@@ -9,9 +9,11 @@ import {
   RetentionChart,
   ForecastChart,
   LearnedChart,
+  IntervalRetentionList,
 } from "@/features/review/ui/ReviewStats/ReviewStats";
 import {
   retentionByDay,
+  retentionByInterval,
   forecastDueByDay,
   learnedOverTime,
 } from "@/features/review/domain/reviewStats";
@@ -72,5 +74,21 @@ describe("biểu đồ thống kê render ra SVG hợp lệ (không NaN)", () =>
     expect(html).toContain("rs-area");
     expect(html).toContain("rs-learned-line");
     expect(html).toContain("2 từ");
+  });
+
+  it("IntervalRetentionList: nhóm có dữ liệu ra % + thanh, nhóm trống ra placeholder", () => {
+    const log = [
+      { user_id: "u", term: "a", term_lang: "ja", grade: "good" as const, ts: NOW, interval_before: DAY, interval_after: 2 * DAY },
+      { user_id: "u", term: "a", term_lang: "ja", grade: "again" as const, ts: NOW, interval_before: DAY, interval_after: DAY },
+    ];
+    const html = renderToStaticMarkup(
+      createElement(IntervalRetentionList, { rows: retentionByInterval(log, NOW) }),
+    );
+
+    expect(html).not.toContain("NaN");
+    expect(html).toContain("1–6 ngày");
+    expect(html).toContain("50%");
+    expect(html).toContain("1/2 lượt");
+    expect(html).toContain("chưa có lượt"); // ba nhóm còn lại trống
   });
 });

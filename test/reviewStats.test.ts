@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   retentionByDay,
+  retentionByInterval,
   retentionRate,
   summarizeRetention,
   countReviewsSince,
@@ -11,6 +12,7 @@ import {
   forecastDayLabel,
   STATS_WINDOW_DAYS,
   FORECAST_DAYS,
+  INTERVAL_BANDS,
 } from "@/features/review/domain/reviewStats";
 import { DAY } from "@/features/review/domain/constants";
 import { ReviewLogEntry } from "@/shared/types";
@@ -112,6 +114,39 @@ describe("countReviewsSince", () => {
       makeLog({ ts: 300 }),
     ];
     expect(countReviewsSince(log, 200)).toBe(2);
+  });
+});
+
+describe("retentionByInterval (Premium — stats nâng cao)", () => {
+  it("trả đủ mọi nhóm theo thứ tự INTERVAL_BANDS, nhóm trống giữ total 0", () => {
+    const rows = retentionByInterval([], NOW);
+    expect(rows.map((r) => r.band)).toEqual(INTERVAL_BANDS);
+    expect(rows.every((r) => r.total === 0 && r.remembered === 0)).toBe(true);
+  });
+
+  it("xếp lượt vào đúng nhóm theo interval_before (biên dưới đóng, biên trên mở)", () => {
+    const log = [
+      makeLog({ interval_before: 1 * DAY, grade: "good" }), // nhóm 1–6 ngày
+      makeLog({ interval_before: 7 * DAY - 1, grade: "again" }), // sát trần nhóm đầu
+      makeLog({ interval_before: 7 * DAY, grade: "good" }), // rơi sang 1–4 tuần
+      makeLog({ interval_before: 45 * DAY, grade: "again" }), // 1–3 tháng
+      makeLog({ interval_before: 200 * DAY, grade: "easy" }), // nhóm mở ≥ 3 tháng
+    ];
+    const [b1, b2, b3, b4] = retentionByInterval(log, NOW);
+    expect(b1).toMatchObject({ total: 2, remembered: 1 });
+    expect(b2).toMatchObject({ total: 1, remembered: 1 });
+    expect(b3).toMatchObject({ total: 1, remembered: 0 });
+    expect(b4).toMatchObject({ total: 1, remembered: 1 });
+  });
+
+  it("bỏ learning step (< 1 ngày) và lượt ngoài cửa sổ — cùng luật với retentionByDay", () => {
+    const log = [
+      makeLog({ interval_before: 10 }), // step 10 phút
+      makeLog({ ts: midnightDaysAgo(STATS_WINDOW_DAYS) + 1000 }), // trước cửa sổ
+      makeLog({ ts: NOW }),
+    ];
+    const rows = retentionByInterval(log, NOW);
+    expect(rows.reduce((sum, r) => sum + r.total, 0)).toBe(1);
   });
 });
 

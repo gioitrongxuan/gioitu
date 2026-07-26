@@ -152,3 +152,82 @@
 .rs-hit {
   fill: transparent;
 }
+
+/* --- Mục "Nâng cao · Premium" (#165) --- */
+
+/* Bọc để lớp mời Premium phủ lên đúng khối nội dung bị mờ. */
+.rs-premium {
+  position: relative;
+}
+
+/* Người chưa Premium: nội dung thật nhưng mờ + không tương tác (inert ở JSX). */
+.rs-premium-dimmed {
+  filter: blur(3px);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.rs-premium-gate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  color: var(--muted);
+}
+
+.rs-premium-gate p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+/* --- Bảng retention theo khoảng ôn --- */
+
+.rs-bands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rs-bands li {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) 1fr auto minmax(72px, auto);
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.rs-band-label {
+  color: var(--muted);
+}
+
+.rs-band-bar {
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.rs-band-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.rs-band-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-band-detail {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

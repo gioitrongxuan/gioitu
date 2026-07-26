@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
-import { buildReviewLogEntry } from "@/features/review/domain/reviewLog";
+import { buildReviewLogEntry, reviewLogToCsv } from "@/features/review/domain/reviewLog";
 import { appendReviewLog, getReviewLog } from "@/features/review/data/reviewLog";
 import { gradeCard } from "@/features/review/domain/srs";
 import { makeEntry } from "./fixtures";
@@ -23,6 +23,39 @@ describe("buildReviewLogEntry (domain, thuần)", () => {
     });
     // Không tự gán id — để IndexedDB cấp lúc ghi.
     expect(log.id).toBeUndefined();
+  });
+});
+
+describe("reviewLogToCsv (domain, thuần — Premium xuất lịch sử)", () => {
+  const row = (over: object = {}) => ({
+    user_id: "u1",
+    term: "猫",
+    term_lang: "ja" as const,
+    grade: "good" as const,
+    ts: Date.UTC(2026, 6, 26, 3, 4, 5),
+    interval_before: 1440,
+    interval_after: 3600,
+    ...over,
+  });
+
+  it("dòng đầu là header cố định, mỗi lượt một dòng theo thứ tự vào", () => {
+    const csv = reviewLogToCsv([row(), row({ term: "犬", grade: "again" as const })]);
+    const lines = csv.split("\n");
+    expect(lines[0]).toBe("ts_iso,term,term_lang,grade,interval_before_min,interval_after_min");
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toBe("2026-07-26T03:04:05.000Z,猫,ja,good,1440,3600");
+    expect(lines[2]).toContain("犬,ja,again");
+  });
+
+  it("không lộ user_id/id; term chứa dấu phẩy hoặc quote được bọc chuẩn CSV", () => {
+    const csv = reviewLogToCsv([row({ id: 7, term: 'a,b "c"' })]);
+    expect(csv).not.toContain("u1");
+    expect(csv).not.toContain(",7,");
+    expect(csv).toContain('"a,b ""c"""');
+  });
+
+  it("log rỗng → chỉ còn header", () => {
+    expect(reviewLogToCsv([])).toBe("ts_iso,term,term_lang,grade,interval_before_min,interval_after_min");
   });
 });
 

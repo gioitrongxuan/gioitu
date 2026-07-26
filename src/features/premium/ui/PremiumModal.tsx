@@ -1,5 +1,9 @@
-// Modal "Premium" (#70): người dùng nhập mã để mở khoá đồng bộ từ điển cá nhân;
-// admin sinh + xem danh sách mã. Yêu cầu đăng nhập — Premium gắn với tài khoản.
+// Trang giá trị "Premium" (#165, gốc #70): thay vì chỉ một ô nhập mã, màn này
+// kể trước NGƯỜI DÙNG ĐƯỢC GÌ — các giá trị xoay quanh retention (giữ lại tiến
+// độ và lịch sử học) — rồi mới tới phần kích hoạt. Lợi ích hiện cho cả khách:
+// trang giá trị phải đọc được TRƯỚC khi bị đòi đăng nhập.
+// Admin sinh + xem danh sách mã như cũ. Kích hoạt yêu cầu đăng nhập — Premium
+// gắn với tài khoản.
 
 import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
@@ -10,6 +14,7 @@ import {
   listPremiumCodes,
   PremiumCode,
 } from "../data/premium";
+import "./premium.css";
 
 interface Props {
   loggedIn: boolean;
@@ -20,6 +25,34 @@ interface Props {
   onRequestLogin: () => void;
   onClose: () => void;
 }
+
+/** Một lợi ích Premium: tên + nó giúp gì cho việc GIỮ kiến thức, và mở ở đâu. */
+const BENEFITS: { title: string; detail: string }[] = [
+  {
+    title: "Thống kê nâng cao",
+    detail:
+      "Tỉ lệ nhớ tách theo khoảng ôn (thẻ non vs thẻ chín) và tải toàn bộ lịch sử " +
+      "ôn ra CSV để tự phân tích — trong ☰ → Thống kê ôn tập.",
+  },
+  {
+    title: "Sao lưu kèm lịch sử ôn",
+    detail:
+      "Tệp “Xuất dữ liệu học” chứa cả nhật ký từng lượt ôn, không chỉ trạng thái " +
+      "hiện tại — nhập lại là khôi phục nguyên vẹn quá khứ học trên máy mới.",
+  },
+  {
+    title: "Đồng bộ từ điển cá nhân",
+    detail:
+      "Các bộ từ tự soạn (kể cả bằng AI) theo bạn qua mọi thiết bị. Tiến độ học " +
+      "(SRS) vẫn đồng bộ miễn phí như thường.",
+  },
+  {
+    title: "AI phân tích câu ví dụ",
+    detail:
+      "Câu ví dụ thêm qua Yomitan được Deepseek chú giải cách dùng từ + nghĩa cả " +
+      "câu, hiện ngay trong phiên ôn.",
+  },
+];
 
 export function PremiumModal({ loggedIn, isAdmin, isPremium, onActivated, onRequestLogin, onClose }: Props) {
   const [code, setCode] = useState("");
@@ -53,45 +86,51 @@ export function PremiumModal({ loggedIn, isAdmin, isPremium, onActivated, onRequ
           <button className="auth-close" aria-label="Đóng" onClick={onClose}><CloseIcon size={18} /></button>
         </header>
 
+        <p className="pm-intro">
+          Premium chăm phần <strong>giữ lại</strong> của việc học: hiểu mình nhớ đến đâu,
+          không bao giờ mất lịch sử, và mang được kho từ của mình đi bất cứ đâu.
+        </p>
+
+        <ul className="pm-benefits">
+          {BENEFITS.map((b) => (
+            <li key={b.title}>
+              <h3>{b.title}</h3>
+              <p>{b.detail}</p>
+            </li>
+          ))}
+        </ul>
+
         {!loggedIn ? (
           <section className="theme-section">
+            <h3>Kích hoạt</h3>
             <p className="yk-hint">Cần đăng nhập để kích hoạt Premium cho tài khoản của bạn.</p>
             <button type="button" className="primary" onClick={onRequestLogin}>Đăng nhập</button>
           </section>
+        ) : done ? (
+          <section className="theme-section">
+            <p className="premium-status">✓ Tài khoản đã kích hoạt Premium.</p>
+          </section>
         ) : (
-          <>
-            <p className="yk-hint">
-              Premium mở khoá <strong>đồng bộ từ điển cá nhân giữa các thiết bị</strong>. Tiến độ
-              học (SRS) vẫn đồng bộ miễn phí như thường.
-            </p>
-
-            {done ? (
-              <section className="theme-section">
-                <p className="premium-status">✓ Tài khoản đã kích hoạt Premium.</p>
-              </section>
-            ) : (
-              <section className="theme-section">
-                <h3>Nhập mã kích hoạt</h3>
-                <div className="url-row">
-                  <input
-                    className="url-input"
-                    placeholder="VD: ABCD-EFGH-JKMN"
-                    value={code}
-                    disabled={busy}
-                    onChange={(e) => setCode(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && redeem()}
-                  />
-                  <button className="primary" disabled={busy || !code.trim()} onClick={redeem}>
-                    Kích hoạt
-                  </button>
-                </div>
-                {error && <p className="yk-error">{error}</p>}
-              </section>
-            )}
-
-            {isAdmin && <AdminCodes />}
-          </>
+          <section className="theme-section">
+            <h3>Nhập mã kích hoạt</h3>
+            <div className="url-row">
+              <input
+                className="url-input"
+                placeholder="VD: ABCD-EFGH-JKMN"
+                value={code}
+                disabled={busy}
+                onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && redeem()}
+              />
+              <button className="primary" disabled={busy || !code.trim()} onClick={redeem}>
+                Kích hoạt
+              </button>
+            </div>
+            {error && <p className="yk-error">{error}</p>}
+          </section>
         )}
+
+        {loggedIn && isAdmin && <AdminCodes />}
 
         <footer className="theme-actions">
           <button type="button" className="primary" onClick={onClose}>Xong</button>
