@@ -162,6 +162,19 @@ UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
     Bật cùng gõ cách đọc: nhìn nghĩa, gõ cách đọc của từ nhớ được rồi lật đối chiếu.
 - **Bốn nút tự chấm**: **Again / Hard / Good / Easy**, mỗi nút *xem trước* khoảng
   ôn kế tiếp (gọi thẳng `gradeCard` để tính). Chấm xong nhảy thẻ tiếp.
+- **Swipe 4 hướng (#160)**: sau khi lật, kéo thẻ để chấm — **trái Quên · phải
+  Nhớ · lên Dễ · xuống Khó** (pointer events, `domain/swipe.ts`). Khi kéo hiện
+  chỉ dấu nhãn grade + interval xem trước, đậm dần theo khoảng kéo; thả qua
+  ngưỡng thì chốt, dưới ngưỡng thì thôi (vùng chết nhỏ để tap/bấm trong thẻ
+  không bị nhận nhầm). Thẻ có nội dung dài (cuộn được) nhường trục dọc cho cuộn
+  chạm — chạm chỉ còn swipe trái/phải, Dễ/Khó vẫn có nút và phím; chuột không
+  bị giới hạn này.
+- **Haptic**: rung nhẹ (`navigator.vibrate`, 15ms) ngay lúc chốt grade — mọi
+  ngả swipe/nút/phím; trình duyệt không hỗ trợ (iOS Safari) thì bỏ qua.
+- **Dấu son 合格 (DESIGN §5)**: từ chuyển sang **LEARNED** trong phiên → dấu son
+  `--seal` đóng một lần lên thẻ (kèm tên từ), tự mờ đi sau ~1,5s — animation chỉ
+  transform/opacity, có guard `prefers-reduced-motion` (hiện tĩnh rồi tự gỡ).
+  Hiện ở cả màn hết lô/hoàn thành để thẻ cuối phiên tốt nghiệp không mất khoảnh khắc.
 - **Ưu tiên quá hạn lâu**: trong phiên, thẻ quá hạn lâu nhất được phục vụ trước.
 - **Chia lô ~20 thẻ**: phiên phục vụ từng lô `REVIEW_BATCH_SIZE` (=20) thẻ; hết
   lô mà còn thẻ đến hạn thì hiện lời mời **"Ôn tiếp N thẻ nữa"** (điểm dừng tự
