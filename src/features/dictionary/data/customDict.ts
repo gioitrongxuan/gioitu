@@ -7,11 +7,21 @@
 import { getDb, DictEntry, LocalDictionary } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
 import { CustomDraft, buildDictEntry, isDraftFilled, termReadingKey } from "../domain/customEntry";
+import { sameTermContent, termMergeKey } from "../domain/dictMerge";
 import { uuid } from "./yomitan";
 
-/** Khoá store `terms` của một entry — để so khớp khi thay thế nội dung dict. */
-function termKey(e: { term_lang: string; native_lang: string; term: string; reading?: string }): string {
-  return JSON.stringify([e.term_lang, e.native_lang, e.term, e.reading ?? ""]);
+/**
+ * Gỡ tombstone của các khoá vừa được ghi lại (thêm lại sau khi xoá) khỏi
+ * registry. Trả về bản registry mới; trường `deletedTerms` biến mất khi rỗng.
+ */
+function clearTombstones(dict: LocalDictionary, writtenKeys: Iterable<string>): LocalDictionary {
+  if (!dict.deletedTerms) return dict;
+  const deletedTerms = { ...dict.deletedTerms };
+  for (const key of writtenKeys) delete deletedTerms[key];
+  const next = { ...dict };
+  if (Object.keys(deletedTerms).length) next.deletedTerms = deletedTerms;
+  else delete next.deletedTerms;
+  return next;
 }
 
 /** Tạo một từ điển cá nhân rỗng trong registry và trả về id của nó. */
@@ -70,18 +80,28 @@ export async function upsertCustomEntries(
   pair: LangPair,
   drafts: CustomDraft[],
 ): Promise<number> {
+  const now = Date.now();
   const db = await getDb();
   const tx = db.transaction(["terms", "dictionaries"], "readwrite");
   const terms = tx.objectStore("terms");
+  const writtenKeys: string[] = [];
   for (const draft of drafts) {
-    await terms.put({ ...buildDictEntry(draft, pair, dictTitle), dictId });
+    // Đóng dấu updatedAt theo từng từ (#166) — mốc LWW cho merge term-level.
+    const entry = { ...buildDictEntry(draft, pair, dictTitle), dictId, updatedAt: now };
+    writtenKeys.push(termMergeKey(entry));
+    await terms.put(entry);
   }
 
   // termCount là số từ thực tế thuộc dict này — tính lại cho chính xác kể cả khi
-  // ghi đè lên từ vốn thuộc dict khác.
+  // ghi đè lên từ vốn thuộc dict khác. Từ vừa ghi thì gỡ tombstone (thêm lại
+  // sau khi xoá phải sống sót qua merge).
   const count = await terms.index("by_dict").count(IDBKeyRange.only(dictId));
   const dict = await tx.objectStore("dictionaries").get(dictId);
-  if (dict) await tx.objectStore("dictionaries").put({ ...dict, termCount: count, updatedAt: Date.now() });
+  if (dict) {
+    await tx
+      .objectStore("dictionaries")
+      .put(clearTombstones({ ...dict, termCount: count, updatedAt: now }, writtenKeys));
+  }
   await tx.done;
 
   return drafts.length;
@@ -114,35 +134,58 @@ export async function saveCustomDict(
   drafts: CustomDraft[],
 ): Promise<number> {
   const title = meta.title.trim() || "Từ điển cá nhân";
+  const now = Date.now();
   const desired = drafts
     .filter(isDraftFilled)
     .map((d) => ({ ...buildDictEntry(d, pair, title), dictId }));
-  const desiredKeys = new Set(desired.map(termKey));
+  const desiredKeys = new Set(desired.map(termMergeKey));
 
   const db = await getDb();
   const tx = db.transaction(["terms", "dictionaries"], "readwrite");
   const terms = tx.objectStore("terms");
 
-  // Xoá các từ của chính dict này không còn trong bản sửa (kể cả từ bị đổi khoá).
+  // Xoá các từ của chính dict này không còn trong bản sửa (kể cả từ bị đổi
+  // khoá) — nhớ khoá đã xoá để ghi tombstone, và giữ bản cũ để so nội dung.
+  const previous = new Map<string, DictEntry>();
+  const removedKeys: string[] = [];
   let cursor = await terms.index("by_dict").openCursor(IDBKeyRange.only(dictId));
   while (cursor) {
-    if (!desiredKeys.has(termKey(cursor.value))) await cursor.delete();
+    const key = termMergeKey(cursor.value);
+    previous.set(key, cursor.value);
+    if (!desiredKeys.has(key)) {
+      removedKeys.push(key);
+      await cursor.delete();
+    }
     cursor = await cursor.continue();
   }
-  for (const entry of desired) await terms.put(entry);
+
+  // Chỉ đóng dấu updatedAt cho từ có nội dung đổi (#166): save vốn ghi lại cả
+  // lưới, đóng dấu tất cả sẽ khiến mọi từ "mới sửa" và merge term-level thắng
+  // oan trên máy khác.
+  for (const entry of desired) {
+    const prev = previous.get(termMergeKey(entry));
+    const updatedAt = prev && sameTermContent(prev, entry) ? prev.updatedAt : now;
+    await terms.put(updatedAt !== undefined ? { ...entry, updatedAt } : entry);
+  }
 
   const count = await terms.index("by_dict").count(IDBKeyRange.only(dictId));
   const dictStore = tx.objectStore("dictionaries");
   const dict = await dictStore.get(dictId);
   if (dict) {
-    await dictStore.put({
-      ...dict,
+    const next: LocalDictionary = {
+      ...clearTombstones(dict, desiredKeys),
       title,
       termCount: count,
-      updatedAt: Date.now(),
+      updatedAt: now,
       description: meta.description?.trim() || undefined,
       topic: meta.topic?.trim() || undefined,
-    });
+    };
+    if (removedKeys.length) {
+      // Tombstone theo từ cho khoá vừa xoá — để merge lan truyền việc xoá.
+      next.deletedTerms = { ...next.deletedTerms };
+      for (const key of removedKeys) next.deletedTerms[key] = now;
+    }
+    await dictStore.put(next);
   }
   await tx.done;
   return count;
