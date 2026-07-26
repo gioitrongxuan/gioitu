@@ -224,7 +224,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   };
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
-  const [deleteMode, setDeleteMode] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
   // Shared by both maps (home + "Đã thuộc") so the view reads the same way.
   const [cloudLang, setCloudLang] = useState<CloudLang>("all");
@@ -453,13 +452,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             dueCount={store.dueEntries.length}
             highlightDue={highlightDue}
             onlyDue={onlyDue}
-            deleteMode={deleteMode}
             sort={sort}
             lang={cloudLang}
             grouping={grouping}
             onToggleHighlight={() => setHighlightDue((v) => !v)}
             onToggleOnlyDue={() => setOnlyDue((v) => !v)}
-            onToggleDeleteMode={() => setDeleteMode((v) => !v)}
             onSortChange={setSort}
             onLangChange={setCloudLang}
             onGroupingChange={setGrouping}
@@ -512,10 +509,10 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
               sort={sort}
               lang={cloudLang}
               grouping={grouping}
-              deleteMode={deleteMode}
               onSelect={onSelectTag}
               onDelete={store.deleteEntry}
-              onReviewTier={setReviewQueue}
+              onMarkKnown={store.markKnownEntry}
+              onReview={setReviewQueue}
             />
           )}
         </section>

@@ -109,6 +109,18 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 - **Nổi bật/đến hạn**: từ đến hạn ôn được làm nổi; còn lại bị làm mờ (khi bật).
 - **Bấm một tag**: mở Detail Panel ở chế độ **xem lại** — **không** tính lượt tra
   (xem bản đồ của mình không nên bị phạt). (`useLookup.onSelectTag`)
+- **Nhóm** (chọn ở "Nhóm theo"): thời gian tra (ngày/tháng/năm) hoặc **Trí nhớ**
+  — "Khu vườn ký ức" 3 tầng *Sắp quên / Đang bén rễ / Sắp trưởng thành*
+  (`srsTier`/`groupBySrsTier`, chỉ dựa trạng thái SRS sẵn có). Tầng nào có từ
+  đến hạn thì tiêu đề tầng kèm nút **"Ôn N từ này"** — mở phiên ôn chỉ với các
+  từ đến hạn của tầng đó.
+- **Popover mini trên mỗi thẻ** (#159): rê chuột đậu trên thẻ, **long-press**
+  (mobile) hoặc **chuột phải** mở thẻ tin nhanh — cách đọc, nghĩa đầu, lịch ôn,
+  số lần tra (`tagPopoverContent`) + hành động nhanh: **Ôn từ này** (chỉ khi
+  đến hạn), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
+  (backdrop + Esc đóng, focus qua `useDialog`); popover này **thay** tooltip
+  `title` và "Chế độ xoá" toàn cục trước đây. Long-press và vị trí neo là logic
+  thuần ở `domain/tagPopover.ts`; UI ở `ui/TagPopover.tsx` + `ui/cloud.css`.
 - **Trạng thái rỗng**: "Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu."
 
 ### Filter Bar (`review/ui/FilterBar.tsx`)

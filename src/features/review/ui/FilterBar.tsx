@@ -26,13 +26,11 @@ interface Props {
   dueCount: number;
   highlightDue: boolean;
   onlyDue: boolean;
-  deleteMode: boolean;
   sort: CloudSort;
   lang: CloudLang;
   grouping: CloudGrouping;
   onToggleHighlight: () => void;
   onToggleOnlyDue: () => void;
-  onToggleDeleteMode: () => void;
   onSortChange: (sort: CloudSort) => void;
   onLangChange: (lang: CloudLang) => void;
   onGroupingChange: (grouping: CloudGrouping) => void;
@@ -44,13 +42,11 @@ export function FilterBar({
   dueCount,
   highlightDue,
   onlyDue,
-  deleteMode,
   sort,
   lang,
   grouping,
   onToggleHighlight,
   onToggleOnlyDue,
-  onToggleDeleteMode,
   onSortChange,
   onLangChange,
   onGroupingChange,
@@ -118,9 +114,6 @@ export function FilterBar({
         </button>
         <button type="button" className={`chip-toggle${onlyDue ? " on" : ""}`} aria-pressed={onlyDue} onClick={onToggleOnlyDue}>
           Chỉ hiện từ cần ôn
-        </button>
-        <button type="button" className={`chip-toggle danger${deleteMode ? " on" : ""}`} aria-pressed={deleteMode} onClick={onToggleDeleteMode}>
-          Chế độ xoá
         </button>
         <button type="button" className="export-btn" onClick={handleExport} disabled={exporting || !hasCloudTags}>
           <DownloadIcon size={16} />
