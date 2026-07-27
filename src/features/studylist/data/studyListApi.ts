@@ -63,18 +63,6 @@ export function getList(id: string): Promise<StudyListDetail> {
   return request<StudyListDetail>(`/${encodeURIComponent(id)}`, { headers: authHeaders() });
 }
 
-export function renameList(id: string, name: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ name }),
-  });
-}
-
-export function deleteList(id: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders() });
-}
-
 export interface WordRef {
   term: string;
   reading?: string;
@@ -84,18 +72,4 @@ export interface WordRef {
 
 export function addWord(listId: string, word: WordRef): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/${encodeURIComponent(listId)}/words`, json(word));
-}
-
-export function removeWord(listId: string, wordId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/${encodeURIComponent(listId)}/words/${encodeURIComponent(wordId)}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-}
-
-/** Các list của người dùng có chứa từ này (cờ "marked"). */
-export function markedFor(word: WordRef): Promise<{ id: string; name: string }[]> {
-  const q = new URLSearchParams({ term: word.term, src: word.term_lang, tgt: word.native_lang });
-  if (word.reading) q.set("reading", word.reading);
-  return request<{ id: string; name: string }[]>(`/marked?${q}`, { headers: authHeaders() });
 }

@@ -1,7 +1,7 @@
 // Nhập một từ điển Yomitan LỚN (JMdict_english ~319k entry) theo lối set-based —
-// giống maziiImport, khác với đường per-row `importYomitanDir` ở dictStore (chỉ hợp
-// cho từ điển nhỏ do admin upload). Parse in-memory (parseYomitanDir) → bảng STAGING
-// tạm → INSERT set-based word/heading_lookup/entry.
+// giống maziiImport, khác với đường per-row của dictStore.importBuffer (chỉ hợp
+// cho từ điển nhỏ do admin upload .zip). Parse in-memory (parseYomitanDir) → bảng
+// STAGING tạm → INSERT set-based word/heading_lookup/entry. Chạy qua importCli.ts.
 //
 // JMdict_english là cặp NGÔN NGỮ MỚI (ja→en) nên KHÔNG đụng dữ liệu Mazii (ja→vi):
 // mỗi (base,reading) tạo word (ja,en) riêng. Ta BẮT score Yomitan (row[4] = tần

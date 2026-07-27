@@ -99,7 +99,6 @@ export function ThemeSettings({ onClose, loadStreak }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activePreset = THEME_PRESETS.find(

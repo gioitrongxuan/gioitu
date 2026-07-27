@@ -8,7 +8,6 @@ import {
   forecastDueByDay,
   learnedOverTime,
   contiguousRuns,
-  shortDate,
   forecastDayLabel,
   STATS_WINDOW_DAYS,
   FORECAST_DAYS,
@@ -18,6 +17,7 @@ import {
   mostForgotten,
 } from "@/features/review/domain/reviewStats";
 import { DAY } from "@/features/review/domain/constants";
+import { formatDayMonth } from "@/shared/date";
 import { ReviewLogEntry } from "@/shared/types";
 import { makeEntry } from "./fixtures";
 
@@ -243,8 +243,8 @@ describe("contiguousRuns", () => {
 });
 
 describe("nhãn trục thời gian", () => {
-  it("shortDate ra dd/MM có đệm số 0", () => {
-    expect(shortDate(new Date(2026, 6, 5).getTime())).toBe("05/07");
+  it("formatDayMonth ra dd/MM có đệm số 0", () => {
+    expect(formatDayMonth(new Date(2026, 6, 5).getTime())).toBe("05/07");
   });
 
   it("forecastDayLabel: hai ngày đầu gọi tên, còn lại dd/MM", () => {

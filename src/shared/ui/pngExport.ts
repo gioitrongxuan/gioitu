@@ -2,6 +2,8 @@
 // canvas → blob → tải về mà cả lưới kanji lẫn Word Cloud cùng cần. Vẽ gì lên
 // canvas vẫn là việc riêng của từng feature.
 
+import { downloadBlob } from "@/shared/downloadBlob";
+
 /** Path một hình chữ nhật bo góc (thay `ctx.roundRect` — chưa có ở mọi target). */
 export function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -28,15 +30,4 @@ export function downloadCanvasPng(canvas: HTMLCanvasElement, filename: string): 
       resolve();
     }, "image/png");
   });
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
 }

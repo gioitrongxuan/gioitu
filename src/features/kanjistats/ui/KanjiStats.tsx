@@ -41,6 +41,64 @@ function daysLabel(minutes: number): string {
   return `${Math.round(minutes / 1440)} ngày`;
 }
 
+// Hai tile ở top-level thay vì khai báo trong thân KanjiStats: khai báo bên
+// trong tạo component type MỚI mỗi render, khiến React unmount/remount cả lưới
+// kanji thay vì cập nhật tại chỗ. Phụ thuộc (theme, quickMark, handler) đi qua
+// props — cùng khuôn với VocabTile bên vocabstudy.
+function KnownTile({
+  stat,
+  theme,
+  quickMark,
+  onClick,
+}: {
+  stat: KanjiStat;
+  theme: ReturnType<typeof useTheme>["theme"];
+  quickMark: boolean;
+  onClick: (kanji: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`kanji-cell${quickMark ? " quick" : ""}`}
+      style={{ background: heatBackground(stat.score), color: heatTextColor(stat.score, theme) }}
+      title={
+        quickMark
+          ? `Bấm để đánh dấu đã biết: ${stat.kanji}`
+          : `${stat.kanji} · ${stat.wordCount} từ · ${daysLabel(stat.avgInterval)} · ${Math.round(stat.score * 100)}%`
+      }
+      onClick={() => onClick(stat.kanji)}
+    >
+      {stat.kanji}
+    </button>
+  );
+}
+
+// Chưa học = 0% thành thạo → đầu yếu nhất của thang màu (giống một ô đã biết
+// nhưng điểm 0). Viền đứt vẫn phân biệt "chưa có trong vốn từ" với "biết mà yếu".
+function MissingTile({
+  kanji,
+  theme,
+  quickMark,
+  onClick,
+}: {
+  kanji: string;
+  theme: ReturnType<typeof useTheme>["theme"];
+  quickMark: boolean;
+  onClick: (kanji: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`kanji-cell${quickMark ? " quick" : ""} missing`}
+      style={{ background: heatBackground(0), color: heatTextColor(0, theme) }}
+      title={quickMark ? `Bấm để đánh dấu đã biết: ${kanji}` : `${kanji} · chưa học (0%)`}
+      onClick={() => onClick(kanji)}
+    >
+      {kanji}
+    </button>
+  );
+}
+
 export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
   const { theme } = useTheme();
   const [source, setSource] = useState<SourceKind>("learned");
@@ -71,37 +129,6 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
 
   // Một cú bấm: chế độ nhanh thì đánh dấu đã biết, ngược lại mở chi tiết.
   const clickTile = (kanji: string) => (quickMark ? onMarkKnown(kanji) : onSelectKanji(kanji));
-  const cellClass = `kanji-cell${quickMark ? " quick" : ""}`;
-
-  const KnownTile = ({ stat }: { stat: KanjiStat }) => (
-    <button
-      type="button"
-      className={cellClass}
-      style={{ background: heatBackground(stat.score), color: heatTextColor(stat.score, theme) }}
-      title={
-        quickMark
-          ? `Bấm để đánh dấu đã biết: ${stat.kanji}`
-          : `${stat.kanji} · ${stat.wordCount} từ · ${daysLabel(stat.avgInterval)} · ${Math.round(stat.score * 100)}%`
-      }
-      onClick={() => clickTile(stat.kanji)}
-    >
-      {stat.kanji}
-    </button>
-  );
-
-  // Chưa học = 0% thành thạo → đầu yếu nhất của thang màu (giống một ô đã biết
-  // nhưng điểm 0). Viền đứt vẫn phân biệt "chưa có trong vốn từ" với "biết mà yếu".
-  const MissingTile = ({ kanji }: { kanji: string }) => (
-    <button
-      type="button"
-      className={`${cellClass} missing`}
-      style={{ background: heatBackground(0), color: heatTextColor(0, theme) }}
-      title={quickMark ? `Bấm để đánh dấu đã biết: ${kanji}` : `${kanji} · chưa học (0%)`}
-      onClick={() => clickTile(kanji)}
-    >
-      {kanji}
-    </button>
-  );
 
   const Controls = (
     <div className="kanji-controls">
@@ -217,7 +244,7 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
         </div>
         <div className="kanji-grid">
           {flat.map((stat) => (
-            <KnownTile key={stat.kanji} stat={stat} />
+            <KnownTile key={stat.kanji} stat={stat} theme={theme} quickMark={quickMark} onClick={clickTile} />
           ))}
         </div>
       </div>
@@ -256,9 +283,21 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
             <div className="kanji-grid">
               {group.cells.map((cell) =>
                 cell.stat ? (
-                  <KnownTile key={cell.kanji} stat={cell.stat} />
+                  <KnownTile
+                    key={cell.kanji}
+                    stat={cell.stat}
+                    theme={theme}
+                    quickMark={quickMark}
+                    onClick={clickTile}
+                  />
                 ) : showMissing ? (
-                  <MissingTile key={cell.kanji} kanji={cell.kanji} />
+                  <MissingTile
+                    key={cell.kanji}
+                    kanji={cell.kanji}
+                    theme={theme}
+                    quickMark={quickMark}
+                    onClick={clickTile}
+                  />
                 ) : null,
               )}
             </div>
@@ -274,7 +313,7 @@ export function KanjiStats({ entries, onSelectKanji, onMarkKnown }: Props) {
           </div>
           <div className="kanji-grid">
             {cov.leftover.known.map((stat) => (
-              <KnownTile key={stat.kanji} stat={stat} />
+              <KnownTile key={stat.kanji} stat={stat} theme={theme} quickMark={quickMark} onClick={clickTile} />
             ))}
           </div>
         </section>

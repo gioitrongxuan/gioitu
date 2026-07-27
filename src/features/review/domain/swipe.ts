@@ -9,7 +9,7 @@ export type SwipeDirection = "left" | "right" | "up" | "down";
 
 /** Bản đồ hướng → grade (DESIGN §4). Ngang là cặp dùng nhiều (Quên/Nhớ),
  *  dọc là cặp tinh chỉnh (Dễ/Khó). */
-export const SWIPE_GRADE: Record<SwipeDirection, ReviewGrade> = {
+const SWIPE_GRADE: Record<SwipeDirection, ReviewGrade> = {
   left: "again",
   right: "good",
   up: "easy",

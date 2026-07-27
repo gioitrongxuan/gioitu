@@ -332,7 +332,7 @@ export function candidates(text: string, lang: string): Deinflection[] {
 }
 
 /** Human-readable (Vietnamese) labels for inflection reasons, for the UI. */
-export const REASON_LABELS: Record<string, string> = {
+const REASON_LABELS: Record<string, string> = {
   polite: "thể lịch sự (ます)",
   past: "quá khứ",
   "-te": "thể て",

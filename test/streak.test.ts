@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { computeStreak, EMPTY_STREAK } from "@/features/review/domain/streak";
 
-// Dựng mốc thời gian theo giờ ĐỊA PHƯƠNG — cùng quy chiếu với localDayNumber
-// trong domain, nên test không phụ thuộc múi giờ máy chạy CI.
+// Dựng mốc thời gian theo giờ ĐỊA PHƯƠNG — cùng quy chiếu với dayNumber
+// (shared/date) mà domain dùng, nên test không phụ thuộc múi giờ máy chạy CI.
 const at = (day: number, hour = 12): number => new Date(2026, 6, day, hour).getTime();
 
 describe("computeStreak", () => {

@@ -16,7 +16,7 @@ export const INBOX_TITLE = "Từ nhặt được";
  * diện theo tiêu đề: hộp do chính luồng này tạo, người dùng đổi tên thì coi như
  * từ điển thường (một hộp mới sẽ được lập lại) — chấp nhận được cho luồng thêm nhanh.
  */
-export async function getOrCreateInbox(pair: LangPair): Promise<{ id: string; title: string }> {
+async function getOrCreateInbox(pair: LangPair): Promise<{ id: string; title: string }> {
   const existing = (await listCustomDictionaries(pair)).find((d) => d.title === INBOX_TITLE);
   if (existing) return { id: existing.id, title: existing.title };
   const id = await createLocalDictionary({

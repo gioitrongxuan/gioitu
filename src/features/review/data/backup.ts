@@ -3,6 +3,7 @@
 
 import { getDb } from "@/shared/db";
 import { VocabEntry } from "@/shared/types";
+import { datedFilename, downloadBlob } from "@/shared/downloadBlob";
 import {
   LearningBackup,
   buildBackup,
@@ -14,23 +15,6 @@ import {
 } from "../domain/backup";
 import { getAllEntries, mergeByUpdatedAt } from "./repository";
 import { getReviewLog } from "./reviewLog";
-
-/** Tên file theo ngày để nhiều bản sao lưu không đè nhau. */
-function backupFilename(exportedAt: number): string {
-  const day = new Date(exportedAt).toISOString().slice(0, 10); // YYYY-MM-DD
-  return `gioitu-backup-${day}.json`;
-}
-
-/** Đẩy một chuỗi xuống trình duyệt dưới dạng file tải về. */
-function triggerDownload(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 /**
  * Xuất toàn bộ dữ liệu học của người dùng hiện tại ra file JSON tải về.
@@ -45,7 +29,8 @@ export async function exportBackup(
   const entries = await getAllEntries(user_id);
   const log = includeHistory ? await getReviewLog(user_id) : undefined;
   const backup = buildBackup(user_id, entries, Date.now(), log);
-  triggerDownload(serializeBackup(backup), backupFilename(backup.exported_at));
+  const blob = new Blob([serializeBackup(backup)], { type: "application/json" });
+  downloadBlob(blob, datedFilename("gioitu-backup", "json", new Date(backup.exported_at)));
   return { entryCount: entries.length, logCount: log?.length ?? 0 };
 }
 

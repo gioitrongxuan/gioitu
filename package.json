@@ -12,7 +12,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "server": "tsx server/src/index.ts",
-    "server:dev": "tsx watch server/src/index.ts"
+    "server:dev": "tsx watch server/src/index.ts",
+    "import:jmdict": "tsx server/src/features/dictionary/importCli.ts jmdict",
+    "import:mazii": "tsx server/src/features/dictionary/importCli.ts mazii",
+    "import:kanjidic": "tsx server/src/features/dictionary/importCli.ts kanjidic"
   },
   "dependencies": {
     "idb": "^8.0.0",

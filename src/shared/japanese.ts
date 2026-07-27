@@ -43,7 +43,7 @@ export interface FuriganaSegment {
   reading?: string;
 }
 
-export function isCodePointKana(cp: number): boolean {
+function isCodePointKana(cp: number): boolean {
   return inRange(cp, HIRAGANA_RANGE) || inRange(cp, KATAKANA_RANGE);
 }
 

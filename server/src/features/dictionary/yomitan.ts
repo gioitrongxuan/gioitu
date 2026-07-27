@@ -12,6 +12,7 @@
 import JSZip from "jszip";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { glossToText, glossaryToLines, type GlossaryNode } from "@/shared/structured-content";
 
 type YomitanTermBankEntry = [
   string, // term
@@ -61,83 +62,18 @@ export interface ParsedDictionary {
 const TERM_BANK_RE = /^term_bank_\d+\.json$/;
 const basename = (p: string): string => p.slice(p.lastIndexOf("/") + 1);
 
-const SECTION_GLOSSES = "glosses";
-const NOISE_SECTIONS = new Set(["backlink", "attribution", "tag", "tags"]);
-const BLOCK_TAGS = new Set(["div", "p", "ol", "ul", "li", "tr", "table", "thead", "tbody", "br", "details"]);
+// Thuật toán làm phẳng glossary (tách list `glosses`, bỏ backlink/details…) sống
+// ở src/shared/structured-content — bản server từng chép ~70 dòng và đã trôi dạt.
+// Term bank đọc từ JSON thô nên đầu vào là `unknown`; ép kiểu một lần tại biên này.
 
-function dataContent(obj: Record<string, unknown>): string | undefined {
-  const data = obj.data;
-  if (data && typeof data === "object") {
-    const c = (data as Record<string, unknown>).content;
-    if (typeof c === "string") return c;
-  }
-  return undefined;
-}
-
-function findSection(node: unknown, label: string): Record<string, unknown> | null {
-  if (node == null || typeof node !== "object") return null;
-  if (Array.isArray(node)) {
-    for (const c of node) {
-      const f = findSection(c, label);
-      if (f) return f;
-    }
-    return null;
-  }
-  const obj = node as Record<string, unknown>;
-  if (dataContent(obj) === label) return obj;
-  return "content" in obj ? findSection(obj.content, label) : null;
-}
-
-function collectText(node: unknown, skipDetails: boolean): string {
-  if (node == null) return "";
-  if (typeof node === "string") return node;
-  if (typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map((c) => collectText(c, skipDetails)).join("");
-  const obj = node as Record<string, unknown>;
-  if (obj.type === "image") return obj.alt ? `[${String(obj.alt)}]` : "";
-  if (typeof obj.text === "string") return obj.text;
-  const label = dataContent(obj);
-  if (label && NOISE_SECTIONS.has(label)) return "";
-  if (skipDetails && obj.tag === "details") return "";
-  if ("content" in obj) {
-    const sep = typeof obj.tag === "string" && BLOCK_TAGS.has(obj.tag) ? "\n" : "";
-    return collectText(obj.content, skipDetails) + sep;
-  }
-  return "";
-}
-
-function normalizeText(s: string): string {
-  return s.replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
-}
-
+/** Làm phẳng một node glossary về text sạch (uỷ quyền cho glossToText của shared). */
 export function flattenGloss(node: unknown): string {
-  if (node && typeof node === "object" && (node as { type?: string }).type === "structured-content") {
-    const glosses = findSection((node as { content: unknown }).content, SECTION_GLOSSES);
-    if (glosses) return normalizeText(collectText(glosses, true));
-    return normalizeText(collectText((node as { content: unknown }).content, false));
-  }
-  return normalizeText(collectText(node, false));
+  return glossToText(node as GlossaryNode);
 }
 
 /** Tách các dòng nghĩa sạch từ một mảng glossary (một dòng/sense khi có list `glosses`). */
 export function extractGlossLines(glossary: unknown[]): string[] {
-  const out: string[] = [];
-  for (const g of glossary) {
-    if (g && typeof g === "object" && (g as { type?: string }).type === "structured-content") {
-      const glosses = findSection((g as { content: unknown }).content, SECTION_GLOSSES);
-      if (glosses && "content" in glosses) {
-        const items = Array.isArray(glosses.content) ? glosses.content : [glosses.content];
-        for (const li of items) {
-          const line = normalizeText(collectText(li, true));
-          if (line) out.push(line);
-        }
-        continue;
-      }
-    }
-    const line = flattenGloss(g).trim();
-    if (line) out.push(line);
-  }
-  return out;
+  return glossaryToLines(glossary as GlossaryNode[]);
 }
 
 const splitTags = (s: string | null | undefined): string[] =>

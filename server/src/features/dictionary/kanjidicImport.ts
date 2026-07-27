@@ -7,9 +7,9 @@
 // CHẠY SAU Mazii: bước enrich (ja,vi) đọc heading_lookup/entry của Mazii.
 
 import * as fs from "node:fs/promises";
-import type { PoolClient } from "pg";
 import { pool } from "../../core/db.js";
 import type { StoredStructural } from "@/shared/kanji";
+import { bulkInsert } from "./bulkInsert.js";
 import { iterateKanjidic, mapKanjidicEntry, toStoredReadings } from "./kanjidic.js";
 import { loadKanjiData, attachStructure, DEFAULT_DATA_DIR, type KanjiData } from "./kanjiData.js";
 
@@ -20,25 +20,6 @@ export interface KanjidicImportSummary {
   kanjiTotal: number;
   viWithHanViet: number;
   viWithMeanings: number;
-}
-
-async function bulkInsert(
-  client: PoolClient,
-  table: string,
-  cols: string[],
-  rows: unknown[][],
-  chunkRows: number,
-): Promise<void> {
-  for (let i = 0; i < rows.length; i += chunkRows) {
-    const slice = rows.slice(i, i + chunkRows);
-    const params: unknown[] = [];
-    const tuples = slice.map((r, j) => {
-      const base = j * cols.length;
-      params.push(...r);
-      return "(" + cols.map((_, k) => "$" + (base + k + 1)).join(",") + ")";
-    });
-    await client.query(`INSERT INTO ${table} (${cols.join(",")}) VALUES ${tuples.join(",")}`, params);
-  }
 }
 
 function structuralOf(entry: {

@@ -39,7 +39,6 @@ export function useAppRoute(onWordRoute: (route: WordRoute) => void) {
     if (route.kind !== "word") return;
     window.history.replaceState(null, "", routeToPath({ kind: "page", page: HOME_PAGE }));
     onWordRouteRef.current(route);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -94,5 +93,5 @@ export function useWordUrl(word: WordRoute | null) {
   useEffect(() => {
     if (!word) return;
     window.history.replaceState(null, "", routeToPath(word));
-  }, [word?.term, word?.term_lang, word?.native_lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [word?.term, word?.term_lang, word?.native_lang]);
 }

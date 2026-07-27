@@ -4,6 +4,7 @@
 // domain/yomitanExport; ở đây chỉ có phần chạm IndexedDB, JSZip và DOM.
 
 import { getDb } from "@/shared/db";
+import { isoDate } from "@/shared/date";
 import { buildYomitanFiles } from "../domain/yomitanExport";
 
 export interface DictZip {
@@ -24,7 +25,7 @@ function toFilename(title: string): string {
 // Revision mang tính mô tả (Yomitan chỉ hiển thị); ngày xuất là đủ và ổn định
 // trong một lần xuất, giúp phân biệt các bản export theo thời điểm.
 function exportRevision(): string {
-  return `gioitu-${new Date().toISOString().slice(0, 10)}`;
+  return `gioitu-${isoDate(new Date())}`;
 }
 
 /**
@@ -48,14 +49,5 @@ export async function exportDictAsZip(dictId: string, revision?: string): Promis
   return { blob, filename: toFilename(dict.title) };
 }
 
-/** Kích hoạt trình duyệt tải một Blob về máy (chỉ chạy phía client — dùng DOM). */
-export function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+// Giữ tên cũ cho các consumer trong feature; hiện thực chung nằm ở shared.
+export { downloadBlob as triggerDownload } from "@/shared/downloadBlob";

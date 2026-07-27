@@ -80,8 +80,8 @@ export const WordCloud = memo(function WordCloud({
   // xếp hay bộ lọc đổi, không phải mỗi lần cha re-render (vd toast tự tắt).
   const tags = useMemo(
     () => buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- "now" cố ý không nằm trong deps: chỉ
-    // dùng làm mốc chấm điểm log-decay (tắt theo mặc định), không phải để tick theo thời gian thực.
+    // "now" cố ý không nằm trong deps: chỉ dùng làm mốc chấm điểm log-decay
+    // (tắt theo mặc định), không phải để tick theo thời gian thực.
     [entries, sort, lang, onlyDue],
   );
 
@@ -108,7 +108,7 @@ export const WordCloud = memo(function WordCloud({
 
   useEffect(
     () => () => [hoverTimer, closeTimer, pressTimer].forEach(clearTimer),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ dọn timer lúc unmount.
+    // Chỉ dọn timer lúc unmount.
     [],
   );
 

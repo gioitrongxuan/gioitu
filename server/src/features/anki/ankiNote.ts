@@ -8,6 +8,7 @@
 // does not depend on frontend code — keep the two in sync.
 
 import type { VocabEntry, SentenceAnalysis } from "@/shared/types";
+import { analysisToMap, exampleToLines } from "@/shared/meaning";
 
 // Mirror of DEFAULT_SRS_CONFIG.initialEaseFactor (review/domain/constants.ts).
 const INITIAL_EASE_FACTOR = 2.5;
@@ -153,45 +154,23 @@ export function fieldsToExample(fields: NoteFields): string {
 // of re-adding the same word cannot grow the entry without bound.
 const MAX_EXAMPLES = 20;
 
-function parseExamples(example: string | undefined): string[] {
-  if (!example) return [];
-  try {
-    const parsed = JSON.parse(example);
-    if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
-  } catch {
-    /* legacy plain-text example (pre-accumulation) */
-  }
-  const text = example.trim();
-  return text ? [text] : [];
-}
-
 /** Append a new sentence to a word's stored examples, dedup and capped. */
 export function appendExample(existing: string | undefined, sentence: string): string {
   const next = sentence.trim();
-  const lines = parseExamples(existing);
+  const lines = exampleToLines(existing);
   if (next && !lines.includes(next)) lines.push(next);
   return JSON.stringify(lines.slice(-MAX_EXAMPLES));
 }
 
 // Phân tích AI (Premium) cho từng câu: lưu cùng kiểu JSON string như `example`
 // (Record<câu, SentenceAnalysis>). Gộp phân tích mới vào bản đồ sẵn có — ghi đè
-// câu trùng (phân tích tươi hơn), giữ các câu khác.
-type AnalysisMap = Record<string, SentenceAnalysis>;
-function parseAnalysisMap(raw: string | undefined): AnalysisMap {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as AnalysisMap;
-  } catch {
-    /* payload hỏng — coi như rỗng */
-  }
-  return {};
-}
+// câu trùng (phân tích tươi hơn), giữ các câu khác. Đọc payload bằng
+// analysisToMap của shared (cùng bộ parser với frontend, khoan dung payload hỏng).
 
 /** Gộp một phân tích (cho `sentence`) vào bản đồ sẵn có, trả về JSON string. */
 export function mergeSentenceAnalysis(existing: string | undefined, sentence: string, analysis: SentenceAnalysis): string {
   const key = sentence.trim();
-  const map = parseAnalysisMap(existing);
+  const map = analysisToMap(existing);
   if (key) map[key] = analysis;
   return JSON.stringify(map);
 }

@@ -17,3 +17,18 @@ export function formatRelative(ts: number | null, now = Date.now()): string {
   if (diffMin <= 0) return "đến hạn";
   return `sau ${formatInterval(diffMin)}`;
 }
+
+/**
+ * "x phút/giờ/ngày trước" cho mốc quá khứ — chiều ngược của formatRelative;
+ * xa hơn một tuần thì hiện thẳng ngày, vì "N ngày trước" hết còn trực quan.
+ */
+export function formatTimeAgo(ts: number, now = Date.now()): string {
+  const min = Math.floor((now - ts) / 60000);
+  if (min < 1) return "vừa xong";
+  if (min < 60) return `${min} phút trước`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} ngày trước`;
+  return new Date(ts).toLocaleDateString("vi-VN");
+}

@@ -11,6 +11,9 @@ const GOOGLE_URL = "https://inputtools.google.com/request?itc=ja-t-i0-handwrit&a
 const MAX_STROKES = 100;
 const MAX_RESULTS = 5;
 
+/** Số mảng trong một nét: [toạ_độ_x, toạ_độ_y, mốc_thời_gian]. */
+const AXES_PER_STROKE = 3;
+
 /** Nét hợp lệ: đúng ba mảng số song song. Chặn payload rác trước khi gọi Google. */
 export function areStrokesValid(strokes: unknown): strokes is Stroke[] {
   return (
@@ -18,6 +21,7 @@ export function areStrokesValid(strokes: unknown): strokes is Stroke[] {
     strokes.every(
       (stroke) =>
         Array.isArray(stroke) &&
+        stroke.length === AXES_PER_STROKE &&
         stroke.every((axis) => Array.isArray(axis) && axis.every((n) => typeof n === "number")),
     )
   );

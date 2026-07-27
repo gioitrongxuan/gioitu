@@ -10,6 +10,8 @@ import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon, LockIcon } from "@/shared/ui/icons";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { ReviewLogEntry, VocabEntry } from "@/shared/types";
+import { formatDayMonth } from "@/shared/date";
+import { datedFilename, downloadBlob } from "@/shared/downloadBlob";
 import { getReviewLog } from "../../data/reviewLog";
 import { reviewLogToCsv } from "../../domain/reviewLog";
 import {
@@ -25,7 +27,6 @@ import {
   forecastDueByDay,
   learnedOverTime,
   contiguousRuns,
-  shortDate,
   forecastDayLabel,
   STATS_WINDOW_DAYS,
 } from "../../domain/reviewStats";
@@ -71,20 +72,11 @@ function roundedTopBar(x: number, y: number, w: number, h: number, r: number): s
 
 const pct = (rate: number) => Math.round(rate * 100);
 
-/** Tên file CSV theo ngày, cùng quy ước với tệp sao lưu JSON. */
-function csvFilename(now: number): string {
-  return `gioitu-review-log-${new Date(now).toISOString().slice(0, 10)}.csv`;
-}
-
 /** Đẩy CSV xuống trình duyệt; BOM đầu file để Excel nhận UTF-8 (từ vựng JA/VI). */
 function downloadCsv(log: ReviewLogEntry[], now: number): void {
   const blob = new Blob(["\uFEFF" + reviewLogToCsv(log)], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = csvFilename(now);
-  a.click();
-  URL.revokeObjectURL(url);
+  // Tên file cùng quy ước gắn ngày với tệp sao lưu JSON.
+  downloadBlob(blob, datedFilename("gioitu-review-log", "csv", new Date(now)));
 }
 
 export function ReviewStats({ userId, entries, isPremium, onOpenPremium, onClose }: Props) {
@@ -297,7 +289,7 @@ function TimeAxisLabels({ days }: { days: { dayStart: number }[] }) {
     <>
       {marks.map(({ i, x, anchor }) => (
         <text key={i} className="rs-axis" x={x} y={VIEW_H - 8} textAnchor={anchor}>
-          {i === n - 1 ? "Hôm nay" : shortDate(days[i].dayStart)}
+          {i === n - 1 ? "Hôm nay" : formatDayMonth(days[i].dayStart)}
         </text>
       ))}
     </>
@@ -349,7 +341,7 @@ export function RetentionChart({ days }: { days: RetentionDay[] }) {
         (d, i) =>
           d.total > 0 && (
             <rect key={i} className="rs-hit" x={xOf(i, n) - PLOT_W / n / 2} y={PAD.top} width={PLOT_W / n} height={PLOT_H}>
-              <title>{`${shortDate(d.dayStart)} · ${pct(retentionRate(d)!)}% (${d.remembered}/${d.total} lượt)`}</title>
+              <title>{`${formatDayMonth(d.dayStart)} · ${pct(retentionRate(d)!)}% (${d.remembered}/${d.total} lượt)`}</title>
             </rect>
           ),
       )}
@@ -427,7 +419,7 @@ export function LearnedChart({ days }: { days: LearnedDay[] }) {
       <polyline className="rs-learned-line" points={linePoints.join(" ")} />
       {days.map((d, i) => (
         <rect key={d.dayStart} className="rs-hit" x={xOf(i, n) - PLOT_W / n / 2} y={PAD.top} width={PLOT_W / n} height={PLOT_H}>
-          <title>{`${shortDate(d.dayStart)} · ${d.cumulative} từ`}</title>
+          <title>{`${formatDayMonth(d.dayStart)} · ${d.cumulative} từ`}</title>
         </rect>
       ))}
       <TimeAxisLabels days={days} />

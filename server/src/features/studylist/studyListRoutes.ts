@@ -6,6 +6,20 @@ import * as store from "./studyListStore.js";
 
 export const studyListRoutes = Router();
 
+/** Trần độ dài tên danh sách — tên là nhãn hiển thị, không phải nội dung;
+ *  không chặn thì một body rác ghi thẳng cả MB vào cột name. */
+const MAX_NAME_LENGTH = 200;
+
+/** Tên hợp lệ đã trim, hoặc thông điệp lỗi cho client. */
+function parseListName(raw: unknown): { name: string } | { error: string } {
+  const name = String(raw ?? "").trim();
+  if (!name) return { error: "Thiếu tên danh sách" };
+  if (name.length > MAX_NAME_LENGTH) {
+    return { error: `Tên danh sách tối đa ${MAX_NAME_LENGTH} ký tự` };
+  }
+  return { name };
+}
+
 // Danh sách các list của người dùng.
 studyListRoutes.get(
   "/",
@@ -20,9 +34,9 @@ studyListRoutes.post(
   "/",
   requireAuth,
   wrap(async (req: AuthedRequest, res) => {
-    const name = String(req.body?.name ?? "").trim();
-    if (!name) return res.status(400).json({ error: "Thiếu tên danh sách" });
-    res.json(await store.createList(req.userId!, name));
+    const parsed = parseListName(req.body?.name);
+    if ("error" in parsed) return res.status(400).json({ error: parsed.error });
+    res.json(await store.createList(req.userId!, parsed.name));
   }),
 );
 
@@ -56,9 +70,9 @@ studyListRoutes.patch(
   "/:id",
   requireAuth,
   wrap(async (req: AuthedRequest, res) => {
-    const name = String(req.body?.name ?? "").trim();
-    if (!name) return res.status(400).json({ error: "Thiếu tên danh sách" });
-    const ok = await store.renameList(String(req.params.id), req.userId!, name);
+    const parsed = parseListName(req.body?.name);
+    if ("error" in parsed) return res.status(400).json({ error: parsed.error });
+    const ok = await store.renameList(String(req.params.id), req.userId!, parsed.name);
     if (!ok) return res.status(404).json({ error: "Không tìm thấy danh sách" });
     res.json({ ok: true });
   }),

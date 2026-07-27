@@ -5,7 +5,7 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "../../core/db.js";
-import { parseYomitanZip, parseYomitanDir, extractGlossLines, ParsedDictionary } from "./yomitan.js";
+import { parseYomitanZip, extractGlossLines, ParsedDictionary } from "./yomitan.js";
 import {
   assembleEntry,
   groupByWordId,
@@ -109,6 +109,10 @@ function distinctWordIds(rows: { word_id: string }[]): string[] {
 // Tra cứu công khai
 // ─────────────────────────────────────────────────────────────────────────
 
+/** Trần số dòng heading cho một lượt tra xuôi: một âm đọc phổ biến khớp cả trăm
+ *  đồng âm — ráp đủ từng ấy entry vừa nặng DB vừa vô dụng với UI. */
+const MAX_LOOKUP_WORDS = 50;
+
 /**
  * Tra xuôi theo cặp ngôn ngữ. Khớp cả cách viết (base) lẫn âm đọc (reading) và
  * trả về MỌI từ khớp — gõ một âm đọc phải ra tất cả đồng âm mang âm đó
@@ -120,8 +124,9 @@ export async function lookupMany(term: string, src: string, tgt: string): Promis
   const { rows } = await pool.query<{ word_id: string }>(
     `SELECT h.word_id FROM heading_lookup h JOIN word w ON w.id = h.word_id
       WHERE h.term_lang = $1 AND h.native_lang = $2 AND (h.base = $3 OR h.reading = $3)
-      ORDER BY (h.base = $3) DESC, w.score DESC, h.word_id`,
-    [src, tgt, term],
+      ORDER BY (h.base = $3) DESC, w.score DESC, h.word_id
+      LIMIT $4`,
+    [src, tgt, term, MAX_LOOKUP_WORDS],
   );
   return assembleByIds(distinctWordIds(rows));
 }
@@ -297,19 +302,14 @@ async function importParsed(parsed: ParsedDictionary): Promise<ImportSummary> {
 }
 
 /** Parse một archive .zip Yomitan và nạp thành một từ điển mới. */
+// Đường nhập từ THƯ MỤC đã giải nén không còn ở đây: bản per-row cũ
+// (importYomitanDir) trùng chức năng với importYomitanBulk (jmdictImport.ts) mà
+// chậm hơn và không bắt score — seed từ thư mục dùng CLI importCli.ts.
 export async function importBuffer(
   buf: Buffer,
   opts: { term_lang?: string; native_lang?: string },
 ): Promise<ImportSummary> {
   return importParsed(await parseYomitanZip(buf, opts));
-}
-
-/** Nạp một từ điển Yomitan từ thư mục đã giải nén (vd JMdict_english). */
-export async function importYomitanDir(
-  dir: string,
-  opts: { term_lang?: string; native_lang?: string } = {},
-): Promise<ImportSummary> {
-  return importParsed(await parseYomitanDir(dir, opts));
 }
 
 /** Liệt kê từ điển đã nhập kèm số từ (số entry trỏ vào nó). */

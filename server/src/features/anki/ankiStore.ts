@@ -4,6 +4,7 @@
 // the entry shaping is the pure domain in ankiNote.ts.
 import { pool } from "../../core/db.js";
 import { canUseSentenceAi } from "../../core/entitlements.js";
+import { upsertUserData } from "../sync/userDataUpsert.js";
 import { callDeepseek } from "../ai/aiClient.js";
 import { buildSentenceAnalysisPrompt, parseSentenceAnalysis } from "../ai/sentenceAnalysis.js";
 import type { SentenceAnalysis, VocabEntry } from "@/shared/types";
@@ -51,8 +52,10 @@ export async function saveNote(
         buildSentenceAnalysisPrompt({ term, reading, sentence: example, term_lang, native_lang }),
       );
       analysis = parseSentenceAnalysis(content) ?? undefined;
-    } catch {
-      /* bỏ qua — lưu từ vẫn là hành động chính */
+    } catch (err) {
+      // Bỏ qua — lưu từ vẫn là hành động chính; nhưng phải log, không thì AI
+      // hỏng (hết quota, sai key…) chỉ hiện ra như "Premium không có phân tích".
+      console.error("Phân tích câu AI thất bại:", err);
     }
   }
 
@@ -80,18 +83,10 @@ export async function saveNote(
       },
       now,
     );
-    // `received_at` bắt buộc phải đóng dấu ở đây như syncStore: cột mặc định 0,
+    // `received_at` bắt buộc phải đóng dấu (= now) như syncStore: cột mặc định 0,
     // mà mốc hiệu lực LWW là min(updated_at, received_at) — bỏ trống thì mọi từ
     // thêm qua Yomitan có mốc 0 và THUA mọi bản đồng bộ đến sau, dù nó mới hơn.
-    await client.query(
-      `INSERT INTO user_data (user_id, term, term_lang, payload, updated_at, received_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (user_id, term, term_lang) DO UPDATE SET
-         payload = EXCLUDED.payload,
-         updated_at = EXCLUDED.updated_at,
-         received_at = EXCLUDED.received_at`,
-      [userId, term, term_lang, JSON.stringify(entry), entry.updated_at, now],
-    );
+    await upsertUserData(client, userId, entry, now);
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");

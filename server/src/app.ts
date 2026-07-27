@@ -3,7 +3,7 @@
 // without starting a listener.
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import express from "express";
+import express, { type ErrorRequestHandler } from "express";
 import cors from "cors";
 import { authRoutes } from "./features/auth/authRoutes.js";
 import { dictRoutes } from "./features/dictionary/dictRoutes.js";
@@ -60,6 +60,20 @@ export function createApp() {
     app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(join(staticDir, "index.html")));
     console.log(`Serving frontend from ${staticDir}`);
   }
+
+  // Lưới an toàn cuối chain (Express nhận diện error-handler qua đúng 4 tham
+  // số): lỗi lọt qua wrap()/body-parser mặc định nổ thành trang HTML kèm stack.
+  // Stack chỉ ở log server; client nhận JSON gọn, giữ status nếu lỗi mang theo
+  // (vd body-parser: 400 JSON hỏng, 413 body quá lớn).
+  const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    console.error(`${req.method} ${req.originalUrl}:`, err);
+    const status = typeof err?.status === "number" ? err.status : 500;
+    res.status(status).json({
+      error: status >= 500 ? "Máy chủ gặp lỗi, thử lại sau" : "Yêu cầu không hợp lệ",
+    });
+  };
+  app.use(errorHandler);
 
   return app;
 }

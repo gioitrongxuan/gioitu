@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { addComment, deleteComment, listComments } from "../data/comments";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { TrashIcon } from "@/shared/ui/icons";
+import { formatTimeAgo } from "@/shared/format";
 import {
   COMMENTS_PAGE_SIZE,
   canDeleteComment,
@@ -33,18 +34,6 @@ interface Props {
   isAdmin?: boolean;
   /** Mời đăng nhập khi guest muốn bình luận. */
   onRequireLogin?: () => void;
-}
-
-/** "x phút/giờ/ngày trước" cho mốc quá khứ; xa hơn thì hiện ngày. */
-function formatWhen(ts: number, now = Date.now()): string {
-  const min = Math.floor((now - ts) / 60000);
-  if (min < 1) return "vừa xong";
-  if (min < 60) return `${min} phút trước`;
-  const hours = Math.floor(min / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} ngày trước`;
-  return new Date(ts).toLocaleDateString("vi-VN");
 }
 
 export function WordComments({
@@ -88,7 +77,6 @@ export function WordComments({
       alive = false;
     };
     // Khoá phụ thuộc theo các trường của từ (key là object mới mỗi render).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [termLang, nativeLang, term, reading]);
 
   async function loadOlder() {
@@ -177,7 +165,7 @@ export function WordComments({
               <li key={c.id} className="comment">
                 <div className="comment-meta">
                   <span className="comment-author">{c.author_name}</span>
-                  <span className="comment-when">{formatWhen(c.created_at)}</span>
+                  <span className="comment-when">{formatTimeAgo(c.created_at)}</span>
                   {canDeleteComment(c, currentUserId ?? null, isAdmin === true) && (
                     <button
                       className="link comment-del"

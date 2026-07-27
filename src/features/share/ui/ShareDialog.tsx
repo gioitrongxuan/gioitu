@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { exportDictAsZip } from "@/features/dictionary/data/yomitanZip";
 import { useDialog } from "@/shared/ui/useDialog";
+import { useCopyToClipboard } from "@/shared/ui/useCopyToClipboard";
 import { CloseIcon } from "@/shared/ui/icons";
 import { createShareLink, ShareLink } from "../data/share";
 import "./share.css";
@@ -19,7 +20,7 @@ export function ShareDialog({ loggedIn, dict, onRequestLogin, onClose }: Props) 
   const [link, setLink] = useState<ShareLink | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   // Đóng gói + tải lên khi mở (nếu đã đăng nhập).
   useEffect(() => {
@@ -51,17 +52,6 @@ export function ShareDialog({ loggedIn, dict, onRequestLogin, onClose }: Props) 
   const expired = remaining === 0;
   const dialogRef = useDialog<HTMLDivElement>(onClose);
 
-  async function copy() {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link.url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard có thể bị chặn (origin không bảo mật) — người dùng vẫn chọn tay được.
-    }
-  }
-
   return (
     <div className="theme-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="theme-card" role="dialog" aria-modal="true" aria-label="Chia sẻ từ điển" tabIndex={-1} ref={dialogRef}>
@@ -89,7 +79,7 @@ export function ShareDialog({ loggedIn, dict, onRequestLogin, onClose }: Props) 
               <>
                 <div className="url-row">
                   <input className="url-input" value={link.url} readOnly onFocus={(e) => e.currentTarget.select()} />
-                  <button type="button" className="primary" onClick={copy} disabled={expired}>
+                  <button type="button" className="primary" onClick={() => copy(link.url)} disabled={expired}>
                     {copied ? "Đã chép" : "Sao chép"}
                   </button>
                 </div>

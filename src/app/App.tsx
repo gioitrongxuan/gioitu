@@ -228,7 +228,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     if (loadSource() != null) return;
     hasLocalDict(pair).then((has) => setDictSource(has ? "local" : "server"));
     // Run once on mount; the saved choice (if any) already won above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const chooseSource = (s: DictSource) => {
     setDictSource(s);
@@ -256,7 +255,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       cancelled = true;
     };
     // Chạy một lần lúc mở app (MainApp remount theo userId nên mỗi phiên một lần).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);

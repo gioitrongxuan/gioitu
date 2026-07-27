@@ -21,7 +21,7 @@ export interface SenseDraft {
   examples: Example[];
 }
 
-export const emptySense = (): SenseDraft => ({ pos: [], misc: [], gloss: "", info: "", examples: [] });
+const emptySense = (): SenseDraft => ({ pos: [], misc: [], gloss: "", info: "", examples: [] });
 
 export function toSenseDrafts(senses: EditableSense[]): SenseDraft[] {
   if (!senses.length) return [emptySense()];

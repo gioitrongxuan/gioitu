@@ -13,7 +13,7 @@ export interface SyncedDict {
 }
 
 /** Mốc thời gian LWW của một từ điển: updatedAt, hoặc importedAt khi vắng. */
-export function dictUpdatedAt(registry: LocalDictionary): number {
+function dictUpdatedAt(registry: LocalDictionary): number {
   return registry.updatedAt ?? registry.importedAt ?? 0;
 }
 

@@ -1,7 +1,7 @@
 // Default SM-2 / SRS parameters (SPEC 4.4, configurable).
 // All durations expressed in MINUTES to match VocabEntry.srs_interval.
 
-export const MINUTE = 1;
+const MINUTE = 1;
 export const DAY = 24 * 60; // 1440 minutes
 
 export interface SrsConfig {

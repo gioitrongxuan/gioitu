@@ -135,7 +135,6 @@ export function HandwritingPad({ onInsert }: Props) {
       window.clearTimeout(timerRef.current);
     };
     // Gắn một lần khi mount — canvas không đổi.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function clear() {

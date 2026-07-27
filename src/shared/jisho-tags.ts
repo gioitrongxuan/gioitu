@@ -4,7 +4,8 @@
 // Nhãn hiển thị + màu cho từng mã được resolve riêng ở dictionary/domain/tags.ts.
 
 // --- Part of speech (JMdict) ---
-export const partOfSpeechTags = [
+// Ba bảng mã dưới chỉ để suy kiểu PartOfSpeechTag — không export riêng.
+const partOfSpeechTags = [
   "adj-f", "adj-i", "adj-ix", "adj-kari", "adj-ku", "adj-na", "adj-nari", "adj-no",
   "adj-pn", "adj-shiku", "adj-t", "adv", "adv-to", "aux", "aux-adj", "aux-v",
   "conj", "cop", "ctr", "exp", "int", "n", "n-adv", "n-pr", "n-pref", "n-suf",
@@ -18,13 +19,13 @@ export const partOfSpeechTags = [
 ] as const;
 
 /** Mã POS gộp/suy ra mà jisho tự đặt (không thuộc JMdict gốc). */
-export const partOfSpeechCustomTags = [
+const partOfSpeechCustomTags = [
   "adj", "v", "v2", "v2-k", "v2-s", "v4", "v5", "vmasu", "vmasuneg", "virr",
   "v1contr", "vte",
 ] as const;
 
 /** Mã loại tên riêng (ENAMDICT). */
-export const partOfSpeechNameTags = [
+const partOfSpeechNameTags = [
   "char", "company", "creat", "dei", "doc", "ev", "fem", "fict", "given", "group",
   "leg", "masc", "myth", "obj", "organization", "oth", "person", "place", "product",
   "relig", "serv", "ship", "station", "surname", "unclass", "work",
@@ -72,11 +73,7 @@ export type DialectTag =
 
 export type GlossTypeTag = "equ" | "expl" | "fig" | "lit" | "tm";
 
-export type PitchAccentTag = "atamadaka" | "nakadaka" | "odaka" | "heiban";
-
 // --- Commonness / JLPT / Jōyō (index.ts) ---
-export type CommonnessTag = "veryCommon" | "common";
 export type CommonnessIndex = 2 | 1;
-export type JlptTag = "jlpt" | "n5" | "n4" | "n3" | "n2" | "n1";
 export type JlptLevel = 5 | 4 | 3 | 2 | 1;
 export type JouyouGrade = 1 | 2 | 3 | 4 | 5 | 6 | 7;

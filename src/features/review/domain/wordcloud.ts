@@ -9,6 +9,7 @@ import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
 import { meaningToLines } from "@/shared/meaning";
 import { formatRelative } from "@/shared/format";
+import { DAY_MS, pad2, startOfDay } from "@/shared/date";
 
 export interface CloudTag {
   entry: VocabEntry;
@@ -70,8 +71,6 @@ export interface BuildCloudOptions extends ShadeOptions {
   /** Restrict the cloud to one language (default "all" = mixed). */
   lang?: CloudLang;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Effective lookup weight, optionally decayed by time since last lookup. */
 export function effectiveCount(entry: Pick<VocabEntry, "lookup_count" | "last_lookup_at">, opts: ShadeOptions = {}): number {
@@ -171,15 +170,6 @@ export interface CloudGroup<T = CloudTag> {
   /** Vietnamese heading, e.g. "Hôm nay", "22/06/2026", "Tháng 6 2026", "2026". */
   label: string;
   items: T[];
-}
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-/** Local-midnight epoch of a timestamp (for the "Hôm nay"/"Hôm qua" labels). */
-function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
 }
 
 /**

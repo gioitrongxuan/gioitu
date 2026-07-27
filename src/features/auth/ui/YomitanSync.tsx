@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
+import { useCopyToClipboard } from "@/shared/ui/useCopyToClipboard";
 import { CloseIcon } from "@/shared/ui/icons";
 import { getYomitanKey, regenerateYomitanKey } from "../data/auth";
 import "./yomitansync.css";
@@ -114,17 +115,7 @@ export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
 
 /** A read-only value with a copy button; shows "Đã chép" briefly on success. */
 function CopyRow({ value, disabled, mono }: { value: string; disabled?: boolean; mono?: boolean }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard may be blocked (insecure origin); the user can still select.
-    }
-  }
+  const { copied, copy } = useCopyToClipboard();
 
   return (
     <div className="url-row">
@@ -135,7 +126,7 @@ function CopyRow({ value, disabled, mono }: { value: string; disabled?: boolean;
         spellCheck={false}
         onFocus={(e) => e.currentTarget.select()}
       />
-      <button type="button" className="primary yk-copy" onClick={copy} disabled={disabled}>
+      <button type="button" className="primary yk-copy" onClick={() => copy(value)} disabled={disabled}>
         {copied ? "Đã chép" : "Sao chép"}
       </button>
     </div>

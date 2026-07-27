@@ -46,7 +46,9 @@ function rowToSummary(r: Record<string, unknown>): StudyListSummary {
   };
 }
 
-/** word_id khớp (base hoặc reading) trong một cặp ngôn ngữ; ưu tiên khớp base. */
+/** word_id khớp (base hoặc reading) trong một cặp ngôn ngữ. Xếp hạng: khớp cả
+ *  base + reading (client gửi reading chính là để phân biệt đồng âm) → khớp
+ *  base → khớp reading. */
 async function resolveWordId(
   term: string,
   reading: string,
@@ -55,8 +57,9 @@ async function resolveWordId(
 ): Promise<string | null> {
   const { rows } = await pool.query<{ word_id: string }>(
     `SELECT word_id FROM heading_lookup
-      WHERE term_lang = $1 AND native_lang = $2 AND (base = $3 OR reading = $3 OR (reading = $4 AND base = $3))
-      ORDER BY (base = $3) DESC LIMIT 1`,
+      WHERE term_lang = $1 AND native_lang = $2 AND (base = $3 OR reading = $3)
+      ORDER BY ($4 <> '' AND base = $3 AND reading = $4) DESC, (base = $3) DESC
+      LIMIT 1`,
     [term_lang, native_lang, term, reading],
   );
   return rows[0]?.word_id ?? null;
@@ -188,8 +191,11 @@ export async function addWord(
 export async function removeWord(listId: string, userId: string, wordId: string): Promise<boolean> {
   if (!(await ownsList(listId, userId))) return false;
   const r = await pool.query(`DELETE FROM study_list_word WHERE list_id = $1 AND word_id = $2`, [listId, wordId]);
+  // Không xoá được gì thì đừng touch: modified_at nhảy sẽ đẩy list lên đầu
+  // bảng xếp "mới sửa" dù nội dung không hề đổi.
+  if (!r.rowCount) return false;
   await touch(listId);
-  return Boolean(r.rowCount);
+  return true;
 }
 
 /** Các list của người dùng có chứa từ này (cờ "marked" ở trang chi tiết). */

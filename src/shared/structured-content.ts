@@ -191,7 +191,6 @@ export function sensesToLines(senses: Sense[] | undefined): string[] {
 // Furigana distribution lives in ./japanese (a faithful port of Yomitan's
 // per-kanji-run algorithm). Re-exported here so existing import sites keep working.
 export { distributeFurigana } from "./japanese";
-export type { FuriganaSegment } from "./japanese";
 
 const BLOCK_TAGS = new Set([
   "div",

@@ -12,7 +12,7 @@ import "./shell.css";
 // phút — con số để định kỳ vọng, không phải cam kết.
 const SECONDS_PER_CARD = 30;
 
-export function estimateMinutes(dueCount: number): number {
+function estimateMinutes(dueCount: number): number {
   return Math.max(1, Math.round((dueCount * SECONDS_PER_CARD) / 60));
 }
 

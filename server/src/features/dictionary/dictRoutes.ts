@@ -69,6 +69,7 @@ dictRoutes.get(
     const term = String(req.query.term ?? "");
     const src = String(req.query.src ?? "");
     const tgt = String(req.query.tgt ?? "");
+    if (!term) return res.json([]);
     res.json(await dictStore.lookupMany(term, src, tgt));
   }),
 );
@@ -329,7 +330,12 @@ dictRoutes.delete(
     const term = String(req.body?.term ?? "");
     const term_lang = String(req.body?.term_lang ?? "");
     const native_lang = String(req.body?.native_lang ?? "");
-    const word_id = req.body?.word_id ? String(req.body.word_id) : undefined;
+    // word_id lệch kiểu → 400 thay vì để pg ném lỗi (500); cũng không được rơi
+    // về nhánh xoá-theo-base kẻo quét nhầm mọi từ đồng âm.
+    const word_id = req.body?.word_id ? asId(req.body.word_id) : undefined;
+    if (req.body?.word_id && !word_id) {
+      return res.status(400).json({ error: "word_id không hợp lệ" });
+    }
     const found = await dictStore.deleteTerm(term, term_lang, native_lang, word_id);
     if (!found) return res.status(404).json({ error: "Không tìm thấy từ" });
     res.json({ ok: true });

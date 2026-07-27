@@ -79,7 +79,6 @@ function KanjiCard({
       fetchKanji(kanji.literal, src, tgt).then((r) => setExamples(r?.examples ?? []));
     }
     // Chỉ chạy một lần khi mount; đổi kanji sẽ remount do key theo literal.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggle = () => {

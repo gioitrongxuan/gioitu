@@ -4,6 +4,7 @@
 // về user đã xác thực (user_id do client gửi bị bỏ qua, không giả mạo được).
 import { pool } from "../../core/db.js";
 import { SyncEntry, mergeStampedEntries } from "./lww.js";
+import { upsertUserData } from "./userDataUpsert.js";
 
 /** Pull a user's entries changed at/after `since`. */
 export async function pull(userId: string, since: number) {
@@ -37,22 +38,7 @@ export async function push(userId: string, entries: SyncEntry[]) {
             { entry: owned, receivedAt },
           )
         : { entry: owned, receivedAt };
-      await client.query(
-        `INSERT INTO user_data (user_id, term, term_lang, payload, updated_at, received_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (user_id, term, term_lang) DO UPDATE SET
-           payload = EXCLUDED.payload,
-           updated_at = EXCLUDED.updated_at,
-           received_at = EXCLUDED.received_at`,
-        [
-          userId,
-          owned.term,
-          owned.term_lang,
-          JSON.stringify(merged.entry),
-          merged.entry.updated_at,
-          merged.receivedAt,
-        ],
-      );
+      await upsertUserData(client, userId, merged.entry, merged.receivedAt);
     }
     await client.query("COMMIT");
   } catch (err) {

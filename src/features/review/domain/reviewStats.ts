@@ -6,6 +6,7 @@
 import { DAY } from "./constants";
 import { isDeleted } from "./lifecycle";
 import { ReviewLogEntry, VocabEntry } from "@/shared/types";
+import { formatDayMonth, startOfDay } from "@/shared/date";
 
 /** Cửa sổ mặc định cho retention + đường "đã thuộc": 30 ngày gần nhất. */
 export const STATS_WINDOW_DAYS = 30;
@@ -19,14 +20,7 @@ export const FORECAST_DAYS = 7;
  * trong phiên — chấm "Nhớ" sau 1 phút không đo trí nhớ dài hạn, gộp vào chỉ
  * thổi phồng tỉ lệ.
  */
-export const MIN_RETENTION_INTERVAL = 1 * DAY;
-
-/** Nửa đêm địa phương của một thời điểm (cùng idiom với wordcloud.ts). */
-function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
+const MIN_RETENTION_INTERVAL = 1 * DAY;
 
 /**
  * Mốc nửa đêm của `days` ngày liên tiếp kết thúc ở ngày chứa `now`, kèm một
@@ -295,17 +289,9 @@ export function mostForgotten(entries: VocabEntry[], limit: number = 3): VocabEn
     .slice(0, limit);
 }
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-/** Nhãn ngày ngắn "dd/MM" cho trục thời gian. */
-export function shortDate(dayStart: number): string {
-  const d = new Date(dayStart);
-  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
-}
-
 /** Nhãn cột dự báo: hai ngày đầu gọi tên, còn lại "dd/MM". */
 export function forecastDayLabel(index: number, dayStart: number): string {
   if (index === 0) return "Hôm nay";
   if (index === 1) return "Ngày mai";
-  return shortDate(dayStart);
+  return formatDayMonth(dayStart);
 }

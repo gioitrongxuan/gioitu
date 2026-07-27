@@ -15,10 +15,10 @@ import { SyncedDict, pullCustomDicts, pushCustomDicts } from "./dictSyncApi";
  * `termCount` khỏi phải nạp cả dict lớn); trần dung lượng thật do server áp
  * (MAX_SYNC_BYTES) — vượt thì push bị từ chối, bản local vẫn giữ.
  */
-export const SYNCABLE_MAX_TERMS = 2000;
+const SYNCABLE_MAX_TERMS = 2000;
 
 /** Từ điển này có nằm trong diện đồng bộ không (tự soạn, hoặc bản nhập đủ nhỏ)? */
-export function isSyncable(registry: LocalDictionary): boolean {
+function isSyncable(registry: LocalDictionary): boolean {
   return registry.custom === true || (registry.termCount ?? 0) <= SYNCABLE_MAX_TERMS;
 }
 
