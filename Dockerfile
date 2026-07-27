@@ -19,6 +19,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 # Backend source (run directly with tsx) + the built frontend it serves.
 COPY tsconfig.json ./
 COPY server ./server
+# server/src imports pure logic from src/shared (types, structured-content, ...)
+# at runtime via the "@/shared/*" tsconfig path — ship just that slice, not all of src.
+COPY src/shared ./src/shared
 COPY --from=build /app/dist ./dist
 EXPOSE 8787
 CMD ["npm", "run", "server"]
