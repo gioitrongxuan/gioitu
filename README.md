@@ -282,5 +282,6 @@ unit; the UI converts to friendly units.
 
 ## Tech
 
+ 
 TypeScript · React 18 · Vite · Vitest · idb (IndexedDB) · JSZip ·
 Express + PostgreSQL (node-postgres / `pg`) for the optional backend (auth + dict + sync).
