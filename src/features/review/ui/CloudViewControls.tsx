@@ -4,6 +4,7 @@
 // tầng trí nhớ ("Trí nhớ") chỉ hiện khi `enableSrsTier` — xem prop.
 
 import { CloudLang, CloudGrouping } from "../domain/wordcloud";
+import { LangSelect } from "./LangSelect";
 
 interface Props {
   lang: CloudLang;
@@ -20,14 +21,7 @@ interface Props {
 export function CloudViewControls({ lang, grouping, onLangChange, onGroupingChange, enableSrsTier }: Props) {
   return (
     <>
-      <label className="sort-select">
-        Ngôn ngữ
-        <select value={lang} onChange={(e) => onLangChange(e.target.value as CloudLang)}>
-          <option value="all">Cả hai</option>
-          <option value="ja">Tiếng Nhật</option>
-          <option value="en">Tiếng Anh</option>
-        </select>
-      </label>
+      <LangSelect lang={lang} onLangChange={onLangChange} />
       <label className="sort-select">
         Nhóm theo
         <select value={grouping} onChange={(e) => onGroupingChange(e.target.value as CloudGrouping)}>
