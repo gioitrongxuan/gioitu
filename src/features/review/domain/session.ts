@@ -29,7 +29,7 @@ interface SessionSnapshot {
 }
 
 /** Fisher–Yates, trả về mảng mới (không đụng input — giữ caller thuần). */
-function shuffle<T>(items: T[], rng: () => number): T[] {
+export function shuffle<T>(items: T[], rng: () => number): T[] {
   const out = items.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));

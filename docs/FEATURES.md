@@ -157,8 +157,10 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Sắp xếp** | `recent` (mới tra nhất) hoặc `frequency` (tra nhiều nhất) |
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
+| **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
+| **Nghe** | Mở [chế độ nghe](#915-chế-độ-nghe-bulk-play-sound); vô hiệu khi không có từ nào nghe được |
 
 ### Tải ảnh PNG (`review/ui/wordCloudPng.ts`)
 
@@ -212,8 +214,11 @@ UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
 - **Hoàn thành**: "Hoàn thành! 🎉" + số thẻ đã ôn; có thể **Kết thúc phiên** bất
   cứ lúc nào.
 
-Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`); phiên **chụp một
-lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
+Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`) **lọc theo ngôn ngữ
+đang chọn** — cùng một lựa chọn cho cả hai lối vào (nút Hôm nay và Filter Bar).
+Tiêu đề tab / huy hiệu PWA / huy hiệu nav vẫn đếm **tổng** không lọc, nên khi bộ
+lọc vét sạch hàng đợi màn Hôm nay nói rõ "Không có từ *tiếng X* đến hạn" thay vì
+báo đã ôn xong. Phiên **chụp một lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
 [LOGIC §4.8](./LOGIC.md)). Khi một từ vượt ngưỡng `matureThreshold` (21 ngày) nó
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
@@ -717,6 +722,32 @@ trên overlay.
 **Cửa sổ popup riêng cho form** (`add_solo=1` — extension/bookmarklet mở "Form
 đầy đủ" hoặc fallback CSP): App chỉ vẽ form Thêm nhanh + toast, không dựng vỏ
 app; đóng form là đóng cửa sổ.
+
+### 9.15 Chế độ nghe (bulk play sound)
+
+Ôn bằng tai lúc không rảnh mắt: máy đọc liên tục các từ đang học, người dùng chỉ
+nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không đụng
+`next_review`. Mở từ nút **Nghe** cạnh "Ôn tập hôm nay".
+
+- **Nguồn từ**: toàn bộ từ đang học trên bản đồ (`LEARNING` + `RELAPSED`) thuộc
+  ngôn ngữ đang chọn, bỏ những từ không có nghĩa đọc được — **không** theo hạn
+  ôn, nên nghe được cả khi hôm nay không còn thẻ đến hạn.
+- **Mỗi thẻ**: đọc mặt chữ **2 lần** → khoảng lặng (2/4/6 giây, chỉnh được) để
+  tự nhớ lại → đọc nghĩa. Tiếng Nhật có kana thì đọc kana (kanji đứng một mình
+  hay bị đọc sai âm).
+- **Danh sách phát**: xáo trộn, chạy vòng vô hạn tới khi dừng; hết vòng thì dựng
+  lại từ dữ liệu mới nhất và **xáo lại** để không thuộc lòng theo thứ tự.
+- **Màn phát** (`review/ui/ListenSession.tsx`): chữ cỡ lớn, nghĩa chỉ hiện đúng
+  lúc máy đọc nghĩa (liếc màn hình vẫn là một lượt tự kiểm tra). Cả vùng chữ là
+  nút phát/dừng khổng lồ; thêm Từ trước / Từ sau và hai ô chọn Tốc độ
+  (chậm/bình thường/nhanh) + Khoảng lặng. Cài đặt nhớ ở `gioitu.listen.v1`.
+- **Kỹ thuật**: Web Speech API thuần client (`review/data/speech.ts`) — offline,
+  miễn phí, không gọi server. Logic *đọc gì* nằm thuần ở `review/domain/listen.ts`.
+  Giữ màn hình sáng bằng Wake Lock (`review/data/wakeLock.ts`).
+- **Giới hạn đã biết**: giọng đọc của trình duyệt **tắt khi khoá màn hình hoặc
+  chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
+  gấp đồ), chưa phát được khi bỏ máy trong túi. Máy thiếu gói giọng cho ngôn
+  ngữ đang nghe thì màn phát báo ngay thay vì im lặng khó hiểu.
 
 ## 10. Bản đồ chức năng → tài liệu
 
