@@ -167,6 +167,8 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
+/* Bộ lọc ngôn ngữ của phiên ôn — chip nhỏ, dạt phải, không tranh trọng tâm với tiêu đề due. */
+.today-hero-lang { justify-self: end; }
 .today-hero-title { margin: 0; font-size: var(--text-2xl); line-height: var(--leading-heading); }
 .today-hero-est { color: var(--muted); font-size: var(--text-lg); font-weight: normal; }
 .today-hero-sub { margin: 0; color: var(--muted); }

@@ -6,7 +6,16 @@ import { useEffect, useState } from "react";
 import { SearchIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { TodayStats } from "@/features/review/data/todayStats";
+import { CloudLang } from "@/features/review/domain/wordcloud";
+import { LangSelect } from "@/features/review/ui/LangSelect";
 import "./shell.css";
+
+// Chỉ "ja"/"en" thực sự chọn được qua LangSelect — nhánh dùng bảng này chỉ
+// tới khi lang khác "all" (xem điều kiện dueCount === 0 && totalDueCount > 0).
+const LANG_LABELS: Partial<Record<CloudLang, string>> = {
+  ja: "tiếng Nhật",
+  en: "tiếng Anh",
+};
 
 // Ước lượng "~X phút" cho hero: nhịp tự chấm một thẻ (lật + nhớ lại) chừng nửa
 // phút — con số để định kỳ vọng, không phải cam kết.
@@ -23,7 +32,12 @@ const WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const MIN_BAR_PERCENT = 15;
 
 interface TodayScreenProps {
+  /** Số đến hạn đã lọc theo `lang` — dùng cho tiêu đề hero + nút "Ôn ngay". */
   dueCount: number;
+  /** Số đến hạn KHÔNG lọc — chỉ để phân biệt "hết nợ thật" với "bị lọc khỏi tầm nhìn". */
+  totalDueCount: number;
+  lang: CloudLang;
+  onLangChange: (lang: CloudLang) => void;
   learnedCount: number;
   /** Từ hay quên nhất (rớt nhiều lần nhất) — App tính sẵn từ store. */
   forgotten: VocabEntry[];
@@ -37,6 +51,9 @@ interface TodayScreenProps {
 
 export function TodayScreen({
   dueCount,
+  totalDueCount,
+  lang,
+  onLangChange,
   learnedCount,
   forgotten,
   loadStats,
@@ -61,6 +78,9 @@ export function TodayScreen({
   return (
     <div className="today-screen">
       <section className="today-hero">
+        <div className="today-hero-lang">
+          <LangSelect lang={lang} onLangChange={onLangChange} />
+        </div>
         {dueCount > 0 ? (
           <>
             <h2 className="today-hero-title">
@@ -69,6 +89,11 @@ export function TodayScreen({
             <button type="button" className="primary today-hero-cta" onClick={onStartReview}>
               Ôn ngay
             </button>
+          </>
+        ) : totalDueCount > 0 ? (
+          <>
+            <h2 className="today-hero-title">Không có từ {LANG_LABELS[lang] ?? ""} đến hạn</h2>
+            <p className="today-hero-sub">Đổi ngôn ngữ ở trên để xem các từ đến hạn khác.</p>
           </>
         ) : (
           <>

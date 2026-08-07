@@ -3,7 +3,7 @@
 // panel, the review session and dictionary import. Lookup orchestration lives
 // in useLookup; per-feature logic lives under src/features/*.
 
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
@@ -12,7 +12,8 @@ import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
-import { CloudSort, CloudLang, CloudGrouping } from "@/features/review/domain/wordcloud";
+import { CloudSort, CloudLang, CloudGrouping, filterByLang } from "@/features/review/domain/wordcloud";
+import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLangSettings";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -259,8 +260,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [highlightDue, setHighlightDue] = useState(true);
   const [onlyDue, setOnlyDue] = useState(false);
   const [sort, setSort] = useState<CloudSort>("recent");
-  // Shared by both maps (home + "Đã thuộc") so the view reads the same way.
-  const [cloudLang, setCloudLang] = useState<CloudLang>("all");
+  // Shared by both maps (home + "Đã thuộc") và bộ lọc phiên ôn (App.tsx dueEntriesForReview)
+  // nên đọc/ghi cùng một chỗ. Persist qua localStorage để mở lại app không nhảy về "Cả hai".
+  const [cloudLang, setCloudLang] = useState<CloudLang>(loadCloudLang);
+  const changeCloudLang = useCallback((lang: CloudLang) => {
+    setCloudLang(lang);
+    saveCloudLang(lang);
+  }, []);
   const [grouping, setGrouping] = useState<CloudGrouping>("none");
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
@@ -318,6 +324,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // và khi tab trở lại foreground (store). setAppBadge chỉ có ở trình duyệt hỗ
   // trợ — dùng optional chaining, bỏ qua an toàn nếu vắng mặt.
   const dueCount = store.dueEntries.length;
+  // Hàng đợi ôn thực tế: due lọc theo cloudLang, dùng cho cả 2 điểm vào ôn tập
+  // (Hôm nay + Kho từ) và số hiển thị kèm — dueCount (tổng) ở trên giữ nguyên
+  // cho tiêu đề tab/app badge/huy hiệu nav, không phụ thuộc bộ lọc UI.
+  const dueEntriesForReview = useMemo(
+    () => filterByLang(store.dueEntries, cloudLang),
+    [store.dueEntries, cloudLang],
+  );
   useEffect(() => {
     document.title = formatDueTitle(dueCount, BASE_TITLE);
     const nav = navigator as Navigator & {
@@ -589,7 +602,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             {page === "cloud" && (
               <FilterBar
                 entries={store.entries}
-                dueCount={store.dueEntries.length}
+                dueCount={dueEntriesForReview.length}
                 highlightDue={highlightDue}
                 onlyDue={onlyDue}
                 sort={sort}
@@ -598,9 +611,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onToggleHighlight={() => setHighlightDue((v) => !v)}
                 onToggleOnlyDue={() => setOnlyDue((v) => !v)}
                 onSortChange={setSort}
-                onLangChange={setCloudLang}
+                onLangChange={changeCloudLang}
                 onGroupingChange={setGrouping}
-                onStartReview={() => setReviewQueue(store.dueEntries)}
+                onStartReview={() => setReviewQueue(dueEntriesForReview)}
               />
             )}
             {page === "learned" && (
@@ -609,7 +622,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 <CloudViewControls
                   lang={cloudLang}
                   grouping={grouping === "srs" ? "none" : grouping}
-                  onLangChange={setCloudLang}
+                  onLangChange={changeCloudLang}
                   onGroupingChange={setGrouping}
                 />
               </div>
@@ -624,11 +637,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 <Skeleton lines={3} className="empty" />
               ) : (
                 <TodayScreen
-                  dueCount={dueCount}
+                  dueCount={dueEntriesForReview.length}
+                  totalDueCount={dueCount}
+                  lang={cloudLang}
+                  onLangChange={changeCloudLang}
                   learnedCount={store.learnedEntries.length}
                   forgotten={mostForgotten(store.entries)}
                   loadStats={loadStats}
-                  onStartReview={() => setReviewQueue(store.dueEntries)}
+                  onStartReview={() => setReviewQueue(dueEntriesForReview)}
                   onGoSearch={() => gotoPage("search")}
                   onGoLearned={() => gotoPage("learned")}
                   onSelectWord={(w) => openWord(w)}
