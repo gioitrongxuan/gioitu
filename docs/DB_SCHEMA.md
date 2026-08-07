@@ -12,6 +12,7 @@
 |---|---|---|---|
 | **Từ điển** (tra cứu) | **IndexedDB** (`terms`, `term_meta`, `dictionaries`) | Postgres `dict` là *nguồn chọn được* (toggle, không auto-fallback) | Re-import Yomitan `.zip` |
 | **Dữ liệu học** (SRS) | **Postgres** `user_data` (per tài khoản) | IndexedDB `user_data` | Pull lại từ cloud |
+| **Nhật ký ôn** | **Hợp** của hai bên (append-only, không ai đè ai) | IndexedDB `review_log` ↔ Postgres `review_log` | Pull lại từ cloud (phần máy khác đã đẩy) |
 
 Nguyên tắc: store từ điển trong IndexedDB là **cache có chủ đích** — xoá đi
 re-import lại được, nên mỗi lần đổi schema cứ tạo lại sạch. Trái lại, dữ liệu học
@@ -145,9 +146,9 @@ Mô hình lõi, dùng chung client/server (payload sync). Xem chi tiết từng 
 Nhật ký **append-only**: mỗi lượt chấm thẻ trong phiên ôn (`store.gradeReview`)
 ghi đúng một dòng, không bao giờ sửa/xoá — điều kiện tiên quyết cho thống kê
 (retention/forecast) và FSRS. Chỉ log lượt chấm trong phiên ôn (chưa log
-relapse-do-tra-cứu/markKnown). **Cục bộ, chưa đồng bộ lên cloud** (để dành cho
-giai đoạn thống kê). `interval_before/after` cùng đơn vị **phút** với
-`VocabEntry.srs_interval`.
+relapse-do-tra-cứu/markKnown). **Đồng bộ hai chiều lên cloud** với người đăng
+nhập (§5.1) — chuỗi ngày và dải hoạt động phải giống nhau trên mọi thiết bị.
+`interval_before/after` cùng đơn vị **phút** với `VocabEntry.srs_interval`.
 
 ```ts
 interface ReviewLogEntry {
@@ -217,6 +218,22 @@ CREATE TABLE IF NOT EXISTS user_data (
   PRIMARY KEY (user_id, term, term_lang)
 );
 CREATE INDEX IF NOT EXISTS idx_user_updated ON user_data(user_id, updated_at);
+
+-- Nhật ký ôn tập (migration 0013): append-only, KHÔNG merge/LWW.
+CREATE TABLE IF NOT EXISTS review_log (
+  seq BIGSERIAL PRIMARY KEY,   -- con trỏ pull, tăng theo thứ tự server ghi
+  user_id TEXT NOT NULL,
+  term TEXT NOT NULL,
+  term_lang TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  ts BIGINT NOT NULL,          -- epoch ms lúc chấm (đồng hồ client)
+  interval_before DOUBLE PRECISION NOT NULL,
+  interval_after DOUBLE PRECISION NOT NULL
+);
+-- Danh tính một lượt chấm: đẩy lại cùng một mẻ không nhân đôi lịch sử.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_review_log_event
+  ON review_log(user_id, term, term_lang, ts, grade);
+CREATE INDEX IF NOT EXISTS idx_review_log_seq ON review_log(user_id, seq);
 ```
 
 ### 3.2 Giải thích từng bảng
@@ -244,12 +261,23 @@ ms, client đóng dấu) phục vụ last-write-wins; `received_at` (epoch ms, s
 khi hoà. Index `idx_user_updated (user_id, updated_at)` tăng tốc pull
 `WHERE user_id = $1 AND updated_at >= $2`.
 
+**`review_log`** — nhật ký ôn tập trên cloud. Khác `user_data` ở kỷ luật:
+append-only, **không** merge/LWW — một lượt chấm là sự kiện đã xảy ra, chỉ cần
+tồn tại đúng một lần, nên trùng lặp do đẩy lại bị khoá duy nhất
+`(user_id, term, term_lang, ts, grade)` nuốt êm (`ON CONFLICT DO NOTHING`).
+Client pull theo `seq` (BIGSERIAL) chứ không theo `ts`: một máy offline nhiều
+ngày rồi mới đẩy nhật ký cũ lên vẫn tới được các máy khác, còn lọc theo `ts` thì
+những dòng cũ đó bị bỏ sót vĩnh viễn. Push chạy trong
+`pg_advisory_xact_lock(hashtext(user_id))` để `seq` của cùng một người tăng đúng
+theo thứ tự commit (hai máy đẩy cùng lúc không làm con trỏ nhảy qua dòng nào).
+
 ### 3.3 Quan hệ
 
 ```
 users (id) ─────────────┐  (không khai báo FK; ràng buộc ở tầng sync — user_id rút từ JWT)
                         ▼
                    user_data (user_id, term, term_lang)
+                   review_log (user_id, …, ts, grade)  — append-only
 
 dictionaries (id) ──FK──< dict (dict_id)   ON DELETE SET NULL
                           PK (term_lang, native_lang, term)
@@ -292,6 +320,8 @@ nhập. `PUT /term` upsert với `dict_id = NULL` (term thêm tay sống sót kh
 |---|---|---|
 | `GET /` | `?since=<ms>` (mặc định 0) | Mảng `VocabEntry` có `updated_at >= since` |
 | `POST /` | `{ entries: VocabEntry[] }` | **Toàn bộ** tập hiện tại của user (sau merge) |
+| `GET /log` | `?since=<seq>` (mặc định 0) | `{ rows, cursor, more }` — nhật ký ghi sau con trỏ `seq` |
+| `POST /log` | `{ rows: ReviewLogEntry[] }` (không `id`/`user_id`) | `{ inserted }` — số dòng THẬT SỰ mới |
 
 ## 5. Giao thức đồng bộ (Last-Write-Wins)
 
@@ -317,6 +347,26 @@ user_data WHERE user_id = $1`).
 
 Phía client (`repository.ts`) cũng merge field-level (`mergeByUpdatedAt`) trước
 khi push, nên hội tụ ở cả hai đầu. Chi tiết logic merge: [LOGIC.md §12](./LOGIC.md).
+
+### 5.1 Nhật ký ôn tập (append-only, không LWW)
+
+`review_log` không có gì để "thắng": hai máy chỉ bù cho nhau các dòng bên kia
+chưa có. Client giữ **hai con trỏ** trong localStorage
+(`gioitu.reviewLogSync.v1:<user_id>`, xem `review/data/reviewLogCursor.ts`) để
+mỗi lượt chỉ chuyển phần mới:
+
+- `pushedThrough` — `ts` lớn nhất đã đẩy thành công. Lượt sau đẩy các dòng có
+  `ts >= pushedThrough` (lấy `>=` để không bỏ sót dòng ghi cùng mili-giây; dòng
+  biên đẩy lại là vô hại vì server chống trùng). Nhập file backup có lịch sử thì
+  **lùi** mốc này về dòng cũ nhất vừa nhập, nếu không phần quá khứ đó chỉ sống
+  trên máy vừa nhập.
+- `pulledSeq` — `seq` server của dòng cuối đã kéo về; server trả `more` khi còn
+  trang (`LOG_PAGE_SIZE = 2000`), client kéo tiếp trong cùng lượt.
+
+Cả hai đầu tự khử trùng lặp theo danh tính lượt chấm
+`(term, term_lang, ts, grade)` — mốc hỏng/mất chỉ tốn một lượt chuyển lại, không
+bao giờ nhân đôi lịch sử. Chạy kèm mỗi lần đồng bộ `user_data` thành công
+(`review/state/store.ts`), kể cả lần đồng bộ lúc mở app.
 
 **Từ điển cá nhân** (`/api/dict-sync`, bảng `user_dictionaries`): server vẫn lưu
 blob nén per (user, dict) với guard LWW theo `registry.updatedAt`, nhưng client

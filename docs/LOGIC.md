@@ -277,17 +277,22 @@ cho thống kê (retention/forecast) và FSRS về sau. Tách trách nhiệm đ�
 
 - **domain** (`review/domain/reviewLog.ts`): `buildReviewLogEntry(before, after,
   grade, ts)` thuần — chỉ dựng bản ghi, lấy `interval_before` từ thẻ cũ và
-  `interval_after` từ thẻ đã `gradeCard`. Test được không cần IndexedDB.
+  `interval_after` từ thẻ đã `gradeCard`. Test được không cần IndexedDB. Cùng
+  chỗ này giữ danh tính một lượt chấm `(term, term_lang, ts, grade)` →
+  `missingLogRows` (khử trùng lặp khi nhận nhật ký từ nơi khác) và `rowsToPush`
+  (chọn phần cần đẩy lên cloud) — xem §12.1.
 - **data** (`review/data/reviewLog.ts`): `appendReviewLog` (dùng `add`, không
-  `put`, đúng nghĩa append-only) và `getReviewLog(user_id)` (đọc qua index
-  `by_user_ts`, sắp theo `ts`).
+  `put`, đúng nghĩa append-only), `getReviewLog(user_id)` (đọc qua index
+  `by_user_ts`, sắp theo `ts`) và `appendMissingLog` (ghi bổ sung dòng từ file
+  backup / cloud, không nhân đôi lịch sử).
 - **state** (`store.gradeReview`): sau khi `putEntry(next)`, ghi log **best-
   effort** — lỗi ghi log bị `console.error` và bỏ qua, KHÔNG làm hỏng luồng chấm.
 
 `undoReview` **không** đụng `review_log`: lượt chấm đã thực sự xảy ra và nhật ký
 là append-only, nên để nguyên dòng đã ghi (undo hiếm; append dòng "đảo" sẽ đếm
 trùng, xoá thì phá vỡ append-only). Phạm vi hiện tại: chỉ log lượt chấm trong
-phiên ôn (chưa log relapse-do-tra-cứu/markKnown), **cục bộ, chưa đồng bộ cloud**.
+phiên ôn (chưa log relapse-do-tra-cứu/markKnown). Với người đăng nhập, nhật ký
+**đồng bộ đa thiết bị** — §12.1.
 
 ### 4.8 Phiên ôn — thứ tự & phân lô (`session.ts`)
 
@@ -529,6 +534,33 @@ lần đầu, LWW theo từng term, xoá bản guest sau khi chuyển.
 
 Server-side LWW: `INSERT … ON CONFLICT … DO UPDATE … WHERE EXCLUDED.updated_at
 >= user_data.updated_at` (chi tiết [DB_SCHEMA.md §sync](./DB_SCHEMA.md)).
+
+### 12.1 Nhật ký ôn — hợp nhất kiểu append-only (không LWW)
+
+`src/features/review/data/reviewLogSync.ts`. `review_log` không có gì để "thắng":
+một lượt chấm là sự kiện đã xảy ra, hai máy chỉ bù cho nhau phần bên kia chưa có.
+
+```
+syncReviewLog(user_id):
+  1. outgoing = rowsToPush(local, pushedThrough)   ts >= mốc, bỏ id/user_id
+     push thất bại → dừng luôn (mốc giữ nguyên, lượt sau làm lại)
+     push ok       → pushedThrough = maxTs(outgoing)
+  2. lặp: pull(pulledSeq) → appendMissingLog(...) → pulledSeq = cursor
+     dừng khi server báo hết trang (trần MAX_PULL_PAGES trang một lượt)
+```
+
+Bất biến: **khử trùng lặp ở cả hai đầu** theo `(term, term_lang, ts, grade)` —
+client bằng `missingLogRows`, server bằng khoá duy nhất — nên gửi/nhận lại một
+dòng là vô hại. Nhờ đó mốc hỏng hay mất chỉ tốn một lượt chuyển lại, không bao
+giờ nhân đôi lịch sử. Hai điểm dễ sai đã chốt:
+
+- đẩy lấy `ts >= pushedThrough` (không `>`): dòng biên đẩy lại là vô hại, còn
+  `>` thì bỏ sót dòng ghi cùng mili-giây với dòng cuối mẻ trước;
+- kéo theo `seq` (thứ tự server ghi) chứ không theo `ts`: máy offline nhiều ngày
+  rồi mới đẩy nhật ký cũ lên vẫn tới được các máy khác.
+
+Nhập file backup có lịch sử thì **lùi** `pushedThrough` về dòng cũ nhất vừa nhập
+(`rewindPushedThrough`), nếu không phần quá khứ đó chỉ sống trên máy vừa nhập.
 
 ## 13. Theme — heatmap math
 

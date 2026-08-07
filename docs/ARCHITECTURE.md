@@ -115,6 +115,7 @@ src/
       domain/wordcloud.ts   Hiển thị + tô màu heatmap (pure)
       data/repository.ts    Cache IndexedDB + merge LWW + sync
       data/syncApi.ts       Client cloud-sync (best-effort)
+      data/reviewLogSync.ts Đồng bộ nhật ký ôn (append-only, hai con trỏ)
       state/store.ts        Hook React nối domain với persistence
       ui/                    WordCloud, FilterBar, ReviewSession
     theme/                  Tuỳ chỉnh màu (heatmap + bảng màu)
@@ -128,7 +129,8 @@ server/                     Backend Express + PostgreSQL (tuỳ chọn)
   src/features/
     auth/                   authRoutes.ts + auth.ts (scrypt + JWT)
     dictionary/             dictRoutes.ts + dictStore.ts + yomitan.ts
-    sync/                   syncRoutes.ts + syncStore.ts
+    sync/                   syncRoutes.ts + syncStore.ts (user_data, LWW)
+                            + reviewLogStore.ts (nhật ký ôn, append-only)
 test/                       Vitest — phủ các ràng buộc logic của SPEC
 ```
 
@@ -167,13 +169,14 @@ một SQL store; `core/` đóng vai shared kernel.
 `src/features/review/state/store.ts` giữ danh sách `entries` trong bộ nhớ và
 đồng bộ với IndexedDB + cloud:
 
-- **Khi mở app**: đọc cache cục bộ trước (hiển thị ngay), rồi chạy `syncUserData`
+- **Khi mở app**: đọc cache cục bộ trước (hiển thị ngay), rồi chạy `runSync()`
   best-effort và cập nhật lại.
 - `recordLookup(input)` → gọi pure `registerLookup`, ghi cache, bắn toast theo
   sự kiện (`relapsed` / `cardCreated`).
 - `gradeReview(entry, grade)` → gọi pure `gradeCard`, ghi cache, toast khi từ
   `→ LEARNED`.
-- `runSync()` → đồng bộ hai chiều theo yêu cầu.
+- `runSync()` → đồng bộ hai chiều theo yêu cầu: `user_data` (LWW) rồi — nếu
+  vòng đó thông — `review_log` (append-only, §6.3).
 
 ### `useLookup(store, pair)` — view-state của detail panel
 
@@ -247,6 +250,19 @@ syncUserData(user_id)                 (review/data/repository.ts)
 Mọi lời gọi mạng là **best-effort**: nếu backend vắng mặt hoặc user là guest,
 hàm trả `null` và cache cục bộ đứng vững một mình.
 
+Nhật ký ôn đi theo chuyến nhưng bằng luật riêng — append-only nên không có gì để
+"thắng", hai máy chỉ bù cho nhau phần bên kia chưa có:
+
+```
+syncReviewLog(user_id)                (review/data/reviewLogSync.ts)
+   1. đẩy các dòng có ts >= pushedThrough   → POST /api/sync/log
+   2. kéo các dòng có seq > pulledSeq       ← GET  /api/sync/log
+   3. ghi bổ sung dòng CHƯA có xuống IndexedDB (khử trùng lặp hai đầu)
+```
+
+Hai con trỏ nằm ở localStorage; chi tiết giao thức:
+[DB_SCHEMA §5.1](./DB_SCHEMA.md).
+
 ## 7. Từ điển hai nguồn (Search Router)
 
 Có **6 cặp ngôn ngữ thuận** (`src/shared/languages.ts`), người dùng chọn ở nút
@@ -297,6 +313,7 @@ app.ts            cors() + express.json + raw(zip) → mount router → static S
    ├── /api/auth   authRoutes  (register / login / me)         — auth.ts: scrypt + JWT
    ├── /api/dict   dictRoutes  (lookup/suggest public; import/manage cần auth)
    ├── /api/sync   syncRoutes  (pull/push, cần auth)            — LWW server-side
+   │                           /log: nhật ký ôn (append-only, không LWW)
    └── (fallback)  phục vụ dist/ — SPA cho mọi path không phải /api/*
 core/
    db.ts          Pool pg (DDL đã chuyển hết vào migrations/0001)

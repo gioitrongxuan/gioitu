@@ -10,11 +10,11 @@ import {
   serializeBackup,
   parseBackup,
   entriesForUser,
-  logRowsForUser,
-  missingLogRows,
 } from "../domain/backup";
+import { minTs } from "../domain/reviewLog";
 import { getAllEntries, mergeByUpdatedAt } from "./repository";
-import { getReviewLog } from "./reviewLog";
+import { appendMissingLog, getReviewLog } from "./reviewLog";
+import { rewindPushedThrough } from "./reviewLogCursor";
 
 /**
  * Xuất toàn bộ dữ liệu học của người dùng hiện tại ra file JSON tải về.
@@ -75,12 +75,10 @@ export async function importBackup(
 
   let logCount = 0;
   if (backup.review_log != null && backup.review_log.length > 0) {
-    const incomingLog = logRowsForUser(backup.review_log, user_id);
-    const newRows = missingLogRows(await getReviewLog(user_id), incomingLog);
-    const logTx = db.transaction("review_log", "readwrite");
-    for (const row of newRows) await logTx.store.add(row);
-    await logTx.done;
-    logCount = newRows.length;
+    logCount = await appendMissingLog(user_id, backup.review_log);
+    // Lịch sử vừa phục hồi nằm DƯỚI mốc đã đẩy lên cloud, nên phải lùi mốc lại —
+    // không thì phần quá khứ này chỉ sống trên máy vừa nhập file.
+    rewindPushedThrough(user_id, minTs(backup.review_log, Number.MAX_SAFE_INTEGER));
   }
 
   return { entryCount: incoming.length, logCount };

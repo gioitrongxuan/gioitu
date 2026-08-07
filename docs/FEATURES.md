@@ -22,7 +22,8 @@ lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên t
   nhanh · Từ điển cá nhân · Thống kê ôn tập. Path cũ `/learned` `/kanji`
   `/vocabstudy` `/words` vẫn mở đúng trang.
 - **Hôm nay** (`/today`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi
-  ngày ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng);
+  ngày ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng và
+  khi đồng bộ kéo về nhật ký của máy khác);
   "Từ hay quên" (3 thẻ rớt nhiều nhất, bấm mở chi tiết); tài sản "Đã thuộc N
   từ"; lối tắt sang Tra cứu (`app/TodayScreen.tsx`, `review/data/todayStats.ts`,
   `activityByDay`/`mostForgotten` trong `review/domain/reviewStats.ts`).
@@ -218,8 +219,9 @@ lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 
 Mỗi lượt chấm ghi một dòng **nhật ký ôn tập** (`review_log`, append-only) làm nền
-cho FSRS về sau — cục bộ, chưa đồng bộ cloud; màn **Thống kê ôn tập** ([§9.12](#912-thống-kê-ôn-tập))
-đọc nhật ký này. Chi tiết: [LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
+cho FSRS về sau; với người đăng nhập nhật ký này **đồng bộ đa thiết bị** ([§6](#6-tài-khoản--đồng-bộ)),
+màn **Thống kê ôn tập** ([§9.12](#912-thống-kê-ôn-tập)) đọc nó. Chi tiết:
+[LOGIC §4.7](./LOGIC.md), [DB_SCHEMA §2.6](./DB_SCHEMA.md).
 
 ## 4. Quản lý từ điển
 
@@ -294,6 +296,12 @@ App **dùng được đầy đủ không cần tài khoản** (chế độ Khác
   thuộc/quên, xoá) được gộp lại rồi đẩy lên sau ~2,5s ngừng thao tác; rời tab hoặc
   đóng trang thì đẩy ngay — không cần bấm nút. (`repository.syncUserData`,
   `review/domain/syncScheduler.ts`, [LOGIC §12](./LOGIC.md))
+- **Nhật ký ôn cũng đồng bộ**: chuỗi ngày + dải hoạt động 7 ngày đọc từ
+  `review_log`, nên nhật ký đi cùng mỗi lượt đồng bộ thành công (kể cả lượt lúc
+  mở app) — ôn trên điện thoại xong mở máy tính là thấy đúng chuỗi ngày, không
+  còn đứt oan. Append-only nên không có LWW: hai máy chỉ bù cho nhau phần bên kia
+  chưa có, khử trùng lặp theo danh tính lượt chấm ở cả hai đầu.
+  (`review/data/reviewLogSync.ts`, [DB_SCHEMA §5.1](./DB_SCHEMA.md))
 - **Phản hồi trung thực**: `syncUserData` trả `{ entries, status, pulled, pushed }`
   với `status` = `ok` / `offline` / `unauthorized` (`review/domain/syncStatus.ts`
   `classifyResponse`; `syncApi` phân biệt 401 vs lỗi mạng vs OK, không nuốt thành
@@ -609,7 +617,7 @@ heatmap (+ emblem nhận diện) — token chữ/nền của người dùng gi�
 - **Bốn skin** (`domain/skins.ts`, hiệu ứng đăng ký ở `presets/registry.ts`,
   khoá `BackgroundEffect`): `panda` (Rừng trúc, hiệu ứng `bamboo`) · `buu`
   (Majin Buu) · `cell` · `akatsuki`.
-- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log` cục bộ
+- **Mở khoá theo streak**: chuỗi ngày ôn tính từ `review_log`
   (`review/domain/streak.ts`, ngày theo 0h máy; hôm nay chưa ôn thì chuỗi kết
   thúc hôm qua chưa coi là đứt). Mốc: Rừng trúc 3 · Majin Buu 7 · Cell 14 ·
   Akatsuki 30 ngày, xét theo chuỗi **dài nhất** từng đạt. Skin đã mở giữ vĩnh

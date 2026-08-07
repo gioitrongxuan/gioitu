@@ -12,6 +12,7 @@ import { createSyncScheduler } from "../domain/syncScheduler";
 import { SyncStatus } from "../domain/syncStatus";
 import { getAllEntries, putEntry, getEntry, syncUserData, SyncReport } from "../data/repository";
 import { appendReviewLog } from "../data/reviewLog";
+import { syncReviewLog } from "../data/reviewLogSync";
 import { buildReviewLogEntry } from "../domain/reviewLog";
 import { readLastSync, writeLastSync } from "../data/lastSync";
 import {
@@ -49,6 +50,9 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => readLastSync(userId));
+  // Tổng số dòng nhật ký ôn kéo về từ cloud trong phiên này. Chỉ dùng như tín
+  // hiệu "có gì đó mới" cho màn Hôm nay đọc lại thống kê; không hiển thị.
+  const [logPulled, setLogPulled] = useState(0);
 
   // pushToast sống ngoài cây React (kho module-level trong Toasts.tsx): một
   // toast tự tắt sau 4s trước đây là state chung với `entries` ở đây, nên mỗi
@@ -84,18 +88,6 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     [userId],
   );
 
-  // Initial load: local cache first, then a best-effort cloud sync. Tombstones
-  // (deleted entries) are kept in storage so they sync, but never surface to the
-  // UI — drop them from the in-memory list.
-  useEffect(() => {
-    (async () => {
-      const local = await getAllEntries(userId);
-      setEntries(local.filter((e) => !isDeleted(e)));
-      setLoaded(true);
-      applySyncReport(await syncUserData(userId));
-    })().catch((e) => console.error("load failed", e));
-  }, [userId, applySyncReport]);
-
   // Có từ đầu tiên thì xin trình duyệt lưu trữ bền: với khách, IndexedDB là bản
   // duy nhất của dữ liệu học nên cần trình duyệt cam kết không tự thu hồi. Helper
   // tự nhớ kết quả — gọi lại (kể cả khi tải trang mà đã sẵn có dữ liệu) là vô hại.
@@ -120,10 +112,39 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
   // công/offline — App gộp chúng cho cả SRS lẫn từ điển cá nhân trong một luồng
   // "Đồng bộ" duy nhất; RIÊNG 401 (phiên hết hạn) thì applySyncReport nổi lên
   // ngay tại đây vì luồng ngầm không có App trong vòng lặp.
-  const runSync = useCallback(
-    (): Promise<SyncStatus> => syncUserData(userId).then(applySyncReport),
-    [userId, applySyncReport],
-  );
+  //
+  // Nhật ký ôn đi cùng chuyến nhưng theo kỷ luật append-only riêng (xem
+  // reviewLogSync). Chỉ chạy khi vòng user_data đã thông — tức là có mạng và
+  // token còn hạn; hỏng giữa chừng thì con trỏ giữ nguyên, lượt sau làm tiếp,
+  // nên không cần kéo status chung xuống theo.
+  const runSync = useCallback(async (): Promise<SyncStatus> => {
+    const status = await syncUserData(userId).then(applySyncReport);
+    if (status === "ok") {
+      try {
+        const log = await syncReviewLog(userId);
+        // Nhận thêm dòng từ máy khác: chuỗi ngày / dải hoạt động màn "Hôm nay"
+        // đang cầm số liệu cũ, báo cho App đọc lại nhật ký.
+        if (log.pulled > 0) setLogPulled((n) => n + log.pulled);
+      } catch (e) {
+        console.error("sync review_log failed", e);
+      }
+    }
+    return status;
+  }, [userId, applySyncReport]);
+
+  // Initial load: local cache first, then a best-effort cloud sync (qua runSync
+  // nên nhật ký ôn cũng được kéo về ngay lúc mở app — đó chính là lúc người dùng
+  // đổi máy và cần thấy chuỗi ngày đúng). Tombstones (deleted entries) are kept
+  // in storage so they sync, but never surface to the UI — drop them from the
+  // in-memory list.
+  useEffect(() => {
+    (async () => {
+      const local = await getAllEntries(userId);
+      setEntries(local.filter((e) => !isDeleted(e)));
+      setLoaded(true);
+      await runSync();
+    })().catch((e) => console.error("load failed", e));
+  }, [userId, runSync]);
 
   // Đọc lại danh sách từ cache — dùng sau khi nhập backup ghi thẳng vào IndexedDB.
   const reload = useCallback(async () => {
@@ -428,6 +449,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     learnedEntries,
     loaded,
     lastSyncedAt,
+    logPulled,
     recordLookup,
     gradeReview,
     undoReview,

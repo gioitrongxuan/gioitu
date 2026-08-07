@@ -6,8 +6,6 @@ import {
   serializeBackup,
   parseBackup,
   entriesForUser,
-  logRowsForUser,
-  missingLogRows,
   shouldRemindGuestBackup,
   GUEST_BACKUP_REMINDER_THRESHOLD,
 } from "@/features/review/domain/backup";
@@ -69,29 +67,6 @@ describe("backup serialize/parse (domain)", () => {
   it("v2: review_log có mặt nhưng méo dạng → file hỏng, chặn như entries", () => {
     const bad = JSON.stringify({ format: BACKUP_FORMAT, entries: [], review_log: [{ ts: "hôm qua" }] });
     expect(() => parseBackup(bad)).toThrow();
-  });
-});
-
-describe("logRowsForUser + missingLogRows (domain)", () => {
-  it("gán lại chủ nhân và bỏ id nguồn (khoá do IndexedDB đích tự cấp)", () => {
-    const rows = logRowsForUser([makeLogRow({ id: 42, user_id: "other" })], "me");
-    expect(rows[0].user_id).toBe("me");
-    expect("id" in rows[0]).toBe(false);
-  });
-
-  it("chỉ giữ dòng chưa có; khử luôn trùng lặp nội bộ của file", () => {
-    const existing = [makeLogRow({ ts: 1000 })];
-    const incoming = [
-      makeLogRow({ ts: 1000 }), // đã có trong kho
-      makeLogRow({ ts: 2000 }),
-      makeLogRow({ ts: 2000 }), // file chứa dòng lặp
-      makeLogRow({ ts: 1000, grade: "again" }), // cùng ts nhưng lượt khác → giữ
-    ];
-    const missing = missingLogRows(existing, incoming);
-    expect(missing.map((r) => [r.ts, r.grade])).toEqual([
-      [2000, "good"],
-      [1000, "again"],
-    ]);
   });
 });
 

@@ -289,9 +289,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
   // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
   // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
-  // khi phiên đóng — chuỗi ngày nối ngay, không đợi tải lại trang.
+  // khi phiên đóng — chuỗi ngày nối ngay, không đợi tải lại trang. Buộc thêm vào
+  // số dòng nhật ký kéo về từ cloud: ôn trên máy khác xong thì lượt đồng bộ này
+  // nối chuỗi ngày ngay tại đây thay vì đợi tải lại trang.
   const reviewing = reviewQueue != null;
-  const loadStats = useCallback(() => loadTodayStats(userId), [userId, reviewing]);
+  const loadStats = useCallback(
+    () => loadTodayStats(userId),
+    [userId, reviewing, store.logPulled],
+  );
   // Routing History API (#148): mỗi trang một URL (F5 giữ chỗ, Back/Forward đi
   // giữa các trang), deep-link /word/:pair/:term mở panel chi tiết lúc tải trang.
   const { page, gotoPage } = useAppRoute((w) =>

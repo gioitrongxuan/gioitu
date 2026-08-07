@@ -134,38 +134,6 @@ export function entriesForUser(backup: LearningBackup, user_id: string): VocabEn
   return backup.entries.map((e) => ({ ...e, user_id }));
 }
 
-/**
- * Gán lại chủ nhân cho các dòng lịch sử ôn và BỎ `id`: khoá đó do IndexedDB
- * nguồn tự cấp, mang sang máy khác vừa vô nghĩa vừa đè nhầm dòng sẵn có —
- * để store đích tự cấp khoá mới khi ghi.
- */
-export function logRowsForUser(rows: ReviewLogEntry[], user_id: string): ReviewLogEntry[] {
-  return rows.map(({ id: _id, ...row }) => ({ ...row, user_id }));
-}
-
-/** Danh tính một lượt chấm — đủ phân biệt trong thực tế (hai lượt cùng ms là trùng). */
-const logKey = (r: ReviewLogEntry) => [r.term, r.term_lang, r.ts, r.grade].join("\u0000");
-
-/**
- * Lọc các dòng lịch sử CHƯA có trong kho hiện tại (khử cả trùng lặp nội bộ của
- * file). review_log là append-only nên nhập backup không được phép nhân đôi
- * lịch sử khi người dùng nhập lại cùng một file — thống kê retention sẽ sai.
- */
-export function missingLogRows(
-  existing: ReviewLogEntry[],
-  incoming: ReviewLogEntry[],
-): ReviewLogEntry[] {
-  const seen = new Set(existing.map(logKey));
-  const out: ReviewLogEntry[] = [];
-  for (const row of incoming) {
-    const key = logKey(row);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(row);
-  }
-  return out;
-}
-
 /** Có nên nhắc khách sao lưu không: là khách, đủ nhiều từ, và chưa tắt lời nhắc. */
 export function shouldRemindGuestBackup(input: {
   isGuest: boolean;

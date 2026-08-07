@@ -32,14 +32,6 @@
 Vòng lặp học đúng + dữ liệu an toàn + hết báo sai cho người dùng.
 
 - [ ] **Chốt & thực thi quyết định mở #1** (gating) + cập nhật docs.
-- [ ] **`review_log` không đồng bộ đa thiết bị** — dải hoạt động 7 ngày +
-  streak ở màn "Hôm nay" đọc thẳng từ store `review_log` trong IndexedDB
-  local (`todayStats.ts:16` → `reviewLog.ts:23`), store này chưa từng đồng bộ
-  lên cloud (xem comment đầu `reviewLog.ts`, server `features/sync/` chỉ xử
-  lý `user_data`). Kết quả: cùng một tài khoản đăng nhập nhưng ôn trên điện
-  thoại thì streak/dải hoạt động trên máy tính không thấy, và ngược lại.
-  Hướng sửa: đồng bộ `review_log` lên cloud (kiểu LWW/append giống
-  `user_data`) hoặc suy activity/streak từ một nguồn đã đồng bộ.
 
 ## Giai đoạn 1 — "Thay áo" (~1–2 tuần)
 

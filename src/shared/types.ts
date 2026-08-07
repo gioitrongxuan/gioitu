@@ -91,8 +91,9 @@ export interface VocabEntry {
  * Một dòng nhật ký ôn tập, **append-only**: mỗi lượt chấm thẻ trong phiên ôn ghi
  * đúng một dòng và không bao giờ sửa/xoá. Đây là điều kiện tiên quyết cho thống
  * kê (retention, forecast) và cho FSRS sau này — mỗi ngày chưa log là dữ liệu
- * quên mất vĩnh viễn. Lưu cục bộ trong IndexedDB (store `review_log`); chưa đồng
- * bộ lên cloud (để dành cho giai đoạn thống kê).
+ * quên mất vĩnh viễn. Lưu trong IndexedDB (store `review_log`) và đồng bộ hai
+ * chiều lên cloud với người đăng nhập — chuỗi ngày / dải hoạt động phải giống
+ * nhau trên mọi thiết bị (review/data/reviewLogSync.ts).
  *
  * `interval_before`/`interval_after` là interval (PHÚT) của thẻ ngay trước và
  * ngay sau lượt chấm — cùng đơn vị với `VocabEntry.srs_interval`.
