@@ -17,7 +17,7 @@ import {
 import { CloudViewControls } from "./CloudViewControls";
 import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCloudPng";
 import { useTheme } from "@/features/theme/ThemeProvider";
-import { ChevronDownIcon, DownloadIcon } from "@/shared/ui/icons";
+import { ChevronDownIcon, DownloadIcon, HeadphonesIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import "./review.css";
 
@@ -36,6 +36,9 @@ interface Props {
   onLangChange: (lang: CloudLang) => void;
   onGroupingChange: (grouping: CloudGrouping) => void;
   onStartReview: () => void;
+  /** Số từ nghe được ở phạm vi hiện tại — 0 thì không mở được chế độ nghe. */
+  listenCount: number;
+  onStartListen: () => void;
 }
 
 export function FilterBar({
@@ -52,6 +55,8 @@ export function FilterBar({
   onLangChange,
   onGroupingChange,
   onStartReview,
+  listenCount,
+  onStartListen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { theme } = useTheme();
@@ -123,6 +128,12 @@ export function FilterBar({
       </div>
       <button className="review-btn" disabled={dueCount === 0} onClick={onStartReview}>
         Ôn tập hôm nay ({dueCount})
+      </button>
+      {/* Nghe không phụ thuộc hạn ôn: nó chạy trên toàn bộ từ đang học, nên
+          vẫn bấm được cả khi hôm nay không còn từ đến hạn. */}
+      <button className="listen-btn" disabled={listenCount === 0} onClick={onStartListen}>
+        <HeadphonesIcon size={16} />
+        Nghe
       </button>
     </div>
   );

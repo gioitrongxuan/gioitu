@@ -8,12 +8,14 @@ import { useAppStore } from "@/features/review/state/store";
 import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
+import { ListenSession } from "@/features/review/ui/ListenSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, CloudGrouping, filterByLang } from "@/features/review/domain/wordcloud";
 import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLangSettings";
+import { listenableEntries } from "@/features/review/domain/listen";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -271,6 +273,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
+  // Chế độ nghe (không SRS, không ghi gì) — chỉ là bật/tắt lớp phủ phát tiếng.
+  const [listening, setListening] = useState(false);
   const [managing, setManaging] = useState(false);
   // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
   const [manageEditQuery, setManageEditQuery] = useState<string | null>(null);
@@ -307,6 +311,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       : null,
   );
   useBackEntry(reviewQueue != null, () => setReviewQueue(null));
+  useBackEntry(listening, () => setListening(false));
   useBackEntry(managing, () => {
     setManaging(false);
     setManageEditQuery(null);
@@ -330,6 +335,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const dueEntriesForReview = useMemo(
     () => filterByLang(store.dueEntries, cloudLang),
     [store.dueEntries, cloudLang],
+  );
+  // Chế độ nghe chạy trên toàn bộ từ đang học, không theo hạn ôn — chỉ đếm ở
+  // đây, danh sách phát do ListenSession tự dựng (và xáo lại mỗi vòng).
+  const listenCount = useMemo(
+    () => listenableEntries(store.entries, cloudLang).length,
+    [store.entries, cloudLang],
   );
   useEffect(() => {
     document.title = formatDueTitle(dueCount, BASE_TITLE);
@@ -614,6 +625,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onLangChange={changeCloudLang}
                 onGroupingChange={setGrouping}
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
+                listenCount={listenCount}
+                onStartListen={() => setListening(true)}
               />
             )}
             {page === "learned" && (
@@ -728,6 +741,10 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           onLookupDetails={lookupDetails}
           onClose={() => setReviewQueue(null)}
         />
+      )}
+
+      {listening && (
+        <ListenSession entries={store.entries} lang={cloudLang} onClose={() => setListening(false)} />
       )}
 
       {managing && isAdmin && (
