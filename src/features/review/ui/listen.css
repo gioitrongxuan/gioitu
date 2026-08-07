@@ -1,0 +1,68 @@
+/* Chế độ nghe (ListenSession). Đặc thù so với các overlay khác: người dùng
+   đang KHÔNG nhìn màn hình, nên mọi đích chạm đều vượt xa mức 44px của
+   DESIGN §3.6 và chữ ở cỡ liếc-một-cái-là-thấy. */
+
+.listen-overlay {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: grid; place-items: center; padding: var(--space-4);
+  background: var(--overlay);
+}
+
+.listen-panel {
+  background: var(--surface); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: min(480px, 100%); max-height: 92dvh; overflow-y: auto;
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+
+.listen-head { display: flex; align-items: center; justify-content: space-between; }
+.listen-progress { font-size: var(--text-sm); color: var(--muted); }
+.listen-close {
+  display: grid; place-items: center; width: 44px; height: 44px;
+  border: none; border-radius: var(--radius-full); background: none;
+  color: var(--muted); cursor: pointer;
+}
+.listen-close:hover { background: var(--surface-2); color: var(--fg); }
+
+/* Sân khấu = nút phát/dừng khổng lồ. Nền phẳng, không viền: nó không trông
+   giống nút, nhưng ở đây đích chạm mới là thứ quan trọng, không phải affordance. */
+.listen-stage {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); min-height: 220px; padding: var(--space-5) var(--space-4);
+  border: none; border-radius: var(--radius-lg); background: var(--surface-2);
+  color: var(--fg); font: inherit; text-align: center; cursor: pointer;
+}
+.listen-term { font-size: var(--text-3xl); font-weight: 600; line-height: var(--leading-heading); }
+.listen-term:lang(ja) { font-family: var(--font-ja); font-size: 44px; }
+.listen-reading { font-size: var(--text-md); color: var(--muted); }
+.listen-reading:lang(ja) { font-family: var(--font-ja); }
+/* Nghĩa chỉ hiện khi tới bước đọc nghĩa; trước đó là "···" giữ chỗ để khối
+   chữ không nhảy lên nhảy xuống mỗi thẻ. */
+.listen-meaning {
+  margin-top: var(--space-2); font-size: var(--text-lg); color: var(--fg);
+  line-height: var(--leading-body); min-height: calc(var(--text-lg) * var(--leading-body));
+}
+
+.listen-controls { display: flex; align-items: center; justify-content: center; gap: var(--space-5); }
+.listen-nav, .listen-play {
+  display: grid; place-items: center; border: 1px solid var(--line);
+  border-radius: var(--radius-full); background: var(--surface); color: var(--fg);
+  cursor: pointer; transition: background var(--dur-fast) var(--ease-out);
+}
+.listen-nav { width: 56px; height: 56px; }
+.listen-nav:hover { background: var(--surface-2); }
+.listen-play { width: 80px; height: 80px; border-color: transparent; background: var(--accent); color: #fff; }
+.listen-play:hover { background: color-mix(in oklab, var(--fg) 12%, var(--accent)); }
+
+.listen-settings { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
+
+.listen-warn { margin: 0; font-size: var(--text-sm); color: var(--warn); text-align: center; }
+
+.listen-empty { margin: 0; text-align: center; color: var(--muted); line-height: var(--leading-body); }
+.listen-done {
+  align-self: center; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--fg); font: inherit;
+  min-height: 44px; padding: 0 var(--space-5); cursor: pointer;
+}
+.listen-done:hover { background: var(--surface-2); }
