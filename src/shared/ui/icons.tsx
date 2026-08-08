@@ -134,3 +134,50 @@ export function UserIcon({ size = 20, className }: IconProps) {
     </svg>
   );
 }
+
+export function HeadphonesIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+      <path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5Z" />
+      <path d="M20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5Z" />
+    </svg>
+  );
+}
+
+// Điều khiển phiên nghe. Play/Pause tô đặc (fill) thay vì nét: ở cỡ nút lớn
+// bấm-không-nhìn, khối đặc dễ nhận ra hơn hẳn đường viền.
+export function PlayIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
+      <path d="M8 5.5v13l11-6.5z" />
+    </svg>
+  );
+}
+
+export function PauseIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
+      <rect x="7" y="5" width="3.5" height="14" rx="1" />
+      <rect x="13.5" y="5" width="3.5" height="14" rx="1" />
+    </svg>
+  );
+}
+
+export function PrevIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M18 6 9 12l9 6z" />
+      <line x1="6" y1="6" x2="6" y2="18" />
+    </svg>
+  );
+}
+
+export function NextIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M6 6l9 6-9 6z" />
+      <line x1="18" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
