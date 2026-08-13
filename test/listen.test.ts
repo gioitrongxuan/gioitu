@@ -59,12 +59,12 @@ describe("speakableMeaning", () => {
 describe("cardSteps", () => {
   const card = { term: "作", term_lang: "ja", native_lang: "vi", reading: "さく", meaning: JSON.stringify(["làm"]) };
 
-  it("đọc từ 2 lần, lặng, rồi đọc nghĩa", () => {
+  it("đọc từ 2 lần, lặng để tự nhớ lại, rồi lặng hiện nghĩa — tạm không đọc nghĩa (#243)", () => {
     expect(cardSteps(card, 4000)).toEqual([
       { kind: "speak", text: "さく", locale: "ja-JP" },
       { kind: "speak", text: "さく", locale: "ja-JP" },
       { kind: "pause", ms: 4000 },
-      { kind: "speak", text: "làm", locale: "vi-VN" },
+      { kind: "pause", ms: 4000 },
     ]);
   });
 });
