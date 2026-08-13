@@ -573,6 +573,10 @@ kênh tích hợp Anki), chứ không xuất file. Mục menu **Kết nối Yomi
 
 - **Cần đăng nhập**: từ lưu phải gắn với một tài khoản; guest thấy lời mời đăng
   nhập thay vì phần cài đặt.
+- **Link cài tiện ích**: mục "Cài tiện ích Yomitan" đưa sẵn link store chính thức
+  (Chrome · Edge · Firefox), store khớp trình duyệt hiện tại xếp đầu và tô đậm;
+  Safari/iOS không đoán được nên hiện cả ba. Hiện cho cả guest vì cài không cần
+  tài khoản. (`auth/domain/yomitanStores.ts`)
 - **Hai giá trị chép được**: *Server endpoint* `${origin}/api/yomitan-sync` (dựng
   theo origin hiện tại nên đúng cả localhost lẫn khi deploy) và *API key* ổn định
   theo user (`getYomitanKey`); "Tạo khóa mới" (`regenerateYomitanKey`) có xác
