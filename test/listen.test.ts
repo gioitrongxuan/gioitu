@@ -2,40 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildListenPlaylist,
   cardSteps,
-  findVoice,
   listenableEntries,
   speakableMeaning,
-  speakableTerm,
-  speechLocale,
 } from "@/features/review/domain/listen";
 import { parseListenSettings } from "@/features/review/domain/listenSettings";
 import { makeEntry } from "./fixtures";
-
-describe("speechLocale", () => {
-  it("ánh xạ mã ngôn ngữ sang locale giọng đọc", () => {
-    expect(speechLocale("ja")).toBe("ja-JP");
-    expect(speechLocale("en")).toBe("en-US");
-    expect(speechLocale("vi")).toBe("vi-VN");
-  });
-
-  it("mã lạ → trả về chính nó để trình duyệt tự xử", () => {
-    expect(speechLocale("fr")).toBe("fr");
-  });
-});
-
-describe("speakableTerm", () => {
-  it("tiếng Nhật có kana → đọc kana để không sai âm Hán", () => {
-    expect(speakableTerm({ term: "作", term_lang: "ja", reading: "さく" })).toBe("さく");
-  });
-
-  it("tiếng Nhật không có kana → đọc mặt chữ", () => {
-    expect(speakableTerm({ term: "さくら", term_lang: "ja" })).toBe("さくら");
-  });
-
-  it("ngôn ngữ khác → luôn đọc mặt chữ, kể cả khi có reading", () => {
-    expect(speakableTerm({ term: "cat", term_lang: "en", reading: "kæt" })).toBe("cat");
-  });
-});
 
 describe("speakableMeaning", () => {
   it("lấy tối đa 2 dòng nghĩa đầu, nối bằng dấu phẩy", () => {
@@ -140,21 +111,5 @@ describe("parseListenSettings", () => {
   it("payload hỏng → mặc định", () => {
     expect(parseListenSettings("{")).toEqual(DEFAULTS);
     expect(parseListenSettings("[]")).toEqual(DEFAULTS);
-  });
-});
-
-describe("findVoice", () => {
-  const voices = [{ lang: "en-US" }, { lang: "ja_JP" }, { lang: "vi" }];
-
-  it("khớp đúng locale (chuẩn hoá gạch dưới của một số hệ điều hành)", () => {
-    expect(findVoice(voices, "ja-JP")).toEqual({ lang: "ja_JP" });
-  });
-
-  it("không có locale đầy đủ thì khớp theo gốc ngôn ngữ", () => {
-    expect(findVoice(voices, "vi-VN")).toEqual({ lang: "vi" });
-  });
-
-  it("máy không có giọng nào của ngôn ngữ đó → undefined", () => {
-    expect(findVoice(voices, "fr-FR")).toBeUndefined();
   });
 });

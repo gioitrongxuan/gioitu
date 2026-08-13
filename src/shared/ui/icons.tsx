@@ -145,6 +145,18 @@ export function HeadphonesIcon({ size = 16, className }: IconProps) {
   );
 }
 
+/** Phát âm một từ (#246). Loa tô đặc + hai vòng sóng để phân biệt với tai nghe
+ *  (chế độ nghe) ở cùng một màn. */
+export function SpeakerIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" fill="currentColor" />
+      <path d="M16 9a4 4 0 0 1 0 6" />
+      <path d="M18.5 6.5a7.5 7.5 0 0 1 0 11" />
+    </svg>
+  );
+}
+
 // Điều khiển phiên nghe. Play/Pause tô đặc (fill) thay vì nét: ở cỡ nút lớn
 // bấm-không-nhìn, khối đặc dễ nhận ra hơn hẳn đường viền.
 export function PlayIcon({ size = 20, className }: IconProps) {
