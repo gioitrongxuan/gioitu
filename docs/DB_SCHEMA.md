@@ -140,6 +140,11 @@ Mô hình lõi, dùng chung client/server (payload sync). Xem chi tiết từng 
 `user_id = "__guest__"`. Hai index `by_next_review`, `by_status` phục vụ lọc thẻ
 đến hạn và Word Cloud.
 
+Trường **`labels?: string[]`** (nhãn người dùng, #249) nằm ngay trong payload:
+optional và **không có index** nên thêm vào record không cần bump `DB_VERSION`,
+cũng không cần migration server (Postgres lưu cả entry dạng JSON). Chuẩn hoá &
+khử trùng ở `review/domain/labels.ts` trước khi ghi.
+
 ### 2.6 `ReviewLogEntry` (value của `review_log`)
 
 Nhật ký **append-only**: mỗi lượt chấm thẻ trong phiên ôn (`store.gradeReview`)

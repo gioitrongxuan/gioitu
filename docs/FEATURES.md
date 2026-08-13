@@ -143,8 +143,9 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   từ đến hạn của tầng đó.
 - **Popover mini trên mỗi thẻ** (#159): rê chuột đậu trên thẻ, **long-press**
   (mobile) hoặc **chuột phải** mở thẻ tin nhanh — cách đọc, nghĩa đầu, lịch ôn,
-  số lần tra (`tagPopoverContent`) + hành động nhanh: **Ôn từ này** (chỉ khi
-  đến hạn), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
+  số lần tra (`tagPopoverContent`) + nhãn đang gắn (nếu có) + hành động nhanh:
+  **Ôn từ này** (chỉ khi đến hạn), **Nhãn**
+  ([9.16](#916-nhãn-cho-thẻ-249)), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
   (backdrop + Esc đóng, focus qua `useDialog`); popover này **thay** tooltip
   `title` và "Chế độ xoá" toàn cục trước đây. Long-press và vị trí neo là logic
   thuần ở `domain/tagPopover.ts`; UI ở `ui/TagPopover.tsx` + `ui/cloud.css`.
@@ -158,6 +159,7 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
 | **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
+| **Nhãn** | Tất cả / Chưa gắn nhãn / một nhãn cụ thể kèm số thẻ ([9.16](#916-nhãn-cho-thẻ-249)); chỉ hiện khi kho đã có nhãn |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
 | **Nghe** | Mở [chế độ nghe](#915-chế-độ-nghe-bulk-play-sound); vô hiệu khi không có từ nào nghe được |
@@ -748,6 +750,33 @@ nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không 
   chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
   gấp đồ), chưa phát được khi bỏ máy trong túi. Máy thiếu gói giọng cho ngôn
   ngữ đang nghe thì màn phát báo ngay thay vì im lặng khó hiểu.
+
+### 9.16 Nhãn cho thẻ (#249)
+
+Người dùng tự gắn **nhãn** phân loại cho từng thẻ ("ngữ pháp", "N3", "chỗ làm"…)
+rồi lọc bản đồ từ theo nhãn. Trong code gọi là `label` chứ không phải `tag`, vì
+"tag" trong repo đã là thẻ từ trên Word Cloud (`CloudTag`) và tag từ loại Yomitan.
+
+- **Lưu ở đâu**: `VocabEntry.labels` (mảng chuỗi, optional) — đi cùng entry qua
+  LWW như mọi field khác, không có store riêng, **không** bump `DB_VERSION`.
+- **Chuẩn hoá** (`review/domain/labels.ts`, logic thuần): cắt khoảng trắng, bỏ
+  `#` mở đầu, tối đa 24 ký tự và 8 nhãn mỗi thẻ; khử trùng **không phân biệt hoa
+  thường** (giữ cách viết gặp đầu tiên). Danh sách không đổi thì store bỏ qua,
+  không ghi lại — mỗi lần ghi là một lần bump `updated_at` + một lượt đẩy đồng bộ.
+- **Gắn thủ công**: popover của thẻ → **Nhãn** mở hộp thoại
+  (`review/ui/LabelDialog.tsx`, dùng `useDialog` chung): chip nhãn hiện có kèm
+  nút gỡ, ô thêm nhãn với gợi ý (`<datalist>`) từ nhãn đã dùng trong kho. Thay
+  đổi chỉ ghi khi bấm **Lưu**.
+- **Gợi ý bằng AI**: nút *Gợi ý bằng AI* gửi từ + cách đọc + nghĩa đầu + vốn nhãn
+  sẵn có qua proxy AI của app (`/api/ai/generate-vocab`, **cần đăng nhập**) và
+  nhận về tối đa 4 nhãn; prompt/parse thuần ở `domain/labels.ts`
+  (`buildLabelPrompt`/`parseLabelResponse`), nối dây ở `data/aiLabels.ts`. Gợi ý
+  hiện thành chip *đề xuất* — người dùng bấm từng cái mới nhận, AI không tự ghi.
+  Prompt nhấn tái dùng nhãn sẵn có để kho không đẻ ra hàng chục nhãn gần giống nhau.
+- **Lọc**: ô **Nhãn** trên Filter Bar (Tất cả / Chưa gắn nhãn / từng nhãn kèm số
+  thẻ) — chỉ liệt kê nhãn của từ đang hiện trên bản đồ. Bộ lọc chạy trong
+  `buildCloud` nên ảnh PNG xuất ra khớp đúng cái đang xem. Gỡ nhãn cuối cùng
+  đang được lọc thì bộ lọc tự trả về "Tất cả".
 
 ## 10. Bản đồ chức năng → tài liệu
 

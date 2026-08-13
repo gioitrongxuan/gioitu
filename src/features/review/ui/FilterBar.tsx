@@ -14,6 +14,7 @@ import {
   CloudGrouping,
   CloudTag,
 } from "../domain/wordcloud";
+import { labelCounts, LabelFilter } from "../domain/labels";
 import { CloudViewControls } from "./CloudViewControls";
 import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCloudPng";
 import { useTheme } from "@/features/theme/ThemeProvider";
@@ -29,11 +30,14 @@ interface Props {
   onlyDue: boolean;
   sort: CloudSort;
   lang: CloudLang;
+  /** Nhãn đang lọc (#249) — "all" khi không lọc. */
+  label: LabelFilter;
   grouping: CloudGrouping;
   onToggleHighlight: () => void;
   onToggleOnlyDue: () => void;
   onSortChange: (sort: CloudSort) => void;
   onLangChange: (lang: CloudLang) => void;
+  onLabelChange: (label: LabelFilter) => void;
   onGroupingChange: (grouping: CloudGrouping) => void;
   onStartReview: () => void;
   /** Số từ nghe được ở phạm vi hiện tại — 0 thì không mở được chế độ nghe. */
@@ -48,11 +52,13 @@ export function FilterBar({
   onlyDue,
   sort,
   lang,
+  label,
   grouping,
   onToggleHighlight,
   onToggleOnlyDue,
   onSortChange,
   onLangChange,
+  onLabelChange,
   onGroupingChange,
   onStartReview,
   listenCount,
@@ -63,13 +69,16 @@ export function FilterBar({
   // Vẽ + toBlob() là bất đồng bộ — chặn double-click, không phải vì việc chậm.
   const [exporting, setExporting] = useState(false);
   const hasCloudTags = useMemo(() => entries.some(isVisibleOnCloud), [entries]);
+  // Chỉ những từ đang hiện trên bản đồ mới cấp nhãn cho bộ lọc — nhãn của từ đã
+  // thuộc mà lọt vào đây thì chọn xong chỉ ra bản đồ trống.
+  const labels = useMemo(() => labelCounts(entries.filter(isVisibleOnCloud)), [entries]);
 
   // Soi gương pipeline của WordCloud.tsx (buildCloud → lọc onlyDue → nhóm) để
   // ảnh xuất đúng cái đang hiển thị. Trạng thái highlight/dim là tín hiệu hành
   // động nhất thời, không phải dữ liệu — cố ý không tái tạo trong ảnh.
   const exportSections = (): ExportCloudSection[] => {
     const now = Date.now();
-    const tags = buildCloud(entries, { now, sort, lang }).filter((t) => (onlyDue ? t.due : true));
+    const tags = buildCloud(entries, { now, sort, lang, label }).filter((t) => (onlyDue ? t.due : true));
     const toTag = ({ entry, shade, hasBadge }: CloudTag): ExportCloudTag => ({ term: entry.term, shade, hasBadge });
     if (grouping === "none") return [{ tags: tags.map(toTag) }];
     const groups = grouping === "srs" ? groupBySrsTier(tags) : groupByPeriod(tags, grouping, now);
@@ -114,6 +123,19 @@ export function FilterBar({
             <option value="frequency">Tần suất tra</option>
           </select>
         </label>
+        {/* Kho chưa có nhãn nào thì không dựng ô lọc rỗng cho chật thanh. */}
+        {labels.length > 0 && (
+          <label className="sort-select">
+            Nhãn
+            <select value={label} onChange={(e) => onLabelChange(e.target.value as LabelFilter)}>
+              <option value="all">Tất cả</option>
+              <option value="none">Chưa gắn nhãn</option>
+              {labels.map(({ label: name, count }) => (
+                <option key={name} value={name}>{`${name} (${count})`}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {/* Chip bật/tắt thay checkbox — cùng ngôn ngữ pill với phần còn lại. */}
         <button type="button" className={`chip-toggle${highlightDue ? " on" : ""}`} aria-pressed={highlightDue} onClick={onToggleHighlight}>
           Nổi bật từ cần ôn

@@ -12,9 +12,11 @@ import { ListenSession } from "@/features/review/ui/ListenSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
+import { LabelDialog } from "@/features/review/ui/LabelDialog";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
 import { CloudSort, CloudLang, CloudGrouping, filterByLang } from "@/features/review/domain/wordcloud";
 import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLangSettings";
+import { labelCounts, LabelFilter } from "@/features/review/domain/labels";
 import { listenableEntries } from "@/features/review/domain/listen";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
@@ -270,6 +272,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     saveCloudLang(lang);
   }, []);
   const [grouping, setGrouping] = useState<CloudGrouping>("none");
+  // Lọc bản đồ theo nhãn (#249). Nhãn cuối cùng mang tên đó có thể bị gỡ ngay
+  // trong lúc đang lọc — khi ấy trả bộ lọc về "Tất cả" thay vì để người dùng
+  // nhìn bản đồ trống với một ô lọc trỏ vào nhãn không còn tồn tại.
+  const [labelFilter, setLabelFilter] = useState<LabelFilter>("all");
+  // Nhãn đã dùng trong kho: vốn từ cho hộp thoại gắn nhãn (gợi ý + prompt AI).
+  const knownLabels = useMemo(() => labelCounts(store.entries), [store.entries]);
+  useEffect(() => {
+    if (labelFilter === "all" || labelFilter === "none") return;
+    if (!knownLabels.some((l) => l.label === labelFilter)) setLabelFilter("all");
+  }, [knownLabels, labelFilter]);
+  // Thẻ đang mở hộp thoại gắn nhãn (null = đóng).
+  const [labelEntry, setLabelEntry] = useState<VocabEntry | null>(null);
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
@@ -321,6 +335,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(connectingYomitan, () => setConnectingYomitan(false));
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
+  useBackEntry(labelEntry != null, () => setLabelEntry(null));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
   useBackEntry(onboarding, closeOnboarding);
 
@@ -618,11 +633,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onlyDue={onlyDue}
                 sort={sort}
                 lang={cloudLang}
+                label={labelFilter}
                 grouping={grouping}
                 onToggleHighlight={() => setHighlightDue((v) => !v)}
                 onToggleOnlyDue={() => setOnlyDue((v) => !v)}
                 onSortChange={setSort}
                 onLangChange={changeCloudLang}
+                onLabelChange={setLabelFilter}
                 onGroupingChange={setGrouping}
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
                 listenCount={listenCount}
@@ -719,10 +736,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                   onlyDue={onlyDue}
                   sort={sort}
                   lang={cloudLang}
+                  label={labelFilter}
                   grouping={grouping}
                   onSelect={onSelectTag}
                   onDelete={store.deleteEntry}
                   onMarkKnown={store.markKnownEntry}
+                  onEditLabels={setLabelEntry}
                   onReview={setReviewQueue}
                 />
               )}
@@ -745,6 +764,19 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {listening && (
         <ListenSession entries={store.entries} lang={cloudLang} onClose={() => setListening(false)} />
+      )}
+
+      {labelEntry && (
+        <LabelDialog
+          entry={labelEntry}
+          known={knownLabels}
+          canUseAi={email != null}
+          onSave={(labels) => {
+            void store.setEntryLabels(labelEntry, labels);
+            setLabelEntry(null);
+          }}
+          onClose={() => setLabelEntry(null)}
+        />
       )}
 
       {managing && isAdmin && (
