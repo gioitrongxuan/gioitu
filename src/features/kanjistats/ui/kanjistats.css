@@ -8,7 +8,10 @@
 .kanji-summary { margin: 0; font-size: 15px; }
 .kanji-quick-hint { margin: 0; font-size: 13px; }
 .kanji-legend { display: flex; align-items: center; gap: 8px; }
-.kanji-legend-bar { flex: 1; max-width: 220px; height: 10px; border-radius: 999px; border: 1px solid var(--line); }
+/* flex-shrink: 0 thay vì "flex: 1": cha `.kanji-legend` co theo nội dung
+   (không tự giãn trong `.kanji-legend-row`), nên item flex:1/co-được trong đó
+   sụp về gần 0px thay vì hiện dải gradient Yếu→Mạnh rộng 220px. */
+.kanji-legend-bar { flex: 0 0 220px; height: 10px; border-radius: 999px; border: 1px solid var(--line); }
 .kanji-legend-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
 
 /* Dense grid of fixed-size tiles that reflows to the container width (like the
