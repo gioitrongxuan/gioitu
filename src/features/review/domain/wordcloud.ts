@@ -70,6 +70,8 @@ export interface BuildCloudOptions extends ShadeOptions {
   sort?: CloudSort;
   /** Restrict the cloud to one language (default "all" = mixed). */
   lang?: CloudLang;
+  /** Restrict the cloud to words added recently (default "all" = mọi lúc). */
+  addedWindow?: AddedWindow;
 }
 
 /** Effective lookup weight, optionally decayed by time since last lookup. */
@@ -100,13 +102,54 @@ export function filterByLang<T extends Pick<VocabEntry, "term_lang">>(entries: T
 }
 
 /**
+ * Cửa sổ "thêm gần đây": chỉ giữ những từ vào kho trong N ngày qua. Mục đích là
+ * khoanh vùng một đợt học ("dạo này tôi học AWS") để ôn riêng nhóm đó, nên mốc
+ * là `created_at` — lúc từ được thêm — chứ không phải `last_lookup_at`. Khác hẳn
+ * `groupByPeriod`: cái kia *chia nhóm* để xem, cái này *thu hẹp* tập từ (kéo
+ * theo cả hàng đợi phiên ôn).
+ */
+export type AddedWindow = "all" | "1d" | "7d" | "30d" | "90d";
+
+/** Số ngày của mỗi cửa sổ; "all" không có mốc nên nằm ngoài bảng. */
+export const ADDED_WINDOW_DAYS: Record<Exclude<AddedWindow, "all">, number> = {
+  "1d": 1,
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+};
+
+/** Nhãn tiếng Việt của mỗi cửa sổ — dùng chung cho select và câu báo rỗng. */
+export const ADDED_WINDOW_LABEL: Record<AddedWindow, string> = {
+  all: "Mọi lúc",
+  "1d": "1 ngày qua",
+  "7d": "7 ngày qua",
+  "30d": "30 ngày qua",
+  "90d": "90 ngày qua",
+};
+
+/** Keep only entries added within the chosen window ("all" keeps everything). */
+export function filterByAddedWithin<T extends Pick<VocabEntry, "created_at">>(
+  entries: T[],
+  added: AddedWindow,
+  now: number,
+): T[] {
+  if (added === "all") return entries;
+  const from = now - ADDED_WINDOW_DAYS[added] * DAY_MS;
+  return entries.filter((e) => e.created_at >= from);
+}
+
+/**
  * Build the renderable cloud from a list of entries: filter to visible words
- * (optionally in one language), compute the shared max, then derive each tag's
- * shade/badge/due flags.
+ * (optionally in one language and/or added within a window), compute the shared
+ * max, then derive each tag's shade/badge/due flags.
  */
 export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}): CloudTag[] {
-  const visible = filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all");
   const now = opts.now ?? Date.now();
+  const visible = filterByAddedWithin(
+    filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all"),
+    opts.addedWindow ?? "all",
+    now,
+  );
 
   // Order before computing shade so the max is unaffected by sorting.
   const sort = opts.sort ?? "recent";
