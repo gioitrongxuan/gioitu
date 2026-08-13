@@ -29,18 +29,20 @@ lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên t
 - **Tra cứu** (`/search`) — trang tra tập trung (không có nội dung khu nào
   khác bên dưới thanh tra); Detail Panel chiếm nguyên trang.
 - **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
-  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
-  từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
-  được khi đăng nhập hiện **ổ khoá** (icon SVG) — tường đăng nhập nhất quán,
-  không giấu hẳn cũng không mời-rồi-chặn.
+  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học, Gửi góp ý về web;
+  admin thêm Quản lý từ điển · Duyệt đề xuất · Góp ý người dùng
+  (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng được khi đăng nhập hiện
+  **ổ khoá** (icon SVG) — tường đăng nhập nhất quán, không giấu hẳn cũng không
+  mời-rồi-chặn.
 
 Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward đi
 giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
 phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
 Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Quick Add, Auth, Onboarding. Mỗi overlay đang mở chiếm một entry
-History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
-Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
+Contribution Review, Feedback (gửi + màn admin), Quick Add, Auth, Onboarding.
+Mỗi overlay đang mở chiếm một entry History nên **Back đóng overlay** thay vì
+thoát app; từ đang xem trong Detail Panel có deep-link chia sẻ được dạng
+`/word/:pair/:term` (vd
 `/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
 
 ```
@@ -391,6 +393,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Premium | ☰ | Trang giá trị retention + kích hoạt bằng mã | [§9.7](#97-premium) |
 | Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
+| Góp ý về web | Tôi → Gửi góp ý về web · Tôi → Góp ý người dùng (admin) | Người dùng gửi góp ý/báo lỗi về app, admin đọc và đánh dấu đã xử lý | [§9.16](#916-góp-ý-về-web-244) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
 | Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
@@ -748,6 +751,32 @@ nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không 
   chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
   gấp đồ), chưa phát được khi bỏ máy trong túi. Máy thiếu gói giọng cho ngôn
   ngữ đang nghe thì màn phát báo ngay thay vì im lặng khó hiểu.
+
+### 9.16 Góp ý về web (#244)
+
+Kênh để người dùng nói *về chính app* (muốn sửa gì, cần tính năng gì) và admin
+đọc được — khác §1 (bình luận về một **từ** trong từ điển). (`features/feedback/`)
+
+- **Gửi (user)**: mục **Gửi góp ý về web** ở khu Tôi mở `FeedbackDialog` — chọn
+  loại (**Báo lỗi** / **Ý tưởng / tính năng mới** / **Khác**) + nội dung (trần
+  2000 ký tự, có đếm), rồi `POST /api/feedback`. Gửi xong dialog chuyển sang lời
+  cảm ơn thay vì đóng ngay (phản hồi xác nhận điều đã thật sự xảy ra).
+- **Cần đăng nhập**: góp ý nặc danh mở đường cho spam và admin cần biết hỏi lại
+  ai. Khách thấy ổ khoá ở mục menu và lời mời đăng nhập trong dialog — không bị
+  chặn sau khi đã gõ xong.
+- **Đọc (admin)**: mục **Góp ý người dùng** (chỉ admin) mở `FeedbackReview` —
+  mới nhất trước, mặc định chỉ phần đang chờ (`GET /api/feedback`), ô **Hiện cả
+  đã xử lý** đổi sang `?status=all`. Mỗi mục hiện loại, email người gửi, "N giờ
+  trước" và nguyên văn nội dung; nút **Đánh dấu đã xử lý**
+  (`POST /api/feedback/:id/handled`) gỡ khỏi danh sách đang chờ. Rỗng: "Không có
+  góp ý nào đang chờ."
+- **Lưu trữ**: bảng `feedback` trên Postgres (migration `0013_feedback`) —
+  `user_id`, `kind`, `message`, `status` (`new` | `handled`), `created_at`, kèm
+  `handled_by`/`handled_at`. Email **không** lưu ở đây: join `users` lúc đọc nên
+  không có bản sao lạc hậu.
+- **Luật kiểm tra** nằm thuần ở `feedback/domain/feedback.ts` (`checkFeedback`:
+  trim, rỗng, trần độ dài, loại hợp lệ) và server kiểm lại đúng các luật đó
+  trong `feedbackStore.submit` — client không phải bức tường duy nhất.
 
 ## 10. Bản đồ chức năng → tài liệu
 

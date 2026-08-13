@@ -75,6 +75,12 @@ const QuickAdd = lazy(() =>
 const ReviewStats = lazy(() =>
   import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
 );
+const FeedbackDialog = lazy(() =>
+  import("@/features/feedback/ui/FeedbackDialog").then((m) => ({ default: m.FeedbackDialog })),
+);
+const FeedbackReview = lazy(() =>
+  import("@/features/feedback/ui/FeedbackReview").then((m) => ({ default: m.FeedbackReview })),
+);
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
@@ -283,6 +289,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  // Góp ý về web (#244): form gửi của người dùng, và màn đọc của admin.
+  const [feedback, setFeedback] = useState(false);
+  const [feedbackReview, setFeedbackReview] = useState(false);
   const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu. `solo` = cửa sổ popup
@@ -481,11 +490,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       ],
     },
     {
+      title: "Góp ý",
+      // Góp ý gắn với một tài khoản (admin cần hỏi lại được) → khoá cho khách,
+      // cùng lối "tường đăng nhập nhất quán" như Premium/Yomitan ở trên.
+      items: [{ label: "Gửi góp ý về web", run: () => setFeedback(true), locked: !email }],
+    },
+    {
       title: "Quản trị",
       items: isAdmin
         ? [
             { label: "Quản lý từ điển", run: () => setManaging(true) },
             { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+            { label: "Góp ý người dùng", run: () => setFeedbackReview(true) },
           ]
         : [],
     },
@@ -823,6 +839,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
+
+      {feedback && (
+        <Suspense fallback={null}>
+          <FeedbackDialog
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setFeedback(false);
+              onRequestLogin();
+            }}
+            onClose={() => setFeedback(false)}
+          />
+        </Suspense>
+      )}
+
+      {feedbackReview && isAdmin && (
+        <Suspense fallback={null}>
+          <FeedbackReview onClose={() => setFeedbackReview(false)} />
+        </Suspense>
+      )}
 
       {reviewStats && (
         <Suspense fallback={null}>
