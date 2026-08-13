@@ -65,7 +65,13 @@ export function speakableMeaning(meaning: string): string {
   return meaningToLines(meaning).slice(0, MAX_MEANING_LINES).join(", ");
 }
 
-/** Nở một từ thành chuỗi bước: từ (×2) → lặng để tự nhớ lại → nghĩa. */
+/**
+ * Nở một từ thành chuỗi bước: từ (×2) → lặng để tự nhớ lại → lặng hiện nghĩa.
+ *
+ * Tạm ngừng đọc nghĩa thành tiếng (#243): nghĩa của một số loại từ lẫn tên từ
+ * điển/kí tự đặc biệt, đọc ra nghe vô nghĩa. Nghĩa vẫn hiện trên màn hình ở
+ * bước cuối như trước, chỉ không phát bằng giọng đọc nữa.
+ */
 export function cardSteps(card: ListenCard, gapMs: number): ListenStep[] {
   const term: ListenStep = {
     kind: "speak",
@@ -75,7 +81,7 @@ export function cardSteps(card: ListenCard, gapMs: number): ListenStep[] {
   return [
     ...Array.from({ length: TERM_REPEATS }, () => term),
     { kind: "pause", ms: gapMs },
-    { kind: "speak", text: speakableMeaning(card.meaning), locale: speechLocale(card.native_lang) },
+    { kind: "pause", ms: gapMs },
   ];
 }
 
