@@ -12,6 +12,7 @@
 
 import { CSSProperties, ReactNode } from "react";
 import { GlossaryNode, SCNode, SCElement } from "@/shared/structured-content";
+import { toNfc } from "@/shared/text";
 
 interface Props {
   onLookup?: (term: string) => void;
@@ -75,7 +76,11 @@ function dataAttrs(data: unknown): Record<string, string> {
 /** Render an arbitrary structured-content node tree. */
 export function StructuredNode({ node, onLookup }: { node: SCNode } & Props): ReactNode {
   if (node == null) return null;
-  if (typeof node === "string" || typeof node === "number") return <>{node}</>;
+  // Mọi text hiển thị đi qua đúng một chỗ này (và GlossaryItemView bên dưới) —
+  // ép NFC để dấu tiếng Việt không văng ra khỏi chữ khi từ điển nhập vào lưu
+  // dạng tổ hợp NFD (#267). Bản phẳng dùng lối riêng: shared/structured-content.
+  if (typeof node === "string") return <>{toNfc(node)}</>;
+  if (typeof node === "number") return <>{node}</>;
   if (Array.isArray(node)) {
     return (
       <>
@@ -182,7 +187,7 @@ function renderLink(el: SCElement, children: ReactNode, onLookup?: (term: string
 
 /** Render a single glossary node (string, {text}, image, or structured content). */
 export function GlossaryItemView({ node, onLookup }: { node: GlossaryNode } & Props): ReactNode {
-  if (typeof node === "string") return <>{node}</>;
+  if (typeof node === "string") return <>{toNfc(node)}</>;
   if (node && typeof node === "object") {
     const obj = node as Record<string, unknown>;
     if (obj.type === "structured-content") {
@@ -192,7 +197,7 @@ export function GlossaryItemView({ node, onLookup }: { node: GlossaryNode } & Pr
       const alt = typeof obj.alt === "string" ? obj.alt : "hình";
       return <span className="sc-img">[{alt}]</span>;
     }
-    if (typeof obj.text === "string") return <>{obj.text}</>;
+    if (typeof obj.text === "string") return <>{toNfc(obj.text)}</>;
   }
   return null;
 }

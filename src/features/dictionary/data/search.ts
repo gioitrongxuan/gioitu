@@ -6,6 +6,7 @@
 
 import { DictEntry } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
+import { toNfc } from "@/shared/text";
 import { LookupErrorKind, LookupResult } from "../domain/lookupError";
 import { DictSource } from "../domain/source";
 import { hasLocalDictionary, TermResult } from "./yomitan";
@@ -13,6 +14,11 @@ import { getSource } from "./sources";
 
 export type { TermResult };
 export type { LookupErrorKind, LookupResult };
+
+// Biên nhập liệu của mọi phép tra: ép NFC một lần ở facade thay vì trong từng
+// nguồn. Dán một cụm tiếng Việt dạng tổ hợp NFD (hay gặp khi copy từ macOS) vào
+// ô tra sẽ không khớp khoá `terms`/gloss lưu dạng NFC dù người dùng thấy giống
+// hệt nhau (#267).
 
 /**
  * Yomitan-style multi-result look-up against the chosen source. Trả LookupResult
@@ -23,7 +29,7 @@ export function findTermsRouted(
   pair: LangPair,
   source: DictSource,
 ): Promise<LookupResult<TermResult>> {
-  return getSource(source).findTerms(text, pair);
+  return getSource(source).findTerms(toNfc(text), pair);
 }
 
 /**
@@ -38,7 +44,7 @@ export function findFuzzyRouted(
   exclude: Set<string>,
   source: DictSource,
 ): Promise<TermResult[]> {
-  return getSource(source).fuzzy(text, pair, exclude);
+  return getSource(source).fuzzy(toNfc(text), pair, exclude);
 }
 
 /**
@@ -53,7 +59,7 @@ export function findByDefinitionRouted(
   exclude: Set<string>,
   source: DictSource,
 ): Promise<TermResult[]> {
-  return getSource(source).byDefinition(text, pair, exclude);
+  return getSource(source).byDefinition(toNfc(text), pair, exclude);
 }
 
 /** Live suggestions while typing, against the chosen source. */
@@ -62,7 +68,7 @@ export function searchSuggest(
   pair: LangPair,
   source: DictSource,
 ): Promise<DictEntry[]> {
-  return getSource(source).suggest(prefix, pair);
+  return getSource(source).suggest(toNfc(prefix), pair);
 }
 
 /** Whether a local (IndexedDB) dictionary exists for the pair (UI status). */

@@ -6,6 +6,7 @@
 import { DictEntry } from "@/shared/db";
 import { GlossaryNode, Sense, glossaryToLines } from "@/shared/structured-content";
 import { LangPair } from "@/shared/languages";
+import { toNfc } from "@/shared/text";
 import { resolveTags } from "./tags";
 
 const RELATED_PREFIX = "Liên quan/dễ nhầm: ";
@@ -33,9 +34,20 @@ export function emptyDraft(): CustomDraft {
   return { term: "", reading: "", pos: "", gloss: "", example: "", note: "", related: "" };
 }
 
+/**
+ * Dọn một trường người dùng gõ/dán: NFC rồi cắt khoảng trắng. Dán từ macOS hay
+ * từ trang web hay ra tiếng Việt dạng tổ hợp NFD — nếu lưu thẳng thì dấu bị văng
+ * ra khi hiển thị và khoá `(term, reading)` không khớp với chính từ đó gõ tay
+ * (#267). Chuẩn hoá ngay ở biên nháp → entry, nên mọi lối vào (gõ tay, AI, dán
+ * lưới) đều lưu cùng một dạng.
+ */
+function clean(s: string): string {
+  return toNfc(s).trim();
+}
+
 /** Khoá trùng — khớp key của store `terms` (bỏ qua cặp ngôn ngữ vì đã cùng cặp). */
 export function termReadingKey(term: string, reading: string): string {
-  return JSON.stringify([term.trim(), reading.trim()]);
+  return JSON.stringify([clean(term), clean(reading)]);
 }
 
 /** Một dòng có "nội dung" khi có từ và ít nhất một nghĩa. */
@@ -48,7 +60,7 @@ const POS_SEP = /[\s,]+/;
 const EXAMPLE_SEP = "::";
 
 function splitGloss(raw: string): string[] {
-  return raw.split(GLOSS_SEP).map((s) => s.trim()).filter(Boolean);
+  return raw.split(GLOSS_SEP).map(clean).filter(Boolean);
 }
 
 function splitPos(raw: string): string[] {
@@ -57,11 +69,11 @@ function splitPos(raw: string): string[] {
 
 /** "câu :: dịch" → ví dụ; chỉ trả về khi có phần câu. Không có `::` ⇒ toàn bộ là câu. */
 function parseExample(raw: string): { ja: string; vi: string } | undefined {
-  const text = raw.trim();
+  const text = clean(raw);
   if (!text) return undefined;
   const at = text.indexOf(EXAMPLE_SEP);
-  const ja = (at >= 0 ? text.slice(0, at) : text).trim();
-  const vi = at >= 0 ? text.slice(at + EXAMPLE_SEP.length).trim() : "";
+  const ja = clean(at >= 0 ? text.slice(0, at) : text);
+  const vi = at >= 0 ? clean(text.slice(at + EXAMPLE_SEP.length)) : "";
   return ja ? { ja, vi } : undefined;
 }
 
@@ -71,15 +83,15 @@ function parseExample(raw: string): { ja: string; vi: string } | undefined {
  * dụ. Tag được resolve như mọi nguồn khác nên chip hiển thị nhất quán.
  */
 export function buildDictEntry(draft: CustomDraft, pair: LangPair, dictTitle: string): DictEntry {
-  const term = draft.term.trim();
-  const reading = draft.reading.trim();
+  const term = clean(draft.term);
+  const reading = clean(draft.reading);
   const pos = splitPos(draft.pos);
   const glossLines = splitGloss(draft.gloss);
   const example = parseExample(draft.example);
 
   // Giải thích + từ liên quan/dễ nhầm cùng đi vào `info` (footnote muted khi tra).
-  const note = draft.note.trim();
-  const related = draft.related.trim();
+  const note = clean(draft.note);
+  const related = clean(draft.related);
   const info: string[] = [];
   if (note) info.push(note);
   if (related) info.push(`${RELATED_PREFIX}${related}`);
