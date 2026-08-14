@@ -119,6 +119,27 @@ export interface ReviewLogEntry {
   interval_after: number; // phút, sau khi chấm
 }
 
+/**
+ * Một từ đã tra, **gộp theo từ** (khác `review_log` là append-only): mỗi lượt tra
+ * cùng một từ chỉ tăng `count` và dời `lastAt`. Chỉ để trang Tra cứu kể lại "vừa
+ * tra gì / tra gì nhiều nhất" (#269).
+ *
+ * KHÔNG dính tới `VocabEntry.lookup_count` — cái đó là dữ liệu học (gating/SRS,
+ * quyết định mở #1 trong BACKLOG), còn đây thuần là lịch sử để mở lại nhanh: ghi
+ * vào đây không tạo thẻ, không đụng Word Cloud, không đồng bộ lên cloud.
+ */
+export interface SearchHistoryEntry {
+  user_id: string;
+  /** Dạng từ điển của từ đã tra (lemma), giống khoá dùng cho SRS. */
+  term: string;
+  term_lang: string; // ISO 639-1
+  native_lang: string; // ISO 639-1
+  /** Cách đọc, để hiện furigana-lite cạnh từ; vắng với từ chỉ có kana/latin. */
+  reading?: string;
+  count: number;
+  lastAt: number; // epoch ms của lượt tra gần nhất
+}
+
 /** The composite primary key as a single string (for IndexedDB keyPath). */
 export type EntryKey = string;
 

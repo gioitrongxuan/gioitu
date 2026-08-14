@@ -94,8 +94,10 @@ describe("nâng cấp IndexedDB (db.ts upgrade)", () => {
     const ofCustom = await db.getAllFromIndex("terms", "by_dict", customId);
     expect(ofCustom.map((e) => e.term)).toEqual(["猫"]);
 
-    // Bump lên v8 thêm store review_log MỚI mà không đụng terms/dictionaries.
+    // Bump lên v8/v9 thêm store MỚI (review_log, search_history) mà không đụng
+    // terms/dictionaries.
     expect(db.objectStoreNames.contains("review_log")).toBe(true);
+    expect(db.objectStoreNames.contains("search_history")).toBe(true);
   });
 
   it("backfill index by_reading khi bump từ v5 (chưa có index này)", async () => {
@@ -111,12 +113,13 @@ describe("nâng cấp IndexedDB (db.ts upgrade)", () => {
     expect(byReading.map((e) => e.term)).toContain("桜");
   });
 
-  it("CSDL mới tạo đủ 5 store", async () => {
+  it("CSDL mới tạo đủ 6 store", async () => {
     _resetDbPromise();
     const db = await openViaGetDb();
     expect([...db.objectStoreNames].sort()).toEqual([
       "dictionaries",
       "review_log",
+      "search_history",
       "term_meta",
       "terms",
       "user_data",

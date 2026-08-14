@@ -19,7 +19,7 @@ phải bảo toàn → IndexedDB chỉ là bản sao của Cloud DB.
 
 ## 2. IndexedDB (client) — `src/shared/db.ts`
 
-`DB_NAME = "gioitu"`, `DB_VERSION = 8`. **Bump `DB_VERSION` khi đổi schema.**
+`DB_NAME = "gioitu"`, `DB_VERSION = 9`. **Bump `DB_VERSION` khi đổi schema.**
 
 Lịch sử version (trong `upgrade()`):
 
@@ -31,14 +31,15 @@ Lịch sử version (trong `upgrade()`):
 | v6 | Thêm store `term_meta` (IPA/pitch/freq) |
 | v7 | Thêm index `by_reading` cho `terms` (tra bằng cách đọc ra được từ keyed theo kanji) |
 | v8 | Thêm store `review_log` (append-only, một dòng/lượt chấm thẻ) |
+| v9 | Thêm store `search_history` (lịch sử tra cứu cho trang Tra cứu, #269) |
 
 > Migration **theo version, không phá huỷ, idempotent**: `terms` KHÔNG còn bị
 > xoá khi bump (từ v5 nó chứa cả từ điển cá nhân — không tái tạo được bằng
 > re-import; xem cảnh báo trong `db.ts`). Thêm một object store mới (như
-> `review_log` ở v8) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
+> `review_log` ở v8, `search_history` ở v9) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
 > không đụng store cũ. Store cũ `reverse_tokens` (nếu còn) bị xoá.
 
-### 2.1 Năm object store
+### 2.1 Sáu object store
 
 ```
 terms          khoá [term_lang, native_lang, term, reading]
@@ -64,6 +65,10 @@ user_data      khoá [user_id, term, term_lang]
 review_log     khoá id (số, autoIncrement) — append-only
                index by_user_ts [user_id, ts]
                value ReviewLogEntry
+
+search_history khoá [user_id, term_lang, native_lang, term] — gộp theo từ
+               (không index: mỗi người tối đa 200 dòng, đọc hết rồi sắp)
+               value SearchHistoryEntry
 ```
 
 **Vì sao `reading` nằm trong khoá `terms`:** đồng âm khác cách đọc (辛い からい
@@ -164,6 +169,30 @@ interface ReviewLogEntry {
   ts: number;             // epoch ms lúc chấm
   interval_before: number; // phút, trước khi chấm
   interval_after: number;  // phút, sau khi chấm
+}
+```
+
+### 2.7 `SearchHistoryEntry` (value của `search_history`)
+
+Lịch sử tra cứu cho trang Tra cứu (#269), **gộp theo từ**: tra lại cùng một từ chỉ
+tăng `count` và dời `lastAt` (khác `review_log` là append-only). Ghi ở
+`app/useLookup.ts` mỗi khi một lượt tra thật sự mở ra được một từ, theo **lemma**.
+Giữ tối đa 200 dòng gần nhất mỗi người dùng (`HISTORY_LIMIT`), phần rơi ra bị xoá
+ngay trong transaction ghi.
+
+**Không phải dữ liệu học**: khác `VocabEntry.lookup_count`, store này không tạo
+thẻ SRS, không đụng Word Cloud, **không đồng bộ lên cloud** và không nằm trong
+bản sao lưu — xoá đi chỉ mất danh sách "tra gần đây".
+
+```ts
+interface SearchHistoryEntry {
+  user_id: string;
+  term: string;        // dạng từ điển (lemma)
+  term_lang: string;
+  native_lang: string;
+  reading?: string;
+  count: number;       // số lượt đã tra
+  lastAt: number;      // epoch ms lượt gần nhất
 }
 ```
 

@@ -14,7 +14,7 @@
 // fallback. For user data, IndexedDB is only a cache.
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
-import { VocabEntry, ReviewLogEntry } from "./types";
+import { VocabEntry, ReviewLogEntry, SearchHistoryEntry } from "./types";
 import { GlossaryNode, ResolvedTag, Sense } from "./structured-content";
 import type { PitchAccent, DictImage, DictComment } from "./dictionary";
 import { TermMetaEntry } from "./term-meta";
@@ -147,10 +147,17 @@ interface GioituDB extends DBSchema {
     // Truy vấn theo người dùng, sắp theo thời gian (thống kê/forecast).
     indexes: { by_user_ts: [string, number] };
   };
+  search_history: {
+    // Gộp theo từ (tra lại chỉ tăng count), nên khoá là chính danh tính của từ.
+    // Không cần index: một người dùng chỉ giữ tối đa HISTORY_LIMIT dòng, đọc hết
+    // rồi sắp trong bộ nhớ rẻ hơn nuôi thêm index.
+    key: [string, string, string, string]; // [user_id, term_lang, native_lang, term]
+    value: SearchHistoryEntry;
+  };
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -168,6 +175,8 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         //   v8  adds the append-only `review_log` store (one row per graded
         //       card in a review session) — a new store, so a pure add: no
         //       existing store is touched.
+        //   v9  adds `search_history` (lịch sử tra cứu cho trang Tra cứu) —
+        //       cũng là store mới, pure add.
         //
         // `terms` is NOT merely a re-importable cache anymore: Từ điển cá nhân
         // (CustomDictionary) writes hand-authored rows into it under a `dictId`
@@ -235,6 +244,13 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
             autoIncrement: true,
           });
           log.createIndex("by_user_ts", ["user_id", "ts"]);
+        }
+
+        // Lịch sử tra cứu (v9) — lại là một store MỚI, không đụng store cũ nào.
+        if (!db.objectStoreNames.contains("search_history")) {
+          db.createObjectStore("search_history", {
+            keyPath: ["user_id", "term_lang", "native_lang", "term"],
+          });
         }
       },
     });

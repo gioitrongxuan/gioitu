@@ -182,3 +182,32 @@
   .suggestions li button { padding: 12px 10px; }
   .radical-btn { min-width: 44px; height: 44px; }
 }
+
+/* Trang Tra cứu khi chưa mở từ nào (#269): lịch sử tra cứu của chính người
+   dùng. Chip từ dùng lại đúng hình dáng "từ hay quên" ở màn Hôm nay. */
+.search-home { display: grid; gap: var(--space-5); max-width: 560px; justify-items: start; }
+.search-home-hint { margin: 0; }
+.search-home-section { display: grid; gap: var(--space-2); justify-items: start; width: 100%; }
+.search-home-title { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.search-home-words { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.search-home-word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.search-home-word:hover { border-color: var(--accent); }
+.search-home-reading { color: var(--muted); font-size: var(--text-sm); }
+.search-home-count { color: var(--muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.search-home-clear { padding: 0; }
+
+@media (pointer: coarse) {
+  .search-home-word { min-height: 44px; }
+}
