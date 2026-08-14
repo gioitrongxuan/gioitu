@@ -82,6 +82,12 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
   theo nhóm (`tagMeta` phân giải từ `tag_bank`).
 - **Phát âm IPA**: nhóm theo từng từ điển, mỗi transcription có tag vùng (Hà Nội/
   Huế/Sài Gòn…) — chỉ hiện khi có dữ liệu term-meta.
+- **Nghe phát âm (#246)**: nút loa cạnh mặt chữ của **từng kết quả** (mỗi kết
+  quả một cách đọc riêng nên không gom lên tiêu đề panel). Đọc bằng giọng của
+  máy (Web Speech API, `shared/speech.ts`) — offline, không gọi server; tiếng
+  Nhật có kana thì đọc kana, còn lại đọc mặt chữ. Bấm lần nữa lúc đang đọc là
+  dừng. Trình duyệt không hỗ trợ Web Speech thì ẩn hẳn nút; máy có giọng nhưng
+  thiếu gói cho ngôn ngữ đó thì báo bằng toast thay vì im lặng.
 - **Định nghĩa giàu (structured content)**: danh sách sense đánh số, mỗi sense có
   tag từ loại; render được list, nhấn mạnh, bảng (cuộn ngang), `<details>`, ảnh
   (xuống cấp thành `[alt]`).
@@ -748,8 +754,9 @@ nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không 
   lúc máy đọc nghĩa (liếc màn hình vẫn là một lượt tự kiểm tra). Cả vùng chữ là
   nút phát/dừng khổng lồ; thêm Từ trước / Từ sau và hai ô chọn Tốc độ
   (chậm/bình thường/nhanh) + Khoảng lặng. Cài đặt nhớ ở `gioitu.listen.v1`.
-- **Kỹ thuật**: Web Speech API thuần client (`review/data/speech.ts`) — offline,
-  miễn phí, không gọi server. Logic *đọc gì* nằm thuần ở `review/domain/listen.ts`.
+- **Kỹ thuật**: Web Speech API thuần client (`shared/speech.ts` — dùng chung với
+  nút phát âm ở từ điển) — offline, miễn phí, không gọi server. Logic *đọc gì*
+  nằm thuần ở `review/domain/listen.ts`.
   Giữ màn hình sáng bằng Wake Lock (`review/data/wakeLock.ts`).
 - **Giới hạn đã biết**: giọng đọc của trình duyệt **tắt khi khoá màn hình hoặc
   chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
