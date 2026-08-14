@@ -61,7 +61,10 @@ export function RadicalPicker({ onInsert }: Props) {
 
   return (
     <div className="radical-picker">
-      <div className="radical-results" lang="ja">
+      {/* lang="ja" nằm trên từng nút kanji, KHÔNG trên container: container này
+          còn chứa gợi ý tiếng Việt, mà :lang(ja) di truyền xuống con nên font
+          Nhật sẽ làm dấu tiếng Việt văng ra khỏi chữ (#267). */}
+      <div className="radical-results">
         {selected.length > 0 && (
           <button
             type="button"
@@ -79,7 +82,7 @@ export function RadicalPicker({ onInsert }: Props) {
           <span className="radical-hint">Không có kanji chứa đủ các bộ đã chọn</span>
         ) : (
           matches.map((k) => (
-            <button key={k} type="button" className="radical-kanji" onClick={() => onInsert(k)}>
+            <button key={k} type="button" className="radical-kanji" lang="ja" onClick={() => onInsert(k)}>
               {k}
             </button>
           ))

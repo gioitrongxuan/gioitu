@@ -7,7 +7,10 @@
     <style>
       :root { color-scheme: light dark; }
       body {
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        /* Không mở đầu bằng `system-ui`: trên máy locale tiếng Nhật nó là Yu
+           Gothic UI / Hiragino, các font thiếu glyph tiếng Việt dựng sẵn nên dấu
+           bị văng ra khỏi chữ (#267). Cùng thứ tự với --font-ui của webapp. */
+        font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
         max-width: 34rem;
         margin: 2rem auto;
         padding: 0 1rem;
