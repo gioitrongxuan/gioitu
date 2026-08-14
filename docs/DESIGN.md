@@ -65,6 +65,15 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
   system-first cho `--font-ja` (offline-first); khi self-host thì Inter subset
   latin+vietnamese cho UI, Noto Sans JP chèn SAU Hiragino TRƯỚC Yu Gothic
   (macOS không tải gì).
+- **Font & tiếng Việt (bất biến, #267)** — stack cho chữ tiếng Việt PHẢI có một
+  font phủ đủ tiếng Việt dựng sẵn (U+1EA0–U+1EF9) đứng trước mọi font
+  ăn-theo-locale hoặc font Nhật. Cụ thể: dùng `--font-ui` (`-apple-system` ·
+  `Segoe UI` · Roboto/Noto/DejaVu, `system-ui` chỉ ở đuôi) — KHÔNG mở đầu bằng
+  `system-ui`, vì trên máy locale tiếng Nhật nó là Yu Gothic UI / Hiragino, các
+  font thiếu glyph dựng sẵn nên trình duyệt phân rã "ắ" rồi vẽ dấu thành ký tự
+  rời ("Sắp xếp" → "Să ´ p xê ´ p"). Cùng lý do: `lang="ja"` bọc CHẶT quanh chữ
+  Nhật — `:lang(ja)` di truyền, container ôm cả nhãn tiếng Việt là làm vỡ nhãn
+  đó. Guard: `test/fontStack.test.ts`.
 - **Z-index** — đặt thang tên: dropdown 20 · sheet 30 · modal 40 · toast 50.
 - **Control** — height thống nhất 38px (header) / 48px (search hero);
   focus ring: `0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent)`.

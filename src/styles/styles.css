@@ -91,10 +91,26 @@
   --control-h-lg: 48px;
   --focus-ring: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
 
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Font UI — KHÔNG mở đầu bằng `system-ui`. `system-ui` ăn theo locale của máy:
+     trên Windows tiếng Nhật nó là Yu Gothic UI, trên macOS tiếng Nhật là
+     Hiragino. Các font Nhật đó thiếu glyph tiếng Việt dựng sẵn (U+1EA0–U+1EF9)
+     nhưng LẠI có sẵn chữ nền + dấu tổ hợp rời, nên trình duyệt không nhảy sang
+     font khác: nó tự phân rã "ắ" thành "ă" + U+0301 rồi vẽ dấu như một ký tự
+     riêng (font không có anchor GPOS cho mark). Đó là lỗi "Sắp xếp" hiển thị
+     thành "Să ´ p xê ´ p" (#267) — chuẩn hoá NFC không chữa được vì nguồn đã
+     đúng NFC, chỗ vỡ nằm ở font. Vì vậy xếp trước các font Latin phủ đủ tiếng
+     Việt (SF Pro trên macOS · Segoe UI trên Windows · Roboto/Noto/DejaVu trên
+     Linux) và để `system-ui` làm lưới an toàn ở cuối cho nền tảng lạ. Chữ Nhật
+     KHÔNG có trong các font Latin này nên vẫn rơi tiếp xuống --font-ja qua
+     :lang(ja). Vẫn 100% font hệ thống — không tải webfont (offline-first). */
+  --font-ui: -apple-system, "Segoe UI", Roboto, "Noto Sans", "DejaVu Sans",
+    system-ui, sans-serif;
+  font-family: var(--font-ui);
   /* Font tiếng Nhật: ưu tiên font hệ thống (offline-first, không tải webfont);
      Noto Sans JP dùng khi máy có sẵn. Áp qua :lang(ja) — mọi chữ Nhật trong
-     app phải được bọc lang="ja" để ăn font này. */
+     app phải được bọc lang="ja" để ăn font này. Bọc CHẶT quanh chữ Nhật thôi:
+     :lang(ja) di truyền xuống con, nên một container lang="ja" ôm cả nhãn tiếng
+     Việt sẽ đẩy nhãn đó vào font Nhật và làm dấu văng ra (xem #267). */
   --font-ja: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
     "Noto Sans JP", "Meiryo", sans-serif;
   color-scheme: light;
