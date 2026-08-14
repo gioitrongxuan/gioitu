@@ -1,7 +1,13 @@
 // Filter Bar (SPEC 3, 4.3): highlight/limit due words and choose cloud order.
 // Highlighting/sorting does NOT change tag colours (colour stays by lookup_count).
-// Desktop trải phẳng thành một hàng; màn hẹp gom mọi control vào popover sau
-// nút "Bộ lọc" (CSS quyết định — cùng một markup) để chỉ còn [Bộ lọc][Ôn tập].
+//
+// Thanh này chỉ có HAI vùng và luôn đọc được như một hàng: bên trái là trạng
+// thái xem (nút "Bộ lọc" + hai chip từ-cần-ôn), bên phải là hành động ("Nghe",
+// "Ôn tập hôm nay"). Mọi select nằm trong popover "Bộ lọc" ở MỌI bề rộng —
+// trước đây desktop trải phẳng 6 select + 5 nút lên một hàng wrap, xuống dòng
+// thành những mảnh lệch nhau (nút "Nghe" mồ côi hẳn một dòng). Cùng lý do,
+// hai hành động chạy trên đúng tập từ đang hiện (gắn nhãn AI, tải PNG) nằm
+// trong panel, ngay dưới bộ lọc dựng nên tập ấy.
 
 import { useMemo, useState } from "react";
 import {
@@ -10,6 +16,7 @@ import {
   groupBySrsTier,
   isVisibleOnCloud,
   isAddedPreset,
+  narrowsAdded,
   ADDED_WINDOW_LABEL,
   AddedWindow,
   AddedWindowPreset,
@@ -19,11 +26,12 @@ import {
   CloudGrouping,
   CloudTag,
 } from "../domain/wordcloud";
-import { labelCounts, LabelFilter } from "../domain/labels";
+import { labelCounts, LabelCount, LabelFilter } from "../domain/labels";
 import { CloudViewControls } from "./CloudViewControls";
 import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCloudPng";
 import { useTheme } from "@/features/theme/ThemeProvider";
-import { ChevronDownIcon, DownloadIcon, HeadphonesIcon } from "@/shared/ui/icons";
+import { useDialog } from "@/shared/ui/useDialog";
+import { ChevronDownIcon, DownloadIcon, FilterIcon, HeadphonesIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { toDateInput } from "@/shared/date";
 import "./review.css";
@@ -96,9 +104,13 @@ export function FilterBar({
   // Chỉ những từ đang hiện trên bản đồ mới cấp nhãn cho bộ lọc — nhãn của từ đã
   // thuộc mà lọt vào đây thì chọn xong chỉ ra bản đồ trống.
   const labels = useMemo(() => labelCounts(entries.filter(isVisibleOnCloud)), [entries]);
-  // Không ai thêm từ ở tương lai — chặn ngay trong lịch thay vì để người dùng
-  // chọn xong mới thấy bản đồ trống.
-  const today = toDateInput(Date.now());
+
+  // Con số trên nút "Bộ lọc" chỉ đếm những bộ lọc LÀM MẤT từ khỏi bản đồ (ngôn
+  // ngữ, nhãn, cửa sổ thêm). "Nhóm theo"/"Sắp xếp" đổi cách bày chứ không giấu
+  // gì — nhìn bản đồ là thấy — nên đếm chúng vào đây chỉ làm loãng tín hiệu
+  // "đang có thứ bị che" mà panel đóng cần phát ra.
+  const narrowCount =
+    (lang === "all" ? 0 : 1) + (label === "all" ? 0 : 1) + (narrowsAdded(addedWindow) ? 1 : 0);
 
   // Soi gương pipeline của WordCloud.tsx (buildCloud → lọc onlyDue) để mọi thứ
   // đi ra từ thanh này — ảnh PNG, tập từ gắn nhãn hàng loạt — đúng bằng cái
@@ -132,16 +144,119 @@ export function FilterBar({
 
   return (
     <div className="filter-bar">
-      <button
-        type="button"
-        className="chip-toggle filter-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        Bộ lọc <span className="caret" aria-hidden><ChevronDownIcon /></span>
-      </button>
-      {open && <div className="menu-backdrop" onClick={() => setOpen(false)} />}
-      <div className={`filter-controls${open ? " open" : ""}`}>
+      <div className="filter-lead">
+        <button
+          type="button"
+          className={`filter-toggle${open ? " open" : ""}`}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <FilterIcon size={16} />
+          Bộ lọc
+          {narrowCount > 0 && <span className="filter-count">{narrowCount}</span>}
+          <span className="caret" aria-hidden><ChevronDownIcon /></span>
+        </button>
+        {open && (
+          <>
+            <div className="menu-backdrop" onClick={() => setOpen(false)} />
+            <FilterPanel
+              sort={sort}
+              lang={lang}
+              label={label}
+              labels={labels}
+              grouping={grouping}
+              addedWindow={addedWindow}
+              onSortChange={onSortChange}
+              onLangChange={onLangChange}
+              onLabelChange={onLabelChange}
+              onGroupingChange={onGroupingChange}
+              onAddedWindowChange={onAddedWindowChange}
+              canBulkLabel={canBulkLabel}
+              hasCloudTags={hasCloudTags}
+              exporting={exporting}
+              onBulkLabel={() => onBulkLabel(visibleTags(Date.now()).map((t) => t.entry))}
+              onExport={handleExport}
+              onClose={() => setOpen(false)}
+            />
+          </>
+        )}
+        {/* Chip bật/tắt thay checkbox: hai công tắc đổi cách nhìn nhanh nhất nên
+            ở lại ngoài thanh, không chui vào panel. */}
+        <button type="button" className={`chip-toggle${highlightDue ? " on" : ""}`} aria-pressed={highlightDue} onClick={onToggleHighlight}>
+          Nổi bật từ cần ôn
+        </button>
+        <button type="button" className={`chip-toggle${onlyDue ? " on" : ""}`} aria-pressed={onlyDue} onClick={onToggleOnlyDue}>
+          Chỉ hiện từ cần ôn
+        </button>
+      </div>
+      <div className="filter-actions">
+        {/* Nghe không phụ thuộc hạn ôn: nó chạy trên toàn bộ từ đang học, nên
+            vẫn bấm được cả khi hôm nay không còn từ đến hạn. */}
+        <button className="listen-btn" disabled={listenCount === 0} onClick={onStartListen}>
+          <HeadphonesIcon size={16} />
+          Nghe
+        </button>
+        <button className="review-btn" disabled={dueCount === 0} onClick={onStartReview}>
+          Ôn tập hôm nay ({dueCount})
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface PanelProps {
+  sort: CloudSort;
+  lang: CloudLang;
+  label: LabelFilter;
+  labels: LabelCount[];
+  grouping: CloudGrouping;
+  addedWindow: AddedWindow;
+  onSortChange: (sort: CloudSort) => void;
+  onLangChange: (lang: CloudLang) => void;
+  onLabelChange: (label: LabelFilter) => void;
+  onGroupingChange: (grouping: CloudGrouping) => void;
+  onAddedWindowChange: (added: AddedWindow) => void;
+  canBulkLabel: boolean;
+  hasCloudTags: boolean;
+  exporting: boolean;
+  onBulkLabel: () => void;
+  onExport: () => void;
+  onClose: () => void;
+}
+
+/**
+ * Popover "Bộ lọc" — tách thành component riêng để `useDialog` (DESIGN §3.3)
+ * chạy đúng lúc panel mount/unmount: Escape đóng, focus vào control đầu, trả
+ * focus về nút đã mở.
+ */
+function FilterPanel({
+  sort,
+  lang,
+  label,
+  labels,
+  grouping,
+  addedWindow,
+  onSortChange,
+  onLangChange,
+  onLabelChange,
+  onGroupingChange,
+  onAddedWindowChange,
+  canBulkLabel,
+  hasCloudTags,
+  exporting,
+  onBulkLabel,
+  onExport,
+  onClose,
+}: PanelProps) {
+  const ref = useDialog<HTMLDivElement>(onClose);
+  // Không ai thêm từ ở tương lai — chặn ngay trong lịch thay vì để người dùng
+  // chọn xong mới thấy bản đồ trống.
+  const today = toDateInput(Date.now());
+
+  return (
+    <div className="filter-panel" ref={ref} role="group" aria-label="Bộ lọc bản đồ từ">
+      <div className="filter-group">
+        <p className="filter-group-label">Hiển thị</p>
         <CloudViewControls
           lang={lang}
           grouping={grouping}
@@ -149,6 +264,17 @@ export function FilterBar({
           onGroupingChange={onGroupingChange}
           enableSrsTier
         />
+        <label className="sort-select">
+          Sắp xếp
+          <select value={sort} onChange={(e) => onSortChange(e.target.value as CloudSort)}>
+            <option value="recent">Mới tra nhất</option>
+            <option value="frequency">Tần suất tra</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="filter-group">
+        <p className="filter-group-label">Phạm vi</p>
         {/* Khoanh vùng theo đợt học: chỉ ôn những từ mới thêm gần đây (#250). */}
         <label className="sort-select">
           Thêm trong
@@ -162,9 +288,9 @@ export function FilterBar({
               )
             }
           >
-            {Object.entries(ADDED_WINDOW_LABEL).map(([value, label]) => (
+            {Object.entries(ADDED_WINDOW_LABEL).map(([value, windowLabel]) => (
               <option key={value} value={value}>
-                {label}
+                {windowLabel}
               </option>
             ))}
             <option value={RANGE_OPTION}>Khoảng ngày…</option>
@@ -195,14 +321,7 @@ export function FilterBar({
             </label>
           </div>
         )}
-        <label className="sort-select">
-          Sắp xếp
-          <select value={sort} onChange={(e) => onSortChange(e.target.value as CloudSort)}>
-            <option value="recent">Mới tra nhất</option>
-            <option value="frequency">Tần suất tra</option>
-          </select>
-        </label>
-        {/* Kho chưa có nhãn nào thì không dựng ô lọc rỗng cho chật thanh. */}
+        {/* Kho chưa có nhãn nào thì không dựng ô lọc rỗng cho chật panel. */}
         {labels.length > 0 && (
           <label className="sort-select">
             Nhãn
@@ -215,37 +334,22 @@ export function FilterBar({
             </select>
           </label>
         )}
-        {/* Chip bật/tắt thay checkbox — cùng ngôn ngữ pill với phần còn lại. */}
-        <button type="button" className={`chip-toggle${highlightDue ? " on" : ""}`} aria-pressed={highlightDue} onClick={onToggleHighlight}>
-          Nổi bật từ cần ôn
-        </button>
-        <button type="button" className={`chip-toggle${onlyDue ? " on" : ""}`} aria-pressed={onlyDue} onClick={onToggleOnlyDue}>
-          Chỉ hiện từ cần ôn
-        </button>
-        {canBulkLabel && (
-          <button
-            type="button"
-            className="chip-toggle"
-            disabled={!hasCloudTags}
-            onClick={() => onBulkLabel(visibleTags(Date.now()).map((t) => t.entry))}
-          >
-            Gắn nhãn AI
-          </button>
-        )}
-        <button type="button" className="export-btn" onClick={handleExport} disabled={exporting || !hasCloudTags}>
-          <DownloadIcon size={16} />
-          {exporting ? "Đang xuất…" : "Tải ảnh PNG"}
-        </button>
       </div>
-      <button className="review-btn" disabled={dueCount === 0} onClick={onStartReview}>
-        Ôn tập hôm nay ({dueCount})
-      </button>
-      {/* Nghe không phụ thuộc hạn ôn: nó chạy trên toàn bộ từ đang học, nên
-          vẫn bấm được cả khi hôm nay không còn từ đến hạn. */}
-      <button className="listen-btn" disabled={listenCount === 0} onClick={onStartListen}>
-        <HeadphonesIcon size={16} />
-        Nghe
-      </button>
+
+      <div className="filter-group">
+        <p className="filter-group-label">Với các từ đang hiện</p>
+        <div className="filter-group-actions">
+          {canBulkLabel && (
+            <button type="button" className="chip-toggle" disabled={!hasCloudTags} onClick={onBulkLabel}>
+              Gắn nhãn AI
+            </button>
+          )}
+          <button type="button" className="export-btn" onClick={onExport} disabled={exporting || !hasCloudTags}>
+            <DownloadIcon size={16} />
+            {exporting ? "Đang xuất…" : "Tải ảnh PNG"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
