@@ -414,6 +414,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
 | Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
+| Lịch sử tra cứu | Khu Tra cứu, khi chưa mở từ nào | "Tra gần đây" + "Tra nhiều nhất" của chính người dùng, bấm là tra lại | [§9.19](#919-lịch-sử-tra-cứu-269) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -915,6 +916,37 @@ rồi lọc bản đồ từ theo nhãn. Trong code gọi là `label` chứ khô
     vì hàng chục toast của `setEntryLabels` gọi trong vòng lặp).
   - Prompt/parse thuần ở `domain/bulkLabels.ts`, nối dây ở `data/aiLabels.ts`
     (`suggestLabelsForBatch`).
+
+### 9.19 Lịch sử tra cứu (#269)
+
+Khu **Tra cứu** trước đây trống trơn khi chưa mở từ nào (chỉ một câu "Tra một từ
+ở ô bên trên"). Giờ chỗ đó kể lại lịch sử tra cứu của chính người dùng
+(`dictionary/ui/SearchHome.tsx`):
+
+- **Tra nhiều nhất** — từ nào cứ phải tra đi tra lại (đúng triết lý "một lần tra
+  là tín hiệu của sự quên"). Chỉ hiện khi đã có từ được tra **từ 2 lượt trở lên**,
+  kẻo nó chỉ là bản sao của mục dưới.
+- **Tra gần đây** — mở lại nhanh từ vừa xem.
+- Mỗi mục tối đa 8 từ, bấm chip là tra lại ngay (đi qua đúng đường tra thường,
+  nên lượt đó cũng được đếm). Chỉ hiện lịch sử của **cặp ngôn ngữ đang chọn** —
+  ô tìm trên header luôn tra theo cặp đó.
+- **Xoá lịch sử tra cứu**: nút cuối trang, hoàn tác được bằng toast (không hộp
+  xác nhận, theo DESIGN §3.6).
+
+Ghi nhận ở đâu: `app/useLookup.ts` — mỗi lượt tra **mở ra được một từ** (bỏ qua
+lượt gõ hụt và lượt lỗi mạng) ghi một dòng theo **lemma** (dạng từ điển), nên
+食べた và 食べる về chung một dòng. Mở từ ở chế độ chỉ-đọc (bấm thẻ Word Cloud,
+ô ở Học từ vựng, trang Chữ Hán) **không** tính.
+
+- **Lưu ở đâu**: store IndexedDB `search_history` (v9), gộp theo
+  `[user_id, term_lang, native_lang, term]` — tra lại chỉ tăng `count` và dời
+  `lastAt`. Giữ tối đa 200 từ gần nhất mỗi người dùng.
+- **Không phải dữ liệu học**: khác hẳn `VocabEntry.lookup_count`, ghi vào đây
+  **không** tạo thẻ SRS, không đụng Word Cloud, không đồng bộ lên cloud và không
+  nằm trong bản sao lưu. Nó không đụng tới quyết định mở #1 (triết lý gating) ở
+  BACKLOG — chỉ là lịch sử để mở lại nhanh.
+- Logic thuần (gộp lượt, xếp thứ tự, cắt trần) ở `dictionary/domain/searchHistory.ts`,
+  I/O ở `dictionary/data/searchHistory.ts`.
 
 ## 10. Bản đồ chức năng → tài liệu
 

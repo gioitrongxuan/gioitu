@@ -19,6 +19,7 @@ import {
   findByDefinitionRouted,
 } from "@/features/dictionary/data/search";
 import { DictSource } from "@/features/dictionary/domain/source";
+import { recordSearch } from "@/features/dictionary/data/searchHistory";
 import { LookupInput, LookupResult } from "@/features/review/domain/lookup";
 
 export type DetailView = {
@@ -48,7 +49,7 @@ interface LookupRecorder {
   recordLookup: (input: Omit<LookupInput, "user_id">) => Promise<LookupResult>;
 }
 
-export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSource) {
+export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSource, userId: string) {
   const [view, setView] = useState<DetailView>(null);
   // Đếm lượt tra để một lượt quét near-miss cũ (chạy off the hot path) về muộn
   // không đè lên kết quả của lượt tra mới hơn — cùng idiom epoch dùng ở SearchBar.
@@ -69,6 +70,21 @@ export function useLookup(store: LookupRecorder, pair: LangPair, source: DictSou
     const native_lang = primary?.native_lang ?? p.target;
     const primaryTerm = primary?.term ?? term;
     setView({ kind: "detail", term, primaryTerm, results, term_lang, native_lang, error });
+
+    // Lịch sử tra cứu (#269) — chỉ ghi khi thật sự mở ra một từ: gõ hụt hoặc mất
+    // mạng thì "Tra gần đây" không có gì để mở lại. Ghi theo lemma như SRS, để
+    // 食べた và 食べる về cùng một dòng. Đây KHÔNG phải đếm lượt tra của SRS (xem
+    // ghi chú cuối hàm): không tạo thẻ, không đụng Word Cloud.
+    // Ghi nền và nuốt lỗi: lịch sử là tiện ích phụ, hỏng thì không được kéo theo
+    // lượt tra (kết quả đã hiện rồi).
+    if (!error && primary)
+      void recordSearch({
+        user_id: userId,
+        term: primaryTerm,
+        term_lang,
+        native_lang,
+        reading: primary.reading,
+      }).catch(() => {});
 
     // Lỗi mạng thì bỏ qua near-miss: cùng máy chủ nên cũng sẽ lỗi, và ta không
     // muốn phủ thêm gợi ý lên thông điệp lỗi.

@@ -30,6 +30,7 @@ import { listenableEntries } from "@/features/review/domain/listen";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
+import { SearchHome } from "@/features/dictionary/ui/SearchHome";
 import { hasLocalDict } from "@/features/dictionary/data/search";
 import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain/source";
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
@@ -372,7 +373,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [aiProxy, setAiProxy] = useState(false);
   // Cửa sổ proxy tra cứu (?lookup=…) — mặt chữ đang tra hộ, null = không phải proxy.
   const [lookupProxy, setLookupProxy] = useState<string | null>(null);
-  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
+  const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource, userId);
   // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
   // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
   // khi phiên đóng — chuỗi ngày nối ngay, không đợi tải lại trang.
@@ -811,7 +812,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             // chiếm nguyên bề rộng trang tra cứu.
             view?.kind !== "detail" && (
               <section {...behindSheet}>
-                <p className="empty">Tra một từ ở ô bên trên — kết quả hiện ở đây.</p>
+                {/* Chưa tra gì thì màn này kể lại lịch sử tra cứu (#269) —
+                    remount mỗi lần đóng panel nên danh sách luôn tươi. */}
+                <SearchHome userId={userId} pair={pair} onLookup={lookup} />
               </section>
             )
           ) : (
