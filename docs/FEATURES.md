@@ -29,16 +29,18 @@ lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên t
 - **Tra cứu** (`/search`) — trang tra tập trung (không có nội dung khu nào
   khác bên dưới thanh tra); Detail Panel chiếm nguyên trang.
 - **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
-  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
-  từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
-  được khi đăng nhập hiện **ổ khoá** (icon SVG) — tường đăng nhập nhất quán,
-  không giấu hẳn cũng không mời-rồi-chặn.
+  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học, Đánh giá ứng dụng;
+  admin thêm Quản lý từ điển · Duyệt đề xuất · Đánh giá của người dùng
+  (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng được khi đăng nhập hiện
+  **ổ khoá** (icon SVG) — tường đăng nhập nhất quán, không giấu hẳn cũng không
+  mời-rồi-chặn.
 
 Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward đi
 giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
 phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
 Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Quick Add, Auth, Onboarding. Mỗi overlay đang mở chiếm một entry
+Contribution Review, Đánh giá (gửi + màn admin), Quick Add, Auth, Onboarding.
+Mỗi overlay đang mở chiếm một entry
 History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
 Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
 `/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
@@ -391,6 +393,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Premium | ☰ | Trang giá trị retention + kích hoạt bằng mã | [§9.7](#97-premium) |
 | Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
+| Đánh giá ứng dụng | Tôi → Đánh giá ứng dụng · Tôi → Đánh giá của người dùng (admin) | Chấm 1–5 sao + nhận xét về app, mỗi tài khoản một phiếu sửa được | [§9.16](#916-đánh-giá-ứng-dụng-245) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
 | Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
@@ -748,6 +751,32 @@ nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không 
   chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
   gấp đồ), chưa phát được khi bỏ máy trong túi. Máy thiếu gói giọng cho ngôn
   ngữ đang nghe thì màn phát báo ngay thay vì im lặng khó hiểu.
+
+### 9.16 Đánh giá ứng dụng (#245)
+
+Người dùng chấm điểm *chính app* (khác §1 — bình luận về một **từ**, và khác
+đề xuất sửa nghĩa ở §9.8). (`features/rating/`)
+
+- **Chấm điểm (user)**: mục **Đánh giá ứng dụng** ở khu Tôi mở `RatingDialog` —
+  chọn **1–5 sao** + nhận xét ngắn **tuỳ chọn** (trần 500 ký tự, có đếm), rồi
+  `POST /api/ratings`. Mở form ra là thấy sẵn phiếu cũ của mình
+  (`GET /api/ratings/mine`), gửi lại là **sửa** phiếu đó chứ không thêm dòng mới.
+- **Cần đăng nhập**: điểm trung bình chỉ có nghĩa khi mỗi người một phiếu, mà
+  nặc danh thì không giữ được điều đó. Khách thấy ổ khoá ở mục menu và lời mời
+  đăng nhập trong dialog — không bị chặn sau khi đã chấm xong.
+- **Đọc (admin)**: mục **Đánh giá của người dùng** (chỉ admin) mở `RatingReview`
+  — điểm trung bình (một chữ số thập phân, dấu phẩy kiểu Việt; chưa có phiếu nào
+  thì "—" chứ không phải 0,0), phân bố theo mức sao (5 sao trước), rồi danh sách
+  phiếu **mới sửa gần nhất trước** kèm email người chấm và "N giờ trước".
+- **Lưu trữ**: bảng `app_ratings` trên Postgres (migration `0013_app_ratings`) —
+  `user_id` là **khoá chính** (một người một phiếu), `stars` có `CHECK` 1–5,
+  `note`, `created_at`, `updated_at`. Trung bình và phân bố tính bằng SQL trên
+  toàn bảng, không suy từ danh sách (danh sách có trần 200 nên sẽ sai khi vượt).
+  Email **không** lưu ở đây: join `users` lúc đọc.
+- **Luật kiểm tra** nằm thuần ở `rating/domain/rating.ts` (`checkRating`: mức sao
+  trong thang, trim nhận xét, trần độ dài; `distributionRows`, `formatAverage`)
+  và server kiểm lại đúng các luật đó trong `ratingStore.submit` — client không
+  phải bức tường duy nhất.
 
 ## 10. Bản đồ chức năng → tài liệu
 

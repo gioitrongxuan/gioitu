@@ -106,6 +106,26 @@ export function TrashIcon({ size = 16, className }: IconProps) {
   );
 }
 
+/**
+ * Sao đánh giá (#245). `filled` là mức đã chọn/đã đạt — tô đặc để phân biệt
+ * được cả khi không nhìn màu (đừng để mức đánh giá chỉ nằm ở sắc độ).
+ */
+export function StarIcon({ size = 20, className, filled }: IconProps & { filled?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden
+      {...strokeProps}
+      fill={filled ? "currentColor" : "none"}
+    >
+      <path d="m12 3.5 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.9l6.1-.9z" />
+    </svg>
+  );
+}
+
 // --- Icon 4 khu cho tab bar / sidebar (#149) ---
 
 export function SunIcon({ size = 20, className }: IconProps) {
