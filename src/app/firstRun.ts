@@ -19,6 +19,21 @@ export function markOnboarded(): void {
   }
 }
 
+/** Query param mở thẳng bước cài từ điển của màn chào — App xoá khỏi URL sau khi đọc. */
+export const DICT_SETUP_PARAM = "dicts";
+
+/** Bước "Chọn nguồn từ điển" trong màn chào (Onboarding.tsx). */
+export const DICT_SETUP_STEP = 1;
+
+/**
+ * Extension mới cài mở `<app>/?dicts=1` để dẫn người dùng tới bước tải từ điển
+ * về máy (#251). Đây là ý định rõ ràng của người dùng chứ không phải lời chào
+ * tự động, nên mở kể cả khi cờ "đã xem" đã bật — decideOnboarding không xen vào.
+ */
+export function wantsDictSetup(params: URLSearchParams): boolean {
+  return params.get(DICT_SETUP_PARAM) === "1";
+}
+
 export type OnboardingDecision =
   | "show" // người mới thật sự: hiện màn chào 3 bước
   | "adopt" // dùng app từ trước khi có onboarding: đánh dấu đã xem, không làm phiền

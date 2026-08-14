@@ -61,7 +61,14 @@ import { LangPair, loadPair, savePair } from "@/shared/languages";
 import { useLookup } from "./useLookup";
 import { useAppRoute, useBackEntry, useWordUrl } from "./useHistoryRouting";
 import { khuOf, KHU_HOME } from "./routes";
-import { loadOnboarded, markOnboarded, decideOnboarding } from "./firstRun";
+import {
+  loadOnboarded,
+  markOnboarded,
+  decideOnboarding,
+  wantsDictSetup,
+  DICT_SETUP_PARAM,
+  DICT_SETUP_STEP,
+} from "./firstRun";
 import { Onboarding } from "./Onboarding";
 import { AppNav } from "./AppNav";
 import { TodayScreen } from "./TodayScreen";
@@ -264,10 +271,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // dấu "đã xem" trong im lặng. Đọc IndexedDB trực tiếp thay vì store.entries
   // để không đua với lượt load async đầu tiên của store.
   const [onboarding, setOnboarding] = useState(false);
+  // Bước mở đầu của màn chào: 0 cho lời chào lần đầu, bước từ điển khi đi từ
+  // extension (?dicts=1).
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const closeOnboarding = () => {
     markOnboarded();
     setOnboarding(false);
   };
+  // Extension mới cài mở `<app>/?dicts=1` (#251) để dẫn người dùng tới bước tải
+  // từ điển về máy — kể cả người đã xem màn chào. Xoá param khỏi URL ngay như
+  // luồng ?add= để F5 không mở lại màn chào.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!wantsDictSetup(params)) return;
+    params.delete(DICT_SETUP_PARAM);
+    const qs = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    setOnboardingStep(DICT_SETUP_STEP);
+    setOnboarding(true);
+  }, []);
   useEffect(() => {
     if (loadOnboarded()) return;
     let cancelled = false;
@@ -1000,7 +1022,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         // Cài xong gói đề xuất thì chuyển nguồn tra sang local NHƯNG không lưu
         // (setDictSource, không chooseSource): cùng ngữ nghĩa với auto-default
         // lúc mount — lựa chọn chỉ được ghi khi người dùng tự chọn ở dropdown.
-        <Onboarding pair={pair} onImported={() => setDictSource("local")} onClose={closeOnboarding} />
+        <Onboarding
+          pair={pair}
+          startStep={onboardingStep}
+          onImported={() => setDictSource("local")}
+          onClose={closeOnboarding}
+        />
       )}
 
       {/* Subtree riêng, subscribe thẳng vào kho toast module-level — toast tự

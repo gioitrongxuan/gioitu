@@ -702,6 +702,11 @@ Màn chào 3 bước (overlay, `app/Onboarding.tsx`) cho lần mở app đầu t
 - Cài xong, nguồn tra chuyển sang "Trên máy" cho phiên hiện tại nhưng
   **không ghi lựa chọn** — cùng ngữ nghĩa auto-default lúc mở app; lựa chọn
   chỉ được lưu khi người dùng tự chọn ở dropdown "Từ điển".
+- **Lối vào thẳng bước từ điển**: `?dicts=1` mở màn chào ngay ở bước 2 kể cả
+  khi cờ "đã xem" đã bật (`wantsDictSetup` ở `app/firstRun.ts`, prop
+  `startStep` của `Onboarding`) — người dùng chủ động tới đây thì
+  `decideOnboarding` không xen vào. Param bị xoá khỏi URL sau khi đọc như
+  luồng `?add=`. Extension dùng lối này lúc mới cài (§9.14).
 
 ### 9.14 Thêm nhanh khi lướt web (#194)
 
@@ -721,6 +726,11 @@ xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
   `?add=…&add_save=1` — app tự lưu (khi đủ mặt chữ + nghĩa) rồi tự đóng tab.
   Trang cấm chèn script thì rơi về cửa sổ popup mở form đầy đủ. Nút "Form đầy
   đủ" trên overlay cũng mở popup đó, mang theo phần đã soạn dở.
+  Lúc **mới cài** (`onInstalled` với `reason === "install"`, không phải mỗi lần
+  nâng cấp) extension mở một tab `<địa chỉ Gioitu>/?dicts=1` dẫn thẳng vào bước
+  cài từ điển về máy (§9.13); trang Tuỳ chọn có nút "Cài từ điển về máy…" mở
+  lại lối đó. Từ điển chỉ nằm trong IndexedDB của origin app — extension khác
+  origin nên không đọc được và **không giữ bản sao** (#251).
 - **Bookmarklet "＋ Gioitu"** (kéo từ cuối form lên thanh dấu trang): mồi tải
   `public/qa-overlay.js` (bản song sinh của overlay extension — lưu qua cửa sổ
   tí hon góc màn hình, app ghi xong tự đóng) → cùng trải nghiệm soạn tại chỗ.

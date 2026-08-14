@@ -71,8 +71,19 @@ async function showOverlay(tabId, term) {
   }
 }
 
+/**
+ * Mở màn cài từ điển của app (?dicts=1 — bước "Chọn nguồn từ điển" của màn chào):
+ * một chạm tải gói đề xuất vào IndexedDB của origin app, để tra cứu chạy ngay
+ * trên máy. Extension KHÔNG giữ bản sao dữ liệu — nó khác origin, không đọc được
+ * IndexedDB của app; app vẫn là nơi duy nhất chứa từ điển (#251).
+ */
+async function openDictSetup() {
+  const base = await baseUrl();
+  await chrome.tabs.create({ url: `${base}/?dicts=1` });
+}
+
 // Tạo lại mục chuột phải mỗi khi cài/nâng cấp (idempotent: xoá trước khi tạo).
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(({ reason }) => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: MENU_ID,
@@ -80,6 +91,9 @@ chrome.runtime.onInstalled.addListener(() => {
       contexts: ["selection"],
     });
   });
+  // Chỉ chào lúc mới CÀI — mỗi lần nâng cấp mà bật thêm một tab thì phiền, và
+  // người đã cài từ điển rồi không có việc gì ở đó nữa.
+  if (reason === "install") openDictSetup();
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -104,4 +118,5 @@ chrome.action.onClicked.addListener((tab) => {
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.kind === "gioitu-quick-save") saveInBackground(msg);
   else if (msg?.kind === "gioitu-open-full") openFullForm(msg);
+  else if (msg?.kind === "gioitu-open-dicts") openDictSetup();
 });
