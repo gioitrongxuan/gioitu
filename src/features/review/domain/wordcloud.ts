@@ -4,6 +4,7 @@
 
 import { isDue } from "./srs";
 import { isDeleted } from "./lifecycle";
+import { filterByLabel, LabelFilter } from "./labels";
 import { DEFAULT_SRS_CONFIG, SrsConfig } from "./constants";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
@@ -70,6 +71,8 @@ export interface BuildCloudOptions extends ShadeOptions {
   sort?: CloudSort;
   /** Restrict the cloud to one language (default "all" = mixed). */
   lang?: CloudLang;
+  /** Lọc theo nhãn người dùng (#249): "all" = không lọc, "none" = chưa gắn nhãn. */
+  label?: LabelFilter;
 }
 
 /** Effective lookup weight, optionally decayed by time since last lookup. */
@@ -101,11 +104,14 @@ export function filterByLang<T extends Pick<VocabEntry, "term_lang">>(entries: T
 
 /**
  * Build the renderable cloud from a list of entries: filter to visible words
- * (optionally in one language), compute the shared max, then derive each tag's
- * shade/badge/due flags.
+ * (optionally in one language and/or one nhãn), compute the shared max, then
+ * derive each tag's shade/badge/due flags.
  */
 export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}): CloudTag[] {
-  const visible = filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all");
+  const visible = filterByLabel(
+    filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all"),
+    opts.label ?? "all",
+  );
   const now = opts.now ?? Date.now();
 
   // Order before computing shade so the max is unaffected by sorting.
