@@ -8,6 +8,7 @@ import { GUEST_USER_ID } from "@/features/auth/data/auth";
 import { registerLookup, newKnownEntry, LookupInput } from "../domain/lookup";
 import { gradeCard, learnedAtAfter, markKnown, relapse } from "../domain/srs";
 import { softDelete, isDeleted, isReviewable } from "../domain/lifecycle";
+import { entryLabels } from "../domain/labels";
 import { createSyncScheduler } from "../domain/syncScheduler";
 import { SyncStatus } from "../domain/syncStatus";
 import { getAllEntries, putEntry, getEntry, syncUserData, SyncReport } from "../data/repository";
@@ -331,6 +332,26 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     [upsertLocal, scheduleSync, restoreSnapshot],
   );
 
+  /**
+   * Ghi lại danh sách nhãn của một thẻ (#249). Chuẩn hoá ở domain trước khi ghi
+   * để kho không lẫn nhãn rác/trùng, và bỏ qua khi danh sách không thực sự đổi —
+   * mỗi lần ghi là một lần bump `updated_at` (thắng LWW) cộng một lượt đẩy đồng bộ.
+   */
+  const setEntryLabels = useCallback(
+    async (entry: VocabEntry, labels: string[]) => {
+      const next = entryLabels({ labels });
+      const current = entryLabels(entry);
+      if (next.length === current.length && next.every((l, i) => l === current[i])) return entry;
+      const updated: VocabEntry = { ...entry, labels: next, updated_at: Date.now() };
+      await putEntry(updated);
+      upsertLocal(updated);
+      scheduleSync();
+      pushToast(`Đã cập nhật nhãn cho “${entry.term}”`, "success");
+      return updated;
+    },
+    [upsertLocal, scheduleSync],
+  );
+
   /** "Xoá" — tombstone the word: persist the deletion (so it syncs) but drop it
    *  from the visible list. */
   const deleteEntry = useCallback(
@@ -434,6 +455,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     markKnownEntry,
     markKnownByTerm,
     markForgottenEntry,
+    setEntryLabels,
     deleteEntry,
     runSync,
     exportBackup,

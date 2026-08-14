@@ -12,6 +12,7 @@ import { ListenSession } from "@/features/review/ui/ListenSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
+import { LabelDialog } from "@/features/review/ui/LabelDialog";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
 import {
   AddedWindow,
@@ -23,6 +24,7 @@ import {
 } from "@/features/review/domain/wordcloud";
 import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLangSettings";
 import { loadAddedWindow, saveAddedWindow } from "@/features/review/domain/addedWindowSettings";
+import { labelCounts, LabelFilter } from "@/features/review/domain/labels";
 import { listenableEntries } from "@/features/review/domain/listen";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
@@ -82,6 +84,12 @@ const QuickAdd = lazy(() =>
 );
 const ReviewStats = lazy(() =>
   import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
+);
+const RatingDialog = lazy(() =>
+  import("@/features/rating/ui/RatingDialog").then((m) => ({ default: m.RatingDialog })),
+);
+const RatingReview = lazy(() =>
+  import("@/features/rating/ui/RatingReview").then((m) => ({ default: m.RatingReview })),
 );
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
@@ -285,6 +293,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     setAddedWindow(added);
     saveAddedWindow(added);
   }, []);
+  // Lọc bản đồ theo nhãn (#249). Nhãn cuối cùng mang tên đó có thể bị gỡ ngay
+  // trong lúc đang lọc — khi ấy trả bộ lọc về "Tất cả" thay vì để người dùng
+  // nhìn bản đồ trống với một ô lọc trỏ vào nhãn không còn tồn tại.
+  const [labelFilter, setLabelFilter] = useState<LabelFilter>("all");
+  // Nhãn đã dùng trong kho: vốn từ cho hộp thoại gắn nhãn (gợi ý + prompt AI).
+  const knownLabels = useMemo(() => labelCounts(store.entries), [store.entries]);
+  useEffect(() => {
+    if (labelFilter === "all" || labelFilter === "none") return;
+    if (!knownLabels.some((l) => l.label === labelFilter)) setLabelFilter("all");
+  }, [knownLabels, labelFilter]);
+  // Thẻ đang mở hộp thoại gắn nhãn (null = đóng).
+  const [labelEntry, setLabelEntry] = useState<VocabEntry | null>(null);
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
@@ -298,6 +318,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  // Đánh giá ứng dụng (#245): form chấm sao của người dùng, và màn đọc của admin.
+  const [rating, setRating] = useState(false);
+  const [ratingReview, setRatingReview] = useState(false);
   const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu. `solo` = cửa sổ popup
@@ -336,6 +359,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(connectingYomitan, () => setConnectingYomitan(false));
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
+  useBackEntry(labelEntry != null, () => setLabelEntry(null));
+  useBackEntry(rating, () => setRating(false));
+  useBackEntry(ratingReview, () => setRatingReview(false));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
   useBackEntry(onboarding, closeOnboarding);
 
@@ -498,11 +524,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       ],
     },
     {
+      title: "Đánh giá",
+      // Mỗi tài khoản một phiếu (gửi lại là sửa phiếu cũ) nên khách phải đăng
+      // nhập — cùng lối ổ khoá như Yomitan/Premium ở trên.
+      items: [{ label: "Đánh giá ứng dụng", run: () => setRating(true), locked: !email }],
+    },
+    {
       title: "Quản trị",
       items: isAdmin
         ? [
             { label: "Quản lý từ điển", run: () => setManaging(true) },
             { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+            { label: "Đánh giá của người dùng", run: () => setRatingReview(true) },
           ]
         : [],
     },
@@ -635,12 +668,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onlyDue={onlyDue}
                 sort={sort}
                 lang={cloudLang}
+                label={labelFilter}
                 grouping={grouping}
                 addedWindow={addedWindow}
                 onToggleHighlight={() => setHighlightDue((v) => !v)}
                 onToggleOnlyDue={() => setOnlyDue((v) => !v)}
                 onSortChange={setSort}
                 onLangChange={changeCloudLang}
+                onLabelChange={setLabelFilter}
                 onGroupingChange={setGrouping}
                 onAddedWindowChange={changeAddedWindow}
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
@@ -739,11 +774,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                   onlyDue={onlyDue}
                   sort={sort}
                   lang={cloudLang}
+                  label={labelFilter}
                   grouping={grouping}
                   addedWindow={addedWindow}
                   onSelect={onSelectTag}
                   onDelete={store.deleteEntry}
                   onMarkKnown={store.markKnownEntry}
+                  onEditLabels={setLabelEntry}
                   onReview={setReviewQueue}
                 />
               )}
@@ -766,6 +803,19 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {listening && (
         <ListenSession entries={store.entries} lang={cloudLang} onClose={() => setListening(false)} />
+      )}
+
+      {labelEntry && (
+        <LabelDialog
+          entry={labelEntry}
+          known={knownLabels}
+          canUseAi={email != null}
+          onSave={(labels) => {
+            void store.setEntryLabels(labelEntry, labels);
+            setLabelEntry(null);
+          }}
+          onClose={() => setLabelEntry(null)}
+        />
       )}
 
       {managing && isAdmin && (
@@ -844,6 +894,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
+
+      {rating && (
+        <Suspense fallback={null}>
+          <RatingDialog
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setRating(false);
+              onRequestLogin();
+            }}
+            onClose={() => setRating(false)}
+          />
+        </Suspense>
+      )}
+
+      {ratingReview && isAdmin && (
+        <Suspense fallback={null}>
+          <RatingReview onClose={() => setRatingReview(false)} />
+        </Suspense>
+      )}
 
       {reviewStats && (
         <Suspense fallback={null}>

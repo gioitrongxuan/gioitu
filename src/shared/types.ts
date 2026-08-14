@@ -37,6 +37,16 @@ export interface VocabEntry {
   sentence_analysis?: string;
   is_custom: boolean;
 
+  /**
+   * Nhãn phân loại do người dùng gắn cho thẻ (#249) — "ngữ pháp", "N3", "chỗ
+   * làm"… Đã chuẩn hoá & khử trùng bởi `review/domain/labels.ts`. Gọi là
+   * `labels` chứ không phải `tags` vì "tag" trong repo này đã là thẻ từ trên
+   * Word Cloud (`CloudTag`) và tag từ loại Yomitan. Optional & không có index →
+   * thêm vào record KHÔNG cần bump DB_VERSION, và đồng bộ theo payload JSON như
+   * các field khác (không cần migration server).
+   */
+  labels?: string[];
+
   lookup_count: number;
   last_lookup_at: number; // epoch ms — for debounce & optional time-decay
 

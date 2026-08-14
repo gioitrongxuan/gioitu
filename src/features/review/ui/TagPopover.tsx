@@ -9,8 +9,10 @@
 import { useEffect, type RefObject } from "react";
 import { tagPopoverContent, CloudTag } from "../domain/wordcloud";
 import { popoverPlacement, AnchorRect } from "../domain/tagPopover";
+import { entryLabels } from "../domain/labels";
 import { useDialog } from "@/shared/ui/useDialog";
 import { VocabEntry } from "@/shared/types";
+import "./labels.css";
 
 interface Props {
   tag: CloudTag;
@@ -24,6 +26,8 @@ interface Props {
   onReview?: (entry: VocabEntry) => void;
   onMarkKnown: (entry: VocabEntry) => void;
   onDelete: (entry: VocabEntry) => void;
+  /** Mở hộp thoại gắn nhãn cho từ này (#249). */
+  onEditLabels: (entry: VocabEntry) => void;
   /** Chuột đang đậu trong popover (chế độ hover) — báo cloud giữ popover mở. */
   onHoverChange?: (inside: boolean) => void;
 }
@@ -64,11 +68,13 @@ function PopoverCard({
   onReview,
   onMarkKnown,
   onDelete,
+  onEditLabels,
   onHoverChange,
   dialogRef,
 }: Props & { dialogRef?: RefObject<HTMLDivElement> }) {
   const { entry } = tag;
   const content = tagPopoverContent(entry, now);
+  const labels = entryLabels(entry);
   const pos = popoverPlacement(anchor, { width: window.innerWidth, height: window.innerHeight });
   const meta = [content.schedule, content.lookupText].filter(Boolean).join(" · ");
   // Mỗi hành động chạy xong thì đóng popover — nó là menu một phát, không phải panel.
@@ -96,12 +102,22 @@ function PopoverCard({
       </div>
       {content.gloss && <p className="tag-popover-gloss">{content.gloss}</p>}
       <p className="tag-popover-meta">{meta}</p>
+      {labels.length > 0 && (
+        <ul className="label-chips" aria-label="Nhãn">
+          {labels.map((label) => (
+            <li key={label}><span className="label-chip">{label}</span></li>
+          ))}
+        </ul>
+      )}
       <div className="tag-popover-actions">
         {tag.due && onReview && (
           <button type="button" className="chip-toggle" onClick={act(onReview)}>
             Ôn từ này
           </button>
         )}
+        <button type="button" className="chip-toggle" onClick={act(onEditLabels)}>
+          Nhãn
+        </button>
         <button type="button" className="chip-toggle" onClick={act(onMarkKnown)}>
           Đã thuộc
         </button>

@@ -4,6 +4,7 @@
 
 import { isDue } from "./srs";
 import { isDeleted } from "./lifecycle";
+import { filterByLabel, LabelFilter } from "./labels";
 import { DEFAULT_SRS_CONFIG, SrsConfig } from "./constants";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
@@ -72,6 +73,8 @@ export interface BuildCloudOptions extends ShadeOptions {
   lang?: CloudLang;
   /** Restrict the cloud to words added recently (default "all" = mọi lúc). */
   addedWindow?: AddedWindow;
+  /** Lọc theo nhãn người dùng (#249): "all" = không lọc, "none" = chưa gắn nhãn. */
+  label?: LabelFilter;
 }
 
 /** Effective lookup weight, optionally decayed by time since last lookup. */
@@ -140,13 +143,16 @@ export function filterByAddedWithin<T extends Pick<VocabEntry, "created_at">>(
 
 /**
  * Build the renderable cloud from a list of entries: filter to visible words
- * (optionally in one language and/or added within a window), compute the shared
- * max, then derive each tag's shade/badge/due flags.
+ * (optionally in one language, one nhãn and/or added within a window), compute
+ * the shared max, then derive each tag's shade/badge/due flags.
  */
 export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}): CloudTag[] {
   const now = opts.now ?? Date.now();
   const visible = filterByAddedWithin(
-    filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all"),
+    filterByLabel(
+      filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all"),
+      opts.label ?? "all",
+    ),
     opts.addedWindow ?? "all",
     now,
   );

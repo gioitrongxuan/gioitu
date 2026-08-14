@@ -1,11 +1,12 @@
 // Chế độ nghe: phát âm thanh chạy liên tục qua các từ đang học, để ôn được lúc
 // không nhìn màn hình. Thuần — chỉ dựng danh sách phát và nở một từ thành chuỗi
-// lời đọc; việc phát tiếng thật (Web Speech API) nằm ở `data/speech`.
+// lời đọc; việc phát tiếng thật (Web Speech API) nằm ở `@/shared/speech`.
 //
 // Không chấm điểm, không ghi gì: chế độ này chỉ đọc dữ liệu ra loa.
 
 import { VocabEntry } from "@/shared/types";
 import { meaningToLines } from "@/shared/meaning";
+import { speakableTerm, speechLocale } from "@/shared/speech";
 import { CloudLang, filterByLang, isVisibleOnCloud } from "./wordcloud";
 import { shuffle } from "./session";
 
@@ -15,33 +16,6 @@ const MAX_MEANING_LINES = 2;
 /** Nghe từ hai lần rồi mới tới nghĩa — quen âm trước, nhớ nghĩa sau. */
 const TERM_REPEATS = 2;
 
-const SPEECH_LOCALES: Record<string, string> = {
-  ja: "ja-JP",
-  en: "en-US",
-  vi: "vi-VN",
-};
-
-/** Locale giọng đọc của một mã ngôn ngữ; mã lạ trả về chính nó cho trình duyệt tự xử. */
-export function speechLocale(lang: string): string {
-  return SPEECH_LOCALES[lang] ?? lang;
-}
-
-/** Một số hệ điều hành báo thẻ ngôn ngữ dạng `ja_JP` thay vì `ja-JP`. */
-const normalizeLang = (lang: string) => lang.toLowerCase().replace("_", "-");
-
-/**
- * Giọng khớp locale: ưu tiên khớp đủ, không có thì khớp theo gốc ngôn ngữ —
- * giọng chỉ khai mỗi "vi" vẫn đọc được "vi-VN".
- */
-export function findVoice<V extends { lang: string }>(voices: V[], locale: string): V | undefined {
-  const wanted = normalizeLang(locale);
-  const base = wanted.split("-")[0];
-  return (
-    voices.find((voice) => normalizeLang(voice.lang) === wanted) ??
-    voices.find((voice) => normalizeLang(voice.lang).split("-")[0] === base)
-  );
-}
-
 /** Một bước trong lời đọc: đọc một đoạn, hoặc im lặng chờ. */
 export type ListenStep =
   | { kind: "speak"; text: string; locale: string }
@@ -50,15 +24,6 @@ export type ListenStep =
 type TermSide = Pick<VocabEntry, "term" | "term_lang"> & Partial<Pick<VocabEntry, "reading">>;
 
 export type ListenCard = TermSide & Pick<VocabEntry, "native_lang" | "meaning">;
-
-/**
- * Mặt chữ đem đi đọc. Kanji đứng một mình có nhiều âm nên máy hay đọc sai — có
- * kana thì đọc kana.
- */
-export function speakableTerm(card: TermSide): string {
-  if (card.term_lang === "ja" && card.reading) return card.reading;
-  return card.term;
-}
 
 /** Nghĩa đem đi đọc: vài dòng đầu nối lại; rỗng nếu payload trống hoặc hỏng. */
 export function speakableMeaning(meaning: string): string {

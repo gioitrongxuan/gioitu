@@ -14,6 +14,7 @@ import { partitionResults, resultGloss } from "../domain/results";
 import { Definitions } from "./Definitions";
 import { ImageGallery, CommentList } from "./Media";
 import { PitchView, Pronunciations } from "./PitchView";
+import { PronounceButton } from "./PronounceButton";
 import { TagChip, HeadwordBadges, FrequencyTags } from "./TagChip";
 import { Furigana } from "@/shared/ui/Furigana";
 import { isCodePointKanji } from "@/shared/japanese";
@@ -547,6 +548,9 @@ function ResultView({
         <span className="headword">
           <Furigana term={entry.term} reading={entry.reading} lang={entry.term_lang} />
         </span>
+        {/* Phát âm ngay cạnh mặt chữ (#246): mỗi kết quả có cách đọc riêng nên
+            nút nằm theo từng thẻ, không gom lên tiêu đề panel. */}
+        <PronounceButton term={entry.term} reading={entry.reading} lang={entry.term_lang} />
         {verified && (
           <span className="verified-badge" title="Từ đã được kiểm duyệt"><CheckIcon size={14} /></span>
         )}

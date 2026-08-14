@@ -29,16 +29,18 @@ lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên t
 - **Tra cứu** (`/search`) — trang tra tập trung (không có nội dung khu nào
   khác bên dưới thanh tra); Detail Panel chiếm nguyên trang.
 - **Tôi** (`/me`) — tài khoản (Đồng bộ/Đăng nhập/Đăng xuất), cài đặt (Giao
-  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học; admin thêm Quản lý
-  từ điển · Duyệt đề xuất (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng
-  được khi đăng nhập hiện **ổ khoá** (icon SVG) — tường đăng nhập nhất quán,
-  không giấu hẳn cũng không mời-rồi-chặn.
+  diện · Kết nối Yomitan · Premium), Xuất/Nhập dữ liệu học, Đánh giá ứng dụng;
+  admin thêm Quản lý từ điển · Duyệt đề xuất · Đánh giá của người dùng
+  (`app/MeScreen.tsx`). Với **khách**, mục chỉ dùng được khi đăng nhập hiện
+  **ổ khoá** (icon SVG) — tường đăng nhập nhất quán, không giấu hẳn cũng không
+  mời-rồi-chặn.
 
 Mỗi trang có URL riêng qua History API (F5/refresh giữ chỗ, Back/Forward đi
 giữa các trang; `app/routes.ts` + `app/useHistoryRouting.ts`), cộng các lớp
 phủ (overlay) mở theo nhu cầu: Detail Panel, Review Session, Dictionary
 Manager, Custom Dictionary, Theme Settings, Yomitan Sync, Premium,
-Contribution Review, Quick Add, Auth, Onboarding. Mỗi overlay đang mở chiếm một entry
+Contribution Review, Đánh giá (gửi + màn admin), Quick Add, Auth, Onboarding.
+Mỗi overlay đang mở chiếm một entry
 History nên **Back đóng overlay** thay vì thoát app; từ đang xem trong Detail
 Panel có deep-link chia sẻ được dạng `/word/:pair/:term` (vd
 `/word/ja-vi/食べる`), mở link là panel mở sẵn từ đó.
@@ -80,6 +82,12 @@ Tính năng lõi: gõ một từ, nhận nghĩa giàu kiểu Yomitan.
   theo nhóm (`tagMeta` phân giải từ `tag_bank`).
 - **Phát âm IPA**: nhóm theo từng từ điển, mỗi transcription có tag vùng (Hà Nội/
   Huế/Sài Gòn…) — chỉ hiện khi có dữ liệu term-meta.
+- **Nghe phát âm (#246)**: nút loa cạnh mặt chữ của **từng kết quả** (mỗi kết
+  quả một cách đọc riêng nên không gom lên tiêu đề panel). Đọc bằng giọng của
+  máy (Web Speech API, `shared/speech.ts`) — offline, không gọi server; tiếng
+  Nhật có kana thì đọc kana, còn lại đọc mặt chữ. Bấm lần nữa lúc đang đọc là
+  dừng. Trình duyệt không hỗ trợ Web Speech thì ẩn hẳn nút; máy có giọng nhưng
+  thiếu gói cho ngôn ngữ đó thì báo bằng toast thay vì im lặng.
 - **Định nghĩa giàu (structured content)**: danh sách sense đánh số, mỗi sense có
   tag từ loại; render được list, nhấn mạnh, bảng (cuộn ngang), `<details>`, ảnh
   (xuống cấp thành `[alt]`).
@@ -143,14 +151,16 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   từ đến hạn của tầng đó.
 - **Popover mini trên mỗi thẻ** (#159): rê chuột đậu trên thẻ, **long-press**
   (mobile) hoặc **chuột phải** mở thẻ tin nhanh — cách đọc, nghĩa đầu, lịch ôn,
-  số lần tra (`tagPopoverContent`) + hành động nhanh: **Ôn từ này** (chỉ khi
-  đến hạn), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
+  số lần tra (`tagPopoverContent`) + nhãn đang gắn (nếu có) + hành động nhanh:
+  **Ôn từ này** (chỉ khi đến hạn), **Nhãn**
+  ([9.18](#918-nhãn-cho-thẻ-249)), **Đã thuộc**, **Xoá**. Long-press/chuột phải ghim popover như menu
   (backdrop + Esc đóng, focus qua `useDialog`); popover này **thay** tooltip
   `title` và "Chế độ xoá" toàn cục trước đây. Long-press và vị trí neo là logic
   thuần ở `domain/tagPopover.ts`; UI ở `ui/TagPopover.tsx` + `ui/cloud.css`.
 - **Trạng thái rỗng**: "Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu."
-  Khi bản đồ trống *vì* bộ lọc "Thêm trong" thì báo đúng nguyên nhân ("Không có
-  từ nào được thêm trong 7 ngày qua…") thay vì rủ đi thêm từ.
+  Khi bản đồ trống *vì* bộ lọc thì báo đúng nguyên nhân — nhãn ("Không có từ nào
+  mang nhãn…") hoặc "Thêm trong" ("Không có từ nào được thêm trong 7 ngày qua…")
+  — thay vì rủ đi thêm từ. Hai bộ lọc cùng che thì gọi tên nhãn.
 
 ### Filter Bar (`review/ui/FilterBar.tsx`)
 
@@ -161,6 +171,7 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
 | **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
 | **Thêm trong** | Mọi lúc / 1 · 7 · 30 · 90 ngày qua — khoanh vùng một đợt học theo `created_at` (lúc **thêm** từ, không phải lượt tra); lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.addedWindow.v1`) |
+| **Nhãn** | Tất cả / Chưa gắn nhãn / một nhãn cụ thể kèm số thẻ ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi kho đã có nhãn |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
 | **Nghe** | Mở [chế độ nghe](#915-chế-độ-nghe-bulk-play-sound); vô hiệu khi không có từ nào nghe được |
@@ -395,6 +406,7 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Premium | ☰ | Trang giá trị retention + kích hoạt bằng mã | [§9.7](#97-premium) |
 | Đóng góp & duyệt | Panel chi tiết (user) · ☰ Duyệt đề xuất (admin) | Đề xuất sửa nghĩa từ điển server, admin duyệt | [§9.8](#98-đóng-góp--duyệt) |
 | Bình luận / góp ý | Cuối panel chi tiết một từ | Bình luận công khai theo từ (xem §1) | [§1](#bình-luận--góp-ý-cho-từ-23) |
+| Đánh giá ứng dụng | Tôi → Đánh giá ứng dụng · Tôi → Đánh giá của người dùng (admin) | Chấm 1–5 sao + nhận xét về app, mỗi tài khoản một phiếu sửa được | [§9.16](#916-đánh-giá-ứng-dụng-245) |
 | Kết nối Yomitan | ☰ (cần đăng nhập) | Cấu hình để Yomitan đẩy từ đã lưu về server này | [§9.9](#99-kết-nối-yomitan) |
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
 | Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
@@ -577,6 +589,10 @@ kênh tích hợp Anki), chứ không xuất file. Mục menu **Kết nối Yomi
 
 - **Cần đăng nhập**: từ lưu phải gắn với một tài khoản; guest thấy lời mời đăng
   nhập thay vì phần cài đặt.
+- **Link cài tiện ích**: mục "Cài tiện ích Yomitan" đưa sẵn link store chính thức
+  (Chrome · Edge · Firefox), store khớp trình duyệt hiện tại xếp đầu và tô đậm;
+  Safari/iOS không đoán được nên hiện cả ba. Hiện cho cả guest vì cài không cần
+  tài khoản. (`auth/domain/yomitanStores.ts`)
 - **Hai giá trị chép được**: *Server endpoint* `${origin}/api/yomitan-sync` (dựng
   theo origin hiện tại nên đúng cả localhost lẫn khi deploy) và *API key* ổn định
   theo user (`getYomitanKey`); "Tạo khóa mới" (`regenerateYomitanKey`) có xác
@@ -745,13 +761,67 @@ nghe. **Không SRS** — không chấm điểm, không ghi `review_log`, không 
   lúc máy đọc nghĩa (liếc màn hình vẫn là một lượt tự kiểm tra). Cả vùng chữ là
   nút phát/dừng khổng lồ; thêm Từ trước / Từ sau và hai ô chọn Tốc độ
   (chậm/bình thường/nhanh) + Khoảng lặng. Cài đặt nhớ ở `gioitu.listen.v1`.
-- **Kỹ thuật**: Web Speech API thuần client (`review/data/speech.ts`) — offline,
-  miễn phí, không gọi server. Logic *đọc gì* nằm thuần ở `review/domain/listen.ts`.
+- **Kỹ thuật**: Web Speech API thuần client (`shared/speech.ts` — dùng chung với
+  nút phát âm ở từ điển) — offline, miễn phí, không gọi server. Logic *đọc gì*
+  nằm thuần ở `review/domain/listen.ts`.
   Giữ màn hình sáng bằng Wake Lock (`review/data/wakeLock.ts`).
 - **Giới hạn đã biết**: giọng đọc của trình duyệt **tắt khi khoá màn hình hoặc
   chuyển app** — chế độ này dành cho lúc màn hình còn bật mà mắt bận (nấu ăn,
   gấp đồ), chưa phát được khi bỏ máy trong túi. Máy thiếu gói giọng cho ngôn
   ngữ đang nghe thì màn phát báo ngay thay vì im lặng khó hiểu.
+
+### 9.16 Đánh giá ứng dụng (#245)
+
+Người dùng chấm điểm *chính app* (khác §1 — bình luận về một **từ**, và khác
+đề xuất sửa nghĩa ở §9.8). (`features/rating/`)
+
+- **Chấm điểm (user)**: mục **Đánh giá ứng dụng** ở khu Tôi mở `RatingDialog` —
+  chọn **1–5 sao** + nhận xét ngắn **tuỳ chọn** (trần 500 ký tự, có đếm), rồi
+  `POST /api/ratings`. Mở form ra là thấy sẵn phiếu cũ của mình
+  (`GET /api/ratings/mine`), gửi lại là **sửa** phiếu đó chứ không thêm dòng mới.
+- **Cần đăng nhập**: điểm trung bình chỉ có nghĩa khi mỗi người một phiếu, mà
+  nặc danh thì không giữ được điều đó. Khách thấy ổ khoá ở mục menu và lời mời
+  đăng nhập trong dialog — không bị chặn sau khi đã chấm xong.
+- **Đọc (admin)**: mục **Đánh giá của người dùng** (chỉ admin) mở `RatingReview`
+  — điểm trung bình (một chữ số thập phân, dấu phẩy kiểu Việt; chưa có phiếu nào
+  thì "—" chứ không phải 0,0), phân bố theo mức sao (5 sao trước), rồi danh sách
+  phiếu **mới sửa gần nhất trước** kèm email người chấm và "N giờ trước".
+- **Lưu trữ**: bảng `app_ratings` trên Postgres (migration `0013_app_ratings`) —
+  `user_id` là **khoá chính** (một người một phiếu), `stars` có `CHECK` 1–5,
+  `note`, `created_at`, `updated_at`. Trung bình và phân bố tính bằng SQL trên
+  toàn bảng, không suy từ danh sách (danh sách có trần 200 nên sẽ sai khi vượt).
+  Email **không** lưu ở đây: join `users` lúc đọc.
+- **Luật kiểm tra** nằm thuần ở `rating/domain/rating.ts` (`checkRating`: mức sao
+  trong thang, trim nhận xét, trần độ dài; `distributionRows`, `formatAverage`)
+  và server kiểm lại đúng các luật đó trong `ratingStore.submit` — client không
+  phải bức tường duy nhất.
+
+### 9.18 Nhãn cho thẻ (#249)
+
+Người dùng tự gắn **nhãn** phân loại cho từng thẻ ("ngữ pháp", "N3", "chỗ làm"…)
+rồi lọc bản đồ từ theo nhãn. Trong code gọi là `label` chứ không phải `tag`, vì
+"tag" trong repo đã là thẻ từ trên Word Cloud (`CloudTag`) và tag từ loại Yomitan.
+
+- **Lưu ở đâu**: `VocabEntry.labels` (mảng chuỗi, optional) — đi cùng entry qua
+  LWW như mọi field khác, không có store riêng, **không** bump `DB_VERSION`.
+- **Chuẩn hoá** (`review/domain/labels.ts`, logic thuần): cắt khoảng trắng, bỏ
+  `#` mở đầu, tối đa 24 ký tự và 8 nhãn mỗi thẻ; khử trùng **không phân biệt hoa
+  thường** (giữ cách viết gặp đầu tiên). Danh sách không đổi thì store bỏ qua,
+  không ghi lại — mỗi lần ghi là một lần bump `updated_at` + một lượt đẩy đồng bộ.
+- **Gắn thủ công**: popover của thẻ → **Nhãn** mở hộp thoại
+  (`review/ui/LabelDialog.tsx`, dùng `useDialog` chung): chip nhãn hiện có kèm
+  nút gỡ, ô thêm nhãn với gợi ý (`<datalist>`) từ nhãn đã dùng trong kho. Thay
+  đổi chỉ ghi khi bấm **Lưu**.
+- **Gợi ý bằng AI**: nút *Gợi ý bằng AI* gửi từ + cách đọc + nghĩa đầu + vốn nhãn
+  sẵn có qua proxy AI của app (`/api/ai/generate-vocab`, **cần đăng nhập**) và
+  nhận về tối đa 4 nhãn; prompt/parse thuần ở `domain/labels.ts`
+  (`buildLabelPrompt`/`parseLabelResponse`), nối dây ở `data/aiLabels.ts`. Gợi ý
+  hiện thành chip *đề xuất* — người dùng bấm từng cái mới nhận, AI không tự ghi.
+  Prompt nhấn tái dùng nhãn sẵn có để kho không đẻ ra hàng chục nhãn gần giống nhau.
+- **Lọc**: ô **Nhãn** trên Filter Bar (Tất cả / Chưa gắn nhãn / từng nhãn kèm số
+  thẻ) — chỉ liệt kê nhãn của từ đang hiện trên bản đồ. Bộ lọc chạy trong
+  `buildCloud` nên ảnh PNG xuất ra khớp đúng cái đang xem. Gỡ nhãn cuối cùng
+  đang được lọc thì bộ lọc tự trả về "Tất cả".
 
 ## 10. Bản đồ chức năng → tài liệu
 
