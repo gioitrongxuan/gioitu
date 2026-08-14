@@ -11,6 +11,7 @@ import { tagPopoverContent, CloudTag } from "../domain/wordcloud";
 import { popoverPlacement, AnchorRect } from "../domain/tagPopover";
 import { entryLabels } from "../domain/labels";
 import { useDialog } from "@/shared/ui/useDialog";
+import { TrashIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import "./labels.css";
 
@@ -121,7 +122,10 @@ function PopoverCard({
         <button type="button" className="chip-toggle" onClick={act(onMarkKnown)}>
           Đã thuộc
         </button>
+        {/* Icon + màu --warn: nút phá huỷ phải khác hẳn ba nút lành tính bên cạnh,
+            và khác cả khi người dùng không phân biệt được màu (#265). */}
         <button type="button" className="chip-toggle danger" onClick={act(onDelete)}>
+          <TrashIcon size={14} />
           Xoá
         </button>
       </div>
