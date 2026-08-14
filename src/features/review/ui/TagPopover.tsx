@@ -77,7 +77,6 @@ function PopoverCard({
   const content = tagPopoverContent(entry, now);
   const labels = entryLabels(entry);
   const pos = popoverPlacement(anchor, { width: window.innerWidth, height: window.innerHeight });
-  const meta = [content.schedule, content.lookupText].filter(Boolean).join(" · ");
   // Mỗi hành động chạy xong thì đóng popover — nó là menu một phát, không phải panel.
   const act = (run: (e: VocabEntry) => void) => () => {
     run(entry);
@@ -102,7 +101,17 @@ function PopoverCard({
         {content.reading && <span className="tag-popover-reading" lang="ja">{content.reading}</span>}
       </div>
       {content.gloss && <p className="tag-popover-gloss">{content.gloss}</p>}
-      <p className="tag-popover-meta">{meta}</p>
+      {/* "đến hạn" là lý do thẻ đang sáng viền — tách khỏi số lần tra để nó
+          không chìm trong cùng một dòng xám. */}
+      <p className="tag-popover-meta">
+        {content.schedule && (
+          <>
+            <span className={tag.due ? "is-due" : undefined}>{content.schedule}</span>
+            {" · "}
+          </>
+        )}
+        {content.lookupText}
+      </p>
       {labels.length > 0 && (
         <ul className="label-chips" aria-label="Nhãn">
           {labels.map((label) => (

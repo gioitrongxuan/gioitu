@@ -31,9 +31,11 @@
   .tag-popover { animation: none; }
 }
 
-.tag-popover-head { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+/* Từ và cách đọc xếp chồng: trên thẻ hẹp 260px chúng luôn xuống dòng, nên cứ
+   xếp thẳng còn hơn để flex-wrap quyết định hộ. */
+.tag-popover-head { display: grid; gap: var(--space-1); }
 .tag-popover-term { font-size: var(--text-lg); font-weight: 600; line-height: var(--leading-heading); }
-.tag-popover-reading { color: var(--muted); font-size: var(--text-sm); }
+.tag-popover-reading { color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-heading); }
 .tag-popover-gloss {
   margin: 0;
   font-size: var(--text-sm);
@@ -50,11 +52,28 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.tag-popover-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-/* Đẩy "Xoá" ra cuối hàng để con trỏ không trượt từ một hành động lành tính sang
-   thẳng nút phá huỷ (#265) — khoảng trống là lớp bảo vệ thứ hai sau màu. */
-.tag-popover-actions .chip-toggle.danger { margin-left: auto; }
+.tag-popover-meta .is-due { color: var(--accent); font-weight: 600; }
+
+/* Lưới hai cột thay flex-wrap: nút dài ngắn khác nhau nên wrap tự do để lại
+   mép phải lởm chởm và chỗ đứng của mỗi nút đổi theo từ (nút "Ôn từ này" chỉ
+   hiện khi đến hạn). Cột đều nhau thì khối hành động luôn là một ma trận gọn.
+   Đường kẻ mảnh tách khối thông tin ở trên với khối hành động ở dưới. */
+.tag-popover-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.tag-popover-actions .chip-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  white-space: nowrap;
+}
+/* "Xoá" luôn ở ô cuối bên phải, kể cả khi thiếu nút "Ôn từ này": con trỏ không
+   trượt từ một hành động lành tính sang thẳng nút phá huỷ (#265) — khoảng
+   trống là lớp bảo vệ thứ hai sau màu và icon. */
+.tag-popover-actions .chip-toggle.danger { grid-column: 2; }
 
 @media (pointer: coarse) {
-  .tag-popover-actions .chip-toggle { min-height: 44px; padding: 0 var(--space-4); }
+  .tag-popover-actions .chip-toggle { min-height: 44px; }
 }

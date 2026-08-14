@@ -19,6 +19,35 @@ export function meaningToLines(meaning: string): string[] {
   return meaning ? [meaning] : [];
 }
 
+/**
+ * Rút gọn một dòng nghĩa cho thẻ tóm tắt (popover Word Cloud): bỏ khối chú
+ * thích mà từ điển nhét vào đầu gloss — "(exp, Mazii (Vietnamese))", "(n, vs)"
+ * — và số thứ tự nghĩa đứng đầu. Trong một tóm tắt hai dòng thì đó là nhiễu:
+ * từ loại đã có trường `pos` riêng, tên nguồn đã có ở panel chi tiết. Nếu lột
+ * xong chẳng còn gì (gloss vốn chỉ là một khối ngoặc) thì trả lại dòng gốc —
+ * thà đọc nhiễu còn hơn ô trống.
+ */
+export function glossSummary(line: string): string {
+  const original = line.trim();
+  let s = original;
+  // Lột từng khối "(…)" mở đầu; đếm độ sâu để nuốt trọn cả ngoặc lồng nhau.
+  while (s.startsWith("(")) {
+    let depth = 0;
+    let end = -1;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === "(") depth++;
+      else if (s[i] === ")" && --depth === 0) {
+        end = i;
+        break;
+      }
+    }
+    if (end < 0) break; // ngoặc không đóng: dữ liệu lạ, đừng cắt bừa
+    s = s.slice(end + 1).trim();
+  }
+  s = s.replace(/^\d+\s*[.)、]\s*/, ""); // "1." / "2)" / "3、"
+  return s || original;
+}
+
 /** Parse a stored `example` (JSON string[] or legacy plain text) into sentences. */
 export function exampleToLines(example: string | undefined): string[] {
   if (!example) return [];

@@ -328,6 +328,16 @@ describe("tagPopoverContent (nội dung popover mini, #159 — thay tooltip titl
     });
   });
 
+  it("lột khối chú thích thô của từ điển ở đầu nghĩa", () => {
+    const e = makeEntry({
+      reading: undefined,
+      meaning: JSON.stringify(["(exp, Mazii (Vietnamese)) chật hẹp, nhồi nhét."]),
+      lookup_count: 1,
+      card_state: null,
+    });
+    expect(tagPopoverContent(e, now).gloss).toBe("chật hẹp, nhồi nhét.");
+  });
+
   it("nhận meaning dạng chữ trơn và bỏ gloss rỗng", () => {
     expect(tagPopoverContent(makeEntry({ reading: undefined, meaning: "chào", lookup_count: 2, card_state: null }), now).gloss)
       .toBe("chào");

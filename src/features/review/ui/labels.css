@@ -62,7 +62,9 @@
 /* Nhãn thẻ đã có: chỉ để đối chiếu, đứng lùi một bậc so với nhãn đang được duyệt. */
 .bulk-label-current { border-color: var(--line); background: var(--surface); color: var(--muted); }
 
+/* Chỉ nút gỡ mới cần ô chạm 44px. Chip là chữ đọc, không bấm được: ép nó cao
+   44px khiến nhãn trong popover trông y hệt nút bấm và ngốn cả màn hình —
+   chip có nút gỡ vẫn cao đủ 44px vì chính nút bên trong nó đẩy lên. */
 @media (pointer: coarse) {
-  .label-chip { min-height: 44px; }
   .label-chip-remove { min-width: 44px; min-height: 44px; }
 }

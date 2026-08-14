@@ -8,7 +8,7 @@ import { filterByLabel, LabelFilter } from "./labels";
 import { DEFAULT_SRS_CONFIG, SrsConfig } from "./constants";
 import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
-import { meaningToLines } from "@/shared/meaning";
+import { glossSummary, meaningToLines } from "@/shared/meaning";
 import { formatRelative } from "@/shared/format";
 import { DAY_MS, pad2, parseDateInput, startOfDay } from "@/shared/date";
 
@@ -252,6 +252,8 @@ export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}):
  * đầu, lịch ôn và số lần tra — phần nào thiếu dữ liệu thì bỏ (từ tiếng Anh
  * không có `reading`, từ chưa lưu nghĩa, thẻ chưa có lịch…). Lịch ôn đọc là
  * "đến hạn" nếu quá hạn, ngược lại "ôn sau X" (tái dùng formatRelative).
+ * Nghĩa đi qua `glossSummary`: đây là tóm tắt hai dòng nên khối chú thích thô
+ * của từ điển ở đầu gloss bị lột, phần chi tiết vẫn nguyên ở panel tra cứu.
  * Thay cho tooltip `title` trước đây; thuần để test dễ.
  */
 export interface TagPopoverContent {
@@ -265,7 +267,8 @@ export function tagPopoverContent(
   entry: Pick<VocabEntry, "reading" | "meaning" | "lookup_count" | "card_state" | "next_review">,
   now: number,
 ): TagPopoverContent {
-  const gloss = meaningToLines(entry.meaning)[0];
+  const first = meaningToLines(entry.meaning)[0];
+  const gloss = first ? glossSummary(first) : undefined;
   const schedule =
     entry.card_state != null && entry.next_review != null
       ? isDue(entry, now)
