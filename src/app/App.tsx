@@ -81,6 +81,12 @@ const FeedbackDialog = lazy(() =>
 const FeedbackReview = lazy(() =>
   import("@/features/feedback/ui/FeedbackReview").then((m) => ({ default: m.FeedbackReview })),
 );
+const RatingDialog = lazy(() =>
+  import("@/features/rating/ui/RatingDialog").then((m) => ({ default: m.RatingDialog })),
+);
+const RatingReview = lazy(() =>
+  import("@/features/rating/ui/RatingReview").then((m) => ({ default: m.RatingReview })),
+);
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
@@ -292,6 +298,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // Góp ý về web (#244): form gửi của người dùng, và màn đọc của admin.
   const [feedback, setFeedback] = useState(false);
   const [feedbackReview, setFeedbackReview] = useState(false);
+  // Đánh giá ứng dụng (#245): form chấm sao của người dùng, và màn đọc của admin.
+  const [rating, setRating] = useState(false);
+  const [ratingReview, setRatingReview] = useState(false);
   const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu. `solo` = cửa sổ popup
@@ -330,6 +339,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(connectingYomitan, () => setConnectingYomitan(false));
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
+  useBackEntry(rating, () => setRating(false));
+  useBackEntry(ratingReview, () => setRatingReview(false));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
   useBackEntry(onboarding, closeOnboarding);
 
@@ -491,9 +502,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     },
     {
       title: "Góp ý",
-      // Góp ý gắn với một tài khoản (admin cần hỏi lại được) → khoá cho khách,
-      // cùng lối "tường đăng nhập nhất quán" như Premium/Yomitan ở trên.
-      items: [{ label: "Gửi góp ý về web", run: () => setFeedback(true), locked: !email }],
+      // Cả hai đều gắn với một tài khoản (admin cần hỏi lại được; mỗi người một
+      // phiếu đánh giá) → khoá cho khách, cùng lối "tường đăng nhập nhất quán"
+      // như Premium/Yomitan ở trên.
+      items: [
+        { label: "Gửi góp ý về web", run: () => setFeedback(true), locked: !email },
+        { label: "Đánh giá ứng dụng", run: () => setRating(true), locked: !email },
+      ],
     },
     {
       title: "Quản trị",
@@ -502,6 +517,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             { label: "Quản lý từ điển", run: () => setManaging(true) },
             { label: "Duyệt đề xuất", run: () => setContribReview(true) },
             { label: "Góp ý người dùng", run: () => setFeedbackReview(true) },
+            { label: "Đánh giá của người dùng", run: () => setRatingReview(true) },
           ]
         : [],
     },
@@ -853,9 +869,28 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         </Suspense>
       )}
 
+      {rating && (
+        <Suspense fallback={null}>
+          <RatingDialog
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setRating(false);
+              onRequestLogin();
+            }}
+            onClose={() => setRating(false)}
+          />
+        </Suspense>
+      )}
+
       {feedbackReview && isAdmin && (
         <Suspense fallback={null}>
           <FeedbackReview onClose={() => setFeedbackReview(false)} />
+        </Suspense>
+      )}
+
+      {ratingReview && isAdmin && (
+        <Suspense fallback={null}>
+          <RatingReview onClose={() => setRatingReview(false)} />
         </Suspense>
       )}
 

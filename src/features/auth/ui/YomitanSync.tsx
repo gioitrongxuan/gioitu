@@ -1,14 +1,17 @@
-// "Kết nối Yomitan" setup modal: shows the endpoint URL and the user's stable
-// API key (with copy + regenerate) plus the steps to paste them into Yomitan's
-// Anki settings. Pressing "+" in Yomitan then saves the word into gioitu.
+// "Kết nối Yomitan" setup modal: shows the store links to install Yomitan
+// itself, the endpoint URL and the user's stable API key (with copy +
+// regenerate), plus the steps to paste them into Yomitan's Anki settings.
+// Pressing "+" in Yomitan then saves the word into gioitu.
 //
 // Requires a signed-in account: notes must be attributed to a user, and a guest
-// has no cloud identity — so guests are shown a prompt to sign in instead.
+// has no cloud identity — so guests are shown a prompt to sign in instead. The
+// install links stay visible either way: installing needs no account.
 
 import { useEffect, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
 import { useCopyToClipboard } from "@/shared/ui/useCopyToClipboard";
 import { CloseIcon } from "@/shared/ui/icons";
+import { orderedYomitanStores, recommendedYomitanStore } from "../domain/yomitanStores";
 import { getYomitanKey, regenerateYomitanKey } from "../data/auth";
 import "./yomitansync.css";
 
@@ -21,6 +24,10 @@ interface Props {
 // The endpoint to paste into Yomitan. Built from the current origin so it is
 // correct whether the app runs on localhost or a deployed domain.
 const ENDPOINT = `${window.location.origin}/api/yomitan-sync`;
+
+// Trình duyệt không đổi giữa các lần mở hộp thoại, tính một lần như ENDPOINT.
+const STORES = orderedYomitanStores(navigator.userAgent);
+const RECOMMENDED_STORE = recommendedYomitanStore(navigator.userAgent);
 
 export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -58,20 +65,25 @@ export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
         </header>
 
         {!loggedIn ? (
-          <section className="theme-section">
-            <p className="yk-hint">
-              Cần đăng nhập để kết nối Yomitan — từ bạn lưu sẽ vào đúng tài khoản của bạn.
-            </p>
-            <button type="button" className="primary" onClick={onRequestLogin}>
-              Đăng nhập
-            </button>
-          </section>
+          <>
+            <StoreLinks />
+            <section className="theme-section">
+              <p className="yk-hint">
+                Cần đăng nhập để kết nối Yomitan — từ bạn lưu sẽ vào đúng tài khoản của bạn.
+              </p>
+              <button type="button" className="primary" onClick={onRequestLogin}>
+                Đăng nhập
+              </button>
+            </section>
+          </>
         ) : (
           <>
             <p className="yk-hint">
               Trỏ Yomitan về địa chỉ này, dán Khóa API, rồi bấm dấu <strong>+</strong> khi tra
               từ để lưu vào gioitu.
             </p>
+
+            <StoreLinks />
 
             <section className="theme-section">
               <h3>Địa chỉ máy chủ (Server)</h3>
@@ -110,6 +122,32 @@ export function YomitanSync({ loggedIn, onRequestLogin, onClose }: Props) {
         </footer>
       </div>
     </div>
+  );
+}
+
+/**
+ * Link cài tiện ích Yomitan. Store khớp trình duyệt hiện tại xếp đầu và nổi
+ * bật; các store còn lại vẫn hiện để người dùng cài trên máy/trình duyệt khác.
+ */
+function StoreLinks() {
+  return (
+    <section className="theme-section">
+      <h3>Cài tiện ích Yomitan</h3>
+      <p className="yk-hint">Chưa có Yomitan thì cài từ store dưới đây; đã có rồi thì bỏ qua.</p>
+      <div className="yk-stores">
+        {STORES.map((store) => (
+          <a
+            key={store.id}
+            className={`yk-store${store.id === RECOMMENDED_STORE?.id ? " yk-store-main" : ""}`}
+            href={store.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {store.label}
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 

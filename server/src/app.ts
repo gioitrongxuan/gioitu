@@ -20,6 +20,7 @@ import { shareRoutes } from "./features/share/shareRoutes.js";
 import { contributeRoutes } from "./features/contribute/contributeRoutes.js";
 import { commentRoutes } from "./features/comments/commentRoutes.js";
 import { feedbackRoutes } from "./features/feedback/feedbackRoutes.js";
+import { ratingRoutes } from "./features/rating/ratingRoutes.js";
 
 export function createApp() {
   const app = express();
@@ -44,6 +45,7 @@ export function createApp() {
   app.use("/api/contribute", contributeRoutes);
   app.use("/api/comments", commentRoutes);
   app.use("/api/feedback", feedbackRoutes);
+  app.use("/api/ratings", ratingRoutes);
   // Fake AnkiConnect server for Yomitan's "+" (saves into the user's SRS list).
   app.use("/api/yomitan-sync", ankiRoutes);
   // Same fake AnkiConnect server, but replies wrapped in the real AnkiConnect

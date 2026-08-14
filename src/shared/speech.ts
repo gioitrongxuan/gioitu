@@ -1,5 +1,7 @@
-// Bọc Web Speech API cho chế độ nghe — lớp I/O duy nhất chạm `speechSynthesis`.
-// `domain/listen` chỉ mô tả *đọc gì*; ở đây mới thực sự phát ra tiếng.
+// Giọng đọc dùng chung (Web Speech API). Trước đây phần này nằm trong feature
+// `review` (chế độ nghe) vì chỉ có một nơi dùng; từ khi từ điển cũng phát âm
+// được (#246) nó thành hạ tầng chung: đây là lớp DUY NHẤT chạm `speechSynthesis`,
+// kèm mấy hàm thuần chọn locale/giọng/mặt chữ đem đi đọc.
 
 /**
  * Chrome trả danh sách giọng RỖNG ở lần gọi đầu rồi mới bắn `voiceschanged`.
@@ -14,6 +16,49 @@ const VOICES_TIMEOUT_MS = 3000;
  */
 const SPEAK_TIMEOUT_BASE_MS = 5000;
 const SPEAK_TIMEOUT_PER_CHAR_MS = 150;
+
+const SPEECH_LOCALES: Record<string, string> = {
+  ja: "ja-JP",
+  en: "en-US",
+  vi: "vi-VN",
+};
+
+/** Locale giọng đọc của một mã ngôn ngữ; mã lạ trả về chính nó cho trình duyệt tự xử. */
+export function speechLocale(lang: string): string {
+  return SPEECH_LOCALES[lang] ?? lang;
+}
+
+/** Một số hệ điều hành báo thẻ ngôn ngữ dạng `ja_JP` thay vì `ja-JP`. */
+const normalizeLang = (lang: string) => lang.toLowerCase().replace("_", "-");
+
+/**
+ * Giọng khớp locale: ưu tiên khớp đủ, không có thì khớp theo gốc ngôn ngữ —
+ * giọng chỉ khai mỗi "vi" vẫn đọc được "vi-VN".
+ */
+export function findVoice<V extends { lang: string }>(voices: V[], locale: string): V | undefined {
+  const wanted = normalizeLang(locale);
+  const base = wanted.split("-")[0];
+  return (
+    voices.find((voice) => normalizeLang(voice.lang) === wanted) ??
+    voices.find((voice) => normalizeLang(voice.lang).split("-")[0] === base)
+  );
+}
+
+/** Từ đem đi đọc: chỉ cần mặt chữ + ngôn ngữ, cách đọc thì tuỳ có hay không. */
+export interface SpeakableTerm {
+  term: string;
+  term_lang: string;
+  reading?: string | null;
+}
+
+/**
+ * Mặt chữ đem đi đọc. Kanji đứng một mình có nhiều âm nên máy hay đọc sai — có
+ * kana thì đọc kana.
+ */
+export function speakableTerm(card: SpeakableTerm): string {
+  if (card.term_lang === "ja" && card.reading) return card.reading;
+  return card.term;
+}
 
 export const isSpeechSupported = (): boolean =>
   typeof window !== "undefined" && "speechSynthesis" in window;
