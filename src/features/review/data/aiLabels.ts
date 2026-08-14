@@ -7,7 +7,9 @@ import { generateVocab } from "@/features/dictionary/data/aiGenerate";
 import { buildLabelPrompt, parseLabelResponse, LabelPromptInput } from "../domain/labels";
 import {
   buildBulkLabelPrompt,
+  buildTargetLabelPrompt,
   parseBulkLabelResponse,
+  parseTargetLabelResponse,
   BulkLabelItem,
   BulkLabelSuggestion,
 } from "../domain/bulkLabels";
@@ -34,4 +36,17 @@ export async function suggestLabelsForBatch(
 ): Promise<BulkLabelSuggestion[]> {
   if (!authToken()) throw new Error("Cần đăng nhập để nhờ AI gợi ý nhãn.");
   return parseBulkLabelResponse(await generateVocab(buildBulkLabelPrompt(items, vocabulary)));
+}
+
+/**
+ * Sàng MỘT lô từ theo một nhãn định trước (#266) — "từ nào trong lô này thuộc
+ * *Thuật ngữ AWS*". Trả về cùng dạng với `suggestLabelsForBatch` nên nơi gọi
+ * chia lô, báo tiến độ và duyệt kết quả y như lượt hàng loạt thường.
+ */
+export async function screenLabelForBatch(
+  items: BulkLabelItem[],
+  label: string,
+): Promise<BulkLabelSuggestion[]> {
+  if (!authToken()) throw new Error("Cần đăng nhập để nhờ AI gợi ý nhãn.");
+  return parseTargetLabelResponse(await generateVocab(buildTargetLabelPrompt(items, label)), label);
 }

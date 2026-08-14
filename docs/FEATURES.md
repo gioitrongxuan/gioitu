@@ -916,6 +916,21 @@ rồi lọc bản đồ từ theo nhãn. Trong code gọi là `label` chứ khô
     vì hàng chục toast của `setEntryLabels` gọi trong vòng lặp).
   - Prompt/parse thuần ở `domain/bulkLabels.ts`, nối dây ở `data/aiLabels.ts`
     (`suggestLabelsForBatch`).
+- **Sàng theo một nhãn định trước** (chiều ngược của mục trên, cùng hộp thoại): ô
+  *Nhãn muốn sàng* trong `BulkLabelDialog` — gõ "Thuật ngữ AWS" thì AI không tự
+  đặt nhãn nữa mà chỉ soát tập từ đang lọc và chọn ra những từ **thuộc nhãn đó**;
+  để trống ô thì trở về chiều "AI tự đặt nhãn cho từng từ". Chi tiết:
+  - Nhãn gán cho mọi từ được chọn là **nhãn người dùng gõ** (đã qua `normalizeLabel`),
+    không phải chữ model trả về — người dùng đang gom một nhóm, nhãn lệch một chữ
+    là thành hai nhóm khác nhau trong bộ lọc. Ô có gợi ý `<datalist>` từ vốn nhãn
+    sẵn có, giới hạn 24 ký tự như mọi nhãn khác.
+  - Prompt (`buildTargetLabelPrompt`) cho phép trả **danh sách rỗng** và nhắc "thà
+    bỏ sót hơn gán sai"; `parseTargetLabelResponse` nhận mảng chuỗi trần, mảng
+    object có mặt chữ, và bỏ những từ model kèm cờ phủ định (`match: false`).
+  - Từ đó về sau đi đúng đường ống của lượt hàng loạt: chia lô, khớp mặt chữ bằng
+    `proposeBulkLabels` (thẻ đã mang nhãn ấy thì không hiện), duyệt chip bật/tắt,
+    ghi một lượt khi bấm **Áp dụng**. Không thấy từ nào thuộc nhãn thì báo đúng
+    câu đó thay vì câu "không gợi ý được nhãn mới nào".
 
 ### 9.19 Lịch sử tra cứu (#269)
 

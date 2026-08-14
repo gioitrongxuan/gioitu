@@ -6,13 +6,18 @@
 // lên hàng chục thẻ một lúc, mà nhãn sai thì phải mở từng thẻ ra gỡ — nên mọi
 // nhãn đề xuất hiện thành chip bật/tắt để duyệt trước, mặc định bật, và không
 // có gì được ghi cho tới khi bấm "Áp dụng".
+//
+// Hai chiều hỏi, chọn bằng ô "nhãn muốn sàng" (#266): để trống thì AI tự đặt
+// nhãn cho từng từ; gõ một nhãn ("Thuật ngữ AWS") thì AI chỉ sàng xem từ nào
+// thuộc nhãn đó. Chiều thứ hai đi hết đường ống của chiều thứ nhất — chia lô,
+// khớp mặt chữ, duyệt chip, áp dụng một lượt — nên chỉ khác đúng lời hỏi.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { meaningToLines } from "@/shared/meaning";
-import { entryLabels, mergeLabels, LabelCount } from "../domain/labels";
+import { entryLabels, mergeLabels, normalizeLabel, LabelCount, MAX_LABEL_LENGTH } from "../domain/labels";
 import {
   batchItems,
   proposeBulkLabels,
@@ -20,7 +25,7 @@ import {
   LabelProposal,
   MAX_BULK_LABEL_ENTRIES,
 } from "../domain/bulkLabels";
-import { suggestLabelsForBatch } from "../data/aiLabels";
+import { screenLabelForBatch, suggestLabelsForBatch } from "../data/aiLabels";
 import "./review.css";
 import "./labels.css";
 
@@ -40,6 +45,9 @@ const entryKey = (entry: VocabEntry) => `${entry.term}:${entry.term_lang}`;
 
 export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
   const dialogRef = useDialog<HTMLDivElement>(onClose);
+  // Nhãn muốn sàng — rỗng là chiều "AI tự đặt nhãn", có chữ là chiều "sàng theo
+  // nhãn này". Giữ nguyên chữ người dùng gõ trong ô, chỉ chuẩn hoá khi đem hỏi.
+  const [target, setTarget] = useState("");
   const [proposals, setProposals] = useState<LabelProposal<VocabEntry>[] | null>(null);
   // Nhãn người dùng bỏ chọn, khoá "<từ>:<ngôn ngữ>|<nhãn>" — bỏ chọn là ngoại lệ
   // nên giữ danh sách loại trừ, mặc định mọi nhãn đều được nhận.
@@ -62,6 +70,7 @@ export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
     [known],
   );
 
+  const screening = normalizeLabel(target);
   const asking = progress != null && progress.done < progress.total;
   // Tiến độ đếm theo LÔ chứ không theo từ: một lô là một lượt gọi model, nên đó
   // mới là nhịp người dùng thấy thanh chạy.
@@ -69,7 +78,9 @@ export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
     ? `Đang hỏi AI… (${progress.done}/${progress.total})`
     : proposals
       ? "Hỏi lại AI"
-      : "Nhờ AI gợi ý";
+      : screening
+        ? "Nhờ AI sàng"
+        : "Nhờ AI gợi ý";
 
   const rejectKey = (entry: VocabEntry, label: string) => `${entryKey(entry)}|${label}`;
   const toggle = (entry: VocabEntry, label: string) => {
@@ -98,17 +109,17 @@ export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
     const failures: string[] = [];
     for (const batch of batches) {
       if (closed.current) return;
+      const items = batch.map((entry) => ({
+        term: entry.term,
+        reading: entry.reading,
+        meaning: meaningToLines(entry.meaning)[0],
+        current: entryLabels(entry),
+      }));
       try {
         suggestions.push(
-          ...(await suggestLabelsForBatch(
-            batch.map((entry) => ({
-              term: entry.term,
-              reading: entry.reading,
-              meaning: meaningToLines(entry.meaning)[0],
-              current: entryLabels(entry),
-            })),
-            vocabulary,
-          )),
+          ...(screening
+            ? await screenLabelForBatch(items, screening)
+            : await suggestLabelsForBatch(items, vocabulary)),
         );
       } catch (e) {
         // Một lô hỏng (mạng chập, model trả rác) không nên vứt các lô đã xong:
@@ -128,7 +139,11 @@ export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
           "Phần dưới đây là kết quả của những lượt chạy được.",
       );
     } else if (found.length === 0) {
-      setError("AI không gợi ý được nhãn mới nào cho các từ đang lọc.");
+      setError(
+        screening
+          ? `AI không thấy từ nào thuộc nhãn “${screening}” trong các từ đang lọc.`
+          : "AI không gợi ý được nhãn mới nào cho các từ đang lọc.",
+      );
     }
   };
 
@@ -155,8 +170,38 @@ export function BulkLabelDialog({ entries, known, onApply, onClose }: Props) {
 
         <section className="theme-section">
           <p className="yk-hint">
-            AI sẽ đề xuất nhãn cho <strong>{targets.length}</strong> từ đang hiển thị trên bản đồ
-            (theo bộ lọc hiện tại). Không có gì được ghi cho tới khi bấm “Áp dụng”.
+            {screening ? (
+              <>
+                AI sẽ soát <strong>{targets.length}</strong> từ đang hiển thị trên bản đồ (theo bộ lọc
+                hiện tại) và chỉ gắn nhãn “{screening}” cho những từ thuộc nhãn đó.
+              </>
+            ) : (
+              <>
+                AI sẽ đề xuất nhãn cho <strong>{targets.length}</strong> từ đang hiển thị trên bản đồ
+                (theo bộ lọc hiện tại).
+              </>
+            )}{" "}
+            Không có gì được ghi cho tới khi bấm “Áp dụng”.
+          </p>
+          <div className="label-add">
+            <input
+              className="label-input"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              list="bulk-label-options"
+              maxLength={MAX_LABEL_LENGTH}
+              placeholder="Nhãn muốn sàng, ví dụ: Thuật ngữ AWS"
+              enterKeyHint="done"
+              aria-label="Nhãn muốn sàng"
+            />
+            <datalist id="bulk-label-options">
+              {vocabulary.map((label) => (
+                <option key={label} value={label} />
+              ))}
+            </datalist>
+          </div>
+          <p className="yk-hint">
+            Để trống ô này thì AI tự đặt nhãn cho từng từ.
           </p>
           {skipped > 0 && (
             <p className="yk-hint">
