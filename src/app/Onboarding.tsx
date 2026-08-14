@@ -15,13 +15,15 @@ const STEP_COUNT = 3;
 
 interface OnboardingProps {
   pair: LangPair;
+  /** Bước mở đầu — extension dẫn thẳng vào bước từ điển (#251), mặc định vào từ đầu. */
+  startStep?: number;
   /** Cài xong từ điển đề xuất: App chuyển nguồn tra sang "Trên máy". */
   onImported: () => void;
   onClose: () => void;
 }
 
-export function Onboarding({ pair, onImported, onClose }: OnboardingProps) {
-  const [step, setStep] = useState(0);
+export function Onboarding({ pair, startStep = 0, onImported, onClose }: OnboardingProps) {
+  const [step, setStep] = useState(startStep);
   // null = đang hỏi server; [] = không có gói đề xuất cho cặp này.
   const [dicts, setDicts] = useState<RecommendedDict[] | null>(null);
   const [busy, setBusy] = useState(false);

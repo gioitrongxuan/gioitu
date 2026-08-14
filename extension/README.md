@@ -19,6 +19,17 @@ chú AI trả thêm được gửi kèm lúc lưu. **Form đầy đủ** mở c�
 form (`add_solo=1`), mang theo phần đã soạn dở. Trang cấm chèn script
 (chrome://, cửa hàng tiện ích…) tự rơi về popup này.
 
+## Từ điển
+
+Lúc **mới cài**, extension mở một tab `<địa chỉ Gioitu>/?dicts=1` — màn cài từ
+điển của app: bấm một nút là gói đề xuất tải thẳng vào máy (IndexedDB của app),
+tra cứu chạy ngay tại chỗ, kể cả offline. Mở lại bất cứ lúc nào bằng nút **"Cài
+từ điển về máy…"** ở trang Tuỳ chọn.
+
+Extension **không giữ bản sao từ điển**: nó chạy ở origin khác nên không đọc
+được IndexedDB của app; app vẫn là nơi duy nhất chứa dữ liệu (không nhân đôi
+hàng trăm MB, không cần bước build để giải nén .zip trong extension).
+
 Extension không gọi API riêng, không đọc trang ngoài phần bạn chủ động bôi đen —
 nên chỉ xin quyền tối thiểu (`contextMenus`, `activeTab`, `scripting`,
 `storage`), không cần quyền truy cập mọi trang.
@@ -56,7 +67,7 @@ extension/
   manifest.json   # MV3: permissions, context menu, command (hotkey), action
   background.js   # service worker: 3 đường gọi → inject overlay; lưu ngầm / popup
   overlay.js      # form Shadow DOM chèn vào trang (inject theo cử chỉ)
-  options.html    # đặt địa chỉ Gioitu + mở màn phím tắt
+  options.html    # đặt địa chỉ Gioitu + mở màn phím tắt + mở màn cài từ điển
   options.js
   icons/          # icon48/128 (mượn từ public/icons)
 ```
