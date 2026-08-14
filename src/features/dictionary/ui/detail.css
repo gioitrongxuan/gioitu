@@ -102,6 +102,12 @@
 /* Kết quả khớp nhất (đầu danh sách) nổi hơn các kết quả sau — kiểu jisho. */
 .result:first-child .headword { font-size: 28px; }
 
+/* Nút phát âm cạnh mặt chữ (#246): mờ như chú thích lúc nghỉ, ăn màu tương tác
+   khi đang đọc — đủ để biết tiếng đang phát ra từ thẻ nào giữa nhiều kết quả. */
+.pronounce-btn { align-self: center; display: inline-flex; align-items: center; justify-content: center; padding: var(--space-1); border: none; border-radius: var(--radius-xs); background: none; color: var(--muted); cursor: pointer; line-height: 1; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.pronounce-btn:hover { color: var(--fg); background: var(--surface-2); }
+.pronounce-btn.speaking { color: var(--accent); }
+
 .dict-name { font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 999px; margin-left: auto; }
 .add-result { margin-left: auto; font-size: 13px; font-weight: 600; line-height: 1; padding: 4px 10px; align-self: center; white-space: nowrap; }
 .add-result:disabled { color: var(--ok); opacity: 1; cursor: default; }
@@ -320,4 +326,5 @@
 @media (pointer: coarse) {
   .kanji-toggles .link { padding: 6px 0; }
   .srs-act { padding: 8px 10px; }
+  .pronounce-btn { min-width: 44px; min-height: 44px; }
 }

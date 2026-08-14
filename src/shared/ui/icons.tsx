@@ -106,6 +106,26 @@ export function TrashIcon({ size = 16, className }: IconProps) {
   );
 }
 
+/**
+ * Sao đánh giá (#245). `filled` là mức đã chọn/đã đạt — tô đặc để phân biệt
+ * được cả khi không nhìn màu (đừng để mức đánh giá chỉ nằm ở sắc độ).
+ */
+export function StarIcon({ size = 20, className, filled }: IconProps & { filled?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden
+      {...strokeProps}
+      fill={filled ? "currentColor" : "none"}
+    >
+      <path d="m12 3.5 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.9l6.1-.9z" />
+    </svg>
+  );
+}
+
 // --- Icon 4 khu cho tab bar / sidebar (#149) ---
 
 export function SunIcon({ size = 20, className }: IconProps) {
@@ -141,6 +161,18 @@ export function HeadphonesIcon({ size = 16, className }: IconProps) {
       <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
       <path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5Z" />
       <path d="M20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5Z" />
+    </svg>
+  );
+}
+
+/** Phát âm một từ (#246). Loa tô đặc + hai vòng sóng để phân biệt với tai nghe
+ *  (chế độ nghe) ở cùng một màn. */
+export function SpeakerIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4Z" fill="currentColor" />
+      <path d="M16 9a4 4 0 0 1 0 6" />
+      <path d="M18.5 6.5a7.5 7.5 0 0 1 0 11" />
     </svg>
   );
 }

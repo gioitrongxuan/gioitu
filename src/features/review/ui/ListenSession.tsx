@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { VocabEntry } from "@/shared/types";
 import { meaningToLines } from "@/shared/meaning";
 import { CloudLang } from "../domain/wordcloud";
-import { buildListenPlaylist, cardSteps, findVoice, speechLocale } from "../domain/listen";
+import { buildListenPlaylist, cardSteps } from "../domain/listen";
 import {
   LISTEN_GAPS_MS,
   LISTEN_RATES,
@@ -17,7 +17,14 @@ import {
   saveListenSettings,
   type ListenSettings,
 } from "../domain/listenSettings";
-import { cancelSpeech, isSpeechSupported, loadVoices, speak } from "../data/speech";
+import {
+  cancelSpeech,
+  findVoice,
+  isSpeechSupported,
+  loadVoices,
+  speak,
+  speechLocale,
+} from "@/shared/speech";
 import { requestWakeLock, releaseWakeLock } from "../data/wakeLock";
 import { useDialog } from "@/shared/ui/useDialog";
 import { CloseIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon } from "@/shared/ui/icons";

@@ -1,0 +1,87 @@
+/* Đánh giá ứng dụng (#245): form chấm sao (RatingDialog) + màn đọc của admin
+   (RatingReview). Vỏ dialog dùng lại .theme-overlay/.theme-card như các overlay
+   khác; ở đây chỉ là ruột. Mọi giá trị là token DESIGN §2.
+   Sao là *ý kiến người dùng*, không phải thành tựu — dùng --accent, không tiêu
+   --seal vào việc này (DESIGN §5). */
+
+.rt-form { display: grid; gap: var(--space-3); }
+
+/* Hàng nút cuối dialog. Không dùng .theme-actions: class đó là thanh riêng của
+   màn Giao diện và chỉ được nạp cùng ThemeSettings (lazy). */
+.rt-actions { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+
+/* --- Chọn mức sao --- */
+
+/* Radio THẬT (mũi tên điều hướng được, trình đọc màn hình thấy đúng một
+   radiogroup — DESIGN §3.3), chỉ ẩn phần vẽ sẵn của trình duyệt vì ngôi sao đã
+   là biểu diễn của nó. Ẩn bằng clip chứ không display:none — display:none gỡ
+   luôn khỏi thứ tự tab. Vòng focus vẽ trên label qua :focus-within. */
+.rt-stars { border: 0; margin: 0; padding: 0; }
+.rt-stars legend { font-size: var(--text-sm); color: var(--muted); font-weight: 600; padding: 0 0 var(--space-2); }
+.rt-star-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.rt-star {
+  position: relative; /* mỏ neo cho ô radio đã ẩn bên trong */
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: var(--space-1); border-radius: var(--radius-sm);
+  color: var(--muted); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.rt-star:hover { background: var(--surface-2); }
+.rt-star.on { color: var(--accent); }
+.rt-star:focus-within { box-shadow: var(--focus-ring); }
+.rt-star input[type="radio"] { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; }
+/* Nhãn chữ của từng mức ("4 sao — Tốt") là tên khả truy cập của radio: đọc được
+   nhưng không chiếm chỗ, vì ngôi sao đã nói đủ cho người nhìn thấy. */
+.rt-star-text { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+.rt-caption { margin: 0; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.rt-note { display: grid; gap: var(--space-2); }
+.rt-note > span { font-size: var(--text-sm); color: var(--muted); font-weight: 600; }
+.rt-note textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--space-2); font: inherit; line-height: var(--leading-body);
+}
+.rt-count { margin: 0; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.rt-form .primary { justify-self: start; }
+.rt-saved { color: var(--ok); font-size: var(--text-sm); margin: 0; }
+
+/* --- Màn admin --- */
+
+.rt-summary { display: flex; align-items: baseline; gap: var(--space-2); }
+.rt-average { font-size: var(--text-3xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rt-total { font-size: var(--text-sm); color: var(--muted); }
+
+.rt-dist { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-1); }
+.rt-dist li { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.rt-dist-label { color: var(--accent); font-variant-numeric: tabular-nums; }
+.rt-dist-bar { flex: 1; height: var(--space-2); border-radius: var(--radius-full); background: var(--surface-2); overflow: hidden; }
+.rt-dist-bar > span { display: block; height: 100%; background: var(--accent); }
+.rt-dist-count { min-width: var(--space-6); text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.rt-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.rt-item { display: grid; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); }
+.rt-item-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-xs); }
+.rt-chip {
+  border-radius: var(--radius-xs); padding: 0 var(--space-1); font-weight: 600; white-space: nowrap;
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  color: color-mix(in oklab, var(--accent) 70%, var(--fg));
+}
+.rt-author { font-weight: 600; overflow-wrap: anywhere; }
+.rt-time { color: var(--muted); }
+/* Nhận xét là chữ tự do: giữ nguyên dòng người viết ngắt, và cho phép ngắt giữa
+   chuỗi dài (URL, log lỗi) để không đẩy giãn cả dialog. */
+.rt-item-body { margin: 0; line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Cảm ứng: sao và nút phải với tới được (DESIGN §3.6). */
+@media (pointer: coarse) {
+  .rt-star { min-width: 44px; min-height: 44px; }
+  .rt-form .primary, .rt-actions .primary { min-height: 44px; }
+}
+
+/* `font: inherit` của textarea đặt cả cỡ chữ (= --text-base, 15px) và đặc thù
+   (0,2,1) thắng rule mobile chung `input, select, textarea` (0,0,1) trong
+   styles.css — nên ô này lọt lưới và Safari iOS vẫn tự zoom khi focus. Nhắc lại
+   ngưỡng 16px ngay tại đây (DESIGN §3.7), giữ 15px trên desktop. */
+@media (max-width: 759px) {
+  .rt-note textarea { font-size: max(16px, 1em); }
+}

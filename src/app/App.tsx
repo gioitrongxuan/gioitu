@@ -77,6 +77,12 @@ const QuickAdd = lazy(() =>
 const ReviewStats = lazy(() =>
   import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
 );
+const RatingDialog = lazy(() =>
+  import("@/features/rating/ui/RatingDialog").then((m) => ({ default: m.RatingDialog })),
+);
+const RatingReview = lazy(() =>
+  import("@/features/rating/ui/RatingReview").then((m) => ({ default: m.RatingReview })),
+);
 
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
@@ -297,6 +303,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  // Đánh giá ứng dụng (#245): form chấm sao của người dùng, và màn đọc của admin.
+  const [rating, setRating] = useState(false);
+  const [ratingReview, setRatingReview] = useState(false);
   const [reviewStats, setReviewStats] = useState(false);
   // Thêm nhanh một từ (null = đóng). `term` là mặt chữ điền sẵn khi mở từ
   // bookmarklet / Share Target; rỗng khi mở từ menu. `solo` = cửa sổ popup
@@ -336,6 +345,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
   useBackEntry(labelEntry != null, () => setLabelEntry(null));
+  useBackEntry(rating, () => setRating(false));
+  useBackEntry(ratingReview, () => setRatingReview(false));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
   useBackEntry(onboarding, closeOnboarding);
 
@@ -496,11 +507,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       ],
     },
     {
+      title: "Đánh giá",
+      // Mỗi tài khoản một phiếu (gửi lại là sửa phiếu cũ) nên khách phải đăng
+      // nhập — cùng lối ổ khoá như Yomitan/Premium ở trên.
+      items: [{ label: "Đánh giá ứng dụng", run: () => setRating(true), locked: !email }],
+    },
+    {
       title: "Quản trị",
       items: isAdmin
         ? [
             { label: "Quản lý từ điển", run: () => setManaging(true) },
             { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+            { label: "Đánh giá của người dùng", run: () => setRatingReview(true) },
           ]
         : [],
     },
@@ -855,6 +873,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       )}
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
+
+      {rating && (
+        <Suspense fallback={null}>
+          <RatingDialog
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setRating(false);
+              onRequestLogin();
+            }}
+            onClose={() => setRating(false)}
+          />
+        </Suspense>
+      )}
+
+      {ratingReview && isAdmin && (
+        <Suspense fallback={null}>
+          <RatingReview onClose={() => setRatingReview(false)} />
+        </Suspense>
+      )}
 
       {reviewStats && (
         <Suspense fallback={null}>
