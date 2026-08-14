@@ -715,7 +715,10 @@ Lượm một từ gặp ngoài app (từ chưa có trong từ điển) mà khô
 Form Thêm nhanh (`dictionary/ui/QuickAdd/`) lưu vào **cả hai kho**: hàng ôn SRS
 (`recordLookup`) + hộp thư "Từ nhặt được" trong từ điển cá nhân
 (`dictionary/data/inbox.ts` — tra lại thấy ở nguồn *Trên máy*). Nút ✨ AI điền hộ
-(cần đăng nhập) dùng chung engine với Từ điển cá nhân.
+(cần đăng nhập) dùng chung engine với Từ điển cá nhân; ngay dưới nút là ô "Yêu
+cầu thêm cho AI" (tuỳ chọn — ngữ cảnh gặp từ, lĩnh vực, sắc thái) đi vào prompt
+qua `extra` của `buildAiPrompt`, giữ nguyên sau khi lưu vì lượm nhiều từ liên
+tiếp thường cùng một ngữ cảnh (#274).
 
 Các ngả vào, đều quy về query param `?add=<mặt chữ>` (đọc một lần lúc mount rồi
 xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):

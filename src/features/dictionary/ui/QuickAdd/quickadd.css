@@ -54,10 +54,22 @@
   margin-top: var(--space-2);
 }
 
+/* Khối "✨ AI điền hộ": nút rồi tới ô dặn thêm cho AI, xếp dọc để ô nằm sát nút
+   nó phục vụ (#274). Nút tự co về bề rộng chữ, ô trải hết hàng. */
+.qa-ai {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.qa-ai > .form-field {
+  width: 100%;
+}
+
 .qa-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-3);
   flex-wrap: wrap;
 }

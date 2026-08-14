@@ -39,6 +39,9 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  // Lời dặn thêm cho AI (tuỳ chọn): ngữ cảnh gặp từ, lĩnh vực, sắc thái… Giữ lại
+  // sau khi lưu vì lượm nhiều từ liên tiếp thường cùng một ngữ cảnh (#274).
+  const [aiExtra, setAiExtra] = useState("");
 
   const set = <K extends keyof CustomDraft>(k: K, v: CustomDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const isJa = pair.source === "ja";
@@ -61,7 +64,7 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
     setAiBusy(true);
     setStatus("Đang nhờ AI điền…");
     try {
-      const filled = await aiFillDraft(draft.term.trim(), pair);
+      const filled = await aiFillDraft(draft.term.trim(), pair, aiExtra);
       setDraft((d) => ({
         ...d,
         reading: d.reading || filled.reading || "",
@@ -174,16 +177,31 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
             </label>
           </details>
 
-          <div className="qa-actions">
+          {/* Khối AI đứng riêng để ô "Yêu cầu thêm" nằm ngay dưới nút nó phục vụ,
+              không lẫn vào hàng nút Lưu. */}
+          <div className="qa-ai">
             {loggedIn ? (
-              <button type="button" className="link" disabled={aiBusy || !draft.term.trim()} onClick={onAiFill}>
-                {aiBusy ? "Đang điền…" : "✨ AI điền hộ"}
-              </button>
+              <>
+                <button type="button" className="link" disabled={aiBusy || !draft.term.trim()} onClick={onAiFill}>
+                  {aiBusy ? "Đang điền…" : "✨ AI điền hộ"}
+                </button>
+                <label className="form-field">
+                  <span className="field-label">Yêu cầu thêm cho AI (tuỳ chọn)</span>
+                  <input
+                    value={aiExtra}
+                    onChange={(e) => setAiExtra(e.target.value)}
+                    placeholder="vd: nghĩa trong ngành y, giọng trang trọng"
+                  />
+                </label>
+              </>
             ) : (
               <span className="muted qa-ai-hint">
                 <button type="button" className="link" onClick={onRequestLogin}>Đăng nhập</button> để AI điền hộ nghĩa
               </span>
             )}
+          </div>
+
+          <div className="qa-actions">
             <button type="button" className="primary" disabled={!canSave} onClick={onSave}>
               {saving ? "Đang lưu…" : "Lưu"}
             </button>
