@@ -37,6 +37,12 @@ import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
 import { TermResult } from "@/features/dictionary/data/search";
 import { ADD_PARAM_KEYS, parseAddParams } from "@/features/dictionary/domain/quickadd";
+import {
+  failedLookupReply,
+  LOOKUP_PARAM_KEYS,
+  parseLookupParams,
+} from "@/features/dictionary/domain/lookupProxy";
+import { runProxyLookup } from "@/features/dictionary/data/lookupProxy";
 import { isDraftFilled } from "@/features/dictionary/domain/customEntry";
 import { saveQuickAdd } from "@/features/dictionary/data/inbox";
 import { aiFillDraft } from "@/features/dictionary/data/aiGenerate";
@@ -364,6 +370,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [quickAdd, setQuickAdd] = useState<{ term: string; solo?: boolean } | null>(null);
   // Cửa sổ proxy AI tí hon của overlay ngoài trang (?add_ai=1) — xem effect ?add=.
   const [aiProxy, setAiProxy] = useState(false);
+  // Cửa sổ proxy tra cứu (?lookup=…) — mặt chữ đang tra hộ, null = không phải proxy.
+  const [lookupProxy, setLookupProxy] = useState<string | null>(null);
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource);
   // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
   // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
@@ -468,6 +476,30 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     } else {
       setQuickAdd({ term: req.draft.term, solo: req.solo });
     }
+  }, []);
+
+  // Overlay ngoài trang tra hộ (#251): `?lookup=<mặt chữ>` mở cửa sổ tí hon, app
+  // tra bằng chính từ điển của origin mình (IndexedDB trước, hết mới hỏi server —
+  // ngoại lệ dành riêng cho extension), postMessage kết quả về qua window.opener
+  // rồi tự đóng. Cùng khuôn với add_ai=1 ở effect trên, kể cả việc xoá param khỏi
+  // URL và thà gửi vào "/" còn hơn phát "*" khi thiếu origin.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const req = parseLookupParams(params);
+    if (!req) return;
+    for (const key of LOOKUP_PARAM_KEYS) params.delete(key);
+    const qs = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    const opener = window.opener as Window | null;
+    // Không có cửa sổ mở mình (ai đó dán URL vào thanh địa chỉ) thì chẳng có nơi
+    // nào để trả lời — bỏ chế độ proxy, mở app bình thường.
+    if (!opener) return;
+    setLookupProxy(req.term);
+    const targetOrigin = req.openerOrigin ?? "/";
+    runProxyLookup(req.term, req.pair)
+      .catch(() => failedLookupReply(req.term))
+      .then((reply) => opener.postMessage(reply, targetOrigin))
+      .then(() => window.close());
   }, []);
 
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
@@ -621,6 +653,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     return (
       <div className="qa-proxy" aria-busy="true">
         ✨ Đang nhờ AI điền…
+      </div>
+    );
+  }
+
+  if (lookupProxy != null) {
+    return (
+      <div className="qa-proxy" aria-busy="true">
+        Đang tra “{lookupProxy}”…
       </div>
     );
   }

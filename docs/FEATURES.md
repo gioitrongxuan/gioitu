@@ -757,6 +757,24 @@ trên overlay.
 đầy đủ" hoặc fallback CSP): App chỉ vẽ form Thêm nhanh + toast, không dựng vỏ
 app; đóng form là đóng cửa sổ.
 
+**Tra hộ overlay ngoài trang** (`?lookup=<mặt chữ>` — #251): cùng lý do với ✨ AI
+điền, overlay không đọc được IndexedDB của app (khác origin) nên nhờ app tra hộ.
+Cửa sổ tí hon `?lookup=…&lookup_pair=<cặp>&lookup_origin=<origin trang>` chỉ vẽ
+một dòng trạng thái (`.qa-proxy`), chạy lượt tra rồi
+`postMessage({kind:"gioitu-lookup", hits, source, error?})` về `window.opener`
+đúng `lookup_origin` và tự đóng. Parse + dựng payload là logic thuần
+(`domain/lookupProxy.ts`), phần chạy tra ở `data/lookupProxy.ts`.
+
+- **Ngoại lệ nguồn**: riêng luồng này tra **Trên máy trước, hết mới hỏi Server**
+  (`PROXY_SOURCE_ORDER`) — overlay không đọc được lựa chọn nguồn của app để mà
+  tôn trọng. Người dùng tra trong app vẫn đi qua `search.ts`: nguồn nào được
+  chọn thì tra đúng nguồn đó (§4).
+- Mỗi lượt trả tối đa 5 dòng (mặt chữ · cách đọc · một dòng nghĩa), gộp trùng
+  theo (mặt chữ, cách đọc). Không nguồn nào có từ mà server lại hỏng thì payload
+  mang `error` để overlay báo "không tra được" chứ không báo nhầm "không có từ".
+- Mở thẳng URL này bằng tay (không có `window.opener`) thì app bỏ chế độ proxy
+  và mở bình thường.
+
 ### 9.15 Chế độ nghe (bulk play sound)
 
 Ôn bằng tai lúc không rảnh mắt: máy đọc liên tục các từ đang học, người dùng chỉ
