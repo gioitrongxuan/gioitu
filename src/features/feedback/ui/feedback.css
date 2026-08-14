@@ -1,0 +1,70 @@
+/* Góp ý về web (#244): form gửi (FeedbackDialog) + màn đọc của admin
+   (FeedbackReview). Vỏ dialog dùng lại .theme-overlay/.theme-card như các overlay
+   khác; ở đây chỉ là ruột. Mọi giá trị là token DESIGN §2. */
+
+.fb-form { display: grid; gap: var(--space-3); }
+
+/* Chọn loại góp ý: radio THẬT (mũi tên điều hướng được và trình đọc màn hình
+   thấy đúng một radiogroup — DESIGN §3.3) nằm trong chip, không bị ẩn đi. Giữ ô
+   radio hiện diện cũng là cách rẻ nhất để có vòng :focus-visible chung. */
+.fb-kinds { border: 0; margin: 0; padding: 0; }
+.fb-kinds legend { font-size: var(--text-sm); color: var(--muted); font-weight: 600; padding: 0 0 var(--space-2); }
+.fb-kind-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.fb-kind {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font-size: var(--text-sm); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.fb-kind:hover { background: var(--surface-2); }
+.fb-kind.active {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  color: color-mix(in oklab, var(--accent) 70%, var(--fg));
+  font-weight: 600;
+}
+.fb-kind input[type="radio"] { margin: 0; accent-color: var(--accent); }
+
+.fb-message { display: grid; gap: var(--space-2); }
+.fb-message > span { font-size: var(--text-sm); color: var(--muted); font-weight: 600; }
+.fb-message textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--space-2); font: inherit; line-height: var(--leading-body);
+}
+.fb-count { margin: 0; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.fb-form .primary { justify-self: start; }
+.fb-sent { color: var(--ok); font-size: var(--text-sm); margin: 0; }
+
+/* --- Màn admin --- */
+
+.fb-toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
+.fb-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.fb-item { display: grid; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-sm); background: var(--surface-2); }
+.fb-item-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-xs); }
+.fb-chip {
+  border-radius: var(--radius-xs); padding: 0 var(--space-1); font-weight: 600;
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  color: color-mix(in oklab, var(--accent) 70%, var(--fg));
+}
+.fb-author { font-weight: 600; overflow-wrap: anywhere; }
+.fb-time { color: var(--muted); }
+/* Góp ý là chữ tự do: giữ nguyên dòng người viết ngắt, và cho phép ngắt giữa
+   chuỗi dài (URL, log lỗi) để không đẩy giãn cả dialog. */
+.fb-item-body { margin: 0; line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-item .link { justify-self: start; font-size: var(--text-sm); }
+.fb-done { color: var(--muted); font-size: var(--text-xs); }
+
+/* Cảm ứng: chip loại góp ý, ô bật/tắt và hai nút chữ phải với tới được (DESIGN §3.6). */
+@media (pointer: coarse) {
+  .fb-kind, .fb-toggle { min-height: 44px; }
+  .fb-item .link, .fb-form .primary { min-height: 44px; }
+}
+
+/* `font: inherit` của textarea đặt cả cỡ chữ (= --text-base, 15px) và đặc thù
+   (0,2,1) thắng rule mobile chung `input, select, textarea` (0,0,1) trong
+   styles.css — nên ô này lọt lưới và Safari iOS vẫn tự zoom khi focus. Nhắc lại
+   ngưỡng 16px ngay tại đây (DESIGN §3.7), giữ 15px trên desktop. */
+@media (max-width: 759px) {
+  .fb-message textarea { font-size: max(16px, 1em); }
+}

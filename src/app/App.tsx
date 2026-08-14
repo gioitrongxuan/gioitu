@@ -77,6 +77,12 @@ const QuickAdd = lazy(() =>
 const ReviewStats = lazy(() =>
   import("@/features/review/ui/ReviewStats/ReviewStats").then((m) => ({ default: m.ReviewStats })),
 );
+const FeedbackDialog = lazy(() =>
+  import("@/features/feedback/ui/FeedbackDialog").then((m) => ({ default: m.FeedbackDialog })),
+);
+const FeedbackReview = lazy(() =>
+  import("@/features/feedback/ui/FeedbackReview").then((m) => ({ default: m.FeedbackReview })),
+);
 const RatingDialog = lazy(() =>
   import("@/features/rating/ui/RatingDialog").then((m) => ({ default: m.RatingDialog })),
 );
@@ -303,6 +309,9 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [connectingYomitan, setConnectingYomitan] = useState(false);
   const [premium, setPremium] = useState(false);
   const [contribReview, setContribReview] = useState(false);
+  // Góp ý về web (#244): form gửi của người dùng, và màn đọc của admin.
+  const [feedback, setFeedback] = useState(false);
+  const [feedbackReview, setFeedbackReview] = useState(false);
   // Đánh giá ứng dụng (#245): form chấm sao của người dùng, và màn đọc của admin.
   const [rating, setRating] = useState(false);
   const [ratingReview, setRatingReview] = useState(false);
@@ -507,10 +516,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
       ],
     },
     {
-      title: "Đánh giá",
-      // Mỗi tài khoản một phiếu (gửi lại là sửa phiếu cũ) nên khách phải đăng
-      // nhập — cùng lối ổ khoá như Yomitan/Premium ở trên.
-      items: [{ label: "Đánh giá ứng dụng", run: () => setRating(true), locked: !email }],
+      title: "Góp ý",
+      // Cả hai đều gắn với một tài khoản (admin cần hỏi lại được; mỗi người một
+      // phiếu đánh giá) → khoá cho khách, cùng lối "tường đăng nhập nhất quán"
+      // như Premium/Yomitan ở trên.
+      items: [
+        { label: "Gửi góp ý về web", run: () => setFeedback(true), locked: !email },
+        { label: "Đánh giá ứng dụng", run: () => setRating(true), locked: !email },
+      ],
     },
     {
       title: "Quản trị",
@@ -518,6 +531,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         ? [
             { label: "Quản lý từ điển", run: () => setManaging(true) },
             { label: "Duyệt đề xuất", run: () => setContribReview(true) },
+            { label: "Góp ý người dùng", run: () => setFeedbackReview(true) },
             { label: "Đánh giá của người dùng", run: () => setRatingReview(true) },
           ]
         : [],
@@ -874,6 +888,19 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {contribReview && isAdmin && <ContributionReview onClose={() => setContribReview(false)} />}
 
+      {feedback && (
+        <Suspense fallback={null}>
+          <FeedbackDialog
+            loggedIn={email != null}
+            onRequestLogin={() => {
+              setFeedback(false);
+              onRequestLogin();
+            }}
+            onClose={() => setFeedback(false)}
+          />
+        </Suspense>
+      )}
+
       {rating && (
         <Suspense fallback={null}>
           <RatingDialog
@@ -884,6 +911,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             }}
             onClose={() => setRating(false)}
           />
+        </Suspense>
+      )}
+
+      {feedbackReview && isAdmin && (
+        <Suspense fallback={null}>
+          <FeedbackReview onClose={() => setFeedbackReview(false)} />
         </Suspense>
       )}
 
