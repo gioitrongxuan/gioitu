@@ -12,7 +12,14 @@ Ba cách gọi (đều hiện **overlay nhỏ ngay cạnh vùng bôi đen**):
 Trên overlay sửa được mặt chữ / cách đọc / nghĩa và cặp ngôn ngữ (đoán sẵn theo
 chữ viết). Bấm **Lưu** → extension mở một tab nền `?add=…&add_save=1`; chính app
 ghi vào hàng ôn + hộp thư "Từ nhặt được" rồi tự đóng tab — bạn vẫn ở nguyên
-trang. **✨ AI điền** (cần đăng nhập Gioitu ở trình duyệt này) mượn app gọi model
+trang. **Tra nghĩa** nhờ app tra hộ bằng từ điển đã cài (cửa sổ tí hon
+`?lookup=…` ở góc màn hình, `postMessage` kết quả về overlay rồi tự đóng): tối đa
+5 dòng *mặt chữ【cách đọc】· nghĩa*, dòng đầu tự điền vào ô còn trống, bấm dòng
+khác là lấy nghĩa đó. Lối này **không cần đăng nhập, chạy cả khi offline** nếu từ
+điển đã tải về máy — thử trước khi tiêu lượt AI. Không có từ thì overlay nói
+"không có trong từ điển đã cài"; mất mạng hay app gặp lỗi thì nói "không tra
+được" (hai chuyện khác nhau, không lẫn vào nhau).
+**✨ AI điền** (cần đăng nhập Gioitu ở trình duyệt này) mượn app gọi model
 hộ qua một cửa sổ tí hon `?add_ai=1` ở góc màn hình — kết quả `postMessage` về
 overlay (chỉ nhận từ đúng origin app), điền vào ô còn trống; từ loại/ví dụ/ghi
 chú AI trả thêm được gửi kèm lúc lưu. **Form đầy đủ** mở cửa sổ popup chỉ có
