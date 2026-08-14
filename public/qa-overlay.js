@@ -9,6 +9,9 @@
 //   • "✨ AI điền" cũng mượn app: cửa sổ tí hon `?add_ai=1` — app (đăng nhập
 //     sẵn, token first-party) gọi model, postMessage kết quả về đây rồi tự
 //     đóng; overlay chỉ nhận message từ đúng origin app;
+//   • "Tra nghĩa" đi cùng khuôn ấy với `?lookup=…`: app tra bằng từ điển của
+//     origin mình (trên máy trước, hết mới hỏi server — ngoại lệ chốt ở #251)
+//     rồi trả về tối đa 5 dòng; lối này rẻ hơn AI và chạy cả khi offline;
 //   • "Form đầy đủ" = cửa sổ popup 520×680 kèm add_solo=1 (app chỉ vẽ form).
 // Trang có CSP chặn script ngoài sẽ không tải được file này — bookmarklet tự
 // rơi về popup form đầy đủ (xem loader trong QuickAdd.tsx).
@@ -18,6 +21,9 @@
   const BASE = new URL(document.currentScript.src).origin;
   // AI có thể chậm; quá ngưỡng này coi như cửa sổ proxy không quay về được.
   const AI_TIMEOUT_MS = 60000;
+  // Tra từ điển thì không: trên máy gần như tức thì, hỏi server cũng vài giây —
+  // chờ lâu hơn ngưỡng này thường là cửa sổ proxy bị chặn, nói ra còn hơn treo.
+  const LOOKUP_TIMEOUT_MS = 20000;
 
   // Sao chép tối thiểu từ app (shared/languages + domain/quickadd).
   const LANG_PAIRS = [
@@ -59,6 +65,13 @@
     .save:disabled { opacity: 0.45; cursor: default; }
     .status { margin-top: 8px; font-size: 12.5px; color: rgba(28, 33, 48, 0.65); }
     .status.err { color: #d5484f; }
+    .hits { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; max-height: 168px; overflow-y: auto; }
+    .hit { display: block; width: 100%; text-align: left; padding: 6px 8px; cursor: pointer;
+      border: 1px solid rgba(28, 33, 48, 0.14); border-radius: 8px; background: none; color: inherit;
+      font-size: 12.5px; line-height: 1.4; }
+    .hit:hover { border-color: #4f7cff; }
+    .hit-term { font-weight: 600; }
+    .hit-gloss { display: block; opacity: 0.72; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .done { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
     @media (prefers-color-scheme: dark) {
       .card { background: #232837; color: #e8ebf4; border-color: rgba(255, 255, 255, 0.09); }
@@ -66,6 +79,8 @@
       .link { color: #8ba7ff; }
       .status { color: rgba(232, 235, 244, 0.65); }
       .status.err { color: #ff8087; }
+      .hit { border-color: rgba(255, 255, 255, 0.14); }
+      .hit:hover { border-color: #8ba7ff; }
     }
   `;
 
@@ -122,12 +137,14 @@
       <div class="row"><input name="gloss" placeholder="Nghĩa (ngăn nhiều nghĩa bằng ;)" aria-label="Nghĩa"></div>
       <div class="actions">
         <span class="links">
+          <button class="link lookup" type="button">Tra nghĩa</button>
           <button class="link ai" type="button">✨ AI điền</button>
           <button class="link full" type="button">Form đầy đủ</button>
         </span>
         <button class="save" type="button" disabled>Lưu</button>
       </div>
       <div class="status" hidden></div>
+      <div class="hits" hidden></div>
     `;
     root.appendChild(card);
 
@@ -137,7 +154,9 @@
     const glossInput = card.querySelector('[name="gloss"]');
     const saveBtn = card.querySelector(".save");
     const aiBtn = card.querySelector(".ai");
+    const lookupBtn = card.querySelector(".lookup");
     const statusEl = card.querySelector(".status");
+    const hitsEl = card.querySelector(".hits");
     for (const p of LANG_PAIRS) {
       const opt = document.createElement("option");
       opt.value = p.id;
@@ -163,6 +182,36 @@
     const refreshSaveable = () => {
       saveBtn.disabled = !termInput.value.trim() || !glossInput.value.trim();
     };
+
+    const clearHits = () => {
+      hitsEl.replaceChildren();
+      hitsEl.hidden = true;
+    };
+
+    /**
+     * Một dòng kết quả tra. Bấm vào là chọn nghĩa đó — chọn tay thì được đè ô đã
+     * có (khác ✨ AI điền: nó tự chạy nên chỉ dám điền ô trống).
+     */
+    const addHit = (hit) => {
+      const btn = document.createElement("button");
+      btn.className = "hit";
+      btn.type = "button";
+      const head = document.createElement("span");
+      head.className = "hit-term";
+      head.textContent = hit.reading && hit.reading !== hit.term ? `${hit.term}【${hit.reading}】` : hit.term;
+      const gloss = document.createElement("span");
+      gloss.className = "hit-gloss";
+      gloss.textContent = hit.gloss;
+      btn.append(head, gloss);
+      btn.addEventListener("click", () => {
+        if (hit.reading) readingInput.value = hit.reading;
+        glossInput.value = hit.gloss;
+        showStatus("Đã lấy nghĩa từ từ điển — sửa lại được rồi lưu.");
+        refreshSaveable();
+      });
+      hitsEl.appendChild(btn);
+    };
+
     termInput.addEventListener("input", refreshSaveable);
     glossInput.addEventListener("input", refreshSaveable);
     // Gõ lại mặt chữ (mở không bôi đen) thì đoán lại cặp cho tới khi tự chọn tay.
@@ -175,7 +224,11 @@
     // Từ loại/ví dụ/ghi chú AI trả về — overlay không có ô riêng, giữ lại để gửi
     // kèm lúc lưu. Đổi mặt chữ là bỏ (kết quả thuộc về từ cũ).
     let extras = { pos: "", example: "", note: "" };
-    termInput.addEventListener("input", () => (extras = { pos: "", example: "", note: "" }));
+    // Đổi mặt chữ thì kết quả tra cũng thuộc về từ cũ — dọn luôn cho khỏi chọn nhầm.
+    termInput.addEventListener("input", () => {
+      extras = { pos: "", example: "", note: "" };
+      clearHits();
+    });
 
     // Kết quả AI quay về từ cửa sổ proxy của app — chỉ tin đúng origin app, đúng kind.
     let aiTimer = 0;
@@ -221,6 +274,74 @@
       }, AI_TIMEOUT_MS);
     });
 
+    // Kết quả tra hộ quay về từ cửa sổ proxy `?lookup=` — cũng chỉ tin đúng origin
+    // app, và bỏ qua trả lời của mặt chữ khác (bấm tra hai lần liền nhau).
+    let lookupTimer = 0;
+    let lookupTerm = "";
+    window.addEventListener(
+      "message",
+      (e) => {
+        if (e.origin !== BASE) return;
+        const data = e.data;
+        if (!data || data.kind !== "gioitu-lookup" || data.term !== lookupTerm) return;
+        clearTimeout(lookupTimer);
+        lookupBtn.disabled = false;
+        // Bấm tra hai lần cùng một mặt chữ thì có hai trả lời — dựng lại danh sách
+        // từ đầu, đừng cộng dồn.
+        clearHits();
+        // Nguồn hỏng KHÔNG được rơi về "không có từ" — app gửi cờ error riêng cho
+        // đúng chuyện đó (xem domain/lookupProxy.ts).
+        if (data.error) {
+          showStatus(
+            data.error === "network"
+              ? "Không tra được: mất mạng hoặc server không trả lời."
+              : "Không tra được: Gioitu gặp lỗi khi mở từ điển.",
+            true,
+          );
+          return;
+        }
+        const hits = data.hits || [];
+        if (!hits.length) {
+          showStatus(`Không có “${lookupTerm}” trong từ điển đã cài — thử ✨ AI điền.`);
+          return;
+        }
+        for (const hit of hits) addHit(hit);
+        hitsEl.hidden = false;
+        // Dòng đầu là dòng app đã xếp hạng cao nhất; chỉ điền ô trống, muốn nghĩa
+        // khác thì bấm dòng tương ứng.
+        if (!readingInput.value.trim() && hits[0].reading) readingInput.value = hits[0].reading;
+        if (!glossInput.value.trim() && hits[0].gloss) glossInput.value = hits[0].gloss;
+        showStatus(
+          data.source === "server"
+            ? "Tra từ từ điển trên server — kiểm lại rồi lưu."
+            : "Tra từ từ điển trên máy — kiểm lại rồi lưu.",
+        );
+        refreshSaveable();
+      },
+      { signal: ac.signal },
+    );
+
+    lookupBtn.addEventListener("click", () => {
+      const t = termInput.value.trim();
+      if (!t) {
+        showStatus("Nhập mặt chữ trước đã.", true);
+        return;
+      }
+      lookupTerm = t;
+      lookupBtn.disabled = true;
+      clearHits();
+      showStatus("Đang tra trong từ điển Gioitu…");
+      openCornerWindow(
+        "gioitu-lookup",
+        new URLSearchParams({ lookup: t, lookup_pair: pairSelect.value, lookup_origin: window.location.origin }),
+      );
+      clearTimeout(lookupTimer);
+      lookupTimer = setTimeout(() => {
+        lookupBtn.disabled = false;
+        showStatus("Không nhận được phản hồi từ Gioitu — cửa sổ tra bị trình duyệt chặn?", true);
+      }, LOOKUP_TIMEOUT_MS);
+    });
+
     const showSaved = (added) => {
       const done = document.createElement("div");
       done.className = "done";
@@ -253,7 +374,10 @@
     };
     saveBtn.addEventListener("click", save);
     card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !saveBtn.disabled) save();
+      // Enter khi đang đứng trên một nút (tra / AI / một dòng kết quả) là bấm chính
+      // nút đó — nếu vẫn lưu ở đây thì từ bị lưu với nghĩa cũ, trước cả khi dòng
+      // vừa chọn kịp điền vào ô.
+      if (e.key === "Enter" && e.target.tagName !== "BUTTON" && !saveBtn.disabled) save();
     });
 
     card.querySelector(".close").addEventListener("click", close);

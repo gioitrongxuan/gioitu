@@ -774,6 +774,20 @@ một dòng trạng thái (`.qa-proxy`), chạy lượt tra rồi
   mang `error` để overlay báo "không tra được" chứ không báo nhầm "không có từ".
 - Mở thẳng URL này bằng tay (không có `window.opener`) thì app bỏ chế độ proxy
   và mở bình thường.
+- **Phía overlay** (`extension/overlay.js` + bản song sinh `public/qa-overlay.js`):
+  nút **"Tra nghĩa"** đứng trước ✨ AI điền — lối rẻ hơn, không cần đăng nhập và
+  chạy cả khi offline nếu từ điển đã ở IndexedDB. Kết quả hiện thành danh sách
+  bấm được (*mặt chữ【cách đọc】· nghĩa*); dòng đầu chỉ điền vào **ô còn trống**
+  (như ✨ AI điền), bấm một dòng là chọn tay nên **đè** cả ô đã có. Overlay bỏ qua
+  message sai origin, sai `kind`, hoặc của mặt chữ khác (bấm tra liền hai lần);
+  đổi mặt chữ là dọn danh sách. Ba trạng thái nói khác nhau: có kết quả (kèm nguồn
+  đã trả lời), "không có trong từ điển đã cài", và "không tra được" (cờ `error`).
+  Quá 20 giây không thấy trả lời thì báo nghi cửa sổ proxy bị chặn — nút không
+  disabled vĩnh viễn.
+- **Vì sao là nút, không tự tra khi overlay mở**: overlay được chèn theo cử chỉ ở
+  UI trình duyệt (chuột phải / phím tắt / nút toolbar), lúc ấy trang **không có
+  user activation** nên `window.open` bị popup blocker chặn. Một cú bấm ngay trên
+  overlay mới mở được cửa sổ proxy.
 
 ### 9.15 Chế độ nghe (bulk play sound)
 
