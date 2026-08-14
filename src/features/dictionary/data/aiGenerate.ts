@@ -36,17 +36,19 @@ export async function generateVocab(prompt: string): Promise<string> {
 /**
  * Nhờ AI điền hộ MỘT từ: dựng prompt, gọi model, lấy dòng đầu. Dùng chung cho
  * form Thêm nhanh trong app và chế độ proxy AI của overlay ngoài trang
- * (?add_ai=1). Ném lỗi (chưa đăng nhập, model không trả từ nào…) để nơi gọi
- * hiển thị/chuyển tiếp.
+ * (?add_ai=1). `extra` là lời dặn thêm của người dùng (ngữ cảnh gặp từ, sắc
+ * thái, lĩnh vực…) — cùng đường với ô "Yêu cầu thêm" của Từ điển cá nhân, nên
+ * chỉ có MỘT chỗ nhét yêu cầu người dùng vào prompt. Ném lỗi (chưa đăng nhập,
+ * model không trả từ nào…) để nơi gọi hiển thị/chuyển tiếp.
  */
-export async function aiFillDraft(term: string, pair: LangPair): Promise<Partial<CustomDraft>> {
+export async function aiFillDraft(term: string, pair: LangPair, extra = ""): Promise<Partial<CustomDraft>> {
   const prompt = buildAiPrompt({
     words: [term],
     randomCount: 0,
     wantExamples: true,
     wantExplanation: true,
     wantRelated: false,
-    extra: "",
+    extra,
     pair,
   });
   const { rows, errors } = parseAiResponse(await generateVocab(prompt));
