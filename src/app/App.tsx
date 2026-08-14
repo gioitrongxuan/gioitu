@@ -9,6 +9,7 @@ import { WordCloud } from "@/features/review/ui/WordCloud";
 import { FilterBar } from "@/features/review/ui/FilterBar";
 import { ReviewSession } from "@/features/review/ui/ReviewSession";
 import { ListenSession } from "@/features/review/ui/ListenSession";
+import { ImageSession } from "@/features/review/ui/ImageSession";
 import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
@@ -27,6 +28,7 @@ import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLang
 import { loadAddedWindow, saveAddedWindow } from "@/features/review/domain/addedWindowSettings";
 import { labelCounts, LabelFilter } from "@/features/review/domain/labels";
 import { listenableEntries } from "@/features/review/domain/listen";
+import { imageableEntries } from "@/features/review/domain/imageMode";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
 import { formatDueTitle } from "@/features/review/domain/dueBadge";
 import { SearchBar } from "@/features/dictionary/ui/SearchBar";
@@ -350,6 +352,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
   // Chế độ nghe (không SRS, không ghi gì) — chỉ là bật/tắt lớp phủ phát tiếng.
   const [listening, setListening] = useState(false);
+  // Chế độ hình ảnh (#263) — cũng không SRS, không ghi gì; lớp phủ trình chiếu ảnh.
+  const [viewingImages, setViewingImages] = useState(false);
   const [managing, setManaging] = useState(false);
   // Từ được mở sẵn trong tab sửa của manager (đi từ nút "Sửa từ" trên kết quả tra).
   const [manageEditQuery, setManageEditQuery] = useState<string | null>(null);
@@ -395,6 +399,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   );
   useBackEntry(reviewQueue != null, () => setReviewQueue(null));
   useBackEntry(listening, () => setListening(false));
+  useBackEntry(viewingImages, () => setViewingImages(false));
   useBackEntry(managing, () => {
     setManaging(false);
     setManageEditQuery(null);
@@ -429,6 +434,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // đây, danh sách phát do ListenSession tự dựng (và xáo lại mỗi vòng).
   const listenCount = useMemo(
     () => listenableEntries(store.entries, cloudLang).length,
+    [store.entries, cloudLang],
+  );
+  // Chế độ hình ảnh cũng chạy trên toàn bộ từ đang học. Đây là số từ ỨNG VIÊN,
+  // không phải số từ có ảnh: ảnh chỉ có ở từ điển máy chủ nên phải tra từng từ
+  // mới biết — trình chiếu tự bỏ qua từ trắng ảnh (xem ImageSession).
+  const imageCount = useMemo(
+    () => imageableEntries(store.entries, cloudLang).length,
     [store.entries, cloudLang],
   );
   useEffect(() => {
@@ -764,6 +776,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
                 listenCount={listenCount}
                 onStartListen={() => setListening(true)}
+                imageCount={imageCount}
+                onStartImages={() => setViewingImages(true)}
                 canBulkLabel={email != null}
                 onBulkLabel={setBulkLabelEntries}
               />
@@ -889,6 +903,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
 
       {listening && (
         <ListenSession entries={store.entries} lang={cloudLang} onClose={() => setListening(false)} />
+      )}
+
+      {viewingImages && (
+        <ImageSession
+          entries={store.entries}
+          lang={cloudLang}
+          onClose={() => setViewingImages(false)}
+        />
       )}
 
       {labelEntry && (

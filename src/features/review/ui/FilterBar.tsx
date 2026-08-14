@@ -23,7 +23,7 @@ import { labelCounts, LabelFilter } from "../domain/labels";
 import { CloudViewControls } from "./CloudViewControls";
 import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCloudPng";
 import { useTheme } from "@/features/theme/ThemeProvider";
-import { ChevronDownIcon, DownloadIcon, HeadphonesIcon } from "@/shared/ui/icons";
+import { ChevronDownIcon, DownloadIcon, HeadphonesIcon, ImageIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { toDateInput } from "@/shared/date";
 import "./review.css";
@@ -57,6 +57,13 @@ interface Props {
   listenCount: number;
   onStartListen: () => void;
   /**
+   * Số từ ỨNG VIÊN của chế độ hình ảnh (#263) — không phải số từ thật sự có
+   * ảnh: ảnh nằm ở từ điển máy chủ, muốn biết phải tra từng từ. Trình chiếu tự
+   * bỏ qua từ trắng ảnh, ở đây chỉ cần biết có từ nào để chiếu hay không.
+   */
+  imageCount: number;
+  onStartImages: () => void;
+  /**
    * Gắn nhãn hàng loạt bằng AI (#249) cho ĐÚNG tập từ đang hiện trên bản đồ —
    * Filter Bar là nơi duy nhất biết đủ mọi bộ lọc nên nó tự dựng tập ấy. Endpoint
    * AI cần đăng nhập, chưa đăng nhập thì không dựng nút để khỏi mời gọi suông.
@@ -85,6 +92,8 @@ export function FilterBar({
   onStartReview,
   listenCount,
   onStartListen,
+  imageCount,
+  onStartImages,
   canBulkLabel,
   onBulkLabel,
 }: Props) {
@@ -245,6 +254,11 @@ export function FilterBar({
       <button className="listen-btn" disabled={listenCount === 0} onClick={onStartListen}>
         <HeadphonesIcon size={16} />
         Nghe
+      </button>
+      {/* Hình ảnh cũng chạy trên toàn bộ từ đang học, cùng hạng với Nghe. */}
+      <button className="image-btn" disabled={imageCount === 0} onClick={onStartImages}>
+        <ImageIcon size={16} />
+        Hình ảnh
       </button>
     </div>
   );

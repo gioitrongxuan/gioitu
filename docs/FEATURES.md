@@ -415,6 +415,8 @@ số từ · số phát âm · cặp; lỗi kèm mô tả).
 | Viết tay & bộ thủ | Nút ✏️/部 cạnh ô tra (chỉ khi tra tiếng Nhật) | Vẽ kanji + lọc bộ thủ + panel gợi ý khớp | [§9.10](#910-viết-tay--bộ-thủ) |
 | Skin nền anime | Giao diện → Bộ sưu tập skin | 4 skin (backdrop + heatmap) mở khoá theo chuỗi ngày ôn, lazy-load, tôn trọng reduced-motion | [§9.11](#911-skin-nền-anime) |
 | Lịch sử tra cứu | Khu Tra cứu, khi chưa mở từ nào | "Tra gần đây" + "Tra nhiều nhất" của chính người dùng, bấm là tra lại | [§9.19](#919-lịch-sử-tra-cứu-269) |
+| Chế độ nghe | Nút "Nghe" cạnh "Ôn tập hôm nay" | Máy đọc liên tục các từ đang học; không SRS | [§9.15](#915-chế-độ-nghe-bulk-play-sound) |
+| Chế độ hình ảnh | Nút "Hình ảnh" cạnh "Nghe" | Trình chiếu ảnh minh hoạ của từ đang học; không SRS | [§9.20](#920-chế-độ-hình-ảnh-263) |
 
 ### 9.1 Đã thuộc (LearnedCloud)
 
@@ -962,6 +964,45 @@ lượt gõ hụt và lượt lỗi mạng) ghi một dòng theo **lemma** (dạ
   BACKLOG — chỉ là lịch sử để mở lại nhanh.
 - Logic thuần (gộp lượt, xếp thứ tự, cắt trần) ở `dictionary/domain/searchHistory.ts`,
   I/O ở `dictionary/data/searchHistory.ts`.
+
+### 9.20 Chế độ hình ảnh (#263)
+
+Ôn bằng mắt: trình chiếu ảnh minh hoạ của các từ đang học, nhìn ảnh rồi tự nhớ
+lại xem đó là từ nào. **Không SRS** — không chấm điểm, không ghi `review_log`,
+không đụng `next_review`. Mở từ nút **Hình ảnh** cạnh "Nghe". Song sinh với chế
+độ nghe (§9.15), chỉ khác giác quan.
+
+- **Nguồn từ**: toàn bộ từ đang học trên bản đồ (`LEARNING` + `RELAPSED`) thuộc
+  ngôn ngữ đang chọn — **không** theo hạn ôn, giống chế độ nghe. Số trên nút là
+  số từ **ứng viên**, không phải số từ có ảnh (xem "Giới hạn" bên dưới).
+- **Mỗi thẻ**: ảnh trần trước (tự đoán là từ gì) → hiện mặt chữ + cách đọc +
+  nghĩa. Chỉnh được thời gian mỗi bước (3/5/8 giây) và bỏ hẳn bước tự nhớ bằng
+  ô "Đáp án → Hiện ngay". Bấm vào ảnh là lật ra đáp án luôn (cùng idiom "tap
+  lật" của phiên ôn), lật rồi thì bấm để dừng/chạy tiếp.
+- **Danh sách chiếu**: xáo trộn, chạy vòng vô hạn tới khi dừng; hết vòng thì
+  dựng lại từ dữ liệu mới nhất và **xáo lại**.
+- **Màn chiếu** (`review/ui/ImageSession.tsx`): khung ảnh giữ chỗ cố định (ảnh
+  Mazii đủ mọi tỉ lệ) và khối đáp án cao sẵn bằng lúc đầy nhất, nên lật đáp án
+  không đẩy hàng nút xuống dưới ngón tay. Thêm Từ trước / Từ sau. Cài đặt nhớ ở
+  `gioitu.imageMode.v1`. Giữ màn hình sáng bằng Wake Lock.
+- **Ảnh lấy ở đâu**: ảnh là dữ liệu **cấp từ chỉ có ở máy chủ** (bảng
+  `word_image`, do `npm run import:mazii` nạp) và về kèm ngay trong phản hồi
+  `/api/dict/lookup`. Trình nhập Yomitan `.zip` và từ điển cá nhân **không** sinh
+  ảnh, nên IndexedDB luôn trắng ảnh. Vì vậy chế độ này gọi thẳng nguồn máy chủ,
+  **không** theo lựa chọn nguồn tra của người dùng — lựa chọn đó nói "tra nghĩa ở
+  đâu", còn ảnh thì chỉ có một chỗ để lấy. Chưa có endpoint lấy theo lô nên mỗi
+  từ là một lượt gọi; kết quả được đệm trong phiên (`review/data/wordImages.ts`)
+  và thẻ kế được nạp trước để không khựng giữa hai thẻ.
+- **Từ không có ảnh bị bỏ qua**: chỉ tra mới biết từ nào có ảnh, nên trình chiếu
+  tự nhảy qua từ trắng ảnh thay vì bắt người xem nhìn ô trống. Một từ có nhiều
+  ảnh thì các ảnh sau là **dự phòng** — ảnh Mazii là hotlink tới CDN ngoài nên
+  chết dần, URL hỏng thì thẻ tự thử ảnh kế.
+- **Giới hạn đã biết**: từ điển máy chủ mới có ảnh cho *một phần* từ vựng, và
+  guest offline / máy không nối được backend thì **không có ảnh nào** — màn chiếu
+  báo đúng lý do ("không gọi được máy chủ") thay vì im lặng. Dò qua 20 từ liên
+  tiếp mà chưa từ nào có ảnh thì dừng lại hỏi (nút "Tìm tiếp") thay vì gọi mạng
+  hàng trăm lần để cuối cùng vẫn báo "không có gì". Logic thuần (danh sách chiếu,
+  các bước, chọn ảnh khớp đúng từ, mốc bỏ cuộc) ở `review/domain/imageMode.ts`.
 
 ## 10. Bản đồ chức năng → tài liệu
 
