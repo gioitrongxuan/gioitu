@@ -163,8 +163,19 @@ export function buildLabelPrompt(input: LabelPromptInput): string {
   return lines.join("\n");
 }
 
-/** Gỡ hàng rào code ```…``` quanh JSON model trả về (soi gương customEntry.ts). */
-function stripCodeFence(text: string): string {
+/** Thêm nhiều nhãn một lượt, bỏ qua nhãn rỗng/trùng/vượt trần (xem `addLabel`). */
+export function mergeLabels(labels: string[], extra: string[]): string[] {
+  let out = labels;
+  for (const raw of extra) out = addLabel(out, raw) ?? out;
+  return out;
+}
+
+/**
+ * Gỡ hàng rào code ```…``` quanh JSON model trả về (soi gương customEntry.ts).
+ * Export để `bulkLabels.ts` dùng chung — hai trình phân tích cùng ăn một kiểu
+ * rác của model, không nên có hai bản lệch nhau.
+ */
+export function stripCodeFence(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
 }
