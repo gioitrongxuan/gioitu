@@ -44,7 +44,21 @@
   background: color-mix(in oklab, var(--accent) 13%, var(--surface));
   border-color: var(--accent); color: var(--accent);
 }
-.chip-toggle.danger:hover { border-color: var(--warn); }
+/* Chip phá huỷ (Xoá): phải nhận ra được TRƯỚC khi bấm chứ không chỉ lúc rê chuột
+   (#265) — trước đây nó giống hệt các chip lành tính bên cạnh nên rất dễ bấm nhầm
+   và mất từ. Nhuộm --warn theo mẫu chip ngữ nghĩa của DESIGN §3.4 (nền color-mix
+   nhạt + chữ đậm, giữ tương phản AA ở cả hai theme); dấu hiệu không chỉ nằm ở màu
+   — nút còn mang icon thùng rác. */
+.chip-toggle.danger {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  background: color-mix(in oklab, var(--warn) 12%, var(--surface));
+  border-color: color-mix(in oklab, var(--warn) 35%, var(--line));
+  color: color-mix(in oklab, var(--warn) 62%, var(--fg));
+}
+.chip-toggle.danger:hover {
+  background: color-mix(in oklab, var(--warn) 20%, var(--surface));
+  border-color: var(--warn);
+}
 .review-btn {
   margin-left: auto; background: var(--accent); color: #fff; border: none;
   padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;

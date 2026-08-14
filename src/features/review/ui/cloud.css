@@ -51,6 +51,9 @@
   font-variant-numeric: tabular-nums;
 }
 .tag-popover-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+/* Đẩy "Xoá" ra cuối hàng để con trỏ không trượt từ một hành động lành tính sang
+   thẳng nút phá huỷ (#265) — khoảng trống là lớp bảo vệ thứ hai sau màu. */
+.tag-popover-actions .chip-toggle.danger { margin-left: auto; }
 
 @media (pointer: coarse) {
   .tag-popover-actions .chip-toggle { min-height: 44px; padding: 0 var(--space-4); }
