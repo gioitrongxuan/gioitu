@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import { SearchIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { TodayStats } from "@/features/review/data/todayStats";
-import { CloudLang } from "@/features/review/domain/wordcloud";
+import { ADDED_WINDOW_LABEL, AddedWindow, CloudLang } from "@/features/review/domain/wordcloud";
 import { LangSelect } from "@/features/review/ui/LangSelect";
 import "./shell.css";
 
-// Chỉ "ja"/"en" thực sự chọn được qua LangSelect — nhánh dùng bảng này chỉ
-// tới khi lang khác "all" (xem điều kiện dueCount === 0 && totalDueCount > 0).
+// Chỉ "ja"/"en" thực sự chọn được qua LangSelect — "all" không có nhãn vì lúc
+// đó ngôn ngữ không phải thứ đang che hàng đợi.
 const LANG_LABELS: Partial<Record<CloudLang, string>> = {
   ja: "tiếng Nhật",
   en: "tiếng Anh",
@@ -38,6 +38,8 @@ interface TodayScreenProps {
   totalDueCount: number;
   lang: CloudLang;
   onLangChange: (lang: CloudLang) => void;
+  /** Cửa sổ "Thêm trong" đang lọc hàng đợi — chỉ để gọi tên đúng bộ lọc đang che. */
+  addedWindow: AddedWindow;
   learnedCount: number;
   /** Từ hay quên nhất (rớt nhiều lần nhất) — App tính sẵn từ store. */
   forgotten: VocabEntry[];
@@ -54,6 +56,7 @@ export function TodayScreen({
   totalDueCount,
   lang,
   onLangChange,
+  addedWindow,
   learnedCount,
   forgotten,
   loadStats,
@@ -75,6 +78,16 @@ export function TodayScreen({
 
   const maxActivity = stats == null ? 0 : Math.max(...stats.activity.map((d) => d.count));
 
+  // Còn nợ nhưng hero trống nghĩa là một bộ lọc đang che hàng đợi — gọi tên
+  // đúng bộ lọc đó, và chỉ đường tới nơi chỉnh được nó (ô "Thêm trong" nằm ở
+  // Kho từ, không có mặt trên màn này).
+  const hiddenBy = [
+    LANG_LABELS[lang],
+    addedWindow === "all" ? undefined : `thêm trong ${ADDED_WINDOW_LABEL[addedWindow].toLowerCase()}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="today-screen">
       <section className="today-hero">
@@ -92,8 +105,12 @@ export function TodayScreen({
           </>
         ) : totalDueCount > 0 ? (
           <>
-            <h2 className="today-hero-title">Không có từ {LANG_LABELS[lang] ?? ""} đến hạn</h2>
-            <p className="today-hero-sub">Đổi ngôn ngữ ở trên để xem các từ đến hạn khác.</p>
+            <h2 className="today-hero-title">{`Không có từ ${hiddenBy ? `${hiddenBy} ` : ""}đến hạn`}</h2>
+            <p className="today-hero-sub">
+              {addedWindow === "all"
+                ? "Đổi ngôn ngữ ở trên để xem các từ đến hạn khác."
+                : "Nới bộ lọc “Thêm trong” ở Kho từ để xem các từ đến hạn khác."}
+            </p>
           </>
         ) : (
           <>

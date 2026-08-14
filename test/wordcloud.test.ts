@@ -4,6 +4,7 @@ import {
   computeShade,
   dueEntriesInGroup,
   effectiveCount,
+  filterByAddedWithin,
   filterByLang,
   groupByPeriod,
   groupBySrsTier,
@@ -111,6 +112,41 @@ describe("language split", () => {
     // Within ja the max lookup_count is 5 (食べる) → shade 1; the en word is gone.
     expect(ja.find((t) => t.entry.term === "食べる")!.shade).toBe(1);
     expect(ja.some((t) => t.entry.term === "apple")).toBe(false);
+  });
+});
+
+describe("cửa sổ 'thêm gần đây' (#250)", () => {
+  const now = new Date(2026, 5, 23, 10).getTime(); // 2026-06-23 local time
+  const daysAgo = (d: number) => now - d * 24 * 60 * 60 * 1000;
+  const entries = [
+    makeEntry({ term: "s3", created_at: daysAgo(0.5), status: "LEARNING", lookup_count: 1 }),
+    makeEntry({ term: "ec2", created_at: daysAgo(3), status: "LEARNING", lookup_count: 5 }),
+    makeEntry({ term: "sakura", created_at: daysAgo(200), status: "LEARNING", lookup_count: 9 }),
+  ];
+
+  it("giữ đúng từ thêm trong cửa sổ; 'all' giữ tất cả", () => {
+    expect(filterByAddedWithin(entries, "all", now)).toHaveLength(3);
+    expect(filterByAddedWithin(entries, "1d", now).map((e) => e.term)).toEqual(["s3"]);
+    expect(filterByAddedWithin(entries, "7d", now).map((e) => e.term)).toEqual(["s3", "ec2"]);
+    expect(filterByAddedWithin(entries, "90d", now).map((e) => e.term)).toEqual(["s3", "ec2"]);
+  });
+
+  it("lọc theo lúc THÊM, không theo lượt tra gần nhất", () => {
+    // Từ cũ vừa tra lại hôm nay vẫn nằm ngoài cửa sổ 7 ngày.
+    const old = makeEntry({ term: "cũ", created_at: daysAgo(100), last_lookup_at: now });
+    expect(filterByAddedWithin([old], "7d", now)).toEqual([]);
+  });
+
+  it("mốc cắt tính theo bao gồm (>= now - N ngày)", () => {
+    const edge = makeEntry({ term: "biên", created_at: daysAgo(7) });
+    expect(filterByAddedWithin([edge], "7d", now)).toHaveLength(1);
+  });
+
+  it("buildCloud thu hẹp theo cửa sổ và chuẩn hoá lại max trong đó", () => {
+    const recent = buildCloud(entries, { now, addedWindow: "7d" });
+    expect(recent.map((t) => t.entry.term).sort()).toEqual(["ec2", "s3"]);
+    // Trong cửa sổ, max lookup_count là 5 (ec2) → shade 1; từ cũ (9 lượt) đã rơi ra.
+    expect(recent.find((t) => t.entry.term === "ec2")!.shade).toBe(1);
   });
 });
 

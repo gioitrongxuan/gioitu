@@ -9,6 +9,8 @@ import {
   groupByPeriod,
   groupBySrsTier,
   isVisibleOnCloud,
+  ADDED_WINDOW_LABEL,
+  AddedWindow,
   CloudSort,
   CloudLang,
   CloudGrouping,
@@ -33,12 +35,15 @@ interface Props {
   /** Nhãn đang lọc (#249) — "all" khi không lọc. */
   label: LabelFilter;
   grouping: CloudGrouping;
+  /** Chỉ giữ từ được thêm trong cửa sổ này — thu hẹp cả bản đồ lẫn phiên ôn. */
+  addedWindow: AddedWindow;
   onToggleHighlight: () => void;
   onToggleOnlyDue: () => void;
   onSortChange: (sort: CloudSort) => void;
   onLangChange: (lang: CloudLang) => void;
   onLabelChange: (label: LabelFilter) => void;
   onGroupingChange: (grouping: CloudGrouping) => void;
+  onAddedWindowChange: (added: AddedWindow) => void;
   onStartReview: () => void;
   /** Số từ nghe được ở phạm vi hiện tại — 0 thì không mở được chế độ nghe. */
   listenCount: number;
@@ -54,12 +59,14 @@ export function FilterBar({
   lang,
   label,
   grouping,
+  addedWindow,
   onToggleHighlight,
   onToggleOnlyDue,
   onSortChange,
   onLangChange,
   onLabelChange,
   onGroupingChange,
+  onAddedWindowChange,
   onStartReview,
   listenCount,
   onStartListen,
@@ -78,7 +85,9 @@ export function FilterBar({
   // động nhất thời, không phải dữ liệu — cố ý không tái tạo trong ảnh.
   const exportSections = (): ExportCloudSection[] => {
     const now = Date.now();
-    const tags = buildCloud(entries, { now, sort, lang, label }).filter((t) => (onlyDue ? t.due : true));
+    const tags = buildCloud(entries, { now, sort, lang, label, addedWindow }).filter((t) =>
+      onlyDue ? t.due : true,
+    );
     const toTag = ({ entry, shade, hasBadge }: CloudTag): ExportCloudTag => ({ term: entry.term, shade, hasBadge });
     if (grouping === "none") return [{ tags: tags.map(toTag) }];
     const groups = grouping === "srs" ? groupBySrsTier(tags) : groupByPeriod(tags, grouping, now);
@@ -116,6 +125,20 @@ export function FilterBar({
           onGroupingChange={onGroupingChange}
           enableSrsTier
         />
+        {/* Khoanh vùng theo đợt học: chỉ ôn những từ mới thêm gần đây (#250). */}
+        <label className="sort-select">
+          Thêm trong
+          <select
+            value={addedWindow}
+            onChange={(e) => onAddedWindowChange(e.target.value as AddedWindow)}
+          >
+            {Object.entries(ADDED_WINDOW_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="sort-select">
           Sắp xếp
           <select value={sort} onChange={(e) => onSortChange(e.target.value as CloudSort)}>

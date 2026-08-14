@@ -5,7 +5,18 @@
 // ghim popover kèm hành động (ôn / đã thuộc / xoá) — thay "Chế độ xoá" toàn cục.
 
 import { memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { buildCloud, groupByPeriod, groupBySrsTier, dueEntriesInGroup, CloudSort, CloudLang, CloudGrouping, CloudTag } from "../domain/wordcloud";
+import {
+  buildCloud,
+  groupByPeriod,
+  groupBySrsTier,
+  dueEntriesInGroup,
+  ADDED_WINDOW_LABEL,
+  AddedWindow,
+  CloudSort,
+  CloudLang,
+  CloudGrouping,
+  CloudTag,
+} from "../domain/wordcloud";
 import { LabelFilter } from "../domain/labels";
 import {
   HOVER_CLOSE_DELAY_MS,
@@ -39,6 +50,8 @@ interface Props {
    * Khu vườn ký ức) hoặc "none" = phẳng.
    */
   grouping: CloudGrouping;
+  /** Chỉ hiện từ được thêm trong cửa sổ này ("all" = mọi lúc). */
+  addedWindow: AddedWindow;
   onSelect: (entry: VocabEntry) => void;
   /** "Xoá" trong popover của thẻ — "Chế độ xoá" toàn cục đã gỡ (#159). */
   onDelete: (entry: VocabEntry) => void;
@@ -71,6 +84,7 @@ export const WordCloud = memo(function WordCloud({
   lang,
   label,
   grouping,
+  addedWindow,
   onSelect,
   onDelete,
   onMarkKnown,
@@ -86,10 +100,11 @@ export const WordCloud = memo(function WordCloud({
   // buildCloud duyệt + sắp cả nghìn entry — chỉ tính lại khi tập từ, cách sắp
   // xếp hay bộ lọc đổi, không phải mỗi lần cha re-render (vd toast tự tắt).
   const tags = useMemo(
-    () => buildCloud(entries, { now, sort, lang, label }).filter((t) => (onlyDue ? t.due : true)),
+    () => buildCloud(entries, { now, sort, lang, label, addedWindow }).filter((t) => (onlyDue ? t.due : true)),
     // "now" cố ý không nằm trong deps: chỉ dùng làm mốc chấm điểm log-decay
-    // (tắt theo mặc định), không phải để tick theo thời gian thực.
-    [entries, sort, lang, label, onlyDue],
+    // (tắt theo mặc định) và mốc cắt của cửa sổ "thêm trong" — cửa sổ tính bằng
+    // ngày nên trôi một chút giữa hai lần render không đổi kết quả.
+    [entries, sort, lang, label, onlyDue, addedWindow],
   );
 
   const [popover, setPopover] = useState<PopoverState | null>(null);
@@ -139,15 +154,18 @@ export const WordCloud = memo(function WordCloud({
   }, [tags, popover]);
 
   if (tags.length === 0) {
-    // "Chưa có từ nào" và "bộ lọc nhãn vét sạch bản đồ" là hai tình cảnh khác
-    // nhau — mời tra từ khi kho đang trống thì đúng, khi đang lọc thì vô duyên.
+    // Bản đồ trống vì bộ lọc thì nói rõ là do bộ lọc — mời tra từ khi kho đang
+    // trống thì đúng, khi đang lọc thì vô duyên. Hai bộ lọc có thể cùng che, khi
+    // đó gọi tên cái hẹp hơn (nhãn) vì người dùng vừa chọn nó có chủ đích.
     return (
       <p className="empty">
-        {label === "all"
-          ? "Chưa có từ nào trên bản đồ. Tra một từ rồi bấm “＋ Học từ này” để bắt đầu."
-          : label === "none"
-            ? "Mọi từ trên bản đồ đều đã có nhãn."
-            : `Không có từ nào mang nhãn “${label}”.`}
+        {label === "none"
+          ? "Mọi từ trên bản đồ đều đã có nhãn."
+          : label !== "all"
+            ? `Không có từ nào mang nhãn “${label}”.`
+            : addedWindow !== "all"
+              ? `Không có từ nào được thêm trong ${ADDED_WINDOW_LABEL[addedWindow].toLowerCase()}. Đổi bộ lọc “Thêm trong” để xem thêm.`
+              : "Chưa có từ nào trên bản đồ. Tra một từ rồi bấm “＋ Học từ này” để bắt đầu."}
       </p>
     );
   }

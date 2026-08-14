@@ -159,6 +159,9 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
   `title` và "Chế độ xoá" toàn cục trước đây. Long-press và vị trí neo là logic
   thuần ở `domain/tagPopover.ts`; UI ở `ui/TagPopover.tsx` + `ui/cloud.css`.
 - **Trạng thái rỗng**: "Chưa có từ nào trên bản đồ. Hãy tra một từ để bắt đầu."
+  Khi bản đồ trống *vì* bộ lọc thì báo đúng nguyên nhân — nhãn ("Không có từ nào
+  mang nhãn…") hoặc "Thêm trong" ("Không có từ nào được thêm trong 7 ngày qua…")
+  — thay vì rủ đi thêm từ. Hai bộ lọc cùng che thì gọi tên nhãn.
 
 ### Filter Bar (`review/ui/FilterBar.tsx`)
 
@@ -168,6 +171,7 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
 | **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
+| **Thêm trong** | Mọi lúc / 1 · 7 · 30 · 90 ngày qua — khoanh vùng một đợt học theo `created_at` (lúc **thêm** từ, không phải lượt tra); lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.addedWindow.v1`) |
 | **Nhãn** | Tất cả / Chưa gắn nhãn / một nhãn cụ thể kèm số thẻ ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi kho đã có nhãn |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
@@ -226,10 +230,11 @@ UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
   cứ lúc nào.
 
 Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`) **lọc theo ngôn ngữ
-đang chọn** — cùng một lựa chọn cho cả hai lối vào (nút Hôm nay và Filter Bar).
-Tiêu đề tab / huy hiệu PWA / huy hiệu nav vẫn đếm **tổng** không lọc, nên khi bộ
-lọc vét sạch hàng đợi màn Hôm nay nói rõ "Không có từ *tiếng X* đến hạn" thay vì
-báo đã ôn xong. Phiên **chụp một lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
+và cửa sổ "Thêm trong" đang chọn** — cùng một lựa chọn cho cả hai lối vào (nút
+Hôm nay và Filter Bar). Tiêu đề tab / huy hiệu PWA / huy hiệu nav vẫn đếm **tổng**
+không lọc, nên khi bộ lọc vét sạch hàng đợi màn Hôm nay nói rõ bộ lọc nào đang
+che ("Không có từ *tiếng X* *thêm trong 7 ngày qua* đến hạn") thay vì báo đã ôn
+xong. Phiên **chụp một lần** lúc mở rồi tự xếp thứ tự + chia lô (`review/domain/session.ts`,
 [LOGIC §4.8](./LOGIC.md)). Khi một từ vượt ngưỡng `matureThreshold` (21 ngày) nó
 `→ LEARNED` và rời bản đồ; nếu rớt ngưỡng trở lại thì `→ RELAPSED`.
 

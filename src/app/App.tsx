@@ -14,8 +14,16 @@ import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { LabelDialog } from "@/features/review/ui/LabelDialog";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
-import { CloudSort, CloudLang, CloudGrouping, filterByLang } from "@/features/review/domain/wordcloud";
+import {
+  AddedWindow,
+  CloudSort,
+  CloudLang,
+  CloudGrouping,
+  filterByAddedWithin,
+  filterByLang,
+} from "@/features/review/domain/wordcloud";
 import { loadCloudLang, saveCloudLang } from "@/features/review/domain/cloudLangSettings";
+import { loadAddedWindow, saveAddedWindow } from "@/features/review/domain/addedWindowSettings";
 import { labelCounts, LabelFilter } from "@/features/review/domain/labels";
 import { listenableEntries } from "@/features/review/domain/listen";
 import { formatLastSync } from "@/features/review/domain/syncStatus";
@@ -284,6 +292,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     saveCloudLang(lang);
   }, []);
   const [grouping, setGrouping] = useState<CloudGrouping>("none");
+  // Khoanh vùng "đợt học gần đây" (#250): thu hẹp bản đồ VÀ hàng đợi ôn về những
+  // từ mới thêm. Persist cùng lý do với cloudLang — đợt học kéo dài nhiều phiên.
+  const [addedWindow, setAddedWindow] = useState<AddedWindow>(loadAddedWindow);
+  const changeAddedWindow = useCallback((added: AddedWindow) => {
+    setAddedWindow(added);
+    saveAddedWindow(added);
+  }, []);
   // Lọc bản đồ theo nhãn (#249). Nhãn cuối cùng mang tên đó có thể bị gỡ ngay
   // trong lúc đang lọc — khi ấy trả bộ lọc về "Tất cả" thay vì để người dùng
   // nhìn bản đồ trống với một ô lọc trỏ vào nhãn không còn tồn tại.
@@ -368,8 +383,10 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // (Hôm nay + Kho từ) và số hiển thị kèm — dueCount (tổng) ở trên giữ nguyên
   // cho tiêu đề tab/app badge/huy hiệu nav, không phụ thuộc bộ lọc UI.
   const dueEntriesForReview = useMemo(
-    () => filterByLang(store.dueEntries, cloudLang),
-    [store.dueEntries, cloudLang],
+    // Mốc "bây giờ" đọc lúc tính: store.dueEntries tự tick mỗi phút nên memo này
+    // được làm mới thường xuyên hơn nhiều so với độ trôi (ngày) của cửa sổ.
+    () => filterByAddedWithin(filterByLang(store.dueEntries, cloudLang), addedWindow, Date.now()),
+    [store.dueEntries, cloudLang, addedWindow],
   );
   // Chế độ nghe chạy trên toàn bộ từ đang học, không theo hạn ôn — chỉ đếm ở
   // đây, danh sách phát do ListenSession tự dựng (và xáo lại mỗi vòng).
@@ -667,12 +684,14 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 lang={cloudLang}
                 label={labelFilter}
                 grouping={grouping}
+                addedWindow={addedWindow}
                 onToggleHighlight={() => setHighlightDue((v) => !v)}
                 onToggleOnlyDue={() => setOnlyDue((v) => !v)}
                 onSortChange={setSort}
                 onLangChange={changeCloudLang}
                 onLabelChange={setLabelFilter}
                 onGroupingChange={setGrouping}
+                onAddedWindowChange={changeAddedWindow}
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
                 listenCount={listenCount}
                 onStartListen={() => setListening(true)}
@@ -703,6 +722,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                   totalDueCount={dueCount}
                   lang={cloudLang}
                   onLangChange={changeCloudLang}
+                  addedWindow={addedWindow}
                   learnedCount={store.learnedEntries.length}
                   forgotten={mostForgotten(store.entries)}
                   loadStats={loadStats}
@@ -770,6 +790,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                   lang={cloudLang}
                   label={labelFilter}
                   grouping={grouping}
+                  addedWindow={addedWindow}
                   onSelect={onSelectTag}
                   onDelete={store.deleteEntry}
                   onMarkKnown={store.markKnownEntry}
