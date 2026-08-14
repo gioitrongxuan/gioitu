@@ -10,7 +10,8 @@ import {
   groupByPeriod,
   groupBySrsTier,
   dueEntriesInGroup,
-  ADDED_WINDOW_LABEL,
+  addedWindowPhrase,
+  narrowsAdded,
   AddedWindow,
   CloudSort,
   CloudLang,
@@ -163,8 +164,8 @@ export const WordCloud = memo(function WordCloud({
           ? "Mọi từ trên bản đồ đều đã có nhãn."
           : label !== "all"
             ? `Không có từ nào mang nhãn “${label}”.`
-            : addedWindow !== "all"
-              ? `Không có từ nào được thêm trong ${ADDED_WINDOW_LABEL[addedWindow].toLowerCase()}. Đổi bộ lọc “Thêm trong” để xem thêm.`
+            : narrowsAdded(addedWindow)
+              ? `Không có từ nào được ${addedWindowPhrase(addedWindow)}. Đổi bộ lọc “Thêm trong” để xem thêm.`
               : "Chưa có từ nào trên bản đồ. Tra một từ rồi bấm “＋ Học từ này” để bắt đầu."}
       </p>
     );

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { SearchIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { TodayStats } from "@/features/review/data/todayStats";
-import { ADDED_WINDOW_LABEL, AddedWindow, CloudLang } from "@/features/review/domain/wordcloud";
+import { addedWindowPhrase, narrowsAdded, AddedWindow, CloudLang } from "@/features/review/domain/wordcloud";
 import { LangSelect } from "@/features/review/ui/LangSelect";
 import "./shell.css";
 
@@ -81,10 +81,7 @@ export function TodayScreen({
   // Còn nợ nhưng hero trống nghĩa là một bộ lọc đang che hàng đợi — gọi tên
   // đúng bộ lọc đó, và chỉ đường tới nơi chỉnh được nó (ô "Thêm trong" nằm ở
   // Kho từ, không có mặt trên màn này).
-  const hiddenBy = [
-    LANG_LABELS[lang],
-    addedWindow === "all" ? undefined : `thêm trong ${ADDED_WINDOW_LABEL[addedWindow].toLowerCase()}`,
-  ]
+  const hiddenBy = [LANG_LABELS[lang], narrowsAdded(addedWindow) ? addedWindowPhrase(addedWindow) : undefined]
     .filter(Boolean)
     .join(" ");
 
@@ -107,7 +104,7 @@ export function TodayScreen({
           <>
             <h2 className="today-hero-title">{`Không có từ ${hiddenBy ? `${hiddenBy} ` : ""}đến hạn`}</h2>
             <p className="today-hero-sub">
-              {addedWindow === "all"
+              {!narrowsAdded(addedWindow)
                 ? "Đổi ngôn ngữ ở trên để xem các từ đến hạn khác."
                 : "Nới bộ lọc “Thêm trong” ở Kho từ để xem các từ đến hạn khác."}
             </p>

@@ -39,3 +39,27 @@ export function formatDayMonth(ts: number): string {
 export function isoDate(at: Date): string {
   return at.toISOString().slice(0, 10);
 }
+
+/**
+ * "YYYY-MM-DD" theo lịch ĐỊA PHƯƠNG — đúng định dạng giá trị của
+ * `<input type="date">`. Khác `isoDate` (cắt theo UTC): ô chọn ngày hiển thị
+ * lịch của người dùng nên mốc phải cùng hệ quy chiếu với `startOfDay`.
+ */
+export function toDateInput(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/**
+ * Nửa đêm địa phương của một chuỗi "YYYY-MM-DD" (giá trị `<input type="date">`),
+ * epoch ms; `null` nếu chuỗi rỗng, sai định dạng hoặc không phải ngày có thật.
+ */
+export function parseDateInput(value: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (m == null) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const at = new Date(year, month - 1, day);
+  // Date tự cuộn tràn tháng (31/02 → 03/03) — chỉ nhận khi ba mảnh còn nguyên.
+  if (at.getFullYear() !== year || at.getMonth() !== month - 1 || at.getDate() !== day) return null;
+  return at.getTime();
+}

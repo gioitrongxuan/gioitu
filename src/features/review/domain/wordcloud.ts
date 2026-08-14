@@ -10,7 +10,7 @@ import { VocabEntry } from "@/shared/types";
 import { LangCode } from "@/shared/languages";
 import { meaningToLines } from "@/shared/meaning";
 import { formatRelative } from "@/shared/format";
-import { DAY_MS, pad2, startOfDay } from "@/shared/date";
+import { DAY_MS, pad2, parseDateInput, startOfDay } from "@/shared/date";
 
 export interface CloudTag {
   entry: VocabEntry;
@@ -111,18 +111,39 @@ export function filterByLang<T extends Pick<VocabEntry, "term_lang">>(entries: T
  * `groupByPeriod`: cái kia *chia nhóm* để xem, cái này *thu hẹp* tập từ (kéo
  * theo cả hàng đợi phiên ôn).
  */
-export type AddedWindow = "all" | "1d" | "7d" | "30d" | "90d";
+export type AddedWindowPreset = "all" | "1d" | "7d" | "30d" | "90d";
+
+/**
+ * Khoảng ngày người dùng tự chọn bằng date picker (#259) — cho những đợt học
+ * không rơi vào mốc "N ngày qua" ("tuần tôi ôn cho JLPT hồi tháng 5"). Hai đầu
+ * là chuỗi "YYYY-MM-DD" của `<input type="date">`; đầu để rỗng = mở, nên chọn
+ * mỗi "Từ" là "từ ngày đó đến nay". Cả hai rỗng = không thu hẹp gì.
+ */
+export interface AddedRange {
+  kind: "range";
+  from: string;
+  to: string;
+}
+
+export type AddedWindow = AddedWindowPreset | AddedRange;
+
+/** Khoảng ngày trống — trạng thái khởi đầu khi vừa chọn "Khoảng ngày…". */
+export const EMPTY_ADDED_RANGE: AddedRange = { kind: "range", from: "", to: "" };
+
+export function isAddedPreset(added: AddedWindow): added is AddedWindowPreset {
+  return typeof added === "string";
+}
 
 /** Số ngày của mỗi cửa sổ; "all" không có mốc nên nằm ngoài bảng. */
-export const ADDED_WINDOW_DAYS: Record<Exclude<AddedWindow, "all">, number> = {
+export const ADDED_WINDOW_DAYS: Record<Exclude<AddedWindowPreset, "all">, number> = {
   "1d": 1,
   "7d": 7,
   "30d": 30,
   "90d": 90,
 };
 
-/** Nhãn tiếng Việt của mỗi cửa sổ — dùng chung cho select và câu báo rỗng. */
-export const ADDED_WINDOW_LABEL: Record<AddedWindow, string> = {
+/** Nhãn tiếng Việt của mỗi cửa sổ dựng sẵn — dùng chung cho select và câu báo rỗng. */
+export const ADDED_WINDOW_LABEL: Record<AddedWindowPreset, string> = {
   all: "Mọi lúc",
   "1d": "1 ngày qua",
   "7d": "7 ngày qua",
@@ -130,15 +151,62 @@ export const ADDED_WINDOW_LABEL: Record<AddedWindow, string> = {
   "90d": "90 ngày qua",
 };
 
-/** Keep only entries added within the chosen window ("all" keeps everything). */
+/**
+ * Cửa sổ có thực sự thu hẹp tập từ không. "all" và khoảng ngày chưa chọn đầu
+ * nào đều là "mọi lúc" — nơi nào gọi tên bộ lọc đang che (Hôm nay, bản đồ
+ * trống) phải hỏi hàm này thay vì so với "all".
+ */
+export function narrowsAdded(added: AddedWindow): boolean {
+  if (isAddedPreset(added)) return added !== "all";
+  return parseDateInput(added.from) != null || parseDateInput(added.to) != null;
+}
+
+/** Nhãn ngắn "dd/MM/yyyy" cho một đầu khoảng ngày. */
+function formatBound(value: string): string | null {
+  const at = parseDateInput(value);
+  if (at == null) return null;
+  const d = new Date(at);
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/**
+ * Mệnh đề gọi tên cửa sổ trong câu ("Không có từ nào được ..."): cửa sổ dựng
+ * sẵn đọc là "thêm trong 7 ngày qua", khoảng ngày đọc là "thêm từ … đến …".
+ * Trả chuỗi rỗng khi cửa sổ không thu hẹp gì.
+ */
+export function addedWindowPhrase(added: AddedWindow): string {
+  if (isAddedPreset(added)) {
+    return added === "all" ? "" : `thêm trong ${ADDED_WINDOW_LABEL[added].toLowerCase()}`;
+  }
+  const from = formatBound(added.from);
+  const to = formatBound(added.to);
+  if (from != null && to != null) return `thêm từ ${from} đến ${to}`;
+  if (from != null) return `thêm từ ${from}`;
+  if (to != null) return `thêm đến hết ${to}`;
+  return "";
+}
+
+/**
+ * Keep only entries added within the chosen window ("all" keeps everything).
+ * Khoảng ngày cắt theo ngày địa phương và bao trọn cả hai đầu: từ nửa đêm đầu
+ * ngày "Từ" đến hết ngày "Đến" — người dùng chọn ngày, không chọn giờ.
+ */
 export function filterByAddedWithin<T extends Pick<VocabEntry, "created_at">>(
   entries: T[],
   added: AddedWindow,
   now: number,
 ): T[] {
-  if (added === "all") return entries;
-  const from = now - ADDED_WINDOW_DAYS[added] * DAY_MS;
-  return entries.filter((e) => e.created_at >= from);
+  if (isAddedPreset(added)) {
+    if (added === "all") return entries;
+    const from = now - ADDED_WINDOW_DAYS[added] * DAY_MS;
+    return entries.filter((e) => e.created_at >= from);
+  }
+  const from = parseDateInput(added.from);
+  const to = parseDateInput(added.to);
+  if (from == null && to == null) return entries;
+  return entries.filter(
+    (e) => (from == null || e.created_at >= from) && (to == null || e.created_at < to + DAY_MS),
+  );
 }
 
 /**

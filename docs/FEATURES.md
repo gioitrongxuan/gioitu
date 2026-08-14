@@ -171,7 +171,8 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Nổi bật từ cần ôn** | Làm nổi từ đến hạn, làm mờ phần còn lại |
 | **Chỉ hiện từ cần ôn** | Chỉ giữ lại từ đến hạn |
 | **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
-| **Thêm trong** | Mọi lúc / 1 · 7 · 30 · 90 ngày qua — khoanh vùng một đợt học theo `created_at` (lúc **thêm** từ, không phải lượt tra); lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.addedWindow.v1`) |
+| **Thêm trong** | Mọi lúc / 1 · 7 · 30 · 90 ngày qua / **Khoảng ngày…** — khoanh vùng một đợt học theo `created_at` (lúc **thêm** từ, không phải lượt tra); lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.addedWindow.v1`) |
+| **Từ · Đến** (khi chọn "Khoảng ngày…") | Hai ô `<input type="date">` cho đợt học không rơi đúng mốc "N ngày qua" ([#259](https://github.com/gioitrongxuan/gioitu/issues/259)). Cắt theo **ngày địa phương**, bao trọn cả hai đầu; bỏ trống một đầu là để ngỏ đầu đó ("từ 01/05 đến nay"); bỏ trống cả hai = Mọi lúc. Không chọn được ngày ở tương lai |
 | **Nhãn** | Tất cả / Chưa gắn nhãn / một nhãn cụ thể kèm số thẻ ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi kho đã có nhãn |
 | **Gắn nhãn AI** | Nhờ AI đề xuất nhãn cho toàn bộ từ đang được lọc, duyệt rồi áp dụng một lượt ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi đã đăng nhập |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |

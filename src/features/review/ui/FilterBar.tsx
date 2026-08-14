@@ -9,8 +9,11 @@ import {
   groupByPeriod,
   groupBySrsTier,
   isVisibleOnCloud,
+  isAddedPreset,
   ADDED_WINDOW_LABEL,
   AddedWindow,
+  AddedWindowPreset,
+  EMPTY_ADDED_RANGE,
   CloudSort,
   CloudLang,
   CloudGrouping,
@@ -22,7 +25,12 @@ import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCl
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { ChevronDownIcon, DownloadIcon, HeadphonesIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
+import { toDateInput } from "@/shared/date";
 import "./review.css";
+
+// Giá trị riêng của mục "Khoảng ngày…" trong select — không trùng mã cửa sổ nào
+// dựng sẵn, chỉ sống trong FilterBar (state thật là một AddedRange).
+const RANGE_OPTION = "range";
 
 interface Props {
   /** Toàn bộ entry của bản đồ — chỉ dùng cho nút "Tải ảnh PNG" (issue #161). */
@@ -88,6 +96,9 @@ export function FilterBar({
   // Chỉ những từ đang hiện trên bản đồ mới cấp nhãn cho bộ lọc — nhãn của từ đã
   // thuộc mà lọt vào đây thì chọn xong chỉ ra bản đồ trống.
   const labels = useMemo(() => labelCounts(entries.filter(isVisibleOnCloud)), [entries]);
+  // Không ai thêm từ ở tương lai — chặn ngay trong lịch thay vì để người dùng
+  // chọn xong mới thấy bản đồ trống.
+  const today = toDateInput(Date.now());
 
   // Soi gương pipeline của WordCloud.tsx (buildCloud → lọc onlyDue) để mọi thứ
   // đi ra từ thanh này — ảnh PNG, tập từ gắn nhãn hàng loạt — đúng bằng cái
@@ -142,16 +153,48 @@ export function FilterBar({
         <label className="sort-select">
           Thêm trong
           <select
-            value={addedWindow}
-            onChange={(e) => onAddedWindowChange(e.target.value as AddedWindow)}
+            value={isAddedPreset(addedWindow) ? addedWindow : RANGE_OPTION}
+            onChange={(e) =>
+              onAddedWindowChange(
+                e.target.value === RANGE_OPTION
+                  ? EMPTY_ADDED_RANGE
+                  : (e.target.value as AddedWindowPreset),
+              )
+            }
           >
             {Object.entries(ADDED_WINDOW_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
+            <option value={RANGE_OPTION}>Khoảng ngày…</option>
           </select>
         </label>
+        {/* Đợt học không rơi đúng mốc "N ngày qua" thì chọn thẳng hai đầu ngày
+            (#259). Bỏ trống một đầu là để ngỏ đầu đó — "từ 01/05 đến nay". */}
+        {!isAddedPreset(addedWindow) && (
+          <div className="added-range">
+            <label className="sort-select">
+              Từ
+              <input
+                type="date"
+                value={addedWindow.from}
+                max={addedWindow.to || today}
+                onChange={(e) => onAddedWindowChange({ ...addedWindow, from: e.target.value })}
+              />
+            </label>
+            <label className="sort-select">
+              Đến
+              <input
+                type="date"
+                value={addedWindow.to}
+                min={addedWindow.from || undefined}
+                max={today}
+                onChange={(e) => onAddedWindowChange({ ...addedWindow, to: e.target.value })}
+              />
+            </label>
+          </div>
+        )}
         <label className="sort-select">
           Sắp xếp
           <select value={sort} onChange={(e) => onSortChange(e.target.value as CloudSort)}>
