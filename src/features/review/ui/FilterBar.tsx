@@ -48,6 +48,13 @@ interface Props {
   /** Số từ nghe được ở phạm vi hiện tại — 0 thì không mở được chế độ nghe. */
   listenCount: number;
   onStartListen: () => void;
+  /**
+   * Gắn nhãn hàng loạt bằng AI (#249) cho ĐÚNG tập từ đang hiện trên bản đồ —
+   * Filter Bar là nơi duy nhất biết đủ mọi bộ lọc nên nó tự dựng tập ấy. Endpoint
+   * AI cần đăng nhập, chưa đăng nhập thì không dựng nút để khỏi mời gọi suông.
+   */
+  canBulkLabel: boolean;
+  onBulkLabel: (entries: VocabEntry[]) => void;
 }
 
 export function FilterBar({
@@ -70,6 +77,8 @@ export function FilterBar({
   onStartReview,
   listenCount,
   onStartListen,
+  canBulkLabel,
+  onBulkLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
   const { theme } = useTheme();
@@ -80,14 +89,18 @@ export function FilterBar({
   // thuộc mà lọt vào đây thì chọn xong chỉ ra bản đồ trống.
   const labels = useMemo(() => labelCounts(entries.filter(isVisibleOnCloud)), [entries]);
 
-  // Soi gương pipeline của WordCloud.tsx (buildCloud → lọc onlyDue → nhóm) để
-  // ảnh xuất đúng cái đang hiển thị. Trạng thái highlight/dim là tín hiệu hành
-  // động nhất thời, không phải dữ liệu — cố ý không tái tạo trong ảnh.
+  // Soi gương pipeline của WordCloud.tsx (buildCloud → lọc onlyDue) để mọi thứ
+  // đi ra từ thanh này — ảnh PNG, tập từ gắn nhãn hàng loạt — đúng bằng cái
+  // người dùng đang nhìn. Tính lúc bấm chứ không mỗi lần render: cả hai đều là
+  // hành động một nhát, còn buildCloud thì duyệt cả nghìn entry.
+  const visibleTags = (now: number): CloudTag[] =>
+    buildCloud(entries, { now, sort, lang, label, addedWindow }).filter((t) => (onlyDue ? t.due : true));
+
+  // Trạng thái highlight/dim là tín hiệu hành động nhất thời, không phải dữ
+  // liệu — cố ý không tái tạo trong ảnh.
   const exportSections = (): ExportCloudSection[] => {
     const now = Date.now();
-    const tags = buildCloud(entries, { now, sort, lang, label, addedWindow }).filter((t) =>
-      onlyDue ? t.due : true,
-    );
+    const tags = visibleTags(now);
     const toTag = ({ entry, shade, hasBadge }: CloudTag): ExportCloudTag => ({ term: entry.term, shade, hasBadge });
     if (grouping === "none") return [{ tags: tags.map(toTag) }];
     const groups = grouping === "srs" ? groupBySrsTier(tags) : groupByPeriod(tags, grouping, now);
@@ -166,6 +179,16 @@ export function FilterBar({
         <button type="button" className={`chip-toggle${onlyDue ? " on" : ""}`} aria-pressed={onlyDue} onClick={onToggleOnlyDue}>
           Chỉ hiện từ cần ôn
         </button>
+        {canBulkLabel && (
+          <button
+            type="button"
+            className="chip-toggle"
+            disabled={!hasCloudTags}
+            onClick={() => onBulkLabel(visibleTags(Date.now()).map((t) => t.entry))}
+          >
+            Gắn nhãn AI
+          </button>
+        )}
         <button type="button" className="export-btn" onClick={handleExport} disabled={exporting || !hasCloudTags}>
           <DownloadIcon size={16} />
           {exporting ? "Đang xuất…" : "Tải ảnh PNG"}

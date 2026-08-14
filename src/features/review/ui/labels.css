@@ -41,6 +41,27 @@
   gap: var(--space-3); margin-top: var(--space-6);
 }
 
+/* Gắn nhãn hàng loạt: mỗi dòng là một từ + nhãn đề xuất. Danh sách có thể dài
+   cả trăm dòng nên tự cuộn trong hộp thoại thay vì đẩy hàng nút xuống ngoài
+   màn hình. */
+.bulk-label-actions { display: flex; gap: var(--space-3); margin: var(--space-3) 0 0; }
+
+.bulk-label-list {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  margin: var(--space-3) 0 0; padding: 0; list-style: none;
+  max-height: 46vh; overflow-y: auto;
+}
+
+.bulk-label-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-2); border-bottom: 1px solid var(--line);
+}
+
+.bulk-label-term { font-size: var(--text-md); font-weight: 600; min-width: 6ch; }
+
+/* Nhãn thẻ đã có: chỉ để đối chiếu, đứng lùi một bậc so với nhãn đang được duyệt. */
+.bulk-label-current { border-color: var(--line); background: var(--surface); color: var(--muted); }
+
 @media (pointer: coarse) {
   .label-chip { min-height: 44px; }
   .label-chip-remove { min-width: 44px; min-height: 44px; }

@@ -352,6 +352,43 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     [upsertLocal, scheduleSync],
   );
 
+  /**
+   * Ghi nhãn cho NHIỀU thẻ một lượt (gắn nhãn hàng loạt bằng AI, #249). Không
+   * gọi `setEntryLabels` trong vòng lặp: mỗi lượt sẽ bắn một toast và một lần
+   * `setEntries` — hàng chục toast chồng nhau và ngần ấy lần render lại bản đồ.
+   * Ở đây ghi IndexedDB tuần tự (tránh dựng hàng chục transaction song song),
+   * rồi cập nhật danh sách trong MỘT lần setState, một lần hẹn đồng bộ, một toast.
+   * Trả về số thẻ thực sự đổi để nơi gọi biết đường đóng hộp thoại.
+   */
+  const setManyEntryLabels = useCallback(
+    async (changes: { entry: VocabEntry; labels: string[] }[]) => {
+      const now = Date.now();
+      const updated: VocabEntry[] = [];
+      for (const { entry, labels } of changes) {
+        const next = entryLabels({ labels });
+        const current = entryLabels(entry);
+        if (next.length === current.length && next.every((l, i) => l === current[i])) continue;
+        const row: VocabEntry = { ...entry, labels: next, updated_at: now };
+        await putEntry(row);
+        updated.push(row);
+      }
+      if (updated.length === 0) return 0;
+      setEntries((list) => {
+        const next = list.slice();
+        for (const row of updated) {
+          const i = next.findIndex((e) => e.term === row.term && e.term_lang === row.term_lang);
+          if (i === -1) next.push(row);
+          else next[i] = row;
+        }
+        return next;
+      });
+      scheduleSync();
+      pushToast(`Đã gắn nhãn cho ${updated.length} từ`, "success");
+      return updated.length;
+    },
+    [scheduleSync],
+  );
+
   /** "Xoá" — tombstone the word: persist the deletion (so it syncs) but drop it
    *  from the visible list. */
   const deleteEntry = useCallback(
@@ -456,6 +493,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     markKnownByTerm,
     markForgottenEntry,
     setEntryLabels,
+    setManyEntryLabels,
     deleteEntry,
     runSync,
     exportBackup,

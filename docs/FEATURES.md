@@ -173,6 +173,7 @@ càng nhiều. (`review/ui/WordCloud.tsx`, `domain/wordcloud.ts`)
 | **Ngôn ngữ** | Cả hai / Tiếng Nhật / Tiếng Anh — lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.cloudLang.v1`), dùng chung với màn Hôm nay |
 | **Thêm trong** | Mọi lúc / 1 · 7 · 30 · 90 ngày qua — khoanh vùng một đợt học theo `created_at` (lúc **thêm** từ, không phải lượt tra); lọc bản đồ **và** hàng đợi ôn; nhớ qua `localStorage` (`gioitu.addedWindow.v1`) |
 | **Nhãn** | Tất cả / Chưa gắn nhãn / một nhãn cụ thể kèm số thẻ ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi kho đã có nhãn |
+| **Gắn nhãn AI** | Nhờ AI đề xuất nhãn cho toàn bộ từ đang được lọc, duyệt rồi áp dụng một lượt ([9.18](#918-nhãn-cho-thẻ-249)); chỉ hiện khi đã đăng nhập |
 | **Tải ảnh PNG** | Xuất bản đồ đang hiển thị ra ảnh PNG (xem bên dưới) |
 | **Ôn tập hôm nay (N)** | Mở phiên ôn tập; vô hiệu khi `N = 0` |
 | **Nghe** | Mở [chế độ nghe](#915-chế-độ-nghe-bulk-play-sound); vô hiệu khi không có từ nào nghe được |
@@ -851,6 +852,23 @@ rồi lọc bản đồ từ theo nhãn. Trong code gọi là `label` chứ khô
   thẻ) — chỉ liệt kê nhãn của từ đang hiện trên bản đồ. Bộ lọc chạy trong
   `buildCloud` nên ảnh PNG xuất ra khớp đúng cái đang xem. Gỡ nhãn cuối cùng
   đang được lọc thì bộ lọc tự trả về "Tất cả".
+- **Gắn hàng loạt bằng AI**: nút **Gắn nhãn AI** trên Filter Bar (chỉ hiện khi đã
+  đăng nhập) mở `review/ui/BulkLabelDialog.tsx` với **đúng tập từ đang được lọc**
+  — Filter Bar dựng tập ấy bằng chính `buildCloud` + lọc `onlyDue` như bản đồ và
+  ảnh PNG, nên ba thứ luôn khớp nhau. Chi tiết:
+  - Chia lô 20 từ mỗi lượt hỏi model (`batchItems`), tối đa **100 từ/lượt chạy**;
+    dư ra thì hộp thoại nói rõ còn bao nhiêu từ chưa hỏi thay vì lặng lẽ cắt.
+  - Một lô hỏng (mạng chập / model trả rác) không vứt các lô đã xong: báo lỗi,
+    vẫn bày kết quả thu được.
+  - AI được yêu cầu trả kèm mặt chữ để khớp lại thẻ; `proposeBulkLabels` chỉ giữ
+    phần **thực sự thêm được** (trừ nhãn trùng và phần vượt trần 8 nhãn/thẻ), thẻ
+    không còn gì để thêm thì không hiện.
+  - **Không ghi gì cho tới khi bấm "Áp dụng"**: mỗi nhãn đề xuất là một chip
+    bật/tắt, mặc định bật. Ghi bằng `store.setManyEntryLabels` — một vòng ghi
+    IndexedDB, MỘT lần cập nhật danh sách, một lần hẹn đồng bộ, một toast (thay
+    vì hàng chục toast của `setEntryLabels` gọi trong vòng lặp).
+  - Prompt/parse thuần ở `domain/bulkLabels.ts`, nối dây ở `data/aiLabels.ts`
+    (`suggestLabelsForBatch`).
 
 ## 10. Bản đồ chức năng → tài liệu
 

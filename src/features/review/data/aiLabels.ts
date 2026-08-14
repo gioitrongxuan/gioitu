@@ -5,6 +5,12 @@
 import { authToken } from "@/features/auth/data/auth";
 import { generateVocab } from "@/features/dictionary/data/aiGenerate";
 import { buildLabelPrompt, parseLabelResponse, LabelPromptInput } from "../domain/labels";
+import {
+  buildBulkLabelPrompt,
+  parseBulkLabelResponse,
+  BulkLabelItem,
+  BulkLabelSuggestion,
+} from "../domain/bulkLabels";
 
 /**
  * Trả về danh sách nhãn gợi ý (đã chuẩn hoá, có thể rỗng nếu model trả rác).
@@ -15,4 +21,17 @@ import { buildLabelPrompt, parseLabelResponse, LabelPromptInput } from "../domai
 export async function suggestLabels(input: LabelPromptInput): Promise<string[]> {
   if (!authToken()) throw new Error("Cần đăng nhập để nhờ AI gợi ý nhãn.");
   return parseLabelResponse(await generateVocab(buildLabelPrompt(input)));
+}
+
+/**
+ * Gợi ý nhãn cho MỘT lô từ (gắn nhãn hàng loạt). Nơi gọi tự chia lô bằng
+ * `batchItems` rồi gọi lần lượt — như vậy giao diện báo được tiến độ và một lô
+ * hỏng không kéo cả mẻ theo. Ném lỗi cùng lý do với bản một-thẻ.
+ */
+export async function suggestLabelsForBatch(
+  items: BulkLabelItem[],
+  vocabulary: string[],
+): Promise<BulkLabelSuggestion[]> {
+  if (!authToken()) throw new Error("Cần đăng nhập để nhờ AI gợi ý nhãn.");
+  return parseBulkLabelResponse(await generateVocab(buildBulkLabelPrompt(items, vocabulary)));
 }

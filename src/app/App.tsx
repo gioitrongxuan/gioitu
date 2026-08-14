@@ -13,6 +13,7 @@ import { LearnedCloud } from "@/features/review/ui/LearnedCloud";
 import { CloudViewControls } from "@/features/review/ui/CloudViewControls";
 import { GuestBackupBanner } from "@/features/review/ui/GuestBackupBanner";
 import { LabelDialog } from "@/features/review/ui/LabelDialog";
+import { BulkLabelDialog } from "@/features/review/ui/BulkLabelDialog";
 import { getAllEntries, reassignEntries } from "@/features/review/data/repository";
 import {
   AddedWindow,
@@ -311,6 +312,10 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   }, [knownLabels, labelFilter]);
   // Thẻ đang mở hộp thoại gắn nhãn (null = đóng).
   const [labelEntry, setLabelEntry] = useState<VocabEntry | null>(null);
+  // Tập từ đang chờ gắn nhãn hàng loạt bằng AI (null = đóng). Chụp tại lúc bấm
+  // trên Filter Bar: bộ lọc có thể đổi sau đó, nhưng hộp thoại phải làm việc với
+  // đúng tập từ người dùng đã thấy khi mở nó.
+  const [bulkLabelEntries, setBulkLabelEntries] = useState<VocabEntry[] | null>(null);
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
@@ -369,6 +374,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   useBackEntry(premium, () => setPremium(false));
   useBackEntry(contribReview, () => setContribReview(false));
   useBackEntry(labelEntry != null, () => setLabelEntry(null));
+  useBackEntry(bulkLabelEntries != null, () => setBulkLabelEntries(null));
   useBackEntry(rating, () => setRating(false));
   useBackEntry(ratingReview, () => setRatingReview(false));
   useBackEntry(quickAdd != null, () => setQuickAdd(null));
@@ -695,6 +701,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                 onStartReview={() => setReviewQueue(dueEntriesForReview)}
                 listenCount={listenCount}
                 onStartListen={() => setListening(true)}
+                canBulkLabel={email != null}
+                onBulkLabel={setBulkLabelEntries}
               />
             )}
             {page === "learned" && (
@@ -829,6 +837,18 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             setLabelEntry(null);
           }}
           onClose={() => setLabelEntry(null)}
+        />
+      )}
+
+      {bulkLabelEntries && (
+        <BulkLabelDialog
+          entries={bulkLabelEntries}
+          known={knownLabels}
+          onApply={(changes) => {
+            void store.setManyEntryLabels(changes);
+            setBulkLabelEntries(null);
+          }}
+          onClose={() => setBulkLabelEntries(null)}
         />
       )}
 
