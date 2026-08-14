@@ -12,6 +12,8 @@
 // inverse used wherever we only need a plain-text summary (suggestions, the SRS
 // card back, the value stored on a VocabEntry).
 
+import { toNfc } from "./text";
+
 /** A node inside a structured-content tree. */
 export type SCNode =
   | string
@@ -137,8 +139,11 @@ function collectText(node: SCNode | GlossaryNode, skipDetails: boolean): string 
   return "";
 }
 
+// NFC trước khi dọn khoảng trắng: glossary từ nguồn cào web lẫn lộn NFC/NFD cho
+// tiếng Việt có dấu (xem shared/text), mà bản phẳng này còn chảy tiếp vào mặt sau
+// thẻ SRS, gợi ý và `VocabEntry.meaning` — chuẩn hoá ở đây thì mọi nơi đó sạch.
 function normalizeText(s: string): string {
-  return s.replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
+  return toNfc(s).replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
 }
 
 /**
