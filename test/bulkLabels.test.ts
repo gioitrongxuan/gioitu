@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   batchItems,
   buildBulkLabelPrompt,
+  buildTargetLabelPrompt,
   parseBulkLabelResponse,
+  parseTargetLabelResponse,
   proposeBulkLabels,
   BULK_LABEL_BATCH_SIZE,
   MAX_BULK_LABELS_PER_ENTRY,
@@ -99,6 +101,87 @@ describe("parseBulkLabelResponse", () => {
   it("JSON hỏng / rỗng → mảng rỗng, không ném", () => {
     expect(parseBulkLabelResponse("xin lỗi, tôi không thể")).toEqual([]);
     expect(parseBulkLabelResponse("")).toEqual([]);
+  });
+});
+
+describe("buildTargetLabelPrompt", () => {
+  const prompt = buildTargetLabelPrompt(
+    [
+      { term: "会議", reading: "かいぎ", meaning: "cuộc họp", current: ["N3"] },
+      { term: "S3", meaning: "kho lưu trữ đối tượng", current: [] },
+    ],
+    "Thuật ngữ AWS",
+  );
+
+  it("nói rõ nhãn cần sàng và liệt kê đủ mọi từ", () => {
+    expect(prompt).toContain('Nhãn cần sàng: "Thuật ngữ AWS"');
+    expect(prompt).toContain("Trong 2 từ dưới đây");
+    expect(prompt).toContain("会議 [かいぎ] — cuộc họp (đã có: N3)");
+    expect(prompt).toContain("- S3 — kho lưu trữ đối tượng");
+  });
+
+  it("cho phép trả rỗng và đòi JSON chỉ gồm từ được chọn", () => {
+    expect(prompt).toContain("trả về danh sách RỖNG");
+    expect(prompt).toContain("giữ nguyên mặt chữ");
+    expect(prompt).toContain('{ "results": ["từ 1", "từ 2"] }');
+  });
+});
+
+describe("parseTargetLabelResponse", () => {
+  it("mảng chuỗi trần → mỗi từ nhận đúng nhãn người dùng gõ", () => {
+    expect(parseTargetLabelResponse('{"results":["S3","EC2"]}', "Thuật ngữ AWS")).toEqual([
+      { term: "S3", labels: ["Thuật ngữ AWS"] },
+      { term: "EC2", labels: ["Thuật ngữ AWS"] },
+    ]);
+  });
+
+  it("gỡ hàng rào code, chấp nhận mảng object có mặt chữ", () => {
+    expect(parseTargetLabelResponse('```json\n[{"term":"S3"}]\n```', "AWS")).toEqual([
+      { term: "S3", labels: ["AWS"] },
+    ]);
+  });
+
+  it("nhãn gán là nhãn đã chuẩn hoá của người dùng, không phải chữ model trả về", () => {
+    expect(parseTargetLabelResponse('["S3"]', " #Thuật ngữ AWS ")).toEqual([
+      { term: "S3", labels: ["Thuật ngữ AWS"] },
+    ]);
+  });
+
+  it("model trả cả danh sách kèm cờ thì bỏ những từ bị phủ định", () => {
+    expect(
+      parseTargetLabelResponse(
+        '{"results":[{"term":"S3","match":true},{"term":"会議","match":false},{"term":"EC2","thuoc":"không"}]}',
+        "AWS",
+      ),
+    ).toEqual([{ term: "S3", labels: ["AWS"] }]);
+  });
+
+  it("một từ trả hai lần (lệch hoa/thường) → lấy lượt đầu; phần tử rác thì bỏ", () => {
+    expect(parseTargetLabelResponse('["S3"," s3 ",7,"  ",{"labels":["mồ côi"]}]', "AWS")).toEqual([
+      { term: "S3", labels: ["AWS"] },
+    ]);
+  });
+
+  it("nhãn rỗng sau chuẩn hoá → không có gì để gán", () => {
+    expect(parseTargetLabelResponse('["S3"]', "   ")).toEqual([]);
+    expect(parseTargetLabelResponse('["S3"]', "#")).toEqual([]);
+  });
+
+  it("JSON hỏng / rỗng → mảng rỗng, không ném", () => {
+    expect(parseTargetLabelResponse("xin lỗi, tôi không thể", "AWS")).toEqual([]);
+    expect(parseTargetLabelResponse("", "AWS")).toEqual([]);
+  });
+
+  it("cắm được thẳng vào proposeBulkLabels: chỉ thẻ đang lọc và chưa có nhãn ấy mới đổi", () => {
+    const entries = [
+      makeEntry({ term: "S3" }),
+      makeEntry({ term: "EC2", labels: ["AWS"] }),
+      makeEntry({ term: "会議" }),
+    ];
+    const suggestions = parseTargetLabelResponse('["S3","EC2","Lambda"]', "AWS");
+    expect(proposeBulkLabels(entries, suggestions)).toEqual([
+      { entry: entries[0], current: [], added: ["AWS"] },
+    ]);
   });
 });
 

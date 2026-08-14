@@ -10,7 +10,13 @@
 //    hàng chục thẻ một lúc — DESIGN §3.9: phản hồi chỉ xác nhận điều đã thực sự
 //    xảy ra, và người dùng phải thấy trước mình sắp đổi gì.
 
-import { addLabel, entryLabels, mergeLabels, stripCodeFence, MAX_LABEL_LENGTH } from "./labels";
+// Cùng file còn một biến thể ngược chiều — **sàng theo một nhãn định trước**
+// (#266): người dùng gõ "Thuật ngữ AWS", AI chỉ việc trả về những từ THUỘC lĩnh
+// vực ấy. Dùng lại nguyên đường ống (chia lô → khớp mặt chữ → duyệt chip → áp
+// dụng), chỉ đổi prompt và trình phân tích: `buildTargetLabelPrompt` /
+// `parseTargetLabelResponse`.
+
+import { addLabel, entryLabels, mergeLabels, normalizeLabel, stripCodeFence, MAX_LABEL_LENGTH } from "./labels";
 
 /** Số từ gửi trong MỘT lượt hỏi: đủ để tiết kiệm lượt gọi, đủ ngắn để model
  *  không bỏ sót từ ở cuối danh sách. */
@@ -152,6 +158,93 @@ export function parseBulkLabelResponse(text: string): BulkLabelSuggestion[] {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ term: termRaw.trim(), labels });
+  }
+  return out;
+}
+
+/**
+ * Prompt sàng theo MỘT nhãn định trước (#266). Khác `buildBulkLabelPrompt` ở
+ * chiều hỏi: không phải "từ này nên mang nhãn gì" mà "trong danh sách này, từ
+ * nào thuộc *nhãn này*". Nhấn ba điều vì model rất hay trượt đúng ba chỗ đó:
+ * **được trả rỗng** (nếu không thì nó gán bừa cho có), **chỉ trả từ thuộc nhãn**
+ * (không trả cả danh sách kèm cờ true/false), và **giữ nguyên mặt chữ** (không
+ * có nó thì không khớp lại được thẻ nào).
+ */
+export function buildTargetLabelPrompt(items: BulkLabelItem[], label: string): string {
+  return [
+    `Bạn là trợ lý sắp xếp từ vựng. Nhãn cần sàng: "${label}".`,
+    `Trong ${items.length} từ dưới đây, hãy chọn ra những từ THUỘC nhãn đó:`,
+    items.map((item) => `- ${describeItem(item)}`).join("\n"),
+    `Chỉ chọn từ thực sự thuộc "${label}"; thà bỏ sót hơn gán sai.`,
+    "Nếu không từ nào thuộc nhãn đó, trả về danh sách RỖNG.",
+    "Chỉ liệt kê những từ được chọn, giữ nguyên mặt chữ của từ, đừng thêm từ mới.",
+    "Trả về DUY NHẤT một đối tượng JSON, không kèm giải thích, theo schema:",
+    '{ "results": ["từ 1", "từ 2"] }',
+  ].join("\n");
+}
+
+/** Cờ phủ định model hay chèn khi nó cứ trả cả danh sách thay vì phần được chọn. */
+function isRejected(obj: Record<string, unknown>): boolean {
+  const flag = ["match", "matches", "belongs", "thuoc", "thuộc", "value"]
+    .map((k) => obj[k])
+    .find((v) => typeof v === "boolean" || typeof v === "string");
+  if (typeof flag === "boolean") return !flag;
+  if (typeof flag === "string") return /^(false|no|không|khong)$/i.test(flag.trim());
+  return false;
+}
+
+/**
+ * Phân tích kết quả sàng theo nhãn: trả về đúng dạng `BulkLabelSuggestion` để
+ * cắm thẳng vào `proposeBulkLabels` như lượt hàng loạt thường. Khoan dung theo
+ * cùng nguyên tắc: nhận mảng chuỗi trần (dạng đã yêu cầu), mảng object có mặt
+ * chữ, hoặc object bọc; bỏ phần tử không dùng được thay vì ném.
+ *
+ * Nhãn gán cho mọi từ được chọn là **nhãn người dùng gõ** (đã chuẩn hoá), không
+ * phải chữ model trả về — người dùng đang gom một nhóm, nhãn lệch một chữ là
+ * thành hai nhóm. Nhãn rỗng sau chuẩn hoá thì không có gì để gán.
+ */
+export function parseTargetLabelResponse(text: string, label: string): BulkLabelSuggestion[] {
+  const target = normalizeLabel(label ?? "");
+  if (!target) return [];
+
+  const cleaned = stripCodeFence(text ?? "");
+  if (!cleaned) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return [];
+  }
+
+  let raw: unknown[] = [];
+  if (Array.isArray(parsed)) {
+    raw = parsed;
+  } else if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    const found =
+      ["results", "terms", "words", "items", "data", "tu", "từ"].map((k) => obj[k]).find(Array.isArray) ??
+      Object.values(obj).find(Array.isArray);
+    if (Array.isArray(found)) raw = found;
+  }
+
+  const out: BulkLabelSuggestion[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    let term: string | undefined;
+    if (typeof item === "string") {
+      term = item;
+    } else if (item && typeof item === "object" && !Array.isArray(item)) {
+      const obj = item as Record<string, unknown>;
+      if (isRejected(obj)) continue;
+      const found = ["term", "word", "tu", "từ"].map((k) => obj[k]).find((v) => typeof v === "string");
+      if (typeof found === "string") term = found;
+    }
+    if (!term?.trim()) continue;
+    const key = termKey(term);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ term: term.trim(), labels: [target] });
   }
   return out;
 }
