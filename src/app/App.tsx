@@ -797,7 +797,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                   forgotten={mostForgotten(store.entries)}
                   loadStats={loadStats}
                   onStartReview={() => setReviewQueue(dueEntriesForReview)}
-                  onGoSearch={() => gotoPage("search")}
                   onGoLearned={() => gotoPage("learned")}
                   onSelectWord={(w) => openWord(w)}
                 />

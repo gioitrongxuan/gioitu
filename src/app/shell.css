@@ -226,22 +226,6 @@
 
 .today-asset { font-size: var(--text-md); padding: 0; }
 
-.today-search {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-h);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
-  color: var(--muted);
-  font-size: var(--text-base);
-  cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
-}
-.today-search:hover { color: var(--fg); border-color: var(--accent); }
-
 /* --- Màn "Tôi" ------------------------------------------------------------- */
 
 .me-screen { display: grid; gap: var(--space-5); max-width: 560px; }

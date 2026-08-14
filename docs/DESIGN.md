@@ -99,7 +99,8 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
 
 ```
 Hôm nay   — hero "N từ đến hạn · ~X phút" → phiên ôn; streak hanko;
-            dải hoạt động 7 ngày; từ hay quên nhất; ô tìm thu gọn.
+            dải hoạt động 7 ngày; từ hay quên nhất. Tra cứu dùng SearchBar
+            toàn cục ở header — màn này KHÔNG có ô tìm riêng (#268).
 Tra cứu   — SearchBar + DetailPanel + viết tay/bộ thủ + cặp/nguồn + import.
             Deep-link /word/:lang/:term.
 Kho từ    — Word Cloud ("Khu vườn ký ức": 3 tầng Sắp quên / Đang bén rễ /

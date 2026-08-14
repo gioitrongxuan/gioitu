@@ -3,7 +3,6 @@
 // thấy cả TÀI SẢN (đã thuộc N, chuỗi ngày) chứ không chỉ nợ (N từ đến hạn).
 
 import { useEffect, useState } from "react";
-import { SearchIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { TodayStats } from "@/features/review/data/todayStats";
 import { addedWindowPhrase, narrowsAdded, AddedWindow, CloudLang } from "@/features/review/domain/wordcloud";
@@ -46,7 +45,6 @@ interface TodayScreenProps {
   /** Đọc chuỗi ngày + dải hoạt động từ nhật ký ôn (I/O do App inject). */
   loadStats: () => Promise<TodayStats>;
   onStartReview: () => void;
-  onGoSearch: () => void;
   onGoLearned: () => void;
   onSelectWord: (entry: VocabEntry) => void;
 }
@@ -61,7 +59,6 @@ export function TodayScreen({
   forgotten,
   loadStats,
   onStartReview,
-  onGoSearch,
   onGoLearned,
   onSelectWord,
 }: TodayScreenProps) {
@@ -170,13 +167,6 @@ export function TodayScreen({
 
       <button type="button" className="today-asset link" onClick={onGoLearned}>
         Đã thuộc {learnedCount} từ 🎉
-      </button>
-
-      {/* Ô tìm thu gọn: đưa sang khu Tra cứu, nơi có SearchBar đầy đủ (gợi ý
-          live, viết tay, bộ thủ) — không nhân đôi logic tra ở đây. */}
-      <button type="button" className="today-search" onClick={onGoSearch}>
-        <SearchIcon size={16} />
-        <span>Tra từ…</span>
       </button>
     </div>
   );
