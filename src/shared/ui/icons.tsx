@@ -179,6 +179,18 @@ export function HeadphonesIcon({ size = 16, className }: IconProps) {
   );
 }
 
+/** Chế độ hình ảnh (#263). Khung ảnh có núi + mặt trời — cùng ngôn ngữ "một
+ *  giác quan" với tai nghe của chế độ nghe, đứng cạnh nó trên cùng thanh. */
+export function ImageIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden {...strokeProps}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9.5" r="1.5" />
+      <path d="m3 16 5-4 4 3 3-2 6 5" />
+    </svg>
+  );
+}
+
 /** Phát âm một từ (#246). Loa tô đặc + hai vòng sóng để phân biệt với tai nghe
  *  (chế độ nghe) ở cùng một màn. */
 export function SpeakerIcon({ size = 16, className }: IconProps) {

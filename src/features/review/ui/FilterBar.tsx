@@ -3,7 +3,7 @@
 //
 // Thanh này chỉ có HAI vùng và luôn đọc được như một hàng: bên trái là trạng
 // thái xem (nút "Bộ lọc" + hai chip từ-cần-ôn), bên phải là hành động ("Nghe",
-// "Ôn tập hôm nay"). Mọi select nằm trong popover "Bộ lọc" ở MỌI bề rộng —
+// "Hình ảnh", "Ôn tập hôm nay"). Mọi select nằm trong popover "Bộ lọc" ở MỌI bề rộng —
 // trước đây desktop trải phẳng 6 select + 5 nút lên một hàng wrap, xuống dòng
 // thành những mảnh lệch nhau (nút "Nghe" mồ côi hẳn một dòng). Cùng lý do,
 // hai hành động chạy trên đúng tập từ đang hiện (gắn nhãn AI, tải PNG) nằm
@@ -31,7 +31,7 @@ import { CloudViewControls } from "./CloudViewControls";
 import { exportWordCloudPng, ExportCloudSection, ExportCloudTag } from "./wordCloudPng";
 import { useTheme } from "@/features/theme/ThemeProvider";
 import { useDialog } from "@/shared/ui/useDialog";
-import { ChevronDownIcon, DownloadIcon, FilterIcon, HeadphonesIcon } from "@/shared/ui/icons";
+import { ChevronDownIcon, DownloadIcon, FilterIcon, HeadphonesIcon, ImageIcon } from "@/shared/ui/icons";
 import { VocabEntry } from "@/shared/types";
 import { toDateInput } from "@/shared/date";
 import "./review.css";
@@ -65,6 +65,13 @@ interface Props {
   listenCount: number;
   onStartListen: () => void;
   /**
+   * Số từ ỨNG VIÊN của chế độ hình ảnh (#263) — không phải số từ thật sự có
+   * ảnh: ảnh nằm ở từ điển máy chủ, muốn biết phải tra từng từ. Trình chiếu tự
+   * bỏ qua từ trắng ảnh, ở đây chỉ cần biết có từ nào để chiếu hay không.
+   */
+  imageCount: number;
+  onStartImages: () => void;
+  /**
    * Gắn nhãn hàng loạt bằng AI (#249) cho ĐÚNG tập từ đang hiện trên bản đồ —
    * Filter Bar là nơi duy nhất biết đủ mọi bộ lọc nên nó tự dựng tập ấy. Endpoint
    * AI cần đăng nhập, chưa đăng nhập thì không dựng nút để khỏi mời gọi suông.
@@ -93,6 +100,8 @@ export function FilterBar({
   onStartReview,
   listenCount,
   onStartListen,
+  imageCount,
+  onStartImages,
   canBulkLabel,
   onBulkLabel,
 }: Props) {
@@ -190,11 +199,15 @@ export function FilterBar({
         </button>
       </div>
       <div className="filter-actions">
-        {/* Nghe không phụ thuộc hạn ôn: nó chạy trên toàn bộ từ đang học, nên
-            vẫn bấm được cả khi hôm nay không còn từ đến hạn. */}
+        {/* Nghe và Hình ảnh không phụ thuộc hạn ôn: chúng chạy trên toàn bộ từ
+            đang học, nên vẫn bấm được cả khi hôm nay không còn từ đến hạn. */}
         <button className="listen-btn" disabled={listenCount === 0} onClick={onStartListen}>
           <HeadphonesIcon size={16} />
           Nghe
+        </button>
+        <button className="image-btn" disabled={imageCount === 0} onClick={onStartImages}>
+          <ImageIcon size={16} />
+          Hình ảnh
         </button>
         <button className="review-btn" disabled={dueCount === 0} onClick={onStartReview}>
           Ôn tập hôm nay ({dueCount})

@@ -12,7 +12,10 @@
 /* position: relative để neo .filter-panel — panel bám nút "Bộ lọc" chứ không
    bám mép trái cả thanh. */
 .filter-lead { position: relative; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.filter-actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+/* flex-wrap vì vùng này có tới ba nút từ khi thêm chế độ hình ảnh (#263): màn
+   hẹp thì hai lối vào phụ ở lại dòng trên, "Ôn tập hôm nay" (flex: 1) xuống
+   dòng và ăn trọn bề ngang — thà xuống dòng gọn còn hơn tràn ra ngoài thanh. */
+.filter-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; }
 
 .filter-toggle {
   display: inline-flex; align-items: center; gap: var(--space-2);
@@ -103,19 +106,21 @@
   padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
 }
 .review-btn:disabled { background: var(--disabled); cursor: not-allowed; }
-/* "Nghe" là lối vào phụ cạnh "Ôn tập hôm nay" — viền thay vì nền đặc để không
-   tranh chỗ với hành động chính. */
-.listen-btn {
+/* "Nghe" và "Hình ảnh" là lối vào phụ cạnh "Ôn tập hôm nay" — viền thay vì nền
+   đặc để không tranh chỗ với hành động chính. Hai chế độ cùng một hạng nên
+   dùng chung một kiểu, đừng để cái nào trông "chính" hơn cái kia. */
+.listen-btn, .image-btn {
   display: inline-flex; align-items: center; gap: var(--space-2);
   border: 1px solid var(--line); background: var(--surface); color: var(--fg);
   padding: 8px 14px; border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-base);
 }
-.listen-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.listen-btn:disabled { color: var(--disabled); cursor: not-allowed; }
+.listen-btn:hover:not(:disabled), .image-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.listen-btn:disabled, .image-btn:disabled { color: var(--disabled); cursor: not-allowed; }
 /* Một chiều cao duy nhất cho cả thanh (DESIGN §2 "Control"): chip 30px đứng
    cạnh nút 38px là thứ làm hàng này trông lởm chởm. */
 .filter-lead .chip-toggle,
 .filter-actions .listen-btn,
+.filter-actions .image-btn,
 .filter-actions .review-btn { height: var(--control-h); padding-top: 0; padding-bottom: 0; }
 
 /* Mobile: hai hành động chiếm trọn một dòng riêng, "Ôn tập hôm nay" ăn hết chỗ
@@ -129,6 +134,7 @@
   .filter-toggle,
   .filter-lead .chip-toggle,
   .filter-actions .listen-btn,
+  .filter-actions .image-btn,
   .filter-actions .review-btn,
   /* ≥16px để iOS không tự phóng khi mở select (DESIGN §3.7). */
   .filter-panel .sort-select select { min-height: 44px; font-size: var(--text-md); }

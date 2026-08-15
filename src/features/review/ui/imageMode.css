@@ -1,0 +1,95 @@
+/* Chế độ hình ảnh (ImageSession). Cùng vỏ overlay với chế độ nghe; đặc thù là
+   khung ảnh giữ CHỖ CỐ ĐỊNH — ảnh Mazii đủ mọi tỉ lệ, để nó tự co thì mỗi thẻ
+   lại đẩy khối chữ nhảy một chỗ khác. */
+
+.imgmode-overlay {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: grid; place-items: center; padding: var(--space-4);
+  background: var(--overlay);
+}
+
+.imgmode-panel {
+  background: var(--surface); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: min(560px, 100%); max-height: 92dvh; overflow-y: auto;
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+
+.imgmode-head { display: flex; align-items: center; justify-content: space-between; }
+.imgmode-progress { font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.imgmode-close {
+  display: grid; place-items: center; width: 44px; height: 44px;
+  border: none; border-radius: var(--radius-full); background: none;
+  color: var(--muted); cursor: pointer;
+}
+.imgmode-close:hover { background: var(--surface-2); color: var(--fg); }
+
+/* Sân khấu = nút lật/dừng, như .listen-stage: nền phẳng, không viền — đích chạm
+   quan trọng hơn affordance vì cả khối này chỉ có một hành động. */
+.imgmode-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-2); padding: var(--space-4);
+  border: none; border-radius: var(--radius-lg); background: var(--surface-2);
+  color: var(--fg); font: inherit; text-align: center; cursor: pointer;
+}
+
+/* Khung ảnh cố định tỉ lệ: ảnh nào cũng nằm gọn bên trong (object-fit: contain)
+   nên không bị cắt mất phần minh hoạ, mà chiều cao khối thì không đổi. */
+.imgmode-frame {
+  display: grid; place-items: center;
+  width: 100%; aspect-ratio: 4 / 3; max-height: 44dvh;
+  border-radius: var(--radius-md); overflow: hidden;
+  background: color-mix(in oklab, var(--fg) 4%, var(--surface));
+}
+.imgmode-frame img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+/* Shimmer chờ ảnh (DESIGN §3.9) — mượn .skeleton-line để ăn sẵn guard
+   prefers-reduced-motion, chỉ cần trả lại kích thước của khung. */
+.imgmode-loading { width: 100%; height: 100%; border-radius: var(--radius-md); }
+
+/* Chỗ của đáp án, cao sẵn bằng lúc đầy nhất (từ + cách đọc + nghĩa). Bước tự
+   nhớ chỉ có "···" nhưng vẫn chiếm đúng chừng ấy, nên lật đáp án không đẩy hàng
+   nút xuống dưới ngón tay vừa bấm. Cao độ suy từ thang token, không phải số
+   chọn bừa. */
+.imgmode-answer {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  justify-content: center; width: 100%;
+  min-height: calc(
+    var(--text-3xl) * var(--leading-heading) + var(--text-base) * var(--leading-body) +
+      var(--text-md) * var(--leading-body) + var(--space-2) * 2
+  );
+}
+
+.imgmode-term { font-size: var(--text-2xl); font-weight: 600; line-height: var(--leading-heading); }
+.imgmode-term:lang(ja) { font-family: var(--font-ja); font-size: var(--text-3xl); }
+.imgmode-reading { font-size: var(--text-base); color: var(--muted); }
+.imgmode-reading:lang(ja) { font-family: var(--font-ja); }
+.imgmode-meaning {
+  font-size: var(--text-md); color: var(--fg); line-height: var(--leading-body);
+}
+
+.imgmode-controls { display: flex; align-items: center; justify-content: center; gap: var(--space-5); }
+.imgmode-nav, .imgmode-play {
+  display: grid; place-items: center; border: 1px solid var(--line);
+  border-radius: var(--radius-full); background: var(--surface); color: var(--fg);
+  cursor: pointer; transition: background var(--dur-fast) var(--ease-out);
+}
+.imgmode-nav { width: 56px; height: 56px; }
+.imgmode-nav:hover { background: var(--surface-2); }
+.imgmode-play { width: 80px; height: 80px; border-color: transparent; background: var(--accent); color: #fff; }
+.imgmode-play:hover { background: color-mix(in oklab, var(--fg) 12%, var(--accent)); }
+
+.imgmode-settings { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
+
+.imgmode-hint { margin: 0; font-size: var(--text-sm); color: var(--muted); text-align: center; }
+
+.imgmode-empty { margin: 0; text-align: center; color: var(--muted); line-height: var(--leading-body); }
+.imgmode-empty-actions { display: flex; justify-content: center; gap: var(--space-3); }
+.imgmode-done {
+  align-self: center; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--fg); font: inherit;
+  min-height: 44px; padding: 0 var(--space-5); cursor: pointer;
+}
+.imgmode-done:hover { background: var(--surface-2); }
