@@ -149,8 +149,18 @@
   background: color-mix(in oklab, var(--accent) 12%, transparent);
   color: var(--accent);
 }
-/* Hành động phụ (Từ điển cá nhân, Thêm nhanh, Thống kê…) dạt phải trên desktop. */
-.words-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-left: auto; }
+/* Hành động phụ (Từ điển cá nhân, Thêm nhanh, Thống kê…) dạt phải trên desktop.
+   Màu lặng chứ không xanh như .link mặc định: ba dòng chữ xanh cạnh dải tab làm
+   hàng này có hai lớp nhấn ngang nhau, không đọc ra đâu là điều hướng. Chỉ nhấn
+   màu khi rê chuột / focus. */
+.words-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-left: auto; }
+.words-actions .link { color: var(--muted); font-size: var(--text-sm); }
+.words-actions .link:hover { color: var(--accent); }
+
+@media (min-width: 760px) {
+  /* Vạch ngăn chỉ có nghĩa khi hai nhóm thật sự nằm chung một dòng. */
+  .words-actions { padding-left: var(--space-4); border-left: 1px solid var(--line); }
+}
 
 /* --- Màn "Hôm nay" --------------------------------------------------------- */
 
