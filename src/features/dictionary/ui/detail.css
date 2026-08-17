@@ -111,7 +111,9 @@
 .dict-name { font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 999px; margin-left: auto; }
 .add-result { margin-left: auto; font-size: 13px; font-weight: 600; line-height: 1; padding: 4px 10px; align-self: center; white-space: nowrap; }
 .add-result:disabled { color: var(--ok); opacity: 1; cursor: default; }
-.add-error { flex-basis: 100%; color: var(--warn); font-size: 12px; }
+/* Lỗi của một nút ghi (thêm vào lịch sử, gửi đề xuất): xuống hàng riêng dưới nút
+   trong các hàng flex, cạnh nút ở ngữ cảnh block. */
+.inline-error { flex-basis: 100%; color: var(--warn); font-size: 12px; }
 
 .reasons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; font-size: 12px; }
 .reasons-base { font-weight: 600; }
@@ -280,6 +282,12 @@
 [data-sc-content="backlink"] .sc-link { color: var(--muted); }
 
 .propose-btn { margin-top: 4px; }
+
+/* Từ tự thêm mà từ điển không có: một dòng gọn "chưa có trong từ điển" + nút đóng
+   góp, đặt dưới ghi chú cá nhân nên tách bằng đường kẻ như phần từ điển. */
+.propose-missing { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); border-top: 1px solid var(--line); margin-top: var(--space-3); padding-top: var(--space-3); }
+.propose-missing p { margin: 0; font-size: var(--text-sm); }
+.propose-missing .propose-btn { margin-top: 0; }
 
 /* Phân tích chữ Hán (kiểu jisho) trong panel chi tiết */
 .kanji-breakdown { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }

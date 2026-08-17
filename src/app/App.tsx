@@ -38,7 +38,6 @@ import { DictSource, loadSource, saveSource } from "@/features/dictionary/domain
 import { DetailPanel } from "@/features/dictionary/ui/DetailPanel";
 import { DictionaryImport } from "@/features/dictionary/ui/DictionaryImport";
 import { syncCustomDicts } from "@/features/dictionary/data/customDictSync";
-import { TermResult } from "@/features/dictionary/data/search";
 import { ADD_PARAM_KEYS, parseAddParams } from "@/features/dictionary/domain/quickadd";
 import {
   failedLookupReply,
@@ -49,8 +48,12 @@ import { runProxyLookup } from "@/features/dictionary/data/lookupProxy";
 import { isDraftFilled } from "@/features/dictionary/domain/customEntry";
 import { saveQuickAdd } from "@/features/dictionary/data/inbox";
 import { aiFillDraft } from "@/features/dictionary/data/aiGenerate";
-import { sensesToLines, glossaryToLines } from "@/shared/structured-content";
 import { proposeWord } from "@/features/contribute/data/contribute";
+import {
+  ProposalPayload,
+  proposalFromDictEntry,
+  proposalFromVocabEntry,
+} from "@/features/contribute/domain/proposal";
 import { ContributionReview } from "@/features/contribute/ui/ContributionReview";
 import { ThemeBackdrop } from "@/features/theme/ui/ThemeBackdrop";
 import { AuthScreen } from "@/features/auth/ui/AuthScreen";
@@ -518,17 +521,12 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const entryFor = (term: string, lang: string): VocabEntry | undefined =>
     store.entries.find((e) => e.term === term && e.term_lang === lang);
 
-  // Đề xuất một kết quả tra lên từ điển hệ thống (#70 — 6.1); admin duyệt sau.
-  const proposeResult = async (res: TermResult) => {
-    const e = res.entry;
-    const gloss = e.senses?.length ? sensesToLines(e.senses) : glossaryToLines(e.definitions);
-    const pos = [...new Set((e.senses ?? []).flatMap((s) => s.tags))];
-    try {
-      await proposeWord({ term: e.term, reading: e.reading, term_lang: e.term_lang, native_lang: e.native_lang, gloss, pos });
-      store.pushToast("Đã gửi đề xuất, chờ admin duyệt", "success");
-    } catch (err) {
-      store.pushToast((err as Error).message, "warn");
-    }
+  // Đề xuất một từ lên từ điển hệ thống (#70 — 6.1); admin duyệt sau. Hai lối
+  // vào: một thẻ kết quả tra, và một từ mình tự thêm mà từ điển không có. Lỗi để
+  // ném tiếp — nút đề xuất tự hiện lỗi ngay tại chỗ và không đánh dấu "đã gửi".
+  const propose = async (payload: ProposalPayload) => {
+    await proposeWord(payload);
+    store.pushToast("Đã gửi đề xuất, chờ admin duyệt", "success");
   };
 
   // Mobile: panel chi tiết là bottom sheet phủ lên trang — nội dung nền bị
@@ -565,7 +563,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
         setManaging(true);
       }}
       loggedIn={email != null}
-      onPropose={proposeResult}
+      onPropose={(res) => propose(proposalFromDictEntry(res.entry))}
+      onProposeEntry={(e) => propose(proposalFromVocabEntry(e))}
       currentUserId={userId}
       onRequireLogin={onRequestLogin}
     />

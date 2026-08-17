@@ -2,6 +2,7 @@
 // danh sách chờ + duyệt/từ chối. Gọi kèm Bearer token.
 
 import { authToken } from "@/features/auth/data/auth";
+import { ProposalPayload } from "../domain/proposal";
 
 async function authed<T>(path: string, method: "GET" | "POST", body?: unknown): Promise<T> {
   const token = authToken();
@@ -16,15 +17,6 @@ async function authed<T>(path: string, method: "GET" | "POST", body?: unknown): 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? "Yêu cầu thất bại");
   return data as T;
-}
-
-export interface ProposalPayload {
-  term: string;
-  reading?: string;
-  term_lang: string;
-  native_lang: string;
-  gloss: string[];
-  pos?: string[];
 }
 
 export interface Proposal {

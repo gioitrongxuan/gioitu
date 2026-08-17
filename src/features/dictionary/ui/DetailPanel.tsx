@@ -81,7 +81,12 @@ interface Props {
   /** Người dùng đã đăng nhập (để hiện nút đề xuất lên từ điển chung). */
   loggedIn?: boolean;
   /** Đề xuất một kết quả lên từ điển hệ thống (#70 — 6.1). */
-  onPropose?: (res: TermResult) => void;
+  onPropose?: (res: TermResult) => Promise<void>;
+  /**
+   * Đề xuất một từ trong kho của mình lên từ điển hệ thống — dành cho từ tự thêm
+   * (thêm nhanh, Yomitan, tự định nghĩa) mà từ điển không có mục nào.
+   */
+  onProposeEntry?: (entry: VocabEntry) => Promise<void>;
   /** Id tài khoản hiện tại — để biết bình luận nào là của mình (#23). */
   currentUserId?: string | null;
   /** Mời đăng nhập khi guest muốn bình luận (#23). */
@@ -108,6 +113,7 @@ export function DetailPanel({
   onAdminEdit,
   loggedIn,
   onPropose,
+  onProposeEntry,
   currentUserId,
   onRequireLogin,
 }: Props) {
@@ -179,6 +185,11 @@ export function DetailPanel({
   const isLoneKanji =
     term_lang === "ja" && [...term].length === 1 && isCodePointKanji(term.codePointAt(0) ?? 0);
   const canMarkKnownNew = !entry && isLoneKanji && onMarkKnownNew != null;
+
+  // Tra rồi mà từ điển đang chọn không có mục nào cho từ này. Phải chắc chắn mới
+  // kết luận: lỗi mạng (error) hay lượt quét near-miss còn chạy (pending) thì
+  // "rỗng" chưa có nghĩa là từ điển thiếu từ.
+  const notInDictionary = !hasResults && !error && !pending;
 
   return (
     <>
@@ -315,6 +326,23 @@ export function DetailPanel({
             onLookup={onLookup}
             onSaveCustom={onSaveCustom}
           />
+        )}
+
+        {/* Từ mình tự thêm (thêm nhanh, Yomitan, tự định nghĩa) mà từ điển không
+            có: mời đóng góp nó lên từ điển hệ thống (#70 — 6.1). Nghĩa gửi kèm
+            chính là ghi chú đã lưu, nên chỉ mời khi có ghi chú (hasSaved) — server
+            từ chối đề xuất không có nghĩa. key theo từ: đổi thẻ thì nút trở lại
+            trạng thái chưa gửi. */}
+        {onProposeEntry && loggedIn && entry && hasSaved && notInDictionary && (
+          <div className="propose-missing">
+            <p className="muted">Từ này chưa có trong từ điển.</p>
+            <ProposeButton
+              key={entry.term}
+              label="Đề xuất thêm vào từ điển"
+              title="Đề xuất thêm từ này vào từ điển dùng chung (admin sẽ duyệt)"
+              onPropose={() => onProposeEntry(entry)}
+            />
+          </div>
         )}
 
         {/* Bình luận / góp ý của người dùng cho từ này (#23). Guest đọc được,
@@ -463,7 +491,57 @@ function AddResultButton({
           </>
         )}
       </button>
-      {addError && <span className="danger add-error">{addError}</span>}
+      {addError && <span className="danger inline-error">{addError}</span>}
+    </>
+  );
+}
+
+/** Nút đề xuất một từ lên từ điển hệ thống — dùng chung cho thẻ kết quả từ điển
+ *  và cho từ tự thêm mà từ điển không có. Chỉ đổi sang "Đã đề xuất" SAU KHI gửi
+ *  xong, cùng lý do với AddResultButton: phản hồi phải xác nhận điều đã thực sự
+ *  xảy ra, không tự nhận thành công rồi im lặng khi gửi lỗi. */
+function ProposeButton({
+  label,
+  title,
+  onPropose,
+}: {
+  label: string;
+  title: string;
+  onPropose: () => Promise<void>;
+}) {
+  const [proposed, setProposed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        className="link propose-btn icon-label"
+        title={title}
+        disabled={proposed || busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            await onPropose();
+            setProposed(true);
+          } catch (err) {
+            setError((err as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {proposed ? (
+          <>
+            Đã đề xuất <CheckIcon size={14} />
+          </>
+        ) : busy ? (
+          "Đang gửi…"
+        ) : (
+          label
+        )}
+      </button>
+      {error && <span className="danger inline-error">{error}</span>}
     </>
   );
 }
@@ -517,14 +595,13 @@ function ResultView({
   isAdmin?: boolean;
   onAdminEdit?: (term: string) => void;
   loggedIn?: boolean;
-  onPropose?: (res: TermResult) => void;
+  onPropose?: (res: TermResult) => Promise<void>;
 }) {
   const { entry } = res;
   // Cờ kiểm duyệt đến từ server; admin toggle tại chỗ nên giữ state cục bộ.
   const [verified, setVerified] = useState(entry.verified === true);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
-  const [proposed, setProposed] = useState(false);
   // Chỉ kết quả từ nguồn server mới có wordId — nguồn local (Yomitan) không duyệt được.
   const canModerate = isAdmin === true && Boolean(entry.wordId);
 
@@ -591,23 +668,11 @@ function ResultView({
       />
 
       {onPropose && loggedIn && (
-        <button
-          className="link propose-btn icon-label"
-          disabled={proposed}
+        <ProposeButton
+          label="Đề xuất lên hệ thống"
           title="Gợi ý từ này cho từ điển dùng chung (admin sẽ duyệt)"
-          onClick={() => {
-            onPropose(res);
-            setProposed(true);
-          }}
-        >
-          {proposed ? (
-            <>
-              Đã đề xuất <CheckIcon size={14} />
-            </>
-          ) : (
-            "Đề xuất lên hệ thống"
-          )}
-        </button>
+          onPropose={() => onPropose(res)}
+        />
       )}
 
       {res.reasons.length > 0 && (

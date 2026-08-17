@@ -58,7 +58,7 @@ src/
     vocabstudy/ Trang học từ vựng dạng lưới (nguồn: study list / custom dict)
     kanjistats/ Thống kê độ phủ kanji theo JLPT/lớp + đánh dấu nhanh
     studylist/ Danh sách từ trên server (cần đăng nhập) — đang nửa vời, xem BACKLOG
-    contribute/ Đề xuất sửa nghĩa + màn duyệt (admin)
+    contribute/ Đề xuất thêm từ / sửa nghĩa + màn duyệt (admin)
     premium/   Mã kích hoạt; mở khoá sync từ điển cá nhân
     share/     Chia sẻ từ điển qua link .zip ngắn hạn
     theme/     Tuỳ chỉnh màu (heatmap + bảng màu) + presets/ (skin anime lazy)
