@@ -575,13 +575,23 @@ với khách (đọc được trước khi bị đòi đăng nhập). (`features
 
 ### 9.8 Đóng góp & duyệt
 
-Cộng đồng đề xuất sửa nghĩa cho **từ điển server dùng chung**, admin duyệt.
-(`features/contribute/`)
+Cộng đồng đề xuất **thêm từ / sửa nghĩa** cho **từ điển server dùng chung**, admin
+duyệt. (`features/contribute/`)
 
-- **Đề xuất (user)**: từ panel chi tiết một từ (`onPropose`). `proposeResult` dựng
-  `gloss` (từ `senses`, hoặc `definitions`) + `pos` (tag từ loại đã dedupe) rồi
-  `proposeWord` (`POST /api/contribute`). Toast "Đã gửi đề xuất, chờ admin duyệt".
-  (`App.tsx:229-238,275`)
+- **Đề xuất (user)** — hai lối vào, cùng đi qua `proposeWord`
+  (`POST /api/contribute`) và cùng dựng payload ở `contribute/domain/proposal.ts`.
+  Chỉ hiện khi đã đăng nhập (đề xuất gắn với tài khoản); thành công thì toast "Đã
+  gửi đề xuất, chờ admin duyệt", lỗi hiện inline cạnh nút và nút KHÔNG chuyển sang
+  "Đã đề xuất".
+  - **Từ một thẻ kết quả tra** (`onPropose` → `proposalFromDictEntry`): `gloss`
+    lấy từ `senses` (hoặc `definitions`), `pos` là tag từ loại đã dedupe.
+  - **Từ một từ trong kho mà từ điển không có** (`onProposeEntry` →
+    `proposalFromVocabEntry`): dành cho từ tự thêm (Thêm nhanh, Yomitan, tự định
+    nghĩa). Panel chi tiết hiện dòng "Từ này chưa có trong từ điển." + nút **Đề
+    xuất thêm vào từ điển** khi tra xong mà không có kết quả nào (`!error`,
+    `!pending` — mất mạng hay còn quét near-miss thì chưa kết luận) và từ đã có
+    ghi chú của người dùng: chính ghi chú đó là `gloss` gửi lên, `pos` tách từ
+    trường `pos` đã lưu. (`DetailPanel.tsx`, `App.tsx` `propose`)
 - **Duyệt (admin)**: mục menu **Duyệt đề xuất** (chỉ admin) mở `ContributionReview`
   — liệt kê đề xuất đang chờ (`GET /api/contribute/pending`), mỗi mục hiện
   từ + cách đọc, cặp ngôn ngữ, từ loại và các nghĩa. Hai nút **Duyệt**
