@@ -2,14 +2,13 @@
 // persists every change. Consumers read `theme` (e.g. the word cloud, to pick
 // readable tag text) and call `setTheme` from the settings screen for live,
 // app-wide preview. Bên cạnh 9 màu còn có `decor` — preset nào đang cấp hiệu
-// ứng nền/icon set (ThemeBackdrop và badge word cloud đọc từ đây).
+// ứng nền (ThemeBackdrop đọc từ đây).
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import {
   Theme,
   ThemeDecor,
   ThemePreset,
-  PresetIcons,
   DEFAULT_THEME,
   applyTheme,
   loadTheme,
@@ -17,14 +16,12 @@ import {
   loadDecor,
   saveDecor,
 } from "./domain/theme";
-import { ThemeSkin, skinById } from "./domain/skins";
+import { ThemeSkin } from "./domain/skins";
 
 interface ThemeContextValue {
   theme: Theme;
   /** Skin đang cấp trang trí + công tắc hiệu ứng nền. */
   decor: ThemeDecor;
-  /** Icon set của skin đang chọn; null = glyph mặc định của app. */
-  icons: PresetIcons | null;
   /** Replace the whole theme (live-applied + persisted). */
   setTheme: (theme: Theme) => void;
   /** Patch a single field. */
@@ -80,11 +77,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setDecorState((d) => ({ ...d, presetId: null }));
   }, []);
 
-  const icons = skinById(decor.presetId)?.icons ?? null;
-
   return (
     <ThemeContext.Provider
-      value={{ theme, decor, icons, setTheme, setField, setDecor, applyPreset, applySkin, reset }}
+      value={{ theme, decor, setTheme, setField, setDecor, applyPreset, applySkin, reset }}
     >
       {children}
     </ThemeContext.Provider>

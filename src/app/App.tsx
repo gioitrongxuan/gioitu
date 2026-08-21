@@ -664,7 +664,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   if (aiProxy) {
     return (
       <div className="qa-proxy" aria-busy="true">
-        ✨ Đang nhờ AI điền…
+        Đang nhờ AI điền…
       </div>
     );
   }
@@ -783,7 +783,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             )}
             {page === "learned" && (
               <div className="learned-head">
-                <h2>Đã thuộc 🎉 ({store.learnedEntries.length})</h2>
+                <h2>Đã thuộc ({store.learnedEntries.length})</h2>
                 <CloudViewControls
                   lang={cloudLang}
                   grouping={grouping === "srs" ? "none" : grouping}

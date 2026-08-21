@@ -33,7 +33,7 @@ localStorage trước paint (chống flash trắng).
 > và hai đầu heatmap chưa nằm trong bảng nên giữ giá trị cũ (chờ mục tag/heatmap).
 
 **Theme anime (panda/buu/cell/akatsuki)**: định vị là *skin sưu tầm opt-in* —
-chỉ đổi backdrop + heatmap + emblem trang trí, KHÔNG đụng token chữ/nền
+chỉ đổi backdrop + heatmap, KHÔNG đụng token chữ/nền
 (giữ tương phản), KHÔNG thay glyph cảnh báo relapse bằng glyph dễ thương.
 Color-picker tự do → mục "Nâng cao" thu gọn.
 
@@ -89,8 +89,11 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
    focus, `aria-modal`); list/dropdown điều hướng được bằng mũi tên.
 4. **Contrast ≥ 4.5:1** cho chữ thường (WCAG AA). Màu ngữ nghĩa không hardcode
    hex rời — chip nhạt: nền `color-mix(... 12-14%, var(--surface))` + chữ đậm.
-5. **Icon = SVG inline** `stroke: currentColor`, cỡ 16/20px. Không thêm emoji
-   làm icon chức năng.
+5. **Icon = SVG inline** `stroke: currentColor`, cỡ 16/20px. **Không emoji
+   trong UI** — không làm icon chức năng, cũng không làm trang trí trong câu
+   chữ (🎉 chúc mừng, ✨ AI, 📖, ➕, 👍…): chữ tiếng Việt tự nói đủ, emoji rải
+   trong copy làm giao diện trông như máy sinh. Cần dấu hiệu thị giác thì dùng
+   icon SVG ở `shared/ui/icons.tsx` hoặc token màu.
 6. **Touch**: target ≥ 44px trong `@media (pointer: coarse)`; hành động phá
    huỷ có confirm hoặc undo-toast; không dùng double-click/double-tap làm
    hành động chính.

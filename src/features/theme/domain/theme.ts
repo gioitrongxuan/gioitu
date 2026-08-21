@@ -85,16 +85,6 @@ export interface PresetBackground {
   opacity: number;
 }
 
-/**
- * Decorative glyphs a skin may contribute. Chỉ có `emblem` (nhãn nhận diện skin
- * ở màn Giao diện) — CỐ Ý không cho skin thay glyph badge tái quên: đó là tín
- * hiệu cảnh báo, phải giữ họ "!" trên nền --warn ở mọi skin (DESIGN §1).
- */
-export interface PresetIcons {
-  /** Signature glyph shown on the preset chip in settings. */
-  emblem: string;
-}
-
 export interface ThemePreset {
   id: string;
   name: string;
@@ -201,13 +191,13 @@ export function saveTheme(theme: Theme): void {
 }
 
 // ---------------------------------------------------------------------------
-// Decor — phần "ngoài màu" của bộ theme: preset nào đang cấp hiệu ứng nền /
-// icon set, và người dùng có muốn hiện hiệu ứng hay không. Tách khỏi Theme để
+// Decor — phần "ngoài màu" của bộ theme: preset nào đang cấp hiệu ứng nền,
+// và người dùng có muốn hiện hiệu ứng hay không. Tách khỏi Theme để
 // giữ nguyên hợp đồng 9 màu (applyTheme và localStorage cũ không đổi).
 
 export interface ThemeDecor {
   /**
-   * Skin (domain/skins.ts) cấp background/icons; null = không trang trí.
+   * Skin (domain/skins.ts) cấp background; null = không trang trí.
    * Giữ tên `presetId` (thời skin còn là preset màu) để không phải migrate
    * JSON đã lưu trong localStorage.
    */

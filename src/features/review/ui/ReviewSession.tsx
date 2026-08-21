@@ -307,7 +307,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
         <div className="review-overlay">
           <div className="review-card done" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
             {sealOverlay}
-            <h2>Xong một lô! 🎉</h2>
+            <h2>Xong một lô!</h2>
             <p>Đã ôn {session.reviewed} thẻ. Còn {session.pending.length} thẻ đến hạn.</p>
             {summary}
             <button className="primary" onClick={() => setSession((s) => loadNextBatch(s))}>
@@ -324,7 +324,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
       <div className="review-overlay">
         <div className="review-card done" role="dialog" aria-modal="true" tabIndex={-1} ref={dialogRef}>
           {sealOverlay}
-          <h2>Hoàn thành! 🎉</h2>
+          <h2>Hoàn thành!</h2>
           <p>Bạn đã ôn {session.reviewed} thẻ.</p>
           {summary}
           <button className="primary" onClick={onClose}>Đóng</button>
@@ -532,7 +532,7 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
                   không rời phiên ôn. */}
               {onLookupDetails && dictResults === null && !dictLoading && (
                 <button type="button" className="link review-dict-toggle" onClick={showDictDetails}>
-                  📖 Xem định nghĩa từ điển
+                  Xem định nghĩa từ điển
                 </button>
               )}
               {dictLoading && <Skeleton lines={3} className="review-dict-status" />}

@@ -183,7 +183,7 @@ export function QuickAdd({ pair: appPair, initialTerm, loggedIn, onRequestLogin,
             {loggedIn ? (
               <>
                 <button type="button" className="link" disabled={aiBusy || !draft.term.trim()} onClick={onAiFill}>
-                  {aiBusy ? "Đang điền…" : "✨ AI điền hộ"}
+                  {aiBusy ? "Đang điền…" : "AI điền hộ"}
                 </button>
                 <label className="form-field">
                   <span className="field-label">Yêu cầu thêm cho AI (tuỳ chọn)</span>
