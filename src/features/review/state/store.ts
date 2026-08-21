@@ -224,7 +224,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
         updated_at: now,
       };
       if (entry.status !== "LEARNED" && next.status === "LEARNED") {
-        pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
+        pushToast(`“${entry.term}” đã thuộc`, "success");
       }
       await putEntry(next);
       upsertLocal(next);
@@ -276,7 +276,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
       await putEntry(next);
       upsertLocal(next);
       scheduleSync();
-      pushToast(`“${entry.term}” đã thuộc 🎉`, "success");
+      pushToast(`“${entry.term}” đã thuộc`, "success");
       return next;
     },
     [upsertLocal, scheduleSync],
@@ -308,7 +308,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
       const undo = existing
         ? () => restoreSnapshot(existing)
         : () => removeCreated(next);
-      pushToast(`“${term}” đã thuộc 🎉`, "success", undoable ? undoAction(term, undo) : undefined);
+      pushToast(`“${term}” đã thuộc`, "success", undoable ? undoAction(term, undo) : undefined);
       return next;
     },
     [userId, upsertLocal, scheduleSync, restoreSnapshot, removeCreated],

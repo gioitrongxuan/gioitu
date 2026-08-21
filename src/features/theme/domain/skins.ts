@@ -1,13 +1,13 @@
 // Skin anime = bộ sưu tập gắn chuỗi ngày ôn (#162, DESIGN §1). Khác preset màu
 // (THEME_PRESETS — thay cả bảng màu), một skin CHỈ đổi backdrop + hai đầu
-// heatmap (+ emblem nhận diện) và ngồi trên bất kỳ nền sáng/tối nào người dùng
+// heatmap và ngồi trên bất kỳ nền sáng/tối nào người dùng
 // đang dùng — token chữ/nền giữ nguyên để không phá tương phản.
 //
 // Mở khoá theo chuỗi ngày ôn DÀI NHẤT từng đạt; skin đã mở giữ vĩnh viễn
 // (đứt chuỗi không khoá lại — bộ sưu tập là tài sản, không phải hình phạt,
 // DESIGN §5). Danh sách đã mở lưu localStorage như theme/decor.
 
-import type { PresetBackground, PresetIcons, Theme } from "./theme";
+import type { PresetBackground, Theme } from "./theme";
 
 /** Hai đầu heatmap — phần bảng màu duy nhất một skin được đổi. */
 export type SkinHeat = Pick<Theme, "heatFrom" | "heatTo">;
@@ -24,13 +24,12 @@ export interface ThemeSkin {
   name: string;
   heat: SkinHeat;
   background: PresetBackground;
-  icons: PresetIcons;
   /** Chuỗi ngày ôn (dài nhất từng đạt) cần có để mở khoá. */
   requiredStreak: number;
 }
 
 /** Bộ sưu tập, xếp theo mốc mở khoá tăng dần. Màu heat là màu nhận diện của
- * nhân vật — giữ nguyên cặp đã có từ thời skin còn là preset màu đầy đủ. */
+ * skin (chip trong cài đặt chỉ có swatch màu + tên, không glyph) — giữ nguyên cặp đã có từ thời skin còn là preset màu đầy đủ. */
 export const THEME_SKINS: ThemeSkin[] = [
   {
     id: "panda",
@@ -38,7 +37,6 @@ export const THEME_SKINS: ThemeSkin[] = [
     requiredStreak: 3,
     heat: { heatFrom: "#e4efd8", heatTo: "#1c1c1c" },
     background: { effect: "bamboo", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🐼" },
   },
   {
     id: "buu",
@@ -46,7 +44,6 @@ export const THEME_SKINS: ThemeSkin[] = [
     requiredStreak: 7,
     heat: { heatFrom: "#fbcfe8", heatTo: "#701a75" },
     background: { effect: "buu", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "🍬" },
   },
   {
     id: "cell",
@@ -54,7 +51,6 @@ export const THEME_SKINS: ThemeSkin[] = [
     requiredStreak: 14,
     heat: { heatFrom: "#1d3524", heatTo: "#a3e635" },
     background: { effect: "cell", speed: "slow", opacity: 0.3 },
-    icons: { emblem: "🧬" },
   },
   {
     id: "akatsuki",
@@ -62,7 +58,6 @@ export const THEME_SKINS: ThemeSkin[] = [
     requiredStreak: 30,
     heat: { heatFrom: "#33212a", heatTo: "#ef4444" },
     background: { effect: "akatsuki", speed: "slow", opacity: 0.35 },
-    icons: { emblem: "☁️" },
   },
 ];
 

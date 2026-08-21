@@ -228,7 +228,7 @@ UI inject); phần đuôi canvas→file dùng chung với lưới kanji ở
 - **Chia lô ~20 thẻ**: phiên phục vụ từng lô `REVIEW_BATCH_SIZE` (=20) thẻ; hết
   lô mà còn thẻ đến hạn thì hiện lời mời **"Ôn tiếp N thẻ nữa"** (điểm dừng tự
   nhiên). Hàng đợi ≤ 20 thì không có bước hỏi này.
-- **Hoàn thành**: "Hoàn thành! 🎉" + số thẻ đã ôn; có thể **Kết thúc phiên** bất
+- **Hoàn thành**: "Hoàn thành!" + số thẻ đã ôn; có thể **Kết thúc phiên** bất
   cứ lúc nào.
 
 Hàng đợi là `store.dueEntries` (`isDue`: `next_review ≤ now`) **lọc theo ngôn ngữ
@@ -367,7 +367,7 @@ cloud). Ba lớp bảo vệ giảm rủi ro mất trắng:
 |---|---|---|
 | Tra lại một từ đã thuộc (relapse) | warn | `Bạn đã quên lại từ "<từ>"` |
 | Từ vào hàng đợi ôn tập (khi bấm `＋`) | success | `"<từ>" đã vào hàng đợi ôn tập` |
-| Từ tốt nghiệp → đã thuộc | success | `"<từ>" đã thuộc 🎉` |
+| Từ tốt nghiệp → đã thuộc | success | `"<từ>" đã thuộc` |
 | Đồng bộ thành công | success | `Đã đồng bộ` (kèm số từ điển nếu Premium) |
 | Đồng bộ khi offline | warn | `Chưa kết nối được máy chủ · dữ liệu đã lưu trên máy` |
 | Phiên hết hạn (401) | warn | `Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại` |
@@ -643,7 +643,7 @@ công cụ mở, dropdown gợi ý dưới ô tìm nhường chỗ cho panel cô
 ### 9.11 Skin nền anime
 
 Bộ sưu tập skin gắn chuỗi ngày ôn (#162). Một skin CHỈ đổi backdrop + hai đầu
-heatmap (+ emblem nhận diện) — token chữ/nền của người dùng giữ nguyên
+heatmap — token chữ/nền của người dùng giữ nguyên
 (DESIGN §1), nên skin mặc được trên cả nền sáng lẫn tối. Lối vào: **Giao diện**
 → mục "Bộ sưu tập skin" + công tắc "Hiện hoạ tiết nền". (`theme/domain/skins.ts`,
 `theme/presets/`, `theme/ui/ThemeBackdrop.tsx`, `ThemeSettings.tsx`)
@@ -727,7 +727,7 @@ Màn chào 3 bước (overlay, `app/Onboarding.tsx`) cho lần mở app đầu t
 Lượm một từ gặp ngoài app (từ chưa có trong từ điển) mà không đứt mạch đọc.
 Form Thêm nhanh (`dictionary/ui/QuickAdd/`) lưu vào **cả hai kho**: hàng ôn SRS
 (`recordLookup`) + hộp thư "Từ nhặt được" trong từ điển cá nhân
-(`dictionary/data/inbox.ts` — tra lại thấy ở nguồn *Trên máy*). Nút ✨ AI điền hộ
+(`dictionary/data/inbox.ts` — tra lại thấy ở nguồn *Trên máy*). Nút AI điền hộ
 (cần đăng nhập) dùng chung engine với Từ điển cá nhân; ngay dưới nút là ô "Yêu
 cầu thêm cho AI" (tuỳ chọn — ngữ cảnh gặp từ, lĩnh vực, sắc thái) đi vào prompt
 qua `extra` của `buildAiPrompt`, giữ nguyên sau khi lưu vì lượm nhiều từ liên
@@ -758,9 +758,9 @@ xoá khỏi URL; parse thuần ở `domain/quickadd.ts::parseAddParams`):
 Cặp ngôn ngữ đoán theo chữ viết (`guessPairForText`: có chữ Nhật → Nhật→Việt,
 còn lại → Anh→Việt), đổi được trong form/overlay.
 
-**✨ AI điền trên overlay ngoài trang**: overlay không gọi được API app (khác
-origin, token nằm trong localStorage origin app) nên mượn app làm hộ — nút "✨
-AI điền" mở cửa sổ tí hon `?add=…&add_ai=1&add_origin=<origin trang>`; App nhận
+**AI điền trên overlay ngoài trang**: overlay không gọi được API app (khác
+origin, token nằm trong localStorage origin app) nên mượn app làm hộ — nút "AI
+điền" mở cửa sổ tí hon `?add=…&add_ai=1&add_origin=<origin trang>`; App nhận
 `add_ai` (`parseAddParams`) chỉ vẽ một dòng trạng thái (`.qa-proxy`), gọi
 `aiFillDraft` (`dictionary/data/aiGenerate.ts` — dùng chung với nút AI trong
 form) rồi `postMessage({kind:"gioitu-ai-fill", filled|error})` về
@@ -773,7 +773,7 @@ trên overlay.
 đầy đủ" hoặc fallback CSP): App chỉ vẽ form Thêm nhanh + toast, không dựng vỏ
 app; đóng form là đóng cửa sổ.
 
-**Tra hộ overlay ngoài trang** (`?lookup=<mặt chữ>` — #251): cùng lý do với ✨ AI
+**Tra hộ overlay ngoài trang** (`?lookup=<mặt chữ>` — #251): cùng lý do với AI
 điền, overlay không đọc được IndexedDB của app (khác origin) nên nhờ app tra hộ.
 Cửa sổ tí hon `?lookup=…&lookup_pair=<cặp>&lookup_origin=<origin trang>` chỉ vẽ
 một dòng trạng thái (`.qa-proxy`), chạy lượt tra rồi
@@ -791,10 +791,10 @@ một dòng trạng thái (`.qa-proxy`), chạy lượt tra rồi
 - Mở thẳng URL này bằng tay (không có `window.opener`) thì app bỏ chế độ proxy
   và mở bình thường.
 - **Phía overlay** (`extension/overlay.js` + bản song sinh `public/qa-overlay.js`):
-  nút **"Tra nghĩa"** đứng trước ✨ AI điền — lối rẻ hơn, không cần đăng nhập và
+  nút **"Tra nghĩa"** đứng trước AI điền — lối rẻ hơn, không cần đăng nhập và
   chạy cả khi offline nếu từ điển đã ở IndexedDB. Kết quả hiện thành danh sách
   bấm được (*mặt chữ【cách đọc】· nghĩa*); dòng đầu chỉ điền vào **ô còn trống**
-  (như ✨ AI điền), bấm một dòng là chọn tay nên **đè** cả ô đã có. Overlay bỏ qua
+  (như AI điền), bấm một dòng là chọn tay nên **đè** cả ô đã có. Overlay bỏ qua
   message sai origin, sai `kind`, hoặc của mặt chữ khác (bấm tra liền hai lần);
   đổi mặt chữ là dọn danh sách. Ba trạng thái nói khác nhau: có kết quả (kèm nguồn
   đã trả lời), "không có trong từ điển đã cài", và "không tra được" (cờ `error`).

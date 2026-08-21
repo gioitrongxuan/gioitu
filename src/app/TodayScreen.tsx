@@ -166,7 +166,7 @@ export function TodayScreen({
       )}
 
       <button type="button" className="today-asset link" onClick={onGoLearned}>
-        Đã thuộc {learnedCount} từ 🎉
+        Đã thuộc {learnedCount} từ
       </button>
     </div>
   );

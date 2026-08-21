@@ -32,12 +32,18 @@ describe("THEME_SKINS", () => {
     }
   });
 
-  it("no skin themes the relapse badge — it stays a warning signal (DESIGN §1)", () => {
+  it("skin không mang glyph nào — badge tái quên giữ vai tín hiệu cảnh báo (DESIGN §1)", () => {
     for (const skin of THEME_SKINS) {
-      // Skin trang trí không được thay glyph cảnh báo tái quên bằng emoji dễ
-      // thương: badge luôn là "!" trắng trên nền --warn ở WordCloud.
-      expect(Object.keys(skin.icons), skin.id).toEqual(["emblem"]);
-      expect(skin.icons.emblem.length, skin.id).toBeGreaterThan(0);
+      // Skin chỉ đổi backdrop + hai đầu heatmap: dữ liệu skin không có chỗ cho
+      // glyph, nên badge tái quên luôn là "!" trắng trên nền --warn ở WordCloud
+      // và chip skin trong cài đặt chỉ có swatch màu + tên (DESIGN §3.5).
+      expect(Object.keys(skin).sort(), skin.id).toEqual([
+        "background",
+        "heat",
+        "id",
+        "name",
+        "requiredStreak",
+      ]);
     }
   });
 

@@ -170,7 +170,6 @@ export function ThemeSettings({ onClose, loadStreak }: Props) {
                     }}
                     aria-hidden
                   />
-                  <span className="preset-emblem" aria-hidden>{skin.icons.emblem}</span>
                   {skin.name}
                 </button>
               ) : (

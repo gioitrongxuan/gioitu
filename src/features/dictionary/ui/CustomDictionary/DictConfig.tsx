@@ -57,7 +57,7 @@ export function DictConfig({
         <label className="form-field grow">
           <span className="field-label">Từ điển</span>
           <select value={existingDictId} onChange={(e) => onSelectDict(e.target.value)}>
-            <option value={NEW_DICT}>➕ Tạo từ điển mới…</option>
+            <option value={NEW_DICT}>Tạo từ điển mới…</option>
             {dicts.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.title} ({d.termCount} từ){d.custom ? "" : " · đã nhập"}

@@ -66,7 +66,7 @@ export function CommentList({ comments }: { comments?: DictComment[] }) {
               <div className="comment-mean">{c.mean}</div>
               <div className="comment-meta muted">
                 {c.author && <span className="comment-author">{c.author}</span>}
-                {(c.likes ?? 0) > 0 && <span className="comment-likes">👍 {c.likes}</span>}
+                {(c.likes ?? 0) > 0 && <span className="comment-likes">{c.likes} thích</span>}
               </div>
             </div>
           </li>

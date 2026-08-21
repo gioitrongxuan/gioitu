@@ -1,4 +1,4 @@
-// "Đã thuộc 🎉" cloud — the wall of mastered words, same heatmap look as the main
+// "Đã thuộc" cloud — the wall of mastered words, same heatmap look as the main
 // cloud (shade by lookup_count) so the two read as one language. Rendered inside
 // the achievement page's content area; the detail panel lives beside it (App).
 // Shares the main cloud's language split and time grouping.
