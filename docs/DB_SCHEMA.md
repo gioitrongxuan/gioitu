@@ -19,7 +19,7 @@ phải bảo toàn → IndexedDB chỉ là bản sao của Cloud DB.
 
 ## 2. IndexedDB (client) — `src/shared/db.ts`
 
-`DB_NAME = "gioitu"`, `DB_VERSION = 9`. **Bump `DB_VERSION` khi đổi schema.**
+`DB_NAME = "gioitu"`, `DB_VERSION = 10`. **Bump `DB_VERSION` khi đổi schema.**
 
 Lịch sử version (trong `upgrade()`):
 
@@ -32,14 +32,15 @@ Lịch sử version (trong `upgrade()`):
 | v7 | Thêm index `by_reading` cho `terms` (tra bằng cách đọc ra được từ keyed theo kanji) |
 | v8 | Thêm store `review_log` (append-only, một dòng/lượt chấm thẻ) |
 | v9 | Thêm store `search_history` (lịch sử tra cứu cho trang Tra cứu, #269) |
+| v10 | Thêm store `wordsets` + `wordset_words` (bộ từ nhập ngoài để sàng ra phần đã biết) |
 
 > Migration **theo version, không phá huỷ, idempotent**: `terms` KHÔNG còn bị
 > xoá khi bump (từ v5 nó chứa cả từ điển cá nhân — không tái tạo được bằng
 > re-import; xem cảnh báo trong `db.ts`). Thêm một object store mới (như
-> `review_log` ở v8, `search_history` ở v9) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
+> `review_log` ở v8, `search_history` ở v9, cặp `wordsets`/`wordset_words` ở v10) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
 > không đụng store cũ. Store cũ `reverse_tokens` (nếu còn) bị xoá.
 
-### 2.1 Sáu object store
+### 2.1 Tám object store
 
 ```
 terms          khoá [term_lang, native_lang, term, reading]
@@ -69,6 +70,15 @@ review_log     khoá id (số, autoIncrement) — append-only
 search_history khoá [user_id, term_lang, native_lang, term] — gộp theo từ
                (không index: mỗi người tối đa 200 dòng, đọc hết rồi sắp)
                value SearchHistoryEntry
+
+wordsets       khoá id (string)
+               index by_pair [term_lang, native_lang]
+               value Wordset
+
+wordset_words  khoá [setId, term, reading]
+               (không index: khoá mở đầu bằng setId nên một key range quét
+                trọn một bộ)
+               value WordsetWord
 ```
 
 **Vì sao `reading` nằm trong khoá `terms`:** đồng âm khác cách đọc (辛い からい
@@ -193,6 +203,45 @@ interface SearchHistoryEntry {
   reading?: string;
   count: number;       // số lượt đã tra
   lastAt: number;      // epoch ms lượt gần nhất
+}
+```
+
+### 2.8 `Wordset` / `WordsetWord` (bộ từ nhập ngoài)
+
+Danh sách từ nhập từ ngoài (JLPT N1, giáo trình) để **đối chiếu với vốn từ rồi
+sàng bỏ phần đã biết** — xem FEATURES §9.21. Là danh sách **tham chiếu chỉ đọc**:
+không sửa từng từ, không đồng bộ lên cloud, không nằm trong bản sao lưu; mất thì
+nhập lại.
+
+**Vì sao không nhét vào `terms`/`dictionaries`** (ba lý do, đều đã kiểm chứng
+trên code):
+1. `terms` là nguồn tra cứu — một bộ từ chỉ có mặt chữ, không nghĩa, sẽ hiện ra
+   thành hit rỗng khi tra nguồn "Trên máy".
+2. Đường nhập Từ điển cá nhân khử trùng với **toàn bộ** `terms` cùng cặp ngôn ngữ
+   (`existingTermKeys` + `dedupe` ở `CustomDictionary.tsx`), nên nhập một bộ N1
+   vào đó thì gần như mọi từ trùng với JMdict đã cài và bị bỏ — mất trắng.
+3. Bộ từ không phải "bộ sưu tập của tôi" (quyết định mở #3 trong BACKLOG): nó
+   không phải khái niệm thứ ba cần hợp nhất, mà là dữ liệu tham chiếu dùng xong
+   xoá được.
+
+```ts
+interface Wordset {
+  id: string;
+  title: string;
+  term_lang: string;
+  native_lang: string;
+  source: "paste" | "file" | "sieve"; // "sieve" = bản chắt từ một bộ khác
+  count: number;
+  importedAt: number;
+  fromId?: string;     // bộ gốc, khi source === "sieve"
+}
+
+interface WordsetWord {
+  setId: string;
+  term: string;
+  reading: string;     // "" khi vắng — nằm trong keyPath nên không được undefined
+  gloss?: string;      // nghĩa kèm theo danh sách nguồn (chỉ để hiện)
+  group?: string;      // nhóm/bài trong bộ gốc
 }
 ```
 

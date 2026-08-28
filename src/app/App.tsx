@@ -863,6 +863,11 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                       if (entry?.status === "LEARNED") store.markForgottenEntry(entry, true);
                       else store.markKnownByTerm(w.term, w.term_lang, w.native_lang, true);
                     }}
+                    onMarkKnownMany={(ws) =>
+                      store.markKnownMany(
+                        ws.map((w) => ({ term: w.term, term_lang: w.term_lang, native_lang: w.native_lang })),
+                      )
+                    }
                     onRequestLogin={onRequestLogin}
                   />
                 </Suspense>

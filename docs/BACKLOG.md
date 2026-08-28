@@ -24,8 +24,14 @@
    quick-mark KanjiStats, double-click VocabStudy) mâu thuẫn ràng buộc SPEC #7
    "tốt nghiệp bằng ngưỡng, không bằng nút". Đề xuất: nâng thành khái niệm
    chính thức (cờ nguồn riêng, đếm riêng "N từ · M kanji tự đánh dấu").
+   Đã có mốc đầu: đánh dấu hàng loạt khi sàng bộ từ (FEATURES §9.21) đóng dấu
+   `VocabEntry.learned_source = "sieve"`. Chốt xong thì mở rộng cờ này cho 3 UI
+   tự khai lẻ còn lại.
 3. **Study list vs Từ điển cá nhân** — hai hệ "bộ từ tự gom" song song
    (server-only vs IndexedDB). Đề xuất: gộp về MỘT khái niệm bộ sưu tập.
+   Lưu ý: "bộ từ nhập ngoài" (store `wordsets`, FEATURES §9.21) cố ý KHÔNG phải
+   khái niệm thứ ba cần gộp — nó là danh sách tham chiếu chỉ đọc, không sửa,
+   không đồng bộ, xoá lúc nào cũng được.
 
 ## Giai đoạn 0 — Sửa nền móng (~2–4 ngày)
 

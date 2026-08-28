@@ -468,12 +468,13 @@ luôn hiện. (`features/kanjistats/`, `App.tsx:293,399-406`)
 Lưới ô từ (kiểu kanji-grid) để duyệt nhanh và tự đánh dấu biết/không biết. Mục
 menu **Học từ vựng** luôn hiện. (`features/vocabstudy/`, `App.tsx:294,407-421`)
 
-- **Ba nguồn** (dropdown "Nguồn danh sách"):
+- **Bốn nguồn** (dropdown "Nguồn danh sách"):
   - *Lịch sử* (mặc định): chính `store.entries`, lọc theo cặp ngôn ngữ đang chọn.
   - *Từ điển cá nhân*: nạp toàn bộ một từ điển tự soạn từ IndexedDB (không phân
     trang — từ điển cá nhân thường nhỏ).
   - *Study list*: bộ từ trên server, **cần đăng nhập** (chưa đăng nhập thì hiện
     lời mời).
+  - *Bộ từ nhập*: danh sách nhập từ ngoài để **sàng** — xem §9.21.
 - **Phủ tiến độ** (`domain/vocablist.ts`): `applyProgress` chồng entry SRS lên
   danh sách nguồn theo khoá `(term, term_lang)`, phân loại 4 trạng thái —
   `learned` / `due` (đến hạn) / `learning` / `missing` — và tô sắc độ tương ứng
@@ -481,10 +482,10 @@ menu **Học từ vựng** luôn hiện. (`features/vocabstudy/`, `App.tsx:294,4
 - **Tóm tắt + lọc**: dòng "Đã thuộc N/T (P%) · đang học · cần ôn · chưa học" và
   thanh tiến độ; dropdown "Lọc theo" (tất cả / chưa học / đang học / đến hạn / đã
   thuộc).
-- **Tương tác (mã hiện tại)**: *click đơn* (trễ 250ms) xem nghĩa; *click đúp*
-  toggle nhớ↔quên (`markForgottenEntry` nếu đang LEARNED, ngược lại
-  `markKnownByTerm`). Đây là hành vi BACKLOG muốn thay bằng "Đánh dấu nhanh" như
-  Thống kê kanji (double-click kém ổn định trên cảm ứng).
+- **Tương tác**: một cú bấm, hành vi tuỳ chế độ — thường là xem nghĩa
+  (read-only, không đếm lượt tra), bật ô "Đánh dấu nhanh" thì bấm là toggle
+  nhớ↔quên (`markForgottenEntry` nếu đang LEARNED, ngược lại `markKnownByTerm`),
+  kèm toast Hoàn tác. Click-đúp cũ đã bỏ (kém ổn định trên cảm ứng).
 - **Rỗng**: thông điệp khác nhau theo nguồn / khi bộ lọc không khớp.
 
 ### 9.4 Từ điển cá nhân
@@ -1013,6 +1014,50 @@ không đụng `next_review`. Mở từ nút **Hình ảnh** cạnh "Nghe". Song
   tiếp mà chưa từ nào có ảnh thì dừng lại hỏi (nút "Tìm tiếp") thay vì gọi mạng
   hàng trăm lần để cuối cùng vẫn báo "không có gì". Logic thuần (danh sách chiếu,
   các bước, chọn ảnh khớp đúng từ, mốc bỏ cuộc) ở `review/domain/imageMode.ts`.
+
+### 9.21 Sàng bộ từ nhập ngoài
+
+Nhập một danh sách từ có sẵn (JLPT N1, giáo trình, danh sách chép từ web) rồi
+**đối chiếu với vốn từ của mình để quét phần đã biết đi** — chỉ còn lại phần
+thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3).
+(`vocabstudy/domain/wordset.ts`, `domain/wordsetMatch.ts`, `data/wordsets.ts`,
+`ui/WordsetImport.tsx`, `ui/WordsetSummary.tsx`)
+
+- **Nhập**: dán văn bản hoặc chọn tệp `.txt/.csv/.tsv` (≤ 2 MB, ≤ 20.000 từ).
+  Mỗi dòng một từ; cột ngăn bằng Tab hoặc dấu phẩy theo thứ tự *mặt chữ · cách
+  đọc · nghĩa · bài*. Trình phân tích khoan dung với danh sách chép về: bỏ đánh
+  số đầu dòng, bóc 【cách đọc】 dính trong mặt chữ, tôn trọng nháy kép trong
+  nghĩa có dấu phẩy — nhưng **đếm và báo lại** số dòng trùng / bỏ / bị cắt.
+- **Lưu ở đâu**: hai store IndexedDB **riêng** `wordsets` + `wordset_words`
+  (DB v10), KHÔNG dùng `terms`/`dictionaries`. Bộ từ chỉ có mặt chữ nên nếu nằm
+  trong `terms` sẽ hiện ra thành hit rỗng nghĩa khi tra; và đường nhập Từ điển
+  cá nhân khử trùng với toàn bộ `terms` cùng cặp ngôn ngữ, tức nhập N1 vào đó
+  thì gần như mọi từ bị coi là trùng với JMdict và bị bỏ. Dùng được cho guest,
+  offline; chưa đồng bộ lên cloud (nhập lại là xong).
+- **Thang khớp có độ tin cậy** (`domain/wordsetMatch.ts`): danh sách ngoài không
+  viết theo cùng quy ước chính tả với vốn từ, nên khớp theo bậc — (1) mặt chữ
+  trùng đúng, (2) trùng sau chuẩn hoá NFKC/bỏ ・ → **chắc**; (3) trùng qua cách
+  đọc (fold katakana→hiragana), (4) khác okurigana nhưng cùng khung ≥2 kanji,
+  (5) trùng sau khi chia ngược (`deinflect.candidates`) → **ngờ**. Cùng mặt chữ
+  mà hai bên khai cách đọc khác nhau (辛い からい/つらい) cũng bị hạ xuống *ngờ*.
+- **Chỉ bậc chắc mới được tự ẩn.** Nhóm ngờ hiện thành dòng "N từ có thể bạn đã
+  biết" kèm nút *Duyệt nhóm này* (bộ lọc `uncertain`) — ẩn ngầm một từ đồng âm
+  là giấu mất từ người dùng chưa hề biết mà họ không cách nào phát hiện.
+- **Báo cáo đối chiếu**: "Đã thuộc N/T (P%) · đang học · cần ôn · chưa học" +
+  thanh phủ, rồi lưới ô như các nguồn khác. Ô "Ẩn từ đã thuộc" **mặc định bật**;
+  từ đang học / cần ôn vẫn hiện (chúng đã nằm trong hàng ôn, ẩn đi là mất dấu).
+- **Hai hành động hàng loạt**, đều qua bước xác nhận có nêu số và ví dụ:
+  - *Đánh dấu N từ đang hiện là đã thuộc* → `store.markKnownMany`: ghi tuần tự,
+    một lần setState, một lần hẹn đồng bộ, **một** toast kèm Hoàn tác cả mẻ. Từ
+    đã LEARNED sẵn thì bỏ qua (không bump `updated_at` vô cớ).
+  - *Tách N từ đang hiện thành bộ riêng* → tạo một bộ mới `source: "sieve"` giữ
+    `fromId` trỏ về bộ gốc. Là **ảnh chụp** một thời điểm, không tự cập nhật —
+    mặc định vẫn nên dùng bộ lọc để con số độ phủ luôn sống.
+- **Cờ nguồn**: entry chuyển sang LEARNED bằng đánh dấu hàng loạt được đóng dấu
+  `learned_source: "sieve"` (trường optional, không index → không cần bump DB).
+  Đây là kênh "tự khai đã thuộc" mạnh nhất trong app nên phải đếm riêng được nếu
+  quyết định mở #2 trong BACKLOG siết lại. Các nút tự khai lẻ hiện **chưa** đóng
+  dấu gì — vắng cờ không có nghĩa "đã tốt nghiệp đàng hoàng".
 
 ## 10. Bản đồ chức năng → tài liệu
 

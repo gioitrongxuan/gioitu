@@ -108,6 +108,43 @@ export interface LocalDictionary {
   deletedTerms?: Record<string, number>;
 }
 
+/**
+ * Một **bộ từ** nhập từ ngoài (JLPT N1, giáo trình, danh sách chép từ web…) —
+ * danh sách THAM CHIẾU chỉ đọc để đối chiếu với vốn từ của người dùng, cố ý
+ * KHÔNG nằm trong `terms`/`dictionaries`. Ba lý do:
+ *  1. `terms` là nguồn tra cứu: một bộ từ chỉ có mặt chữ, không nghĩa, chui vào
+ *     đó là kết quả tra hiện ra hit rỗng.
+ *  2. Đường nhập của Từ điển cá nhân khử trùng với TOÀN BỘ `terms` cùng cặp
+ *     ngôn ngữ (`existingTermKeys` + `dedupe`) — nhập N1 vào đó thì gần như mọi
+ *     từ đều rơi vào `duplicates` vì JMdict đã có sẵn, tức mất trắng danh sách.
+ *  3. Bộ từ không phải "bộ sưu tập của tôi": không sửa, không đồng bộ, xoá lúc
+ *     nào cũng được vì nhập lại là xong.
+ */
+export interface Wordset {
+  id: string;
+  title: string;
+  term_lang: string;
+  native_lang: string;
+  /** Đường vào: dán văn bản, thả tệp, hay chắt ra từ một bộ khác sau khi sàng. */
+  source: "paste" | "file" | "sieve";
+  count: number;
+  importedAt: number;
+  /** Bộ gốc khi `source === "sieve"` — để biết bản chắt này từ đâu ra. */
+  fromId?: string;
+}
+
+/** Một từ trong bộ từ. `reading` là chuỗi rỗng (không phải undefined) khi vắng —
+ *  nó nằm trong keyPath, mà IndexedDB không cho undefined làm thành phần khoá. */
+export interface WordsetWord {
+  setId: string;
+  term: string;
+  reading: string;
+  /** Nghĩa gợi ý kèm theo danh sách nguồn (nếu có) — chỉ để hiện, không tra cứu. */
+  gloss?: string;
+  /** Nhóm/bài trong bộ gốc ("Bài 12") — giữ để sàng theo từng bài. */
+  group?: string;
+}
+
 interface GioituDB extends DBSchema {
   terms: {
     // Composite key scopes each entry to its language pair AND its reading, so
@@ -154,10 +191,21 @@ interface GioituDB extends DBSchema {
     key: [string, string, string, string]; // [user_id, term_lang, native_lang, term]
     value: SearchHistoryEntry;
   };
+  wordsets: {
+    key: string; // id
+    value: Wordset;
+    indexes: { by_pair: [string, string] };
+  };
+  wordset_words: {
+    // Khoá mở đầu bằng `setId` nên một IDBKeyRange trên [setId] … [setId, []]
+    // quét trọn một bộ — không cần index by_set (cùng mẹo với `getAllEntries`).
+    key: [string, string, string]; // [setId, term, reading]
+    value: WordsetWord;
+  };
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -177,6 +225,8 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         //       existing store is touched.
         //   v9  adds `search_history` (lịch sử tra cứu cho trang Tra cứu) —
         //       cũng là store mới, pure add.
+        //   v10 adds `wordsets` + `wordset_words` (bộ từ nhập ngoài để sàng ra
+        //       phần đã biết) — hai store MỚI, pure add.
         //
         // `terms` is NOT merely a re-importable cache anymore: Từ điển cá nhân
         // (CustomDictionary) writes hand-authored rows into it under a `dictId`
@@ -251,6 +301,17 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
           db.createObjectStore("search_history", {
             keyPath: ["user_id", "term_lang", "native_lang", "term"],
           });
+        }
+
+        // Bộ từ nhập ngoài (v10) — hai store MỚI, không đụng store cũ nào. Dữ
+        // liệu ở đây tái tạo được bằng cách nhập lại, nên không có gì phải bảo
+        // toàn như `terms`.
+        if (!db.objectStoreNames.contains("wordsets")) {
+          const sets = db.createObjectStore("wordsets", { keyPath: "id" });
+          sets.createIndex("by_pair", ["term_lang", "native_lang"]);
+        }
+        if (!db.objectStoreNames.contains("wordset_words")) {
+          db.createObjectStore("wordset_words", { keyPath: ["setId", "term", "reading"] });
         }
       },
     });

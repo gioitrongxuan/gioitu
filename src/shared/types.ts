@@ -62,6 +62,22 @@ export interface VocabEntry {
    */
   learned_at?: number;
 
+  /**
+   * Vì sao từ này ở trạng thái LEARNED, khi lý do KHÔNG phải tốt nghiệp qua SRS.
+   * Hiện chỉ đóng dấu cho một nguồn: `"sieve"` — người dùng sàng một bộ từ nhập
+   * ngoài rồi đánh dấu đã biết hàng loạt. Đây là kênh "tự khai đã thuộc" mạnh
+   * nhất trong app (một cú bấm, hàng trăm thẻ), nên phải đếm riêng được nếu sau
+   * này chốt quyết định mở #2 trong BACKLOG theo hướng siết lại.
+   *
+   * CẢNH BÁO: vắng cờ này KHÔNG có nghĩa "đã tốt nghiệp đàng hoàng" — các nút
+   * tự khai lẻ (✓ DetailPanel, quick-mark KanjiStats/VocabStudy) hiện vẫn không
+   * đóng dấu gì; chúng chỉ được gắn cờ khi quyết định #2 ngã ngũ.
+   *
+   * Optional & không có index → thêm vào record KHÔNG cần bump DB_VERSION, và
+   * đồng bộ theo payload JSON như các field khác.
+   */
+  learned_source?: "sieve";
+
   // --- SM-2 card fields ---
   card_state: CardState | null; // null until a card is created (gating, SPEC 4.4)
   learning_step: number; // index into learning/relearning steps
