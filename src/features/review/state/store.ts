@@ -314,6 +314,80 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     [userId, upsertLocal, scheduleSync, restoreSnapshot, removeCreated],
   );
 
+  /**
+   * Đánh dấu đã thuộc cho NHIỀU từ một lượt — dùng khi sàng một bộ từ nhập ngoài
+   * ("bộ N1 này tôi đã biết 412 từ, đánh dấu hết đi"). Không gọi `markKnownByTerm`
+   * trong vòng lặp: mỗi lượt là một toast và một lần `setEntries`, tức hàng trăm
+   * toast chồng nhau và ngần ấy lần render lại cả bản đồ (cùng lý do với
+   * `setManyEntryLabels`). Ở đây ghi tuần tự, rồi MỘT lần setState, MỘT lần hẹn
+   * đồng bộ, MỘT toast kèm "Hoàn tác" gỡ lại trọn mẻ.
+   *
+   * Từ nào đã LEARNED sẵn thì bỏ qua — ghi lại chỉ tổ bump `updated_at` (thắng
+   * LWW vô cớ) và làm sai mốc `learned_at`.
+   */
+  const markKnownMany = useCallback(
+    async (words: { term: string; term_lang: string; native_lang: string }[]) => {
+      const now = Date.now();
+      const written: VocabEntry[] = [];
+      // Ảnh chụp để hoàn tác: bản cũ nếu từ đã có entry, `undefined` nếu vừa tạo
+      // mới (hoàn tác = tombstone nó đi).
+      const before: (VocabEntry | undefined)[] = [];
+      for (const w of words) {
+        const existing = await getEntry(userId, w.term, w.term_lang);
+        if (existing && existing.deleted_at == null && existing.status === "LEARNED") continue;
+        const base = existing?.deleted_at == null ? existing : undefined;
+        const next: VocabEntry = base
+          ? {
+              ...base,
+              ...markKnown(now),
+              learned_at: learnedAtAfter(base.status, "LEARNED", now, base.learned_at),
+              learned_source: "sieve",
+              updated_at: now,
+            }
+          : {
+              ...newKnownEntry(
+                { user_id: userId, term: w.term, term_lang: w.term_lang, native_lang: w.native_lang, meaning: "" },
+                now,
+              ),
+              learned_source: "sieve",
+            };
+        await putEntry(next);
+        written.push(next);
+        before.push(base);
+      }
+      if (written.length === 0) {
+        pushToast("Những từ này đã được đánh dấu thuộc từ trước", "info");
+        return 0;
+      }
+      setEntries((list) => {
+        const next = list.slice();
+        for (const row of written) {
+          const i = next.findIndex((e) => e.term === row.term && e.term_lang === row.term_lang);
+          if (i === -1) next.push(row);
+          else next[i] = row;
+        }
+        return next;
+      });
+      scheduleSync();
+
+      const undoAll = async () => {
+        for (let i = 0; i < written.length; i += 1) {
+          const snapshot = before[i];
+          if (snapshot) await restoreSnapshot(snapshot);
+          else await removeCreated(written[i]);
+        }
+      };
+      pushToast(`Đã đánh dấu ${written.length} từ là đã thuộc`, "success", {
+        label: "Hoàn tác",
+        onClick: () => {
+          void undoAll().then(() => pushToast(`Đã hoàn tác ${written.length} từ`, "info"));
+        },
+      });
+      return written.length;
+    },
+    [userId, scheduleSync, restoreSnapshot, removeCreated],
+  );
+
   /** "Đã quên" — relapse a learned word back into the review queue. */
   const markForgottenEntry = useCallback(
     async (entry: VocabEntry, undoable = false) => {
@@ -491,6 +565,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     undoReview,
     markKnownEntry,
     markKnownByTerm,
+    markKnownMany,
     markForgottenEntry,
     setEntryLabels,
     setManyEntryLabels,

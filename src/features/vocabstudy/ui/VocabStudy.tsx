@@ -3,6 +3,8 @@
 //   • Study list      — bộ sưu tập từ (server, cần đăng nhập)
 //   • Từ điển cá nhân — các dict tự soạn (local IndexedDB)
 //   • Lịch sử         — các từ đã tra cứu (store.entries)
+//   • Bộ từ nhập      — danh sách nhập từ ngoài (N1, giáo trình) để SÀNG: đối
+//     chiếu với vốn từ rồi ẩn phần đã biết đi (xem domain/wordsetMatch.ts)
 // Tương tác mỗi ô (giống KanjiStats): một cú bấm, hành vi tuỳ chế độ —
 //   • Thường          → hiện nghĩa (read-only, KHÔNG đếm lượt tra)
 //   • "Đánh dấu nhanh" → toggle nhớ ↔ không nhớ (LEARNED ↔ relapse về hàng ôn),
@@ -21,17 +23,22 @@ import {
   cellShade,
   countProgress,
   percent,
-  VocabCell,
   VocabListWord,
   VocabProgress,
 } from "../domain/vocablist";
 import { CheckIcon } from "@/shared/ui/icons";
+import { pushToast } from "@/shared/ui/Toasts";
+import { applySieve, countUncertain, SieveCell, visibleCells } from "../domain/wordsetMatch";
 import * as studyListSrc from "../data/studyListSource";
 import * as customDictSrc from "../data/customDictSource";
+import { createWordset, loadWordset, Wordset, WordsetWord } from "../data/wordsets";
+import { WordsetPicker } from "./WordsetImport";
+import { WordsetSummary } from "./WordsetSummary";
 import "./vocabstudy.css";
 
-type SourceKind = "studylist" | "custom" | "history";
-type StatusFilter = "all" | VocabProgress;
+type SourceKind = "studylist" | "custom" | "history" | "wordset";
+/** "uncertain" chỉ có nghĩa với bộ từ nhập — nhóm ghép được nhưng chưa chắc. */
+type StatusFilter = "all" | VocabProgress | "uncertain";
 
 /**
  * `none` = đã chọn nguồn nhưng chưa chọn danh sách (đang ở màn chọn). Thiếu nó
@@ -43,12 +50,14 @@ type Selection =
   | { kind: "studylist"; list: studyListSrc.StudyListSummary }
   | { kind: "custom"; dict: customDictSrc.LocalDictionary }
   | { kind: "history" }
+  | { kind: "wordset"; set: Wordset }
   | { kind: "none" };
 
 const SOURCE_LABEL: Record<SourceKind, string> = {
   studylist: "Study list",
   custom: "Từ điển cá nhân",
   history: "Lịch sử",
+  wordset: "Bộ từ nhập",
 };
 
 const STATUS_LABEL: Record<VocabProgress, string> = {
@@ -66,21 +75,37 @@ interface Props {
   onSelect: (w: VocabListWord) => void;
   /** Click đúp — toggle nhớ/không nhớ. entry là trạng thái SRS hiện tại. */
   onToggle: (w: VocabListWord, entry: VocabEntry | undefined) => void;
+  /** Đánh dấu "đã thuộc" cho cả một mẻ từ (sàng bộ từ). Trả về số thẻ thật sự đổi. */
+  onMarkKnownMany: (w: VocabListWord[]) => Promise<number>;
   /** Mở màn đăng nhập (khi khách chọn nguồn study list). */
   onRequestLogin: () => void;
 }
 
-export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, onRequestLogin }: Props) {
+export function VocabStudy({
+  entries,
+  pair,
+  onPairChange,
+  onSelect,
+  onToggle,
+  onMarkKnownMany,
+  onRequestLogin,
+}: Props) {
   const { theme } = useTheme();
   const [source, setSource] = useState<SourceKind>("history");
   const [selection, setSelection] = useState<Selection>({ kind: "history" });
   const [words, setWords] = useState<VocabListWord[]>([]);
+  // Dòng gốc của bộ từ (giữ nghĩa/bài) — chỉ dùng khi chắt ra bộ mới, lưới không cần.
+  const [rows, setRows] = useState<WordsetWord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
   // "Đánh dấu nhanh": bật thì một cú bấm sẽ toggle nhớ/không nhớ thay vì xem nghĩa
   // (giống KanjiStats). Tắt là mặc định an toàn — bấm chỉ để xem.
   const [quickMark, setQuickMark] = useState(false);
+  // Sàng bộ từ: mặc định ẩn phần CHẮC CHẮN đã thuộc — đó là lý do người ta mở
+  // một bộ từ lên. Từ đang học/cần ôn vẫn hiện (chúng đã nằm trong hàng ôn, ẩn
+  // đi là mất dấu), còn nhóm ghép chưa chắc thì không bao giờ tự ẩn.
+  const [hideKnown, setHideKnown] = useState(true);
 
   // Khi đổi nguồn hoặc lựa chọn — tải danh sách từ tương ứng.
   useEffect(() => {
@@ -88,8 +113,12 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
     setLoading(true);
     setError("");
     setWords([]);
-    const done = (w: VocabListWord[]) => {
-      if (alive) setWords(w);
+    setRows([]);
+    const done = (w: VocabListWord[], r: WordsetWord[] = []) => {
+      if (alive) {
+        setWords(w);
+        setRows(r);
+      }
     };
     const fail = (e: unknown) => {
       if (alive) setError((e as Error).message || "Không tải được danh sách");
@@ -106,6 +135,8 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
           .map((e) => ({ term: e.term, reading: e.reading, term_lang: e.term_lang, native_lang: e.native_lang })),
       );
       finish();
+    } else if (selection.kind === "wordset") {
+      loadWordset(selection.set).then((r) => done(r.words, r.rows)).catch(fail).finally(finish);
     } else if (selection.kind === "custom") {
       customDictSrc.loadCustomDict(selection.dict.id).then((r) => done(r.words)).catch(fail).finally(finish);
     } else {
@@ -116,22 +147,65 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
     };
   }, [selection, entries, pair]);
 
-  const cells = useMemo<VocabCell[]>(
-    () => applyProgress(words, entries, Date.now()),
-    [words, entries],
+  // Bộ từ nhập ngoài dùng thang khớp khoan dung hơn (cách đọc, okurigana, dạng
+  // chia) vì nó không viết theo cùng quy ước chính tả với vốn từ của người dùng;
+  // ba nguồn còn lại là từ chính người dùng gom nên khớp thẳng là đúng.
+  const isWordset = selection.kind === "wordset";
+  const cells = useMemo<SieveCell[]>(
+    () => (isWordset ? applySieve(words, entries, Date.now()) : applyProgress(words, entries, Date.now())),
+    [words, entries, isWordset],
   );
   const counts = useMemo(() => countProgress(cells), [cells]);
+  const uncertain = useMemo(() => countUncertain(cells), [cells]);
   const visible = useMemo(
-    () => (filter === "all" ? cells : cells.filter((c) => c.progress === filter)),
-    [cells, filter],
+    () => visibleCells(cells, filter, isWordset && hideKnown),
+    [cells, filter, isWordset, hideKnown],
+  );
+  /** Từ đang hiện mà chưa được đánh dấu thuộc — đích của đánh dấu hàng loạt. */
+  const markable = useMemo(
+    () => visible.filter((c) => c.progress !== "learned").map((c) => c.word),
+    [visible],
   );
   const learnedPct = percent(counts.learned, counts.total);
+
+  /**
+   * "Tách thành bộ riêng": chắt đúng những ô đang hiện thành một bộ mới. Ảnh
+   * chụp một thời điểm — nói rõ trong hộp xác nhận — nhưng đôi khi vẫn cần: bộ
+   * gốc 3.000 từ mà phần chưa biết chỉ 200 thì mang 200 từ ấy đi nhờ AI soạn
+   * nghĩa hay chia sẻ dễ hơn nhiều.
+   */
+  const splitVisible = async () => {
+    if (!selectionIs(selection, "wordset")) return;
+    const set = selection.set;
+    const byKey = new Map(rows.map((r) => [`${r.term}\u0000${r.reading}`, r]));
+    const drafts = visible.map((c) => {
+      const row = byKey.get(`${c.word.term}\u0000${c.word.reading ?? ""}`);
+      return {
+        term: c.word.term,
+        ...(c.word.reading ? { reading: c.word.reading } : {}),
+        ...(row?.gloss ? { gloss: row.gloss } : {}),
+        ...(row?.group ? { group: row.group } : {}),
+      };
+    });
+    const title = `${set.title} · lọc ${new Date().toLocaleDateString("vi-VN")}`;
+    try {
+      await createWordset(
+        { title, term_lang: set.term_lang, native_lang: set.native_lang, source: "sieve", fromId: set.id },
+        drafts,
+      );
+      pushToast(`Đã tạo bộ “${title}” gồm ${drafts.length} từ`, "success");
+    } catch (e) {
+      console.error("split wordset failed", e);
+      pushToast("Không tạo được bộ mới", "warn");
+    }
+  };
 
   // Chuyển nguồn — reset lựa chọn (history dùng được ngay, hai nguồn kia phải
   // chọn danh sách trước; giữ lựa chọn cũ sẽ hiện lưới của nguồn vừa rời).
   const pickSource = (k: SourceKind) => {
     setSource(k);
     setFilter("all");
+    setHideKnown(true);
     setSelection(k === "history" ? { kind: "history" } : { kind: "none" });
   };
 
@@ -157,12 +231,24 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
         />
       )}
 
+      {source === "wordset" && !selectionIs(selection, "wordset") && (
+        <>
+          <PairPicker pair={pair} onPairChange={onPairChange} />
+          <WordsetPicker pair={pair} onPick={(set) => setSelection({ kind: "wordset", set })} />
+        </>
+      )}
+
       {/* Khi đã có danh sách từ (lựa chọn xong) — hiện tiêu đề + lưới. */}
-      {(selectionIs(selection, "studylist") || selectionIs(selection, "custom") || selection.kind === "history") && (
+      {(selectionIs(selection, "studylist") ||
+        selectionIs(selection, "custom") ||
+        selectionIs(selection, "wordset") ||
+        selection.kind === "history") && (
         <>
           <div className="vocab-head">
             <h2>{selectionTitle(selection)}</h2>
-            {(selectionIs(selection, "studylist") || selectionIs(selection, "custom")) && (
+            {(selectionIs(selection, "studylist") ||
+              selectionIs(selection, "custom") ||
+              selectionIs(selection, "wordset")) && (
               <button className="link" onClick={() => setSelection({ kind: "none" })}>
                 ← Đổi
               </button>
@@ -173,14 +259,30 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
 
           {counts.total > 0 && (
             <>
-              <p className="kanji-summary">
-                Đã thuộc <b>{counts.learned}</b>/{counts.total}{" "}
-                <span className="muted">({learnedPct}%)</span> · đang học {counts.learning} · cần ôn{" "}
-                {counts.due} · chưa học {counts.missing}
-              </p>
-              <div className="kanji-progress" title={`Đã thuộc ${learnedPct}%`}>
-                <div className="kanji-progress-fill" style={{ width: `${learnedPct}%` }} />
-              </div>
+              {isWordset ? (
+                <WordsetSummary
+                  counts={counts}
+                  uncertain={uncertain}
+                  hideKnown={hideKnown}
+                  onHideKnown={setHideKnown}
+                  onReviewUncertain={() => setFilter("uncertain")}
+                  markable={markable}
+                  onMarkKnown={onMarkKnownMany}
+                  splitCount={visible.length}
+                  onSplit={splitVisible}
+                />
+              ) : (
+                <>
+                  <p className="kanji-summary">
+                    Đã thuộc <b>{counts.learned}</b>/{counts.total}{" "}
+                    <span className="muted">({learnedPct}%)</span> · đang học {counts.learning} · cần ôn{" "}
+                    {counts.due} · chưa học {counts.missing}
+                  </p>
+                  <div className="kanji-progress" title={`Đã thuộc ${learnedPct}%`}>
+                    <div className="kanji-progress-fill" style={{ width: `${learnedPct}%` }} />
+                  </div>
+                </>
+              )}
 
               <div className="kanji-controls">
                 <label className="sort-select">
@@ -191,6 +293,7 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
                     <option value="learning">Đang học</option>
                     <option value="due">Cần ôn</option>
                     <option value="learned">Đã thuộc</option>
+                    {isWordset && <option value="uncertain">Có thể đã biết</option>}
                   </select>
                 </label>
                 <label className="kanji-check">
@@ -218,7 +321,11 @@ export function VocabStudy({ entries, pair, onPairChange, onSelect, onToggle, on
                 : "Danh sách này chưa có từ nào."}
             </p>
           ) : visible.length === 0 ? (
-            <p className="empty">Không có từ nào khớp bộ lọc.</p>
+            <p className="empty">
+              {isWordset && hideKnown && filter === "all"
+                ? "Bạn đã thuộc hết bộ này rồi."
+                : "Không có từ nào khớp bộ lọc."}
+            </p>
           ) : (
             <div className="vocab-grid" role="list">
               {visible.map((cell) => (
@@ -248,6 +355,7 @@ function selectionIs<S extends SourceKind>(s: Selection, kind: S): s is Extract<
 function selectionTitle(s: Selection): string {
   if (s.kind === "studylist") return s.list.name;
   if (s.kind === "custom") return s.dict.title;
+  if (s.kind === "wordset") return s.set.title;
   if (s.kind === "history") return "Lịch sử tra cứu";
   return ""; // chưa chọn — khối tiêu đề không render ở trạng thái này
 }
@@ -398,7 +506,7 @@ function VocabTile({
   onView,
   onToggle,
 }: {
-  cell: VocabCell;
+  cell: SieveCell;
   theme: ReturnType<typeof useTheme>["theme"];
   quickMark: boolean;
   onView: () => void;
@@ -407,6 +515,9 @@ function VocabTile({
   const shade = cellShade(cell.progress);
   const missing = cell.progress === "missing";
   const known = cell.progress === "learned";
+  // Ghép chưa chắc (sàng bộ từ): phải NHÌN ra được ngay trên lưới, nếu không thì
+  // "duyệt nhóm có thể đã biết" chỉ là một danh sách trông y hệt phần đã thuộc.
+  const unsure = cell.match === "loose";
 
   const action = quickMark ? `đánh dấu ${known ? "không nhớ" : "đã nhớ"}` : "xem nghĩa";
 
@@ -414,9 +525,13 @@ function VocabTile({
     <button
       type="button"
       role="listitem"
-      className={`vocab-cell${missing ? " missing" : ""}${known ? " known" : ""}${quickMark ? " quick" : ""}`}
+      className={`vocab-cell${missing ? " missing" : ""}${known ? " known" : ""}${unsure ? " unsure" : ""}${
+        quickMark ? " quick" : ""
+      }`}
       style={{ background: heatBackground(shade), color: heatTextColor(shade, theme) }}
-      title={`${cell.word.term}${cell.word.reading ? ` 【${cell.word.reading}】` : ""} · ${STATUS_LABEL[cell.progress]}\nBấm để ${action}`}
+      title={`${cell.word.term}${cell.word.reading ? ` 【${cell.word.reading}】` : ""} · ${STATUS_LABEL[cell.progress]}${
+        unsure ? ` (ghép chưa chắc với “${cell.entry?.term}”)` : ""
+      }\nBấm để ${action}`}
       onClick={quickMark ? onToggle : onView}
     >
       <span className="vocab-term">{cell.word.term}</span>

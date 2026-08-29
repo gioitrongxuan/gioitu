@@ -32,3 +32,52 @@
 }
 .vocab-term { font-size: 17px; line-height: 1.1; }
 .vocab-reading { font-size: 11px; opacity: 0.8; line-height: 1; }
+
+/* ---- Bộ từ nhập ngoài: chọn/nhập bộ, và thẻ báo cáo đối chiếu ---- */
+.wordset-picker { display: flex; flex-direction: column; gap: var(--space-3); align-items: start; }
+.wordset-row { display: flex; align-items: center; gap: var(--space-2); }
+
+.wordset-form {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: var(--space-3); background: var(--surface); width: 100%;
+}
+.wordset-field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--muted); }
+/* 16px để iOS không tự phóng to khi focus (DESIGN §3.7). */
+.wordset-field input, .wordset-field textarea {
+  font: inherit; font-size: var(--text-md); color: var(--fg);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--space-2); background: var(--bg); width: 100%;
+}
+.wordset-field textarea { resize: vertical; line-height: var(--leading-body); }
+.wordset-field input:focus, .wordset-field textarea:focus { border-color: var(--accent); }
+.wordset-hint { margin: 0; }
+.wordset-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* .primary mang sẵn margin-top cho bố cục dọc; trong hàng nút thì bỏ đi. */
+.wordset-actions .primary { margin-top: 0; }
+
+.wordset-summary { display: flex; flex-direction: column; gap: var(--space-2); }
+/* Nhóm "có thể đã biết": chip nhạt màu cảnh báo nhẹ — đây là thứ cần người
+   duyệt, không phải lỗi, nên dùng --caution chứ không phải --warn. */
+.wordset-uncertain {
+  margin: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--caution) 12%, var(--surface));
+  color: color-mix(in oklab, var(--caution) 55%, var(--fg));
+}
+.wordset-uncertain .link { font-size: inherit; }
+
+.wordset-confirm {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  border: 1px solid var(--accent); border-radius: var(--radius-md);
+  padding: var(--space-3); background: var(--surface-2);
+}
+.wordset-confirm-q { margin: 0; font-size: var(--text-base); }
+
+@media (pointer: coarse) {
+  .wordset-form input, .wordset-form textarea { min-height: 44px; }
+  .wordset-row .link { min-height: 44px; }
+}
+/* Ô ghép "chưa chắc" khi sàng bộ từ: viền chấm màu cảnh báo — trông đã-thuộc
+   nhưng có dấu hỏi, đúng nghĩa "chờ bạn duyệt". */
+.vocab-cell.unsure { border: 1px dashed var(--caution); }
