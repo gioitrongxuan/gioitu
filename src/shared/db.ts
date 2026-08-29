@@ -212,6 +212,21 @@ let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 export function getDb(): Promise<IDBPDatabase<GioituDB>> {
   if (!dbPromise) {
     dbPromise = openDB<GioituDB>(DB_NAME, DB_VERSION, {
+      // Tab NÀY đang giữ một connection version cũ, chặn tab khác nâng cấp: đóng
+      // ngay và quên connection đi, để tab kia chạy tiếp và lần `getDb()` sau ở
+      // tab này mở lại ở version mới. Không có nó, hai tab mở cùng lúc lúc đổi
+      // version là một bên treo vĩnh viễn ở `onblocked`.
+      blocking() {
+        const open = dbPromise;
+        dbPromise = null; // lần getDb() sau mở lại ở version mới
+        void open?.then((db) => db.close()).catch(() => {});
+      },
+      // Chiều ngược lại: tab kia (bản cũ, chưa có `blocking` ở trên) không chịu
+      // đóng nên lần mở này đứng im. `openDB` sẽ KHÔNG bao giờ resolve — nơi gọi
+      // phải tự có mốc chờ (DB_SLOW_MS) để còn báo cho người dùng.
+      blocked() {
+        console.warn("IndexedDB upgrade blocked — một tab khác đang giữ version cũ");
+      },
       upgrade(db, oldVersion, _newVersion, tx) {
         // Versioned, NON-destructive migrations. Store history:
         //   v3  structured content + tags + rules; adds `dictionaries` registry.
