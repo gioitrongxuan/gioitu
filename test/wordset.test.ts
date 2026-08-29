@@ -28,9 +28,14 @@ describe("parseWordset — một cột", () => {
 });
 
 describe("parseWordset — nhiều cột", () => {
-  it("tách bằng TAB theo thứ tự mặt chữ / cách đọc / nghĩa / bài", () => {
-    const r = parseWordset("食べる\tたべる\tăn\tBài 1");
-    expect(r.words[0]).toEqual({ term: "食べる", reading: "たべる", gloss: "ăn", group: "Bài 1" });
+  it("tách bằng TAB theo thứ tự mặt chữ / cách đọc / nghĩa / ví dụ", () => {
+    const r = parseWordset("食べる\tたべる\tăn\t毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì");
+    expect(r.words[0]).toEqual({
+      term: "食べる",
+      reading: "たべる",
+      gloss: "ăn",
+      example: "毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì",
+    });
   });
 
   it("cột cách đọc để trống vẫn nhận được nghĩa", () => {
@@ -49,11 +54,101 @@ describe("parseWordset — nhiều cột", () => {
   });
 });
 
+describe("parseWordset — lối viết gõ tay", () => {
+  it("dấu = tách cột", () => {
+    expect(parseWordset("食べる = ăn").words[0]).toEqual({ term: "食べる", gloss: "ăn" });
+  });
+
+  it("dấu | tách được nhiều cột", () => {
+    expect(parseWordset("請求書 | せいきゅうしょ | hoá đơn").words[0]).toEqual({
+      term: "請求書",
+      reading: "せいきゅうしょ",
+      gloss: "hoá đơn",
+    });
+  });
+
+  it("gạch ngang CÓ khoảng trắng tách làm đôi", () => {
+    expect(parseWordset("犬 - con chó").words[0]).toEqual({ term: "犬", gloss: "con chó" });
+  });
+
+  it("gạch nối DÍNH LIỀN là một phần của từ, không phải dấu ngăn", () => {
+    expect(parseWordset("mother-in-law").words[0]).toEqual({ term: "mother-in-law" });
+  });
+
+  it("dấu nào đứng trước thì thắng — phẩy trong nghĩa không cắt nhầm", () => {
+    expect(parseWordset("食べる = ăn, uống").words[0]).toEqual({ term: "食べる", gloss: "ăn, uống" });
+  });
+
+  it("…và ngược lại: dấu = trong nghĩa không cắt nhầm dòng CSV", () => {
+    expect(parseWordset("food,thức ăn = đồ ăn").words[0]).toEqual({ term: "food", gloss: "thức ăn = đồ ăn" });
+  });
+
+  it("kèm 【cách đọc】 vẫn chạy cùng dấu =", () => {
+    expect(parseWordset("食べる【たべる】 = ăn").words[0]).toEqual({
+      term: "食べる",
+      reading: "たべる",
+      gloss: "ăn",
+    });
+  });
+});
+
+describe("parseWordset — hai cột: cách đọc hay nghĩa", () => {
+  it("ô thứ hai toàn kana → cách đọc", () => {
+    expect(parseWordset("食べる,たべる").words[0]).toEqual({ term: "食べる", reading: "たべる" });
+  });
+
+  it("ô thứ hai không phải kana → nghĩa (không nhét bậy vào furigana)", () => {
+    expect(parseWordset("食べる,ăn").words[0]).toEqual({ term: "食べる", gloss: "ăn" });
+  });
+
+  it("từ tiếng Anh hai cột cũng ra nghĩa", () => {
+    expect(parseWordset("invoice,hoá đơn").words[0]).toEqual({ term: "invoice", gloss: "hoá đơn" });
+  });
+
+  it("ba cột trở lên thì theo đúng thứ tự, không đoán nữa", () => {
+    expect(parseWordset("食べる,ăn,uống").words[0]).toEqual({ term: "食べる", reading: "ăn", gloss: "uống" });
+  });
+});
+
+describe("parseWordset — dòng bổ sung nhiều dòng", () => {
+  it("nghĩa/ví dụ/cách đọc gắn vào từ ngay trước", () => {
+    const r = parseWordset(
+      ["締め切り", "cách đọc: しめきり", "nghĩa: hạn chót", "ví dụ: 締め切りは明日です", "", "犬", "nghĩa: con chó"].join(
+        "\n",
+      ),
+    );
+    expect(r.words).toEqual([
+      { term: "締め切り", reading: "しめきり", gloss: "hạn chót", example: "締め切りは明日です" },
+      { term: "犬", gloss: "con chó" },
+    ]);
+  });
+
+  it("tiền tố tiếng Anh cũng nhận", () => {
+    const r = parseWordset("eat\nmeaning: ăn\nexample: I eat bread");
+    expect(r.words).toEqual([{ term: "eat", gloss: "ăn", example: "I eat bread" }]);
+  });
+
+  it("đứng đầu văn bản (không có từ nào trước) thì vẫn là một dòng thường", () => {
+    const r = parseWordset("nghĩa: ăn");
+    expect(r.words.map((w) => w.term)).toEqual(["nghĩa: ăn"]);
+  });
+});
+
 describe("parseWordset — dòng tiêu đề cột", () => {
   it("bỏ dòng tiêu đề của tệp xuất từ Excel/Sheets", () => {
     const r = parseWordset("Từ,Cách đọc,Nghĩa\n食べる,たべる,ăn");
     expect(r.words).toEqual([{ term: "食べる", reading: "たべる", gloss: "ăn" }]);
     expect(r.skipped).toBe(0); // người dùng không làm gì sai, đừng báo động
+  });
+
+  it("tiêu đề của cột ví dụ cũng nhận ra", () => {
+    const r = parseWordset("mặt chữ,nghĩa,ví dụ\n犬,con chó,犬が好きです");
+    expect(r.words.map((w) => w.term)).toEqual(["犬"]);
+  });
+
+  it("tiêu đề 'bài' của tệp cũ vẫn bị bỏ, không thành từ vựng ma", () => {
+    const r = parseWordset("từ,nghĩa,bài\n犬,con chó,Bài 1");
+    expect(r.words.map((w) => w.term)).toEqual(["犬"]);
   });
 
   it("tiêu đề tiếng Anh cũng nhận ra", () => {
@@ -110,9 +205,24 @@ describe("sampleWordsetCsv", () => {
   it("ja→vi: mặt chữ tiếng Nhật, nghĩa tiếng Việt, đọc lại được đủ 3 từ", () => {
     const r = parseWordset(sampleWordsetCsv("ja", "vi"));
     expect(r.words).toEqual([
-      { term: "食べる", reading: "たべる", gloss: "ăn", group: "Bài 1" },
-      { term: "請求書", reading: "せいきゅうしょ", gloss: "hoá đơn", group: "Bài 2" },
-      { term: "締め切り", reading: "しめきり", gloss: "hạn chót, kỳ hạn", group: "Bài 3" },
+      {
+        term: "食べる",
+        reading: "たべる",
+        gloss: "ăn",
+        example: "毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì",
+      },
+      {
+        term: "請求書",
+        reading: "せいきゅうしょ",
+        gloss: "hoá đơn",
+        example: "請求書を送ってください :: Vui lòng gửi hoá đơn",
+      },
+      {
+        term: "締め切り",
+        reading: "しめきり",
+        gloss: "hạn chót, kỳ hạn",
+        example: "締め切りは明日です :: Hạn chót là ngày mai",
+      },
     ]);
     expect(r.skipped).toBe(0);
   });
@@ -124,7 +234,18 @@ describe("sampleWordsetCsv", () => {
 
   it("en→vi: từ không có cách đọc thì bỏ trống cột, không sinh reading rỗng", () => {
     const r = parseWordset(sampleWordsetCsv("en", "vi"));
-    expect(r.words[0]).toEqual({ term: "eat", gloss: "ăn", group: "Bài 1" });
+    expect(r.words[0]).toEqual({
+      term: "eat",
+      gloss: "ăn",
+      example: "I eat bread every morning :: Sáng nào tôi cũng ăn bánh mì",
+    });
+  });
+
+  it("câu ví dụ ở ngôn ngữ NGUỒN, bản dịch ở ngôn ngữ đích", () => {
+    const jaVi = parseWordset(sampleWordsetCsv("ja", "vi")).words[0].example ?? "";
+    const [source, translation] = jaVi.split("::").map((x) => x.trim());
+    expect(source).toBe("毎朝パンを食べる");
+    expect(translation).toBe("Sáng nào tôi cũng ăn bánh mì");
   });
 
   it("dòng tiêu đề cột không lọt vào danh sách từ", () => {

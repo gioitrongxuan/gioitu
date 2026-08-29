@@ -161,6 +161,14 @@ export function VocabStudy({
     () => visibleCells(cells, filter, isWordset && hideKnown),
     [cells, filter, isWordset, hideKnown],
   );
+  // Dòng gốc theo khoá (term, reading) — cần ở hai chỗ: tooltip của ô, và lúc
+  // chắt ra bộ mới. Dựng một lần thay vì quét lại `rows` cho từng ô.
+  const rowByKey = useMemo(() => {
+    const m = new Map<string, WordsetWord>();
+    for (const r of rows) m.set(`${r.term}\u0000${r.reading}`, r);
+    return m;
+  }, [rows]);
+
   /** Từ đang hiện mà chưa được đánh dấu thuộc — đích của đánh dấu hàng loạt. */
   const markable = useMemo(
     () => visible.filter((c) => c.progress !== "learned").map((c) => c.word),
@@ -177,14 +185,13 @@ export function VocabStudy({
   const splitVisible = async () => {
     if (!selectionIs(selection, "wordset")) return;
     const set = selection.set;
-    const byKey = new Map(rows.map((r) => [`${r.term}\u0000${r.reading}`, r]));
     const drafts = visible.map((c) => {
-      const row = byKey.get(`${c.word.term}\u0000${c.word.reading ?? ""}`);
+      const row = rowByKey.get(wordKey(c.word));
       return {
         term: c.word.term,
         ...(c.word.reading ? { reading: c.word.reading } : {}),
         ...(row?.gloss ? { gloss: row.gloss } : {}),
-        ...(row?.group ? { group: row.group } : {}),
+        ...(row?.example ? { example: row.example } : {}),
       };
     });
     const title = `${set.title} · lọc ${new Date().toLocaleDateString("vi-VN")}`;
@@ -330,6 +337,7 @@ export function VocabStudy({
             <div className="vocab-grid" role="list">
               {visible.map((cell) => (
                 <VocabTile
+                  note={noteOf(rowByKey.get(wordKey(cell.word)))}
                   key={`${cell.word.term}:${cell.word.term_lang}:${cell.word.reading ?? ""}`}
                   cell={cell}
                   theme={theme}
@@ -344,6 +352,21 @@ export function VocabStudy({
       )}
     </div>
   );
+}
+
+/** Khoá ghép một ô của lưới với dòng gốc trong bộ từ. */
+function wordKey(w: VocabListWord): string {
+  return `${w.term}\u0000${w.reading ?? ""}`;
+}
+
+/**
+ * Nghĩa + câu ví dụ mà chính bộ từ mang theo, gộp thành phần phụ của tooltip.
+ * Đây là chỗ DUY NHẤT hai cột ấy hiện ra — không có nó thì người dùng gõ nghĩa
+ * và ví dụ vào tệp rồi chẳng bao giờ thấy lại, tức là bắt họ điền dữ liệu chết.
+ */
+function noteOf(row: WordsetWord | undefined): string {
+  if (!row) return "";
+  return [row.gloss, row.example].filter(Boolean).join("\n");
 }
 
 /** Guard kiểu: selection có đang là nguồn `kind` không. */
@@ -501,12 +524,15 @@ function CustomDictPicker({
  */
 function VocabTile({
   cell,
+  note,
   theme,
   quickMark,
   onView,
   onToggle,
 }: {
   cell: SieveCell;
+  /** Nghĩa/ví dụ do bộ từ mang theo (rỗng với các nguồn khác). */
+  note: string;
   theme: ReturnType<typeof useTheme>["theme"];
   quickMark: boolean;
   onView: () => void;
@@ -531,7 +557,7 @@ function VocabTile({
       style={{ background: heatBackground(shade), color: heatTextColor(shade, theme) }}
       title={`${cell.word.term}${cell.word.reading ? ` 【${cell.word.reading}】` : ""} · ${STATUS_LABEL[cell.progress]}${
         unsure ? ` (ghép chưa chắc với “${cell.entry?.term}”)` : ""
-      }\nBấm để ${action}`}
+      }${note ? `\n${note}` : ""}\nBấm để ${action}`}
       onClick={quickMark ? onToggle : onView}
     >
       <span className="vocab-term">{cell.word.term}</span>

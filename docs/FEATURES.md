@@ -1024,16 +1024,38 @@ thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3)
 `ui/WordsetImport.tsx`, `ui/WordsetSummary.tsx`)
 
 - **Nhập**: dán văn bản hoặc chọn tệp `.txt/.csv/.tsv` (≤ 2 MB, ≤ 20.000 từ).
-  Mỗi dòng một từ; cột ngăn bằng Tab hoặc dấu phẩy theo thứ tự *mặt chữ · cách
-  đọc · nghĩa · bài*. Trình phân tích khoan dung với danh sách chép về: bỏ đánh
-  số đầu dòng, bóc 【cách đọc】 dính trong mặt chữ, tôn trọng nháy kép trong
-  nghĩa có dấu phẩy, bỏ dòng tiêu đề cột của tệp xuất từ Excel/Sheets — nhưng
-  **đếm và báo lại** số dòng trùng / bỏ / bị cắt.
+  Mỗi dòng một từ; thứ tự cột *mặt chữ · cách đọc · nghĩa · ví dụ*. Trình phân
+  tích khoan dung với danh sách chép về: bỏ đánh số đầu dòng, bóc 【cách đọc】
+  dính trong mặt chữ, tôn trọng nháy kép trong nghĩa có dấu phẩy, bỏ dòng tiêu đề
+  cột của tệp xuất từ Excel/Sheets — nhưng **đếm và báo lại** số dòng trùng / bỏ
+  / bị cắt.
+- **Nhiều lối viết cho người gõ tay** (`splitColumns`, `secondIsReading`,
+  `CONTINUATION`):
+  - Dấu ngăn: Tab, `,`, `|`, `=`, hoặc gạch ngang **có khoảng trắng hai bên**
+    (`犬 - con chó`; gạch nối dính liền như "mother-in-law" thì không tính).
+    Giữa `|`, `=`, `,` thì dấu **xuất hiện trước** trong dòng thắng, nên
+    `食べる = ăn, uống` cắt ở `=` còn `food,thức ăn = đồ ăn` cắt ở `,` mà người
+    dùng không phải học luật nào.
+  - **Dòng hai cột**: ô thứ hai toàn kana → cách đọc, còn lại → nghĩa. Trước đây
+    ô thứ hai luôn bị coi là cách đọc, nên `食べる, ăn` đẩy "ăn" thành furigana.
+    Từ ba cột trở lên thì bố cục đã rõ, theo đúng thứ tự.
+  - **Dòng bổ sung** `nghĩa:` / `ví dụ:` / `cách đọc:` (và `meaning:`, `example:`,
+    `reading:`) gắn vào từ ngay phía trên — dạng dễ gõ nhất cho từ có câu ví dụ
+    dài, khỏi đếm dấu phẩy.
+- **Xem trước ngay khi gõ**: bảng bốn cột hiện ba dòng đầu đã phân tích. Đây là
+  phản hồi quan trọng nhất của màn nhập tay — thấy "ăn" nằm ở cột Nghĩa chứ
+  không phải Cách đọc rồi mới yên tâm dán nốt phần còn lại. Kèm khối gập
+  "Các lối viết được nhận" viết thẳng ví dụ ra thay vì tả bằng lời.
 - **Tệp mẫu tải về** (`sampleWordsetCsv`): nút "Tải tệp mẫu" sinh CSV đúng cặp
   ngôn ngữ đang chọn (ba từ mẫu là cùng một khái niệm viết bằng cả ba ngôn ngữ
-  nên nghĩa luôn khớp mặt chữ ở cả sáu cặp), có BOM để Excel không vỡ chữ
-  Việt/Nhật. Test round-trip cho mẫu chạy qua đúng `parseWordset` thật, nên tệp
-  mẫu không thể lạc hậu so với trình phân tích.
+  nên nghĩa **và câu ví dụ** luôn khớp mặt chữ ở cả sáu cặp — câu ví dụ ở ngôn
+  ngữ nguồn, bản dịch ở ngôn ngữ đích), có BOM để Excel không vỡ chữ Việt/Nhật.
+  Test round-trip cho mẫu chạy qua đúng `parseWordset` thật, nên tệp mẫu không
+  thể lạc hậu so với trình phân tích.
+- **Cột ví dụ** theo đúng quy ước `"câu :: bản dịch"` của Từ điển cá nhân
+  (`CustomDraft.example`), nên câu chép từ bộ từ sang thẻ không phải sửa gì.
+  Nghĩa và ví dụ hiện ở tooltip của ô trên lưới — không có chỗ hiện thì hai cột
+  ấy là dữ liệu chết, bắt người dùng gõ vào rồi không bao giờ thấy lại.
 - **Lưu ở đâu**: hai store IndexedDB **riêng** `wordsets` + `wordset_words`
   (DB v10), KHÔNG dùng `terms`/`dictionaries`. Bộ từ chỉ có mặt chữ nên nếu nằm
   trong `terms` sẽ hiện ra thành hit rỗng nghĩa khi tra; và đường nhập Từ điển

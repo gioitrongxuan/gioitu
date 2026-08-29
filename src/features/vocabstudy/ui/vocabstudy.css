@@ -51,7 +51,26 @@
 }
 .wordset-field textarea { resize: vertical; line-height: var(--leading-body); }
 .wordset-field input:focus, .wordset-field textarea:focus { border-color: var(--accent); }
-.wordset-hint { margin: 0; }
+/* Bảng "gõ thế nào cũng được": gập lại mặc định để không lấn chỗ ô nhập, mở ra
+   thì là mã mẫu nên dùng font đều và cho cuộn ngang thay vì xuống dòng loạn. */
+.wordset-hint > summary { cursor: pointer; font-size: var(--text-sm); }
+.wordset-hint pre {
+  margin: var(--space-2) 0; padding: var(--space-2);
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  font-size: var(--text-sm); overflow-x: auto; white-space: pre;
+}
+.wordset-hint p { margin: 0; }
+
+/* Xem trước dòng đã phân tích — cuộn ngang trong khung riêng, không đẩy trang. */
+.wordset-preview { overflow-x: auto; }
+.wordset-preview table { border-collapse: collapse; font-size: var(--text-sm); width: 100%; }
+.wordset-preview th, .wordset-preview td {
+  text-align: left; padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line); vertical-align: top;
+  max-width: 22ch; overflow-wrap: anywhere;
+}
+.wordset-preview th { font-weight: 600; color: var(--muted); white-space: nowrap; }
+.wordset-preview p { margin: var(--space-1) 0 0; }
 .wordset-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 /* .primary mang sẵn margin-top cho bố cục dọc; trong hàng nút thì bỏ đi. */
 .wordset-actions .primary { margin-top: 0; }

@@ -13,7 +13,9 @@ export interface WordsetDraft {
   term: string;
   reading?: string;
   gloss?: string;
-  group?: string;
+  /** Câu ví dụ, "câu :: bản dịch" (phần dịch tuỳ chọn) — cùng quy ước với
+   *  `CustomDraft.example` của Từ điển cá nhân. */
+  example?: string;
 }
 
 export interface ParsedWordset {
@@ -49,6 +51,9 @@ const HEADER_LABELS = new Set([
   "mặt chữ", "mat chu", "từ", "tu", "từ vựng", "word", "words", "term", "vocabulary", "kanji",
   "cách đọc", "cach doc", "đọc", "reading", "kana", "furigana", "hiragana", "phiên âm",
   "nghĩa", "nghia", "ý nghĩa", "meaning", "gloss", "definition", "translation", "dịch",
+  "ví dụ", "vi du", "câu ví dụ", "example", "sentence", "sample",
+  // Giữ cả nhãn của cột "bài" cũ: tệp người dùng đã xuất ra vẫn có tiêu đề ấy,
+  // dòng đó vẫn phải bị nhận ra là tiêu đề chứ không thành một từ vựng ma.
   "bài", "bai", "lesson", "unit", "chương", "nhóm", "group", "chủ đề", "topic", "level",
   "stt", "no", "no.", "#", "index",
 ]);
@@ -64,17 +69,50 @@ function looksLikeHeader(cols: string[]): boolean {
   return hits >= 2;
 }
 
+/** Toàn kana (kèm ー・ và khoảng trắng) — dấu hiệu của một cách đọc tiếng Nhật. */
+const KANA_ONLY = /^[\u3040-\u309f\u30a0-\u30ff\u30fc・\s]+$/;
+
+/**
+ * Dòng CHỈ CÓ HAI cột thì ô thứ hai là cách đọc hay là nghĩa? Gõ tay thì
+ * "食べる, ăn" và "食べる, たべる" đều tự nhiên như nhau, mà đoán sai kiểu cũ
+ * (luôn coi là cách đọc) thì nghĩa chui vào ô cách đọc rồi hiện lên thành
+ * furigana bậy. Toàn kana → cách đọc; còn lại → nghĩa.
+ *
+ * Chỉ áp dụng cho dòng hai cột: ba cột trở lên là người dùng đã nói rõ bố cục.
+ */
+function secondIsReading(text: string): boolean {
+  return KANA_ONLY.test(text);
+}
+
+/**
+ * Dòng bổ sung cho từ NGAY TRƯỚC, dạng "nghĩa: …" / "ví dụ: …" / "cách đọc: …".
+ * Đây là dạng dễ gõ tay nhất cho từ có câu ví dụ dài: mỗi ý một dòng, không phải
+ * đếm dấu phẩy. Tiền tố đủ đặc thù để không nuốt nhầm từ vựng thật.
+ */
+const CONTINUATION: { re: RegExp; field: "reading" | "gloss" | "example" }[] = [
+  { re: /^(?:nghĩa|nghia|meaning|gloss)\s*[:：]\s*(.+)$/i, field: "gloss" },
+  { re: /^(?:ví dụ|vi du|example|ex)\s*[:：]\s*(.+)$/i, field: "example" },
+  { re: /^(?:cách đọc|cach doc|reading|kana)\s*[:：]\s*(.+)$/i, field: "reading" },
+];
+
 /** Mặt chữ kèm cách đọc dính liền: 食べる【たべる】 hoặc 食べる (たべる). */
 const INLINE_READING = /^(.+?)\s*[【(（[]\s*([^】)）\]]+?)\s*[】)）\]]\s*$/;
 
 /**
- * Phân tích văn bản thô thành danh sách từ. Cột phân tách bằng TAB nếu dòng có
- * TAB, ngược lại bằng dấu phẩy (có tôn trọng dấu nháy kép, nếu không thì nghĩa
- * "cái bàn, cái ghế" tự tách làm đôi). Thứ tự cột: mặt chữ, cách đọc, nghĩa,
- * nhóm/bài.
+ * Phân tích văn bản thô thành danh sách từ. Thứ tự cột: mặt chữ, cách đọc, nghĩa,
+ * ví dụ; ba cột sau đều bỏ trống được.
  *
- * Cột "cách đọc" chấp nhận rỗng để dán được danh sách chỉ có mặt chữ + nghĩa;
- * còn dạng một cột thì cách đọc lấy từ 【…】 nếu có.
+ * Nhận nhiều lối viết để nhập tay đỡ cực (xem `splitColumns`, `secondIsReading`,
+ * `CONTINUATION`):
+ * ```
+ * 食べる, たべる, ăn, 毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì
+ * 食べる【たべる】 = ăn
+ * 犬 - con chó
+ * 請求書 | せいきゅうしょ | hoá đơn
+ * 締め切り
+ *   nghĩa: hạn chót
+ *   ví dụ: 締め切りは明日です
+ * ```
  */
 export function parseWordset(text: string): ParsedWordset {
   const words: WordsetDraft[] = [];
@@ -86,12 +124,22 @@ export function parseWordset(text: string): ParsedWordset {
   // Dòng tiêu đề chỉ được xét ở DÒNG DỮ LIỆU ĐẦU TIÊN: giữa bộ mà có "nghĩa,
   // cách đọc" thì đó là từ thật, không phải tiêu đề lạc chỗ.
   let first = true;
+  // Từ vừa đẩy vào danh sách — đích của các dòng "nghĩa: …" đi ngay sau nó.
+  let current: WordsetDraft | null = null;
 
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     // Dòng rỗng và chú thích (# …) không phải lỗi của người dùng — bỏ im lặng
     // thì đúng hơn là tính vào "đã bỏ N dòng" rồi doạ họ.
     if (!line || line.startsWith("#")) continue;
+
+    // Dòng bổ sung cho từ ngay trước. Không có từ nào đứng trước thì rơi xuống
+    // dưới xử lý như một dòng thường — "nghĩa: X" đứng một mình vẫn hơn là mất hút.
+    const cont = current && matchContinuation(line);
+    if (cont && current) {
+      current[cont.field] = cont.value;
+      continue;
+    }
 
     const cols = splitColumns(line);
     if (first) {
@@ -101,9 +149,13 @@ export function parseWordset(text: string): ParsedWordset {
       if (looksLikeHeader(cols)) continue;
     }
     let term = cols[0].replace(LEADING_NUMBER, "").trim();
-    let reading = cols[1]?.trim() ?? "";
-    const gloss = cols[2]?.trim() ?? "";
-    const group = cols[3]?.trim() ?? "";
+    const second = cols[1]?.trim() ?? "";
+    // Hai cột: ô thứ hai là cách đọc hay nghĩa, đoán theo mặt chữ (xem
+    // `secondIsReading`). Từ ba cột trở lên thì bố cục đã rõ, cứ theo thứ tự.
+    const secondIsGloss = cols.length === 2 && second !== "" && !secondIsReading(second);
+    let reading = secondIsGloss ? "" : second;
+    const gloss = secondIsGloss ? second : cols[2]?.trim() ?? "";
+    const example = cols[3]?.trim() ?? "";
 
     // Chỉ bóc 【…】 khi cột cách đọc còn trống: danh sách có cả hai thì cột
     // riêng là ý định rõ ràng hơn phần dính trong mặt chữ.
@@ -133,22 +185,64 @@ export function parseWordset(text: string): ParsedWordset {
       truncated += 1;
       continue;
     }
-    words.push({
+    const draft: WordsetDraft = {
       term,
       ...(reading ? { reading } : {}),
       ...(gloss ? { gloss } : {}),
-      ...(group ? { group } : {}),
-    });
+      ...(example ? { example } : {}),
+    };
+    words.push(draft);
+    current = draft;
   }
 
   return { words, skipped, duplicates, truncated };
 }
 
-/** Tách một dòng thành cột: TAB nếu có, ngược lại CSV có tôn trọng nháy kép. */
+/** Dòng bổ sung "nghĩa: …" → trường nào, giá trị gì. `null` nếu không phải. */
+function matchContinuation(line: string): { field: "reading" | "gloss" | "example"; value: string } | null {
+  for (const { re, field } of CONTINUATION) {
+    const m = re.exec(line);
+    if (m) return { field, value: m[1].trim() };
+  }
+  return null;
+}
+
+/** Dấu ngăn cột gõ tay được, ngoài TAB và dấu phẩy. Cố ý chỉ nhận hai ký tự
+ *  gần như không bao giờ nằm trong mặt chữ hay nghĩa. */
+const MANUAL_SEPARATORS = ["|", "="];
+
+/** Gạch ngang CÓ khoảng trắng hai bên: "犬 - con chó". Bắt buộc có khoảng trắng
+ *  vì gạch nối dính liền là một phần của từ ("mother-in-law", "cha-mẹ). */
+const SPACED_DASH = /\s[-–—]\s/;
+
+/**
+ * Tách một dòng thành cột. Thứ tự ưu tiên:
+ *   1. TAB — rõ ràng nhất, ai dán từ bảng tính cũng ra cái này.
+ *   2. Trong `|`, `=`, `,`: cái nào XUẤT HIỆN TRƯỚC trong dòng thì thắng. Nhờ
+ *      vậy "食べる = ăn, uống" tách ở dấu `=` (phẩy nằm trong nghĩa), còn
+ *      "food,thức ăn = đồ ăn" tách ở dấu phẩy (dấu `=` nằm trong nghĩa) — không
+ *      cần người dùng biết luật nào.
+ *   3. Gạch ngang có khoảng trắng, và chỉ tách LÀM ĐÔI: "犬 - con chó". Chỉ dùng
+ *      khi không có dấu nào ở trên, vì gạch ngang rất hay nằm trong câu ví dụ.
+ */
 function splitColumns(line: string): string[] {
   if (line.includes("\t")) return line.split("\t");
-  if (!line.includes(",")) return [line];
-  return splitCsv(line);
+
+  let best = -1;
+  let sep = "";
+  for (const s of [...MANUAL_SEPARATORS, ","]) {
+    const at = line.indexOf(s);
+    if (at >= 0 && (best === -1 || at < best)) {
+      best = at;
+      sep = s;
+    }
+  }
+  if (sep === ",") return splitCsv(line);
+  if (sep) return line.split(sep);
+
+  const dash = SPACED_DASH.exec(line);
+  if (dash) return [line.slice(0, dash.index), line.slice(dash.index + dash[0].length)];
+  return [line];
 }
 
 /** CSV một dòng: `a,"b, c",d` → ["a", "b, c", "d"]. Nháy kép đôi ("") = một ". */
@@ -176,29 +270,41 @@ function splitCsv(line: string): string[] {
   return out;
 }
 
+/** Một từ mẫu viết ở MỘT ngôn ngữ: mặt chữ, cách đọc (nếu ngôn ngữ đó có), và
+ *  một câu ví dụ để ghép thành cột "ví dụ" cho mọi cặp. */
+interface SampleWord {
+  term: string;
+  reading?: string;
+  sentence: string;
+}
+
 /**
  * Ba từ mẫu, mỗi từ là MỘT khái niệm viết bằng cả ba ngôn ngữ, nên tệp mẫu dựng
  * được cho cả sáu cặp mà nghĩa vẫn khớp với mặt chữ (chứ không phải "食べる" đi
  * kèm nghĩa "invoice"). Cột nghĩa của khái niệm thứ ba cố ý CÓ DẤU PHẨY để tệp
  * mẫu tự nó minh hoạ luôn cách bọc nháy kép.
  */
-const SAMPLE_CONCEPTS: { ja: WordsetDraft; en: WordsetDraft; vi: WordsetDraft }[] = [
+const SAMPLE_CONCEPTS: { ja: SampleWord; en: SampleWord; vi: SampleWord }[] = [
   {
-    ja: { term: "食べる", reading: "たべる" },
-    en: { term: "eat" },
-    vi: { term: "ăn" },
+    ja: { term: "食べる", reading: "たべる", sentence: "毎朝パンを食べる" },
+    en: { term: "eat", sentence: "I eat bread every morning" },
+    vi: { term: "ăn", sentence: "Sáng nào tôi cũng ăn bánh mì" },
   },
   {
-    ja: { term: "請求書", reading: "せいきゅうしょ" },
-    en: { term: "invoice" },
-    vi: { term: "hoá đơn" },
+    ja: { term: "請求書", reading: "せいきゅうしょ", sentence: "請求書を送ってください" },
+    en: { term: "invoice", sentence: "Please send the invoice" },
+    vi: { term: "hoá đơn", sentence: "Vui lòng gửi hoá đơn" },
   },
   {
-    ja: { term: "締め切り", reading: "しめきり" },
-    en: { term: "deadline, due date" },
-    vi: { term: "hạn chót, kỳ hạn" },
+    ja: { term: "締め切り", reading: "しめきり", sentence: "締め切りは明日です" },
+    en: { term: "deadline, due date", sentence: "The deadline is tomorrow" },
+    vi: { term: "hạn chót, kỳ hạn", sentence: "Hạn chót là ngày mai" },
   },
 ];
+
+/** Ngăn giữa câu ví dụ và bản dịch — cùng ký hiệu với Từ điển cá nhân
+ *  (`customEntry.ts`), để câu chép từ bộ từ sang thẻ không phải sửa gì. */
+const EXAMPLE_SEP = "::";
 
 /**
  * Nội dung tệp CSV mẫu cho một cặp ngôn ngữ. Có tệp mở ra xem được thì không ai
@@ -212,20 +318,23 @@ const SAMPLE_CONCEPTS: { ja: WordsetDraft; en: WordsetDraft; vi: WordsetDraft }[
 export function sampleWordsetCsv(source: string, target: string): string {
   const lines = [
     "# Tệp mẫu bộ từ cho Gioitu — mỗi dòng một từ, cột ngăn bằng dấu phẩy.",
-    "# Thứ tự cột: mặt chữ, cách đọc, nghĩa, bài. Ba cột sau đều có thể bỏ trống.",
+    "# Thứ tự cột: mặt chữ, cách đọc, nghĩa, ví dụ. Ba cột sau đều có thể bỏ trống.",
+    "# Cột ví dụ nhận thêm bản dịch sau dấu :: — giống Từ điển cá nhân.",
     "# Nghĩa có dấu phẩy thì bọc trong nháy kép. Dòng bắt đầu bằng # bị bỏ qua.",
-    csvRow(["mặt chữ", "cách đọc", "nghĩa", "bài"]),
+    csvRow(["mặt chữ", "cách đọc", "nghĩa", "ví dụ"]),
   ];
-  SAMPLE_CONCEPTS.forEach((concept, i) => {
+  for (const concept of SAMPLE_CONCEPTS) {
     const term = pickSample(concept, source);
     const gloss = pickSample(concept, target);
-    lines.push(csvRow([term.term, term.reading ?? "", gloss.term, `Bài ${i + 1}`]));
-  });
+    // Câu ví dụ ở ngôn ngữ NGUỒN (nó minh hoạ mặt chữ), bản dịch ở ngôn ngữ đích.
+    const example = `${term.sentence} ${EXAMPLE_SEP} ${gloss.sentence}`;
+    lines.push(csvRow([term.term, term.reading ?? "", gloss.term, example]));
+  }
   return lines.join("\n") + "\n";
 }
 
 /** Mặt chữ mẫu theo ngôn ngữ; ngôn ngữ lạ thì lấy tiếng Anh làm chỗ dựa. */
-function pickSample(concept: { ja: WordsetDraft; en: WordsetDraft; vi: WordsetDraft }, lang: string): WordsetDraft {
+function pickSample(concept: { ja: SampleWord; en: SampleWord; vi: SampleWord }, lang: string): SampleWord {
   if (lang === "ja") return concept.ja;
   if (lang === "vi") return concept.vi;
   return concept.en;
