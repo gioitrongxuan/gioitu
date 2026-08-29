@@ -17,12 +17,29 @@ import {
   parseWordset,
   sampleWordsetCsv,
   titleFromFilename,
+  WordsetDraft,
 } from "../domain/wordset";
 import { createWordset, deleteWordset, listWordsets, Wordset } from "../data/wordsets";
 
 /** Trần kích thước tệp nhận vào (2 MB) — một bộ 20k từ dạng TSV chưa tới 1 MB,
  *  quá mức này gần như chắc chắn là chọn nhầm tệp. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
+/** Số dòng bày ra ở khung xem trước — đủ để thấy cột nào rơi vào đâu, không lấn
+ *  chỗ của ô nhập. */
+const PREVIEW_ROWS = 3;
+
+/** Bảng "gõ thế nào cũng được", viết thẳng ra thay vì tả bằng lời — người dùng
+ *  nhìn một cái là bắt chước được ngay. Giữ khớp với `parseWordset`. */
+const FORMAT_EXAMPLES = [
+  "食べる, たべる, ăn, 毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì",
+  "食べる【たべる】 = ăn",
+  "犬 - con chó",
+  "請求書 | せいきゅうしょ | hoá đơn",
+  "締め切り",
+  "  nghĩa: hạn chót",
+  "  ví dụ: 締め切りは明日です",
+].join("\n");
 
 export function WordsetPicker({
   pair,
@@ -183,14 +200,18 @@ function WordsetForm({
           rows={8}
           spellCheck={false}
           lang={pair.source === "ja" ? "ja" : undefined}
-          placeholder={"Mỗi dòng một từ. Có thể kèm cột, ngăn bằng Tab hoặc dấu phẩy:\nmặt chữ, cách đọc, nghĩa, bài"}
+          placeholder={"Mỗi dòng một từ. Có thể kèm cột, ngăn bằng Tab hoặc dấu phẩy:\nmặt chữ, cách đọc, nghĩa, ví dụ"}
         />
       </label>
 
-      <p className="muted wordset-hint">
-        Nhận cả dạng 食べる【たべる】 và dòng có đánh số. Dán tối đa {MAX_WORDSET_WORDS.toLocaleString("vi-VN")} từ.
-        Chưa rõ điền thế nào thì tải tệp mẫu bên dưới, sửa lại rồi nhập vào.
-      </p>
+      <details className="wordset-hint">
+        <summary className="muted">Các lối viết được nhận</summary>
+        <pre lang={pair.source === "ja" ? "ja" : undefined}>{FORMAT_EXAMPLES}</pre>
+        <p className="muted">
+          Cũng nhận dòng có đánh số và dòng tiêu đề cột của tệp xuất từ Excel. Tối đa{" "}
+          {MAX_WORDSET_WORDS.toLocaleString("vi-VN")} từ.
+        </p>
+      </details>
 
       <div className="wordset-actions">
         <input
@@ -222,12 +243,53 @@ function WordsetForm({
       </div>
 
       {text.trim() !== "" && (
-        <p className="muted">
-          Đọc được <b>{parsed.words.length}</b> từ
-          {parsed.duplicates > 0 && <> · bỏ {parsed.duplicates} dòng trùng</>}
-          {parsed.skipped > 0 && <> · bỏ {parsed.skipped} dòng không có mặt chữ</>}
-          {parsed.truncated > 0 && <> · cắt {parsed.truncated} dòng vượt trần</>}
-        </p>
+        <>
+          <p className="muted">
+            Đọc được <b>{parsed.words.length}</b> từ
+            {parsed.duplicates > 0 && <> · bỏ {parsed.duplicates} dòng trùng</>}
+            {parsed.skipped > 0 && <> · bỏ {parsed.skipped} dòng không có mặt chữ</>}
+            {parsed.truncated > 0 && <> · cắt {parsed.truncated} dòng vượt trần</>}
+          </p>
+          {parsed.words.length > 0 && <Preview words={parsed.words} isJa={pair.source === "ja"} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Vài dòng đầu đã phân tích xong, bày theo đúng bốn cột. Đây là phản hồi quan
+ * trọng nhất của màn nhập tay: gõ "食べる, ăn" mà thấy chữ "ăn" nằm ở cột Nghĩa
+ * chứ không phải Cách đọc thì mới yên tâm dán nốt ba nghìn dòng còn lại.
+ */
+function Preview({ words, isJa }: { words: WordsetDraft[]; isJa: boolean }) {
+  const rows = words.slice(0, PREVIEW_ROWS);
+  return (
+    <div className="wordset-preview">
+      <table>
+        <thead>
+          <tr>
+            <th>Mặt chữ</th>
+            <th>Cách đọc</th>
+            <th>Nghĩa</th>
+            <th>Ví dụ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((w, i) => (
+            <tr key={`${w.term}:${w.reading ?? ""}:${i}`}>
+              <td lang={isJa ? "ja" : undefined}>{w.term}</td>
+              <td lang={isJa ? "ja" : undefined} className="muted">
+                {w.reading ?? "—"}
+              </td>
+              <td>{w.gloss ?? "—"}</td>
+              <td lang={isJa ? "ja" : undefined}>{w.example ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {words.length > rows.length && (
+        <p className="muted">… và {(words.length - rows.length).toLocaleString("vi-VN")} từ nữa</p>
       )}
     </div>
   );

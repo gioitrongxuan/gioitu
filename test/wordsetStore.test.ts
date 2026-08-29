@@ -27,7 +27,7 @@ describe("kho bộ từ (IndexedDB)", () => {
     const id = await createWordset(
       { title: "JLPT N1", term_lang: "ja", native_lang: "vi", source: "paste" },
       [
-        { term: "食べる", reading: "たべる", gloss: "ăn", group: "Bài 1" },
+        { term: "食べる", reading: "たべる", gloss: "ăn", example: "毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì" },
         { term: "ラーメン" },
       ],
     );
@@ -35,7 +35,10 @@ describe("kho bộ từ (IndexedDB)", () => {
     const rows = await loadWordsetWords(id);
     expect(rows).toHaveLength(2);
     expect(rows.find((r) => r.term === "ラーメン")?.reading).toBe("");
-    expect(rows.find((r) => r.term === "食べる")).toMatchObject({ gloss: "ăn", group: "Bài 1" });
+    expect(rows.find((r) => r.term === "食べる")).toMatchObject({
+      gloss: "ăn",
+      example: "毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì",
+    });
   });
 
   // Ba bộ tạo sát nhau nên `importedAt` có thể trùng mili-giây: phần khẳng định

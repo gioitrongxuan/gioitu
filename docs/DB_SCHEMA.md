@@ -241,7 +241,7 @@ interface WordsetWord {
   term: string;
   reading: string;     // "" khi vắng — nằm trong keyPath nên không được undefined
   gloss?: string;      // nghĩa kèm theo danh sách nguồn (chỉ để hiện)
-  group?: string;      // nhóm/bài trong bộ gốc
+  example?: string;    // "câu :: bản dịch" — cùng quy ước với CustomDraft.example
 }
 ```
 

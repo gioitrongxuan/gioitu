@@ -40,7 +40,7 @@ export async function createWordset(
         term: w.term,
         reading: w.reading ?? "",
         ...(w.gloss ? { gloss: w.gloss } : {}),
-        ...(w.group ? { group: w.group } : {}),
+        ...(w.example ? { example: w.example } : {}),
       };
       await tx.store.put(row);
     }

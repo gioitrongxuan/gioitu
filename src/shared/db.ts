@@ -141,8 +141,10 @@ export interface WordsetWord {
   reading: string;
   /** Nghĩa gợi ý kèm theo danh sách nguồn (nếu có) — chỉ để hiện, không tra cứu. */
   gloss?: string;
-  /** Nhóm/bài trong bộ gốc ("Bài 12") — giữ để sàng theo từng bài. */
-  group?: string;
+  /** Câu ví dụ, theo đúng quy ước sẵn có của Từ điển cá nhân: "câu :: bản dịch"
+   *  (phần dịch tuỳ chọn) — xem `CustomDraft.example`. Nhờ trùng định dạng, câu
+   *  này dùng lại được nguyên vẹn khi từ trong bộ được dựng thành thẻ. */
+  example?: string;
 }
 
 interface GioituDB extends DBSchema {
