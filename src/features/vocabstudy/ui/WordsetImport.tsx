@@ -9,8 +9,15 @@ import { useEffect, useRef, useState } from "react";
 import { LangPair } from "@/shared/languages";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { pushToast } from "@/shared/ui/Toasts";
-import { TrashIcon } from "@/shared/ui/icons";
-import { MAX_WORDSET_WORDS, ParsedWordset, parseWordset, titleFromFilename } from "../domain/wordset";
+import { DownloadIcon, TrashIcon } from "@/shared/ui/icons";
+import { downloadBlob } from "@/shared/downloadBlob";
+import {
+  MAX_WORDSET_WORDS,
+  ParsedWordset,
+  parseWordset,
+  sampleWordsetCsv,
+  titleFromFilename,
+} from "../domain/wordset";
 import { createWordset, deleteWordset, listWordsets, Wordset } from "../data/wordsets";
 
 /** Trần kích thước tệp nhận vào (2 MB) — một bộ 20k từ dạng TSV chưa tới 1 MB,
@@ -119,6 +126,13 @@ function WordsetForm({
     if (!title.trim()) setTitle(titleFromFilename(file.name));
   };
 
+  /** Tải tệp mẫu đúng cặp ngôn ngữ đang chọn. BOM ở đầu để Excel mở ra không vỡ
+   *  chữ Việt/Nhật — cùng lý do với bản xuất CSV lịch sử ôn. */
+  const downloadSample = () => {
+    const csv = sampleWordsetCsv(pair.source, pair.target);
+    downloadBlob(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }), `gioitu-bo-tu-mau-${pair.id}.csv`);
+  };
+
   const save = async () => {
     const name = title.trim() || "Bộ từ chưa đặt tên";
     if (parsed.words.length === 0) return;
@@ -175,6 +189,7 @@ function WordsetForm({
 
       <p className="muted wordset-hint">
         Nhận cả dạng 食べる【たべる】 và dòng có đánh số. Dán tối đa {MAX_WORDSET_WORDS.toLocaleString("vi-VN")} từ.
+        Chưa rõ điền thế nào thì tải tệp mẫu bên dưới, sửa lại rồi nhập vào.
       </p>
 
       <div className="wordset-actions">
@@ -191,6 +206,10 @@ function WordsetForm({
         />
         <button className="export-btn" onClick={() => fileRef.current?.click()}>
           Chọn tệp .txt / .csv
+        </button>
+        <button className="export-btn" onClick={downloadSample}>
+          <DownloadIcon size={16} />
+          Tải tệp mẫu
         </button>
         <button className="primary" disabled={parsed.words.length === 0 || saving} onClick={() => void save()}>
           {saving ? "Đang lưu…" : `Tạo bộ (${parsed.words.length} từ)`}
