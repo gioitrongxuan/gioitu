@@ -118,6 +118,21 @@ const RatingReview = lazy(() =>
   import("@/features/rating/ui/RatingReview").then((m) => ({ default: m.RatingReview })),
 );
 
+/**
+ * Chỗ chờ dữ liệu học. Đang nạp thì skeleton; nạp HỎNG hoặc treo thì nói thẳng lý
+ * do và cách thoát ra. Skeleton vĩnh viễn là kiểu báo lỗi tệ nhất: người dùng chỉ
+ * thấy app đứng hình rồi đoán bừa là lỗi máy chủ, trong khi bản đồ từ đọc thẳng
+ * từ IndexedDB và không hỏi máy chủ câu nào.
+ */
+function StoreLoading({ error }: { error: string }) {
+  if (!error) return <Skeleton lines={3} className="empty" />;
+  return (
+    <p className="empty load-error" role="alert">
+      {error}
+    </p>
+  );
+}
+
 // Tiêu đề gốc của tab, chụp một lần lúc nạp module (trước khi ta chèn "(N)");
 // strip phòng khi HMR nạp lại sau khi tiêu đề đã bị chèn số đến hạn.
 const BASE_TITLE = document.title.replace(/^\(\d+\)\s/, "");
@@ -799,7 +814,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           {page === "today" ? (
             <section {...behindSheet}>
               {!store.loaded ? (
-                <Skeleton lines={3} className="empty" />
+                <StoreLoading error={store.loadError} />
               ) : (
                 <TodayScreen
                   dueCount={dueEntriesForReview.length}
@@ -833,7 +848,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           ) : (
             <section className="cloud-area" {...behindSheet}>
               {!store.loaded ? (
-                <Skeleton lines={3} className="empty" />
+                <StoreLoading error={store.loadError} />
               ) : page === "learned" ? (
                 <LearnedCloud
                   entries={store.learnedEntries}

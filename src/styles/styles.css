@@ -202,6 +202,14 @@ summary:focus-visible,
 }
 
 .empty, .muted { color: var(--muted); font-size: 14px; }
+/* Lỗi chặn cả màn (không mở được dữ liệu học): phải đọc ra ngay là có chuyện,
+   khác hẳn ô trống "chưa có gì" — nên dùng màu cảnh báo chứ không phải muted. */
+.load-error {
+  color: var(--warn); max-width: 60ch; line-height: var(--leading-body);
+  border: 1px solid color-mix(in oklab, var(--warn) 35%, var(--line));
+  border-radius: var(--radius-md); padding: var(--space-3);
+  background: color-mix(in oklab, var(--warn) 8%, var(--surface));
+}
 
 /* Skeleton shimmer (DESIGN §3.9) — thay cho text "Đang tải…" trơ khi một vùng
    nội dung đang tải. Dòng sau ngắn dần (xem Skeleton.tsx) cho tự nhiên hơn

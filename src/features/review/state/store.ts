@@ -22,6 +22,7 @@ import {
   pickBackupFile,
 } from "../data/backup";
 import { requestPersistentStorage } from "@/shared/persist";
+import { DB_BLOCKED_MESSAGE, DB_SLOW_MS, describeDbError } from "@/shared/dbError";
 
 // Đồng bộ tự động sau khi ngừng thao tác một nhịp: đủ ngắn để không mất dữ liệu
 // nếu đóng app đột ngột, đủ dài để gộp cả tràng chấm thẻ trong một phiên ôn
@@ -49,6 +50,10 @@ function undoAction(term: string, undo: () => Promise<void>): ToastAction {
 export function useAppStore(userId: string, onSessionExpired?: () => void, isPremium = false) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Vì sao mở dữ liệu học hỏng/treo — chuỗi rỗng là chưa có vấn đề gì. `loaded`
+  // một mình không đủ: nó ở lại `false` cả khi getDb() ném LẪN khi nó treo, và
+  // giao diện đứng nguyên skeleton, không ai biết chuyện gì đang xảy ra.
+  const [loadError, setLoadError] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => readLastSync(userId));
 
   // pushToast sống ngoài cây React (kho module-level trong Toasts.tsx): một
@@ -89,12 +94,29 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
   // (deleted entries) are kept in storage so they sync, but never surface to the
   // UI — drop them from the in-memory list.
   useEffect(() => {
+    let alive = true;
+    // Mốc chờ: `getDb()` bị chặn bởi một tab khác thì promise KHÔNG bao giờ
+    // settle (xem `blocked` trong db.ts), nên không có timer này thì không có gì
+    // để bắt — màn hình treo im lặng. Nếu sau đó CSDL mở được thật, thông báo tự
+    // gỡ ở nhánh thành công.
+    const slow = setTimeout(() => alive && setLoadError(DB_BLOCKED_MESSAGE), DB_SLOW_MS);
     (async () => {
       const local = await getAllEntries(userId);
+      clearTimeout(slow);
+      if (!alive) return;
+      setLoadError("");
       setEntries(local.filter((e) => !isDeleted(e)));
       setLoaded(true);
       applySyncReport(await syncUserData(userId));
-    })().catch((e) => console.error("load failed", e));
+    })().catch((e) => {
+      clearTimeout(slow);
+      console.error("load failed", e);
+      if (alive) setLoadError(describeDbError(e));
+    });
+    return () => {
+      alive = false;
+      clearTimeout(slow);
+    };
   }, [userId, applySyncReport]);
 
   // Có từ đầu tiên thì xin trình duyệt lưu trữ bền: với khách, IndexedDB là bản
@@ -559,6 +581,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     dueEntries,
     learnedEntries,
     loaded,
+    loadError,
     lastSyncedAt,
     recordLookup,
     gradeReview,
