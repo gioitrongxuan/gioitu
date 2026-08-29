@@ -33,3 +33,7 @@ wty-*/
 # Reference data dumps & upstream clones (huge; re-importable, not source)
 ref/
 yomitan-api/
+
+# Gói Anki dùng để thử tính năng nhập .apkg — kèm ảnh và phát âm nên hàng
+# trăm MB, không bao giờ được lọt vào repo.
+*.apkg

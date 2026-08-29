@@ -44,13 +44,15 @@
 }
 .wordset-field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--muted); }
 /* 16px để iOS không tự phóng to khi focus (DESIGN §3.7). */
-.wordset-field input, .wordset-field textarea {
+.wordset-field input, .wordset-field textarea, .wordset-field select {
   font: inherit; font-size: var(--text-md); color: var(--fg);
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: var(--space-2); background: var(--bg); width: 100%;
 }
 .wordset-field textarea { resize: vertical; line-height: var(--leading-body); }
-.wordset-field input:focus, .wordset-field textarea:focus { border-color: var(--accent); }
+.wordset-field input:focus, .wordset-field textarea:focus, .wordset-field select:focus {
+  border-color: var(--accent);
+}
 /* Bảng "gõ thế nào cũng được": gập lại mặc định để không lấn chỗ ô nhập, mở ra
    thì là mã mẫu nên dùng font đều và cho cuộn ngang thay vì xuống dòng loạn. */
 .wordset-hint > summary { cursor: pointer; font-size: var(--text-sm); }
@@ -93,9 +95,55 @@
 }
 .wordset-confirm-q { margin: 0; font-size: var(--text-base); }
 
+/* Ghép trường khi nhập gói Anki. Lưới tự co: rộng thì hai cột như trong Anki,
+   hẹp thì một cột — không cần điểm ngắt riêng. */
+.apkg-mapping { display: flex; flex-direction: column; gap: var(--space-2); }
+.apkg-roles {
+  display: grid; gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.apkg-file { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
+.apkg-file b { color: var(--fg); font-weight: 600; overflow-wrap: anywhere; }
+
+.apkg-group { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-2); margin: 0; }
+.apkg-group > legend { padding: 0 var(--space-1); font-size: var(--text-sm); }
+.apkg-progress { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); }
+.apkg-progress progress { width: 100%; height: var(--space-2); }
+
+/* Thẻ của một từ trong bộ nhập từ Anki. Nằm trong luồng trang ngay trên lưới
+   (không overlay — xem đầu WordsetCard.tsx), nên chỉ cần tách nền cho rõ khối. */
+.wordset-card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: var(--space-3); background: var(--surface); margin-bottom: var(--space-3);
+}
+.wordset-card-head { display: flex; align-items: center; gap: var(--space-2); }
+.wordset-card-term { margin: 0; font-size: var(--text-xl); line-height: var(--leading-tight); }
+/* Nút đóng dạt hẳn sang phải, tách khỏi cụm mặt chữ + nút phát âm. */
+.wordset-card-close { margin-left: auto; }
+.wordset-card-gloss { margin: 0; font-size: var(--text-md); }
+.wordset-card-example { display: flex; flex-direction: column; gap: var(--space-1); }
+.wordset-card-example p { margin: 0; }
+/* Ruby cần chỗ thở phía trên, nếu không cách đọc chạm vào dòng bên trên. */
+.wordset-card-example ruby { line-height: 2; }
+.wordset-card-play { vertical-align: middle; margin-left: var(--space-1); }
+/* Ảnh minh hoạ trong deck Anki hay là ảnh gốc cỡ lớn (1000×550 trong bộ N1);
+   thả nguyên cỡ thì một tấm ảnh đẩy cả lưới từ vựng ra khỏi màn hình. Chặn theo
+   chiều cao khung nhìn — cùng lối với ảnh của chế độ ôn bằng hình
+   (`review/ui/imageMode.css`). */
+.wordset-card-image {
+  max-width: 100%; max-height: 40dvh; width: auto; height: auto;
+  object-fit: contain; border-radius: var(--radius-sm);
+  align-self: start; border: 1px solid var(--line);
+}
+.wordset-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 @media (pointer: coarse) {
-  .wordset-form input, .wordset-form textarea { min-height: 44px; }
+  .wordset-form input, .wordset-form textarea, .wordset-form select { min-height: 44px; }
   .wordset-row .link { min-height: 44px; }
+  /* DESIGN §3.6: vùng bấm ≥ 44px. Nút phát âm và nút đóng thẻ là icon nhỏ nên
+     phải nới riêng, không thì trên điện thoại bấm mười lần trúng ba. */
+  .wordset-card-play, .wordset-card-close { min-width: 44px; min-height: 44px; }
 }
 /* Ô ghép "chưa chắc" khi sàng bộ từ: viền chấm màu cảnh báo — trông đã-thuộc
    nhưng có dấu hỏi, đúng nghĩa "chờ bạn duyệt". */
