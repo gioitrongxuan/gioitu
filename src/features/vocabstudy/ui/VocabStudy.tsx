@@ -28,7 +28,9 @@ import {
 } from "../domain/vocablist";
 import { CheckIcon } from "@/shared/ui/icons";
 import { pushToast } from "@/shared/ui/Toasts";
+import { WordsetCard } from "./WordsetCard";
 import { applySieve, countUncertain, SieveCell, visibleCells } from "../domain/wordsetMatch";
+import { wordsetKey } from "../domain/wordset";
 import * as studyListSrc from "../data/studyListSource";
 import * as customDictSrc from "../data/customDictSource";
 import { createWordset, loadWordset, Wordset, WordsetWord } from "../data/wordsets";
@@ -98,6 +100,10 @@ export function VocabStudy({
   const [rows, setRows] = useState<WordsetWord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Từ đang mở thẻ, giữ theo KHOÁ chứ không giữ cả đối tượng: đổi bộ lọc hay
+  // nạp lại bộ là mảng `words` dựng lại, ôm tham chiếu cũ thì thẻ trỏ vào một
+  // dòng đã mồ côi.
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
   // "Đánh dấu nhanh": bật thì một cú bấm sẽ toggle nhớ/không nhớ thay vì xem nghĩa
   // (giống KanjiStats). Tắt là mặc định an toàn — bấm chỉ để xem.
@@ -124,6 +130,9 @@ export function VocabStudy({
       if (alive) setError((e as Error).message || "Không tải được danh sách");
     };
     const finish = () => alive && setLoading(false);
+
+    // Đổi danh sách thì thẻ đang mở không còn thuộc về đâu nữa.
+    setOpenKey(null);
 
     if (selection.kind === "none") {
       finish(); // chưa chọn danh sách — không có gì để tải
@@ -163,11 +172,38 @@ export function VocabStudy({
   );
   // Dòng gốc theo khoá (term, reading) — cần ở hai chỗ: tooltip của ô, và lúc
   // chắt ra bộ mới. Dựng một lần thay vì quét lại `rows` cho từng ô.
+  /**
+   * Bấm một ô: bộ từ thì mở thẻ, nguồn khác thì tra từ điển như cũ.
+   *
+   * Chỉ bộ từ mới có thẻ để mà mở — nghĩa, câu ví dụ, ảnh và phát âm đều đi kèm
+   * bộ. Lịch sử tra hay từ điển cá nhân không mang theo thứ gì thẻ bày được, nên
+   * ở đó chèn thêm một cú bấm chỉ là bắt người dùng đi vòng.
+   */
+  const viewWord = (word: VocabListWord) => {
+    if (!selectionIs(selection, "wordset")) {
+      onSelect(word);
+      return;
+    }
+    const key = wordKey(word);
+    setOpenKey((open) => (open === key ? null : key));
+  };
+
   const rowByKey = useMemo(() => {
     const m = new Map<string, WordsetWord>();
-    for (const r of rows) m.set(`${r.term}\u0000${r.reading}`, r);
+    for (const r of rows) m.set(wordsetKey(r.term, r.reading), r);
     return m;
   }, [rows]);
+
+  /**
+   * Từ đang mở thẻ, ghép lại từ khoá đang giữ. Tìm trong `visible` chứ không
+   * trong `words`: từ bị bộ lọc ẩn đi thì thẻ của nó cũng tự đóng, chứ không
+   * treo lại một mình trên một lưới không còn nó.
+   */
+  const openCard = useMemo(() => {
+    if (openKey === null || !selectionIs(selection, "wordset")) return null;
+    const cell = visible.find((c) => wordKey(c.word) === openKey);
+    return cell ? { setId: selection.set.id, word: cell.word, row: rowByKey.get(openKey) } : null;
+  }, [openKey, selection, visible, rowByKey]);
 
   /** Từ đang hiện mà chưa được đánh dấu thuộc — đích của đánh dấu hàng loạt. */
   const markable = useMemo(
@@ -334,19 +370,32 @@ export function VocabStudy({
                 : "Không có từ nào khớp bộ lọc."}
             </p>
           ) : (
-            <div className="vocab-grid" role="list">
-              {visible.map((cell) => (
-                <VocabTile
-                  note={noteOf(rowByKey.get(wordKey(cell.word)))}
-                  key={`${cell.word.term}:${cell.word.term_lang}:${cell.word.reading ?? ""}`}
-                  cell={cell}
-                  theme={theme}
-                  quickMark={quickMark}
-                  onView={() => onSelect(cell.word)}
-                  onToggle={() => onToggle(cell.word, cell.entry)}
+            <>
+              {openCard && (
+                <WordsetCard
+                  setId={openCard.setId}
+                  row={openCard.row}
+                  term={openCard.word.term}
+                  reading={openCard.word.reading}
+                  isJa={pair.source === "ja"}
+                  onLookup={() => onSelect(openCard.word)}
+                  onClose={() => setOpenKey(null)}
                 />
-              ))}
-            </div>
+              )}
+              <div className="vocab-grid" role="list">
+                {visible.map((cell) => (
+                  <VocabTile
+                    note={noteOf(rowByKey.get(wordKey(cell.word)))}
+                    key={`${cell.word.term}:${cell.word.term_lang}:${cell.word.reading ?? ""}`}
+                    cell={cell}
+                    theme={theme}
+                    quickMark={quickMark}
+                    onView={() => viewWord(cell.word)}
+                    onToggle={() => onToggle(cell.word, cell.entry)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
@@ -354,9 +403,10 @@ export function VocabStudy({
   );
 }
 
-/** Khoá ghép một ô của lưới với dòng gốc trong bộ từ. */
+/** Khoá ghép một ô của lưới với dòng gốc trong bộ từ — cùng một hàm với lúc
+ *  nhập, để hai bên không bao giờ ghép hụt vì lệch một ký tự. */
 function wordKey(w: VocabListWord): string {
-  return `${w.term}\u0000${w.reading ?? ""}`;
+  return wordsetKey(w.term, w.reading ?? "");
 }
 
 /**

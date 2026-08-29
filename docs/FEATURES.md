@@ -1023,7 +1023,8 @@ thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3)
 (`vocabstudy/domain/wordset.ts`, `domain/wordsetMatch.ts`, `data/wordsets.ts`,
 `ui/WordsetImport.tsx`, `ui/WordsetSummary.tsx`)
 
-- **Nhập**: dán văn bản hoặc chọn tệp `.txt/.csv/.tsv` (≤ 2 MB, ≤ 20.000 từ).
+- **Nhập**: dán văn bản, chọn tệp `.txt/.csv/.tsv` (≤ 2 MB, ≤ 20.000 từ), hoặc
+  **gói Anki `.apkg`** — xem §9.22.
   Mỗi dòng một từ; thứ tự cột *mặt chữ · cách đọc · nghĩa · ví dụ*. Trình phân
   tích khoan dung với danh sách chép về: bỏ đánh số đầu dòng, bóc 【cách đọc】
   dính trong mặt chữ, tôn trọng nháy kép trong nghĩa có dấu phẩy, bỏ dòng tiêu đề
@@ -1056,8 +1057,8 @@ thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3)
   (`CustomDraft.example`), nên câu chép từ bộ từ sang thẻ không phải sửa gì.
   Nghĩa và ví dụ hiện ở tooltip của ô trên lưới — không có chỗ hiện thì hai cột
   ấy là dữ liệu chết, bắt người dùng gõ vào rồi không bao giờ thấy lại.
-- **Lưu ở đâu**: hai store IndexedDB **riêng** `wordsets` + `wordset_words`
-  (DB v10), KHÔNG dùng `terms`/`dictionaries`. Bộ từ chỉ có mặt chữ nên nếu nằm
+- **Lưu ở đâu**: ba store IndexedDB **riêng** `wordsets` + `wordset_words` +
+  `wordset_media` (DB v11), KHÔNG dùng `terms`/`dictionaries`. Bộ từ chỉ có mặt chữ nên nếu nằm
   trong `terms` sẽ hiện ra thành hit rỗng nghĩa khi tra; và đường nhập Từ điển
   cá nhân khử trùng với toàn bộ `terms` cùng cặp ngôn ngữ, tức nhập N1 vào đó
   thì gần như mọi từ bị coi là trùng với JMdict và bị bỏ. Dùng được cho guest,
@@ -1086,6 +1087,52 @@ thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3)
   Đây là kênh "tự khai đã thuộc" mạnh nhất trong app nên phải đếm riêng được nếu
   quyết định mở #2 trong BACKLOG siết lại. Các nút tự khai lẻ hiện **chưa** đóng
   dấu gì — vắng cờ không có nghĩa "đã tốt nghiệp đàng hoàng".
+
+### 9.22 Nhập gói Anki (.apkg)
+
+Nhập thẳng một deck Anki tải về thành bộ từ, **kèm ảnh minh hoạ và phát âm**.
+Toàn bộ chạy trong trình duyệt, không tải gì lên server, khách chưa đăng nhập
+dùng được. (`vocabstudy/domain/{zip,sqlite,ankiField,ankiDeck,mediaType}.ts`,
+`data/{apkgFile,wordsetMedia}.ts`, `ui/{ApkgMapping,WordsetCard}.tsx`)
+
+- **Không thêm phụ thuộc nào.** Ba lớp giải mã đều tự viết: đọc mục lục zip, đọc
+  b-tree SQLite (chỉ-đọc, có trang tràn), bóc HTML/media/furigana khỏi trường thẻ.
+  `jszip` (đã có sẵn trong dự án) **không** dùng được ở đây: `loadAsync` đòi cả
+  tệp trong RAM, mà gói kèm media hay nặng vài trăm MB.
+- **Không nạp cả tệp**: đọc mục lục ở đuôi tệp rồi `Blob.slice` đúng khúc cần,
+  giải nén bằng `DecompressionStream` của trình duyệt. Đo trên gói JLPT Tango N1
+  **207 MB**: dựng xong 1.852 từ hết **0,4 MB** bộ nhớ.
+- **Ghép trường tự đoán, sửa được**: đoán theo tên trường (`VocabKanji`→mặt chữ,
+  `VocabDef`→nghĩa, `SentKanji`+`SentViet`→ví dụ…) rồi bày dropdown cho từng vai
+  trò. Đoán theo *độ chắc chắn* chứ không theo thứ tự trường, nếu không `SentViet`
+  (bản dịch của CÂU) sẽ cướp mất cột nghĩa của `VocabDef` (nghĩa của TỪ). Deck lạ
+  chỉ có `Front`/`Back` vẫn nhập được. Có dropdown chọn loại thẻ và lọc deck khi
+  gói có nhiều.
+- **Dữ liệu thẻ vốn bẩn**, trình bóc cố ý khoan dung: HTML sai chuẩn
+  (`<b style=color: rgb(51, 102, 204);>`), furigana viết hai lối lẫn nhau trong
+  cùng một deck (`身内[みうち]` và `<ruby><rb>父</rb><rt>ちち</rt></ruby>`), và
+  ruby ghi nhiều cách đọc thay thế (`行[い<br>ゆ]き` → lấy phương án đầu, chứ gộp
+  lại thành "い ゆきちがい" là một cách đọc không tồn tại).
+- **Từ dạy lại được gộp**: deck đánh số hậu tố `遺産[1]`, `遺産[2]` cho từ xuất
+  hiện ở nhiều bài; phép bóc ruby đưa cả hai về `遺産` rồi khử trùng. Lưới từ vựng
+  mỗi từ một ô nên đó mới là đúng (bộ N1: 2.024 thẻ → 1.852 từ).
+- **Media**: chỉ bóc tệp mà các dòng *giữ lại* trỏ tới, nên 44 MB phông chữ trong
+  gói không bị đụng tới — không cần luật riêng, đơn giản là không ai hỏi. Ghi
+  theo lô 50 tệp kèm thanh tiến độ. Kiểu MIME đoán bằng **chữ ký byte** chứ không
+  bằng đuôi tệp: trong chính bộ N1, `1670892071719.jpg` thật ra là một tệp GIF.
+- **Nói thật khi thiếu**: hết quota hay gói thiếu tệp thì phần chữ vẫn giữ, và
+  báo rõ "chỉ lấy được N/M tệp media" thay vì lặng lẽ hiện thẻ không ảnh.
+- **Thẻ của một từ** (`WordsetCard`): bấm một ô trong lưới bộ từ mở thẻ ngay
+  trong luồng trang (không overlay) — câu ví dụ có ruby, bản dịch, ảnh, hai nút
+  phát âm (từ và câu), và nút "Tra ở từ điển" giữ lối cũ. Không tự phát âm: đây
+  là màn duyệt lưới, không phải phiên ôn. Media nạp theo từng thẻ và thu hồi
+  object URL khi đóng — bộ N1 có 4.305 tệp, giữ sẵn URL cho tất cả là sập tab.
+  Nguồn khác (lịch sử tra, từ điển cá nhân) không có thẻ để mở nên vẫn tra từ
+  điển như cũ.
+- **Chỉ đọc định dạng cũ** (`collection.anki2` / `.anki21`). Gói xuất từ Anki đời
+  mới nén **zstd**, trình duyệt không giải được (`DecompressionStream` chỉ biết
+  gzip/deflate). Gặp thì báo rõ việc cần làm: xuất lại và bật "Hỗ trợ Anki 2.1.50
+  trở xuống".
 
 ## 10. Bản đồ chức năng → tài liệu
 

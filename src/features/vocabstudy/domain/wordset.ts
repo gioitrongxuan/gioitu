@@ -16,6 +16,12 @@ export interface WordsetDraft {
   /** Câu ví dụ, "câu :: bản dịch" (phần dịch tuỳ chọn) — cùng quy ước với
    *  `CustomDraft.example` của Từ điển cá nhân. */
   example?: string;
+  /** Bốn trường dưới đây CHỈ đường nhập gói Anki mới điền — nhập bằng văn bản
+   *  không có ruby lẫn media. Xem `WordsetWord` trong `shared/db.ts`. */
+  exampleFurigana?: string;
+  imageName?: string;
+  audioName?: string;
+  exampleAudioName?: string;
 }
 
 export interface ParsedWordset {
@@ -171,11 +177,7 @@ export function parseWordset(text: string): ParsedWordset {
       skipped += 1;
       continue;
     }
-    // Ký tự phân tách phải là thứ KHÔNG bao giờ xuất hiện trong mặt chữ hay cách
-    // đọc, nếu không "ab|c" và "a|bc" thành cùng một khoá. Viết bằng escape
-    // `\u0000` chứ không phải byte NUL thô: byte thô làm git coi cả file là nhị
-    // phân — mất diff, mất review, mất blame.
-    const key = `${term}\u0000${reading}`;
+    const key = wordsetKey(term, reading);
     if (seen.has(key)) {
       duplicates += 1;
       continue;
@@ -196,6 +198,21 @@ export function parseWordset(text: string): ParsedWordset {
   }
 
   return { words, skipped, duplicates, truncated };
+}
+
+/**
+ * Khoá khử trùng của một dòng trong bộ từ.
+ *
+ * Ký tự phân tách phải là thứ KHÔNG bao giờ xuất hiện trong mặt chữ hay cách
+ * đọc, nếu không "ab|c" và "a|bc" thành cùng một khoá. Viết bằng escape
+ * `\u0000` chứ không phải byte NUL thô: byte thô làm git coi cả file là nhị
+ * phân — mất diff, mất review, mất blame.
+ *
+ * Xuất ra ngoài vì đường nhập từ gói Anki (`ankiDeck.ts`) khử trùng theo đúng
+ * khoá này. Hai chỗ tự ghép chuỗi là sớm muộn cũng lệch nhau một ký tự.
+ */
+export function wordsetKey(term: string, reading: string): string {
+  return `${term}\u0000${reading}`;
 }
 
 /** Dòng bổ sung "nghĩa: …" → trường nào, giá trị gì. `null` nếu không phải. */
@@ -304,7 +321,18 @@ const SAMPLE_CONCEPTS: { ja: SampleWord; en: SampleWord; vi: SampleWord }[] = [
 
 /** Ngăn giữa câu ví dụ và bản dịch — cùng ký hiệu với Từ điển cá nhân
  *  (`customEntry.ts`), để câu chép từ bộ từ sang thẻ không phải sửa gì. */
-const EXAMPLE_SEP = "::";
+export const EXAMPLE_SEP = "::";
+
+/**
+ * Tách "câu :: bản dịch" thành hai phần. Không có dấu ngăn thì cả chuỗi là câu.
+ *
+ * Đặt cạnh `EXAMPLE_SEP` để cách ghép và cách tách không bao giờ trôi lệch nhau.
+ */
+export function splitExample(raw: string): { sentence: string; translation: string } {
+  const at = raw.indexOf(EXAMPLE_SEP);
+  if (at < 0) return { sentence: raw.trim(), translation: "" };
+  return { sentence: raw.slice(0, at).trim(), translation: raw.slice(at + EXAMPLE_SEP.length).trim() };
+}
 
 /**
  * Nội dung tệp CSV mẫu cho một cặp ngôn ngữ. Có tệp mở ra xem được thì không ai

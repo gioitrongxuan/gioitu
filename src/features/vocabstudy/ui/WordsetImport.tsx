@@ -5,7 +5,7 @@
 // Không làm overlay: khung nhập nằm thẳng trong luồng trang nên không cần bẫy
 // focus, còn người dùng vẫn thấy danh sách bộ đã có trong lúc dán từ mới.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LangPair } from "@/shared/languages";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { pushToast } from "@/shared/ui/Toasts";
@@ -20,10 +20,29 @@ import {
   WordsetDraft,
 } from "../domain/wordset";
 import { createWordset, deleteWordset, listWordsets, Wordset } from "../data/wordsets";
+import {
+  ApkgSelection,
+  buildWordset,
+  defaultSelection,
+  mediaNamesOf,
+  readAnkiCollection,
+  titleFromDeckName,
+} from "../domain/ankiDeck";
+import { SqliteFile } from "../domain/sqlite";
+import { ApkgArchive, readAnkiDatabase, readMediaMap } from "../data/apkgFile";
+import { importWordsetMedia } from "../data/wordsetMedia";
+import { ApkgMapping, ApkgSource } from "./ApkgMapping";
 
-/** Trần kích thước tệp nhận vào (2 MB) — một bộ 20k từ dạng TSV chưa tới 1 MB,
- *  quá mức này gần như chắc chắn là chọn nhầm tệp. */
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
+/** Trần kích thước tệp CHỮ nhận vào (2 MB) — một bộ 20k từ dạng TSV chưa tới
+ *  1 MB, quá mức này gần như chắc chắn là chọn nhầm tệp.
+ *
+ *  Gói `.apkg` không chịu trần này: nó kèm ảnh và phát âm nên vài trăm MB là
+ *  bình thường, mà ta cũng không nạp nó vào bộ nhớ — chỉ cắt đúng khúc cần
+ *  (xem `data/apkgFile.ts`). */
+const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
+
+/** Đuôi tệp của gói Anki. */
+const APKG_EXTENSION = ".apkg";
 
 /** Số dòng bày ra ở khung xem trước — đủ để thấy cột nào rơi vào đâu, không lấn
  *  chỗ của ô nhập. */
@@ -129,15 +148,73 @@ function WordsetForm({
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Gói Anki đã mở, cùng lựa chọn ghép trường. Cả hai cùng `null` nghĩa là đang
+  // ở lối nhập bằng văn bản.
+  const [apkg, setApkg] = useState<ApkgSource | null>(null);
+  const [selection, setSelection] = useState<ApkgSelection | null>(null);
+  const [opening, setOpening] = useState(false);
+  // Tiến độ bóc media. `null` = không có bước ấy (nhập chữ, hoặc gói không media).
+  const [mediaProgress, setMediaProgress] = useState<{ done: number; total: number } | null>(null);
+
   // Xem trước tính lại theo từng phím gõ. Chỉ là tách chuỗi trên vài nghìn dòng
   // nên rẻ; đổi lại người dùng thấy ngay "3.240 từ" thay vì phải bấm mới biết.
-  const parsed: ParsedWordset = parseWordset(text);
+  //
+  // Đường gói Anki thì KHÔNG rẻ như thế — quét hai nghìn thẻ mất vài chục mili
+  // giây — nên phải nhớ lại theo lựa chọn, không tính lại mỗi lần gõ tên bộ.
+  const parsedText: ParsedWordset = parseWordset(text);
+  const parsedApkg = useMemo(
+    () => (apkg && selection ? buildWordset(apkg.db, selection) : null),
+    [apkg, selection],
+  );
+  const parsed = parsedApkg ?? parsedText;
+
+  /** Mở một gói Anki: đọc mục lục, bóc cơ sở dữ liệu, đoán sẵn bảng ghép. */
+  const readApkg = async (file: File) => {
+    setOpening(true);
+    try {
+      const archive = await ApkgArchive.open(file);
+      const db = new SqliteFile(await readAnkiDatabase(archive));
+      const collection = readAnkiCollection(db);
+      if (collection.noteTypes.length === 0) {
+        pushToast("Gói này không có thẻ nào để nhập", "warn");
+        return;
+      }
+      setApkg({ fileName: file.name, archive, db, collection, mediaEntries: await readMediaMap(archive) });
+      setSelection(defaultSelection(collection));
+      setText("");
+      setSource("file");
+      // Tên deck sát ý người dùng hơn tên tệp: tệp tải về hay mang tên máy sinh
+      // ("Ankidrone Starter Pack V7__4…"), còn deck thì đúng là "JLPT Tango N1".
+      if (!title.trim()) {
+        const deckName = collection.decks[0]?.name;
+        setTitle(deckName ? titleFromDeckName(deckName) : titleFromFilename(file.name));
+      }
+    } catch (e) {
+      console.error("open apkg failed", e);
+      // Thông báo của `apkgFile.ts` nói rõ phải làm gì (ví dụ: xuất lại từ Anki
+      // ở định dạng cũ), nên đưa thẳng ra chứ đừng thay bằng câu chung chung.
+      pushToast(e instanceof Error ? e.message : "Không đọc được gói Anki", "warn");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  /** Quay về lối nhập bằng văn bản, bỏ gói đang mở. */
+  const clearApkg = () => {
+    setApkg(null);
+    setSelection(null);
+  };
 
   const readFile = async (file: File) => {
-    if (file.size > MAX_FILE_BYTES) {
+    if (file.name.toLowerCase().endsWith(APKG_EXTENSION)) {
+      await readApkg(file);
+      return;
+    }
+    if (file.size > MAX_TEXT_FILE_BYTES) {
       pushToast("Tệp quá lớn (tối đa 2 MB)", "warn");
       return;
     }
+    clearApkg();
     setText(await file.text());
     setSource("file");
     if (!title.trim()) setTitle(titleFromFilename(file.name));
@@ -150,6 +227,39 @@ function WordsetForm({
     downloadBlob(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }), `gioitu-bo-tu-mau-${pair.id}.csv`);
   };
 
+  /**
+   * Bóc ảnh và phát âm cho bộ vừa tạo.
+   *
+   * Chạy SAU khi phần chữ đã ghi xong, và cố ý không ném lỗi lên: media hỏng thì
+   * bộ từ vẫn dùng được, chỉ là thẻ không có ảnh. Đổi lại phải *nói ra* chỗ
+   * thiếu — im lặng thì người dùng tưởng deck của mình vốn không có ảnh.
+   */
+  const saveMedia = async (setId: string, words: WordsetDraft[]) => {
+    if (!apkg) return;
+    const names = mediaNamesOf(words);
+    if (names.length === 0) return;
+
+    setMediaProgress({ done: 0, total: names.length });
+    try {
+      const result = await importWordsetMedia(setId, apkg.archive, apkg.mediaEntries, names, (done, total) =>
+        setMediaProgress({ done, total }),
+      );
+      if (result.outOfSpace) {
+        pushToast(
+          `Máy hết chỗ trống: chỉ lấy được ${result.stored}/${names.length} tệp media. Phần từ vựng vẫn đủ.`,
+          "warn",
+        );
+      } else if (result.missing > 0) {
+        pushToast(`Gói thiếu ${result.missing} tệp media — các từ đó sẽ không có ảnh hoặc phát âm`, "warn");
+      }
+    } catch (e) {
+      console.error("import wordset media failed", e);
+      pushToast("Không lấy được ảnh và phát âm — bộ từ vẫn đã lưu", "warn");
+    } finally {
+      setMediaProgress(null);
+    }
+  };
+
   const save = async () => {
     const name = title.trim() || "Bộ từ chưa đặt tên";
     if (parsed.words.length === 0) return;
@@ -160,6 +270,7 @@ function WordsetForm({
         parsed.words,
       );
       pushToast(`Đã nhập ${parsed.words.length} từ vào bộ “${name}”`, "success");
+      await saveMedia(id, parsed.words);
       await onCreated({
         id,
         title: name,
@@ -189,35 +300,51 @@ function WordsetForm({
         />
       </label>
 
-      <label className="wordset-field">
-        Danh sách từ
-        <textarea
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setSource("paste");
-          }}
-          rows={8}
-          spellCheck={false}
-          lang={pair.source === "ja" ? "ja" : undefined}
-          placeholder={"Mỗi dòng một từ. Có thể kèm cột, ngăn bằng Tab hoặc dấu phẩy:\nmặt chữ, cách đọc, nghĩa, ví dụ"}
-        />
-      </label>
+      {apkg && selection ? (
+        <>
+          <p className="apkg-file muted">
+            Gói Anki: <b>{apkg.fileName}</b>
+            <button className="link" onClick={clearApkg}>
+              Nhập bằng văn bản
+            </button>
+          </p>
+          <ApkgMapping source={apkg} selection={selection} onChange={setSelection} />
+        </>
+      ) : (
+        <>
+          <label className="wordset-field">
+            Danh sách từ
+            <textarea
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setSource("paste");
+              }}
+              rows={8}
+              spellCheck={false}
+              lang={pair.source === "ja" ? "ja" : undefined}
+              placeholder={
+                "Mỗi dòng một từ. Có thể kèm cột, ngăn bằng Tab hoặc dấu phẩy:\nmặt chữ, cách đọc, nghĩa, ví dụ"
+              }
+            />
+          </label>
 
-      <details className="wordset-hint">
-        <summary className="muted">Các lối viết được nhận</summary>
-        <pre lang={pair.source === "ja" ? "ja" : undefined}>{FORMAT_EXAMPLES}</pre>
-        <p className="muted">
-          Cũng nhận dòng có đánh số và dòng tiêu đề cột của tệp xuất từ Excel. Tối đa{" "}
-          {MAX_WORDSET_WORDS.toLocaleString("vi-VN")} từ.
-        </p>
-      </details>
+          <details className="wordset-hint">
+            <summary className="muted">Các lối viết được nhận</summary>
+            <pre lang={pair.source === "ja" ? "ja" : undefined}>{FORMAT_EXAMPLES}</pre>
+            <p className="muted">
+              Cũng nhận dòng có đánh số và dòng tiêu đề cột của tệp xuất từ Excel. Tối đa{" "}
+              {MAX_WORDSET_WORDS.toLocaleString("vi-VN")} từ.
+            </p>
+          </details>
+        </>
+      )}
 
       <div className="wordset-actions">
         <input
           ref={fileRef}
           type="file"
-          accept=".txt,.csv,.tsv,text/plain,text/csv"
+          accept=".txt,.csv,.tsv,.apkg,text/plain,text/csv"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -225,15 +352,21 @@ function WordsetForm({
             e.target.value = "";
           }}
         />
-        <button className="export-btn" onClick={() => fileRef.current?.click()}>
-          Chọn tệp .txt / .csv
+        <button className="export-btn" disabled={opening} onClick={() => fileRef.current?.click()}>
+          {opening ? "Đang mở gói…" : "Chọn tệp .txt / .csv / .apkg"}
         </button>
-        <button className="export-btn" onClick={downloadSample}>
-          <DownloadIcon size={16} />
-          Tải tệp mẫu
-        </button>
+        {!apkg && (
+          <button className="export-btn" onClick={downloadSample}>
+            <DownloadIcon size={16} />
+            Tải tệp mẫu
+          </button>
+        )}
         <button className="primary" disabled={parsed.words.length === 0 || saving} onClick={() => void save()}>
-          {saving ? "Đang lưu…" : `Tạo bộ (${parsed.words.length} từ)`}
+          {mediaProgress
+            ? `Đang lấy media ${mediaProgress.done.toLocaleString("vi-VN")}/${mediaProgress.total.toLocaleString("vi-VN")}…`
+            : saving
+              ? "Đang lưu…"
+              : `Tạo bộ (${parsed.words.length} từ)`}
         </button>
         {onCancel && (
           <button className="link" onClick={onCancel}>
@@ -242,7 +375,16 @@ function WordsetForm({
         )}
       </div>
 
-      {text.trim() !== "" && (
+      {opening && <Skeleton lines={2} />}
+
+      {mediaProgress && (
+        <label className="apkg-progress">
+          <span className="muted">Đang lấy ảnh và phát âm — có thể mất vài phút, đừng đóng tab.</span>
+          <progress value={mediaProgress.done} max={mediaProgress.total} />
+        </label>
+      )}
+
+      {(text.trim() !== "" || parsedApkg) && (
         <>
           <p className="muted">
             Đọc được <b>{parsed.words.length}</b> từ

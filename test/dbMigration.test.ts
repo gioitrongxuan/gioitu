@@ -115,7 +115,38 @@ describe("nâng cấp IndexedDB (db.ts upgrade)", () => {
     expect(byReading.map((e) => e.term)).toContain("桜");
   });
 
-  it("CSDL mới tạo đủ 8 store", async () => {
+  it("nâng v10 → v11: thêm store media, không đụng bộ từ đã có", async () => {
+    // v11 khai là "pure add". Đây là chỗ chứng minh: một bộ từ nhập từ trước khi
+    // có media phải còn nguyên sau khi nâng cấp, không thì người dùng mở app lên
+    // là mất sạch bộ đã sàng.
+    const legacy = await openDB(DB_NAME, 10, {
+      upgrade(db) {
+        const sets = db.createObjectStore("wordsets", { keyPath: "id" });
+        sets.createIndex("by_pair", ["term_lang", "native_lang"]);
+        db.createObjectStore("wordset_words", { keyPath: ["setId", "term", "reading"] });
+      },
+    });
+    await legacy.put("wordsets", {
+      id: "bo-cu",
+      title: "JLPT N1",
+      term_lang: "ja",
+      native_lang: "vi",
+      source: "paste",
+      count: 1,
+      importedAt: 1,
+    });
+    await legacy.put("wordset_words", { setId: "bo-cu", term: "身内", reading: "みうち", gloss: "Bà con" });
+    legacy.close();
+
+    _resetDbPromise();
+    const db = await openViaGetDb();
+    expect(db.version).toBe(11);
+    expect([...db.objectStoreNames]).toContain("wordset_media");
+    expect(await db.get("wordsets", "bo-cu")).toMatchObject({ title: "JLPT N1" });
+    expect(await db.get("wordset_words", ["bo-cu", "身内", "みうち"])).toMatchObject({ gloss: "Bà con" });
+  });
+
+  it("CSDL mới tạo đủ 9 store", async () => {
     _resetDbPromise();
     const db = await openViaGetDb();
     expect([...db.objectStoreNames].sort()).toEqual([
@@ -125,6 +156,7 @@ describe("nâng cấp IndexedDB (db.ts upgrade)", () => {
       "term_meta",
       "terms",
       "user_data",
+      "wordset_media",
       "wordset_words",
       "wordsets",
     ]);

@@ -145,6 +145,25 @@ export interface WordsetWord {
    *  (phần dịch tuỳ chọn) — xem `CustomDraft.example`. Nhờ trùng định dạng, câu
    *  này dùng lại được nguyên vẹn khi từ trong bộ được dựng thành thẻ. */
   example?: string;
+  /** Câu ví dụ kèm ruby, ở lối viết của Anki (`身内[みうち]に…`) — phân tích lúc
+   *  dựng thẻ bằng `parseAnkiFurigana`. Lưu thô để không phải chọn trước một
+   *  cách dựng ruby nào. */
+  exampleFurigana?: string;
+  /** TÊN TỆP media trong `wordset_media`, không phải chính dữ liệu: một dòng từ
+   *  phải nhẹ để quét 20k dòng còn nhanh, còn blob thì chỉ nạp khi mở thẻ. */
+  imageName?: string;
+  /** Phát âm của từ. */
+  audioName?: string;
+  /** Phát âm của câu ví dụ. */
+  exampleAudioName?: string;
+}
+
+/** Một tệp media của bộ từ (ảnh minh hoạ, phát âm) nhập kèm từ gói Anki. */
+export interface WordsetMedia {
+  setId: string;
+  /** Tên tệp đúng như thẻ Anki trỏ tới: `N1_0001_1.mp3`, `1670892071719.jpg`. */
+  name: string;
+  blob: Blob;
 }
 
 interface GioituDB extends DBSchema {
@@ -204,10 +223,17 @@ interface GioituDB extends DBSchema {
     key: [string, string, string]; // [setId, term, reading]
     value: WordsetWord;
   };
+  wordset_media: {
+    // Cùng mẹo khoá ghép với `wordset_words`: mở đầu bằng `setId` nên xoá trọn
+    // media của một bộ chỉ cần một khoảng khoá. `setId` nằm trong khoá còn để
+    // nhập cùng một deck hai lần không bộ nào giẫm lên tệp của bộ nào.
+    key: [string, string]; // [setId, name]
+    value: WordsetMedia;
+  };
 }
 
 const DB_NAME = "gioitu";
-const DB_VERSION = 10;
+const DB_VERSION = 11;
 
 let dbPromise: Promise<IDBPDatabase<GioituDB>> | null = null;
 
@@ -244,6 +270,8 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         //       cũng là store mới, pure add.
         //   v10 adds `wordsets` + `wordset_words` (bộ từ nhập ngoài để sàng ra
         //       phần đã biết) — hai store MỚI, pure add.
+        //   v11 adds `wordset_media` (ảnh + phát âm nhập kèm từ gói Anki) —
+        //       lại một store MỚI, pure add.
         //
         // `terms` is NOT merely a re-importable cache anymore: Từ điển cá nhân
         // (CustomDictionary) writes hand-authored rows into it under a `dictId`
@@ -329,6 +357,12 @@ export function getDb(): Promise<IDBPDatabase<GioituDB>> {
         }
         if (!db.objectStoreNames.contains("wordset_words")) {
           db.createObjectStore("wordset_words", { keyPath: ["setId", "term", "reading"] });
+        }
+
+        // Media của bộ từ (v11). Vẫn là store MỚI, pure add — và cũng tái tạo
+        // được bằng cách nhập lại gói, nên không phải bảo toàn gì.
+        if (!db.objectStoreNames.contains("wordset_media")) {
+          db.createObjectStore("wordset_media", { keyPath: ["setId", "name"] });
         }
       },
     });

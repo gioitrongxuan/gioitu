@@ -33,11 +33,13 @@ Lịch sử version (trong `upgrade()`):
 | v8 | Thêm store `review_log` (append-only, một dòng/lượt chấm thẻ) |
 | v9 | Thêm store `search_history` (lịch sử tra cứu cho trang Tra cứu, #269) |
 | v10 | Thêm store `wordsets` + `wordset_words` (bộ từ nhập ngoài để sàng ra phần đã biết) |
+| v11 | Thêm store `wordset_media` (ảnh + phát âm nhập kèm từ gói Anki `.apkg`) |
 
 > Migration **theo version, không phá huỷ, idempotent**: `terms` KHÔNG còn bị
 > xoá khi bump (từ v5 nó chứa cả từ điển cá nhân — không tái tạo được bằng
 > re-import; xem cảnh báo trong `db.ts`). Thêm một object store mới (như
-> `review_log` ở v8, `search_history` ở v9, cặp `wordsets`/`wordset_words` ở v10) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
+> `review_log` ở v8, `search_history` ở v9, cặp `wordsets`/`wordset_words` ở v10,
+> `wordset_media` ở v11) là bump an toàn nhất: chỉ `createObjectStore` khi chưa có,
 > không đụng store cũ. Store cũ `reverse_tokens` (nếu còn) bị xoá.
 
 ### 2.1 Tám object store
@@ -79,6 +81,11 @@ wordset_words  khoá [setId, term, reading]
                (không index: khoá mở đầu bằng setId nên một key range quét
                 trọn một bộ)
                value WordsetWord
+
+wordset_media  khoá [setId, name]
+               (cùng mẹo key range với wordset_words; setId nằm trong khoá để
+                nhập cùng một deck hai lần không bộ nào giẫm lên tệp của bộ nào)
+               value WordsetMedia { setId, name, blob }
 ```
 
 **Vì sao `reading` nằm trong khoá `terms`:** đồng âm khác cách đọc (辛い からい

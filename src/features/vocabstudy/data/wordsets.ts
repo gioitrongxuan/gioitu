@@ -11,6 +11,7 @@ import { getDb, Wordset, WordsetWord } from "@/shared/db";
 import { LangPair } from "@/shared/languages";
 import { uuid } from "@/features/dictionary/data/yomitan";
 import { WordsetDraft } from "../domain/wordset";
+import { deleteWordsetMedia } from "./wordsetMedia";
 import { VocabListWord } from "../domain/vocablist";
 
 export type { Wordset, WordsetWord };
@@ -41,6 +42,12 @@ export async function createWordset(
         reading: w.reading ?? "",
         ...(w.gloss ? { gloss: w.gloss } : {}),
         ...(w.example ? { example: w.example } : {}),
+        // Bốn trường dưới chỉ có khi nhập từ gói Anki; media lưu bằng TÊN, blob
+        // nằm ở store riêng (`wordsetMedia.ts`).
+        ...(w.exampleFurigana ? { exampleFurigana: w.exampleFurigana } : {}),
+        ...(w.imageName ? { imageName: w.imageName } : {}),
+        ...(w.audioName ? { audioName: w.audioName } : {}),
+        ...(w.exampleAudioName ? { exampleAudioName: w.exampleAudioName } : {}),
       };
       await tx.store.put(row);
     }
@@ -92,6 +99,10 @@ export async function deleteWordset(setId: string): Promise<void> {
     await tx.done;
     keys = await db.getAllKeys("wordset_words", IDBKeyRange.bound([setId], [setId, []]), WRITE_CHUNK);
   }
+  // Media trước, metadata sau: đứt giữa chừng thì còn lại một bộ vẫn hiện trong
+  // danh sách và xoá lại được. Xoá metadata trước mới là đường một chiều — bộ
+  // biến mất khỏi giao diện trong khi cả trăm MB media nằm lại, không ai với tới.
+  await deleteWordsetMedia(setId);
   await db.delete("wordsets", setId);
 }
 

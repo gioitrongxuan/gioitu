@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  EXAMPLE_SEP,
   MAX_WORDSET_WORDS,
   parseWordset,
   sampleWordsetCsv,
+  splitExample,
   titleFromFilename,
 } from "@/features/vocabstudy/domain/wordset";
 
@@ -251,5 +253,26 @@ describe("sampleWordsetCsv", () => {
   it("dòng tiêu đề cột không lọt vào danh sách từ", () => {
     const r = parseWordset(sampleWordsetCsv("ja", "vi"));
     expect(r.words.map((w) => w.term)).not.toContain("mặt chữ");
+  });
+});
+
+describe("tách câu ví dụ và bản dịch", () => {
+  it("tách ở dấu ngăn, cắt khoảng trắng thừa", () => {
+    expect(splitExample("毎朝パンを食べる :: Sáng nào tôi cũng ăn bánh mì")).toEqual({
+      sentence: "毎朝パンを食べる",
+      translation: "Sáng nào tôi cũng ăn bánh mì",
+    });
+  });
+
+  it("không có dấu ngăn thì cả chuỗi là câu", () => {
+    expect(splitExample("毎朝パンを食べる")).toEqual({ sentence: "毎朝パンを食べる", translation: "" });
+  });
+
+  it("ghép rồi tách lại phải ra đúng cái ban đầu", () => {
+    // Ghép nằm ở `ankiDeck.ts`, tách nằm đây — hai chỗ lệch nhau một dấu cách là
+    // thẻ hiện ra câu dính cả bản dịch vào đuôi.
+    const sentence = "締め切りは明日です";
+    const translation = "Hạn chót là ngày mai";
+    expect(splitExample(`${sentence} ${EXAMPLE_SEP} ${translation}`)).toEqual({ sentence, translation });
   });
 });
