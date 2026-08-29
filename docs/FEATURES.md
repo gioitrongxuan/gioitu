@@ -1027,7 +1027,13 @@ thật sự cần học. Nguồn thứ tư của trang Học từ vựng (§9.3)
   Mỗi dòng một từ; cột ngăn bằng Tab hoặc dấu phẩy theo thứ tự *mặt chữ · cách
   đọc · nghĩa · bài*. Trình phân tích khoan dung với danh sách chép về: bỏ đánh
   số đầu dòng, bóc 【cách đọc】 dính trong mặt chữ, tôn trọng nháy kép trong
-  nghĩa có dấu phẩy — nhưng **đếm và báo lại** số dòng trùng / bỏ / bị cắt.
+  nghĩa có dấu phẩy, bỏ dòng tiêu đề cột của tệp xuất từ Excel/Sheets — nhưng
+  **đếm và báo lại** số dòng trùng / bỏ / bị cắt.
+- **Tệp mẫu tải về** (`sampleWordsetCsv`): nút "Tải tệp mẫu" sinh CSV đúng cặp
+  ngôn ngữ đang chọn (ba từ mẫu là cùng một khái niệm viết bằng cả ba ngôn ngữ
+  nên nghĩa luôn khớp mặt chữ ở cả sáu cặp), có BOM để Excel không vỡ chữ
+  Việt/Nhật. Test round-trip cho mẫu chạy qua đúng `parseWordset` thật, nên tệp
+  mẫu không thể lạc hậu so với trình phân tích.
 - **Lưu ở đâu**: hai store IndexedDB **riêng** `wordsets` + `wordset_words`
   (DB v10), KHÔNG dùng `terms`/`dictionaries`. Bộ từ chỉ có mặt chữ nên nếu nằm
   trong `terms` sẽ hiện ra thành hit rỗng nghĩa khi tra; và đường nhập Từ điển
