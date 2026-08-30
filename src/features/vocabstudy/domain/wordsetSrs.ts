@@ -18,7 +18,8 @@ import { splitExample } from "./wordset";
 export interface WordsetStudyCounts {
   /** Thẻ của bộ đang đến hạn ôn — gồm cả thẻ vốn sinh ra từ tra cứu. */
   due: number;
-  /** Từ chưa có thẻ nào, tức chưa từng đưa vào học. */
+  /** Từ chưa chắc đã biết: chưa có thẻ nào, hoặc chỉ ghép được kiểu *ngờ* với
+   *  vốn từ. Xem `isInVocabulary`. */
   unstarted: number;
 }
 
@@ -30,28 +31,50 @@ export const DEFAULT_NEW_PER_SESSION = 20;
  *  đủ 200 thẻ đến hạn, và đó là cách người ta bỏ cuộc. */
 export const MAX_NEW_PER_SESSION = 200;
 
+/**
+ * Ô này đã CHẮC CHẮN nằm trong vốn từ chưa.
+ *
+ * Chỉ ghép bậc 1–2 (mặt chữ trùng đúng, hoặc trùng sau chuẩn hoá) mới tính. Bậc
+ * 3–5 — trùng cách đọc, trùng khung kanji, trùng sau khi chia ngược — là ghép
+ * *ngờ*, và `wordsetMatch.ts` đã nói rõ chúng không được tự coi là cùng một từ:
+ * 箸 (đũa) với 橋 (cầu) cùng đọc はし.
+ *
+ * Ranh giới này quyết định cả hai đầu của phiên học, và sai ở đây thì sai cả hai:
+ *  - Kể ghép ngờ là "đã biết" → thẻ 橋 bị lôi vào phiên "học bộ N1", chiếm chỗ
+ *    của từ N1 thật. Với một vốn từ lớn thì cả phiên đầy từ lạ.
+ *  - Kể ghép ngờ là "đã biết" → 箸 không bao giờ được đem ra dạy, im lặng biến
+ *    mất khỏi bộ.
+ *
+ * Nên: chưa chắc thì coi như CHƯA biết. Dạy nhầm một từ đã thuộc thì người học
+ * chấm "Dễ" một cái là xong; bỏ sót một từ chưa biết thì không ai phát hiện ra.
+ */
+function isInVocabulary(cell: SieveCell): boolean {
+  return cell.match === "exact";
+}
+
 export function studyCounts(cells: SieveCell[]): WordsetStudyCounts {
   let due = 0;
   let unstarted = 0;
   for (const c of cells) {
-    if (c.progress === "due") due += 1;
-    else if (c.progress === "missing") unstarted += 1;
+    if (!isInVocabulary(c)) unstarted += 1;
+    else if (c.progress === "due") due += 1;
   }
   return { due, unstarted };
 }
 
 /**
- * Những ô chưa có thẻ, theo ĐÚNG thứ tự trong bộ — tức thứ tự bài của giáo trình.
- * Không xáo trộn: bộ Tango dạy theo chủ đề, học lộn xộn là mất một nửa giá trị.
+ * Những ô chưa chắc đã biết, theo ĐÚNG thứ tự trong bộ — tức thứ tự bài của giáo
+ * trình. Không xáo trộn: bộ Tango dạy theo chủ đề, học lộn xộn là mất một nửa
+ * giá trị.
  */
 export function unstartedCells(cells: SieveCell[], limit: number): SieveCell[] {
   if (limit <= 0) return [];
-  return cells.filter((c) => c.progress === "missing").slice(0, limit);
+  return cells.filter((c) => !isInVocabulary(c)).slice(0, limit);
 }
 
-/** Thẻ của bộ đang đến hạn. */
+/** Thẻ đến hạn của bộ — chỉ những ô ghép CHẮC, xem `isInVocabulary`. */
 export function dueEntriesOf(cells: SieveCell[]): VocabEntry[] {
-  return cells.flatMap((c) => (c.progress === "due" && c.entry ? [c.entry] : []));
+  return cells.flatMap((c) => (isInVocabulary(c) && c.progress === "due" && c.entry ? [c.entry] : []));
 }
 
 /**

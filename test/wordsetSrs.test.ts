@@ -9,18 +9,29 @@ import {
   studyCounts,
   unstartedCells,
 } from "@/features/vocabstudy/domain/wordsetSrs";
-import { SieveCell } from "@/features/vocabstudy/domain/wordsetMatch";
+import { applySieve, SieveCell } from "@/features/vocabstudy/domain/wordsetMatch";
 import { makeEntry } from "./fixtures";
 
 const NOW = 5_000_000;
 const SET_ID = "bo-n1";
 
-/** Một ô lưới tối thiểu — chỉ những trường phần chọn mẻ thật sự đọc. */
-function cell(term: string, progress: SieveCell["progress"], entry?: VocabEntry): SieveCell {
+/**
+ * Một ô lưới tối thiểu — chỉ những trường phần chọn mẻ thật sự đọc.
+ *
+ * Ô có entry mặc định là ghép CHẮC: đó là ca thường. Ca ghép *ngờ* phải khai
+ * `match: "loose"` một cách rõ ràng, vì nó là ranh giới quyết định của cả phiên.
+ */
+function cell(
+  term: string,
+  progress: SieveCell["progress"],
+  entry?: VocabEntry,
+  match: SieveCell["match"] = entry ? "exact" : undefined,
+): SieveCell {
   return {
     word: { term, term_lang: "ja", native_lang: "vi" },
     progress,
     ...(entry ? { entry } : {}),
+    ...(match ? { match } : {}),
   } as SieveCell;
 }
 
@@ -35,6 +46,14 @@ describe("đếm việc còn lại của một bộ", () => {
 
   it("đếm riêng thẻ đến hạn và từ chưa đưa vào học", () => {
     expect(studyCounts(cells)).toEqual({ due: 1, unstarted: 2 });
+  });
+
+  it("từ chỉ ghép NGỜ được kể là chưa biết, để còn đem ra dạy", () => {
+    // Ngược lại thì 箸 (ghép ngờ với 橋 đã tra) im lặng biến mất khỏi bộ: không
+    // vào hàng đợi, cũng không bao giờ được đưa ra học.
+    const ngo = cell("箸", "learned", makeEntry({ term: "橋", term_lang: "ja" }), "loose");
+    expect(studyCounts([ngo])).toEqual({ due: 0, unstarted: 1 });
+    expect(unstartedCells([ngo], 5).map((c) => c.word.term)).toEqual(["箸"]);
   });
 
   it("từ đang học nhưng chưa đến hạn không tính vào đâu cả", () => {
@@ -175,5 +194,35 @@ describe("bộ từ và Bản đồ từ", () => {
     );
     expect(entry.from_wordset).toBeUndefined();
     expect(isOnWordMap(entry)).toBe(true);
+  });
+});
+
+describe("hàng đợi chỉ được chứa từ CỦA bộ", () => {
+  /** Vốn từ của người dùng: một thẻ đến hạn, không nằm trong bộ N1. */
+  const cauDaTra = makeEntry({ term: "橋", term_lang: "ja", reading: "はし", next_review: NOW - 1000, card_state: "REVIEW" });
+
+  it("không kéo thẻ chỉ ghép NGỜ vào phiên", () => {
+    // 箸 (đũa) trong bộ ghép với 橋 (cầu) đã tra trước đó chỉ vì trùng cách đọc
+    // はし — bậc 3, "ngờ". Chính wordsetMatch.ts nói bậc 3–5 không được tự coi
+    // là cùng một từ. Kéo 橋 vào phiên "học bộ N1" là bắt người dùng ôn một từ
+    // họ không hề chọn học, và nó chiếm chỗ của từ N1 thật.
+    const cells = applySieve(
+      [{ term: "箸", reading: "はし", term_lang: "ja", native_lang: "vi" }],
+      [cauDaTra],
+      NOW,
+    );
+    expect(cells[0].match).toBe("loose");
+    expect(dueEntriesOf(cells)).toEqual([]);
+  });
+
+  it("vẫn lấy thẻ ghép CHẮC — đó đúng là từ của bộ", () => {
+    const daTra = makeEntry({ term: "身内", term_lang: "ja", reading: "みうち", next_review: NOW - 1000, card_state: "REVIEW" });
+    const cells = applySieve(
+      [{ term: "身内", reading: "みうち", term_lang: "ja", native_lang: "vi" }],
+      [daTra],
+      NOW,
+    );
+    expect(cells[0].match).toBe("exact");
+    expect(dueEntriesOf(cells).map((e) => e.term)).toEqual(["身内"]);
   });
 });

@@ -1153,6 +1153,14 @@ thẻ ôn. (`vocabstudy/domain/wordsetSrs.ts`, `ui/WordsetStudyBar.tsx`,
 - **Trường mới không cần migration**: `from_wordset` là optional, không index, mà
   server lưu cả entry dạng `payload = JSON.stringify(entry)` → đồng bộ miễn phí,
   không bump `DB_VERSION`, không đụng schema Postgres. Cùng tiền lệ với `labels`.
+- **Chỉ ghép CHẮC mới tính là "đã có trong vốn từ"** (`isInVocabulary`). Ghép
+  *ngờ* (bậc 3–5: trùng cách đọc, trùng khung kanji, trùng sau khi chia ngược)
+  bị coi là chưa biết. Ranh giới này quyết định cả hai đầu của phiên: kể ghép ngờ
+  là "đã biết" thì thẻ 橋 (cầu) bị lôi vào phiên học bộ N1 chỉ vì 箸 (đũa) cùng
+  đọc はし — với vốn từ lớn thì cả phiên đầy từ lạ — mà 箸 lại im lặng biến mất
+  khỏi bộ, không bao giờ được đem ra dạy. Chưa chắc thì coi như chưa biết: dạy
+  nhầm một từ đã thuộc thì chấm "Dễ" một cái là xong, bỏ sót một từ chưa biết
+  thì không ai phát hiện ra.
 - **Tự chọn mẻ trước mỗi phiên**, không có hạn mức ngày kiểu Anki: bộ nhập ngoài
   không phải khoá học của ai cả — hôm nay rảnh thì lấy 50, tuần bận thì 0 mà vẫn
   ôn tiếp phần đã học. Từ mới lấy **theo thứ tự trong bộ**, tức thứ tự bài của
