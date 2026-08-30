@@ -29,6 +29,8 @@ import {
 import { CheckIcon } from "@/shared/ui/icons";
 import { pushToast } from "@/shared/ui/Toasts";
 import { WordsetCard } from "./WordsetCard";
+import { WordsetStudyBar } from "./WordsetStudyBar";
+import { buildWordsetEntry, dueEntriesOf, isTeachable, studyCounts, unstartedCells } from "../domain/wordsetSrs";
 import { applySieve, countUncertain, SieveCell, visibleCells } from "../domain/wordsetMatch";
 import { wordsetKey } from "../domain/wordset";
 import * as studyListSrc from "../data/studyListSource";
@@ -81,6 +83,10 @@ interface Props {
   onMarkKnownMany: (w: VocabListWord[]) => Promise<number>;
   /** Mở màn đăng nhập (khi khách chọn nguồn study list). */
   onRequestLogin: () => void;
+  /** Mở phiên ôn cho một bộ từ: tạo thẻ cho `drafts` rồi ôn chúng cùng `due`. */
+  onStudyWordset: (setId: string, due: VocabEntry[], drafts: VocabEntry[]) => Promise<void>;
+  /** `user_id` hiện tại — cần để dựng thẻ mới. */
+  userId: string;
 }
 
 export function VocabStudy({
@@ -91,6 +97,8 @@ export function VocabStudy({
   onToggle,
   onMarkKnownMany,
   onRequestLogin,
+  onStudyWordset,
+  userId,
 }: Props) {
   const { theme } = useTheme();
   const [source, setSource] = useState<SourceKind>("history");
@@ -205,6 +213,38 @@ export function VocabStudy({
     return cell ? { setId: selection.set.id, word: cell.word, row: rowByKey.get(openKey) } : null;
   }, [openKey, selection, visible, rowByKey]);
 
+  const [starting, setStarting] = useState(false);
+
+  /**
+   * Mở phiên ôn cho bộ đang chọn.
+   *
+   * Đếm và chọn mẻ trên `cells` — CHÍNH danh sách lưới đang bày — chứ không ghép
+   * lại từ đầu bằng luật riêng: nếu không, lưới nói "chưa học" mà hàng đợi lại
+   * bỏ qua, và không ai giải thích được vì sao.
+   */
+  const startStudy = async (newCount: number) => {
+    if (!selectionIs(selection, "wordset")) return;
+    const setId = selection.set.id;
+    setStarting(true);
+    try {
+      const picked = unstartedCells(cells, newCount);
+      // Dòng không có nghĩa lẫn ví dụ thì mặt sau trống trơn — lọc ra và nói
+      // thẳng, hơn là để người dùng gặp thẻ trắng giữa phiên.
+      const teachable = picked.filter((c) => isTeachable(rowByKey.get(wordKey(c.word))));
+      const skipped = picked.length - teachable.length;
+      const now = Date.now();
+      const drafts = teachable.map((c) =>
+        buildWordsetEntry(c, rowByKey.get(wordKey(c.word)), setId, userId, pair.target, now),
+      );
+      if (skipped > 0) {
+        pushToast(`Bỏ qua ${skipped} từ không có nghĩa lẫn câu ví dụ — thẻ sẽ trống mặt sau`, "warn");
+      }
+      await onStudyWordset(setId, dueEntriesOf(cells), drafts);
+    } finally {
+      setStarting(false);
+    }
+  };
+
   /** Từ đang hiện mà chưa được đánh dấu thuộc — đích của đánh dấu hàng loạt. */
   const markable = useMemo(
     () => visible.filter((c) => c.progress !== "learned").map((c) => c.word),
@@ -303,17 +343,20 @@ export function VocabStudy({
           {counts.total > 0 && (
             <>
               {isWordset ? (
-                <WordsetSummary
-                  counts={counts}
-                  uncertain={uncertain}
-                  hideKnown={hideKnown}
-                  onHideKnown={setHideKnown}
-                  onReviewUncertain={() => setFilter("uncertain")}
-                  markable={markable}
-                  onMarkKnown={onMarkKnownMany}
-                  splitCount={visible.length}
-                  onSplit={splitVisible}
-                />
+                <>
+                  <WordsetStudyBar counts={studyCounts(cells)} starting={starting} onStart={(n) => void startStudy(n)} />
+                  <WordsetSummary
+                    counts={counts}
+                    uncertain={uncertain}
+                    hideKnown={hideKnown}
+                    onHideKnown={setHideKnown}
+                    onReviewUncertain={() => setFilter("uncertain")}
+                    markable={markable}
+                    onMarkKnown={onMarkKnownMany}
+                    splitCount={visible.length}
+                    onSplit={splitVisible}
+                  />
+                </>
               ) : (
                 <>
                   <p className="kanji-summary">

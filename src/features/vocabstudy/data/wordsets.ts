@@ -106,6 +106,20 @@ export async function deleteWordset(setId: string): Promise<void> {
   await db.delete("wordsets", setId);
 }
 
+/**
+ * Một dòng của bộ theo khoá đầy đủ. `undefined` khi bộ đã bị xoá, hoặc khi thẻ
+ * đồng bộ từ máy khác mà máy này chưa nhập bộ ấy — cả hai đều là trạng thái hợp
+ * lệ, không phải lỗi.
+ */
+export async function findWordsetWord(
+  setId: string,
+  term: string,
+  reading: string,
+): Promise<WordsetWord | undefined> {
+  const db = await getDb();
+  return db.get("wordset_words", [setId, term, reading]);
+}
+
 /** Chuyển một dòng bộ từ sang `VocabListWord` để overlay tiến độ SRS. */
 export function toVocabWord(set: Wordset, row: WordsetWord): VocabListWord {
   return {

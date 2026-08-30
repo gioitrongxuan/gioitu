@@ -150,3 +150,28 @@ describe("applySieve", () => {
     expect(visibleCells(cells, "missing", false).map((c) => c.word.term)).toEqual(["憂鬱"]);
   });
 });
+
+describe("khử trùng ô của lưới sàng", () => {
+  const w = (term: string, reading?: string): VocabListWord => ({
+    term,
+    ...(reading ? { reading } : {}),
+    term_lang: "ja",
+    native_lang: "vi",
+  });
+
+  it("giữ RIÊNG hai từ đồng tự khác cách đọc", () => {
+    // 分別 ぶんべつ ("phân loại") và ふんべつ ("suy xét") là hai từ khác hẳn nhau.
+    // Gộp theo mặt chữ là lặng lẽ nuốt mất một từ — bộ JLPT N1 có 5 cặp như vậy
+    // và trước đây chúng chỉ hiện 5 ô thay vì 10.
+    const cells = applySieve([w("分別", "ぶんべつ"), w("分別", "ふんべつ")], [], 0);
+    expect(cells.map((c) => c.word.reading)).toEqual(["ぶんべつ", "ふんべつ"]);
+  });
+
+  it("vẫn bỏ dòng trùng hoàn toàn", () => {
+    expect(applySieve([w("犬", "いぬ"), w("犬", "いぬ")], [], 0)).toHaveLength(1);
+  });
+
+  it("dòng không có cách đọc trùng nhau cũng chỉ giữ một", () => {
+    expect(applySieve([w("犬"), w("犬")], [], 0)).toHaveLength(1);
+  });
+});

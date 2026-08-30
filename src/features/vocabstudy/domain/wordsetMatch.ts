@@ -155,14 +155,18 @@ function readingsDisagree(word: VocabListWord, entry: VocabEntry): boolean {
 
 /**
  * Sàng cả bộ: mỗi từ ghép với vốn từ rồi phân trạng thái học như lưới thường.
- * Từ trùng (cùng term + term_lang) chỉ giữ ô đầu, giống `applyProgress`.
+ * Dòng trùng (cùng term + reading + term_lang) chỉ giữ ô đầu.
  */
 export function applySieve(words: VocabListWord[], entries: VocabEntry[], now: number): SieveCell[] {
   const index = buildKnownIndex(entries);
   const seen = new Set<string>();
   const cells: SieveCell[] = [];
   for (const word of words) {
-    const key = langKey(word.term_lang, word.term);
+    // Khoá khử trùng phải GỒM CẢ cách đọc, đúng nguyên tắc của store `terms`:
+    // 分別 ぶんべつ ("phân loại") và 分別 ふんべつ ("suy xét") là hai từ khác nhau,
+    // gộp theo mặt chữ là lặng lẽ nuốt mất một từ. Bộ JLPT N1 có 5 cặp như vậy
+    // (分別・市場・心中・目下・筋) và trước đây chúng chỉ hiện ra 5 ô thay vì 10.
+    const key = langKey(word.term_lang, `${word.term}\u0000${word.reading ?? ""}`);
     if (seen.has(key)) continue;
     seen.add(key);
     const hit = matchWord(word, index);

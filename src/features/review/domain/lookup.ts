@@ -16,6 +16,10 @@ export interface LookupInput {
   reading?: string;
   /** Part-of-speech text (for tag chips). */
   pos?: string;
+  /** Câu ví dụ, "câu :: bản dịch" — quy ước dùng chung với Từ điển cá nhân và bộ
+   *  từ nhập. Đường tra cứu chưa truyền trường này; đường "đưa vào học từ bộ từ"
+   *  thì có, vì câu ví dụ chính là mặt trước thẻ của các bộ Tango. */
+  example?: string;
   is_custom?: boolean;
 }
 
@@ -48,6 +52,7 @@ function createEntry(input: LookupInput, now: number, cfg: SrsConfig): VocabEntr
     meaning: input.meaning,
     reading: input.reading,
     pos: input.pos,
+    ...(input.example ? { example: input.example } : {}),
     is_custom: input.is_custom ?? false,
     lookup_count: 1,
     last_lookup_at: now,
@@ -56,6 +61,29 @@ function createEntry(input: LookupInput, now: number, cfg: SrsConfig): VocabEntr
     updated_at: now,
     ...newCardState(now, cfg),
   };
+}
+
+/**
+ * Dựng thẻ mới cho một từ người dùng chủ động đưa vào học từ một **bộ từ nhập
+ * ngoài** (`wordsets`).
+ *
+ * Là thẻ thật như mọi thẻ khác — cùng một vốn từ, cùng đường đồng bộ — nên tiến
+ * độ theo người dùng qua mọi thiết bị. Khác đúng hai chỗ:
+ *
+ *  - `lookup_count: 0`, cùng lẽ với `newKnownEntry`: chưa có lần tra nào xảy ra
+ *    thật, đếm khống thì Word Cloud và mọi thống kê "quên" đều sai theo.
+ *  - `from_wordset` đóng dấu bộ nguồn, để Bản đồ từ lọc ra (xem `types.ts`).
+ *
+ * Thẻ vào thẳng hàng đợi (`newCardState`: NEW, đến hạn ngay) — người dùng đã tự
+ * chọn đúng mẻ này để học, không việc gì bắt họ đợi thêm một nhịp nữa.
+ */
+export function newWordsetEntry(
+  input: LookupInput,
+  setId: string,
+  now: number,
+  cfg: SrsConfig = DEFAULT_SRS_CONFIG,
+): VocabEntry {
+  return { ...createEntry(input, now, cfg), lookup_count: 0, from_wordset: setId };
 }
 
 /**
@@ -104,6 +132,10 @@ export function registerLookup(
   entry.lookup_count += 1;
   entry.last_lookup_at = now;
   entry.updated_at = now;
+  // Thẻ sinh ra từ một bộ từ bị Bản đồ từ lọc bỏ vì chưa có lần tra nào. Vừa có
+  // rồi: gỡ cờ để nó lên bản đồ như mọi từ khác. Chỉ gỡ ở nhánh ĐƯỢC ĐẾM — lần
+  // mở lại trong cửa sổ debounce không phải một tín hiệu quên mới.
+  delete entry.from_wordset;
   // Refresh meaning/custom flag if a richer/custom definition came through.
   if (input.meaning) entry.meaning = input.meaning;
   if (input.reading) entry.reading = input.reading;

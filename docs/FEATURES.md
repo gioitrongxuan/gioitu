@@ -474,7 +474,8 @@ menu **Học từ vựng** luôn hiện. (`features/vocabstudy/`, `App.tsx:294,4
     trang — từ điển cá nhân thường nhỏ).
   - *Study list*: bộ từ trên server, **cần đăng nhập** (chưa đăng nhập thì hiện
     lời mời).
-  - *Bộ từ nhập*: danh sách nhập từ ngoài để **sàng** — xem §9.21.
+  - *Bộ từ nhập*: danh sách nhập từ ngoài để **sàng** (§9.21) và để **học bằng
+    SRS** (§9.23) — nguồn nhập gồm cả gói Anki `.apkg` (§9.22).
 - **Phủ tiến độ** (`domain/vocablist.ts`): `applyProgress` chồng entry SRS lên
   danh sách nguồn theo khoá `(term, term_lang)`, phân loại 4 trạng thái —
   `learned` / `due` (đến hạn) / `learning` / `missing` — và tô sắc độ tương ứng
@@ -1133,6 +1134,40 @@ dùng được. (`vocabstudy/domain/{zip,sqlite,ankiField,ankiDeck,mediaType}.ts
   mới nén **zstd**, trình duyệt không giải được (`DecompressionStream` chỉ biết
   gzip/deflate). Gặp thì báo rõ việc cần làm: xuất lại và bật "Hỗ trợ Anki 2.1.50
   trở xuống".
+
+### 9.23 Học bộ từ bằng SRS
+
+Bộ từ nhập ngoài (§9.21, §9.22) trước đây chỉ để **sàng**; giờ rút thẳng từ nó ra
+thẻ ôn. (`vocabstudy/domain/wordsetSrs.ts`, `ui/WordsetStudyBar.tsx`,
+`ui/WordsetBackExtras.tsx`, `review/domain/reverseMode.ts`)
+
+- **Một vốn từ duy nhất, quản lý tách.** Từ được đưa vào học thành `VocabEntry`
+  như mọi thẻ khác — cùng engine SRS, cùng hàng đợi "Hôm nay", **cùng đường đồng
+  bộ đa thiết bị**. Không có lịch ôn riêng cho bộ từ.
+- **Nhưng không lên Bản đồ từ.** `VocabEntry.from_wordset` đóng dấu bộ nguồn;
+  `isOnWordMap` lọc chúng ra. Bản đồ là bức tranh những từ mình đã phải *tra* —
+  đổ 1.852 từ của một bộ JLPT vào đó là xoá sạch ý nghĩa của nó. Tra chính từ ấy
+  một lần thì `registerLookup` gỡ cờ và nó lên bản đồ như mọi từ khác.
+  Cố ý **không** lọc trong `isVisibleOnCloud`: chế độ Nghe và chế độ Ảnh cũng
+  dùng vị từ đó, lọc ở đấy là lặng lẽ rút hết chất liệu của chúng.
+- **Trường mới không cần migration**: `from_wordset` là optional, không index, mà
+  server lưu cả entry dạng `payload = JSON.stringify(entry)` → đồng bộ miễn phí,
+  không bump `DB_VERSION`, không đụng schema Postgres. Cùng tiền lệ với `labels`.
+- **Tự chọn mẻ trước mỗi phiên**, không có hạn mức ngày kiểu Anki: bộ nhập ngoài
+  không phải khoá học của ai cả — hôm nay rảnh thì lấy 50, tuần bận thì 0 mà vẫn
+  ôn tiếp phần đã học. Từ mới lấy **theo thứ tự trong bộ**, tức thứ tự bài của
+  giáo trình.
+- **Thẻ kiểu Tango**: mặt trước là **câu ví dụ** có tô đậm từ cần nhận ra
+  (`cardFront` chế độ `"sentence"`), mặt sau là nghĩa, bản dịch câu, và — nếu máy
+  này đã nhập gói `.apkg` — ảnh minh hoạ cùng hai nút phát âm. Từ đứng một mình
+  thì nhớ máy móc; nằm trong câu mới ra cách dùng.
+- **Nội dung chép sang thẻ** lúc tạo (`gloss → meaning`, `reading`, `example`),
+  nên thẻ **đầy đủ chữ trên mọi thiết bị** dù bộ từ và media chỉ nằm local. Ảnh
+  và phát âm là phần thêm, gắn vào mặt sau qua prop `renderBackExtras` — nhờ vậy
+  `review/` không phải biết `vocabstudy/` tồn tại.
+- **Giới hạn đã biết**: khoá thẻ là `(user_id, term, term_lang)`, **không có cách
+  đọc**, nên hai từ đồng tự khác âm (分別 ぶんべつ / ふんべつ) chưa học song song
+  được. Gặp thì báo thẳng tên từ bị chặn, không im lặng bỏ qua.
 
 ## 10. Bản đồ chức năng → tài liệu
 

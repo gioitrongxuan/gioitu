@@ -138,8 +138,36 @@
 }
 .wordset-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
+/* Khối "Học bộ này" — mở phiên ôn cho bộ đang chọn. */
+.wordset-study {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: var(--space-3); background: var(--surface);
+}
+.wordset-study-counts { margin: 0; font-size: var(--text-md); }
+.wordset-study-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.wordset-study-new { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); color: var(--muted); }
+/* Ô số đủ rộng cho ba chữ số, không hơn — nó chỉ nhận tới MAX_NEW_PER_SESSION. */
+.wordset-study-new input {
+  width: 5em; font: inherit; font-size: var(--text-md); color: var(--fg);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2); background: var(--bg);
+}
+.wordset-study-new input:focus { border-color: var(--accent); }
+.wordset-study-note, .wordset-study-done { margin: 0; font-size: var(--text-sm); }
+
+/* Ảnh + phát âm gắn thêm ở mặt sau thẻ ôn. */
+.wordset-extras { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.wordset-extras-audio { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.wordset-extras-image {
+  max-width: 100%; max-height: 32dvh; width: auto; height: auto;
+  object-fit: contain; border-radius: var(--radius-sm);
+  align-self: start; border: 1px solid var(--line);
+}
+
 @media (pointer: coarse) {
   .wordset-form input, .wordset-form textarea, .wordset-form select { min-height: 44px; }
+  .wordset-study-new input { min-height: 44px; }
   .wordset-row .link { min-height: 44px; }
   /* DESIGN §3.6: vùng bấm ≥ 44px. Nút phát âm và nút đóng thẻ là icon nhỏ nên
      phải nới riêng, không thì trên điện thoại bấm mười lần trúng ba. */

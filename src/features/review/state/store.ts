@@ -47,6 +47,17 @@ function undoAction(term: string, undo: () => Promise<void>): ToastAction {
  * `isPremium` chỉ quyết một việc ở đây: bản sao lưu xuất ra có kèm lịch sử ôn
  * (`review_log`) hay không — xem #165.
  */
+/** Kết quả một lần đưa mẻ từ của bộ vào học. */
+export interface AddWordsetResult {
+  created: VocabEntry[];
+  /** Từ đã có thẻ sống từ trước — bỏ qua để không ghi đè tiến độ đang có. */
+  alreadyStudying: number;
+  /** Từ bị một từ ĐỒNG TỰ khác cách đọc chiếm mất khoá thẻ. Xem chú thích trong
+   *  `addWordsetEntries`: đây là giới hạn của khoá `(user_id, term, term_lang)`,
+   *  không phải người dùng đã học từ ấy. */
+  homographs: string[];
+}
+
 export function useAppStore(userId: string, onSessionExpired?: () => void, isPremium = false) {
   const [entries, setEntries] = useState<VocabEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -410,6 +421,52 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     [userId, scheduleSync, restoreSnapshot, removeCreated],
   );
 
+  /**
+   * Đưa một mẻ từ của **bộ từ nhập** vào học: tạo thẻ mới cho chúng và trả về
+   * đúng những thẻ vừa tạo, để nơi gọi mở phiên ôn ngay.
+   *
+   * Nhận entry đã dựng sẵn (`buildWordsetEntry`) chứ không nhận từ thô: nội dung
+   * thẻ — nghĩa, câu ví dụ, cách đọc — nằm ở bộ từ, mà `review/` không được biết
+   * bộ từ tồn tại. Ở đây chỉ lo ghi và đồng bộ.
+   *
+   * Bỏ qua từ đã có thẻ sống: người dùng bấm hai lần, hay một từ vừa được tra ở
+   * chỗ khác — không được ghi đè tiến độ đang có.
+   */
+  const addWordsetEntries = useCallback(
+    async (drafts: VocabEntry[]): Promise<AddWordsetResult> => {
+      const written: VocabEntry[] = [];
+      let alreadyStudying = 0;
+      const homographs: string[] = [];
+      for (const draft of drafts) {
+        const existing = await getEntry(userId, draft.term, draft.term_lang);
+        if (existing && existing.deleted_at == null) {
+          // Khoá thẻ là (user_id, term, term_lang) — KHÔNG có cách đọc. Nên hai
+          // từ đồng tự khác âm (分別 ぶんべつ / ふんべつ) không cùng tồn tại được:
+          // từ thứ hai bị chặn bởi chính từ thứ nhất, chứ không phải "đã học rồi".
+          // Hai chuyện khác hẳn nhau, không được gộp thành một câu thông báo.
+          if (draft.reading && existing.reading && draft.reading !== existing.reading) homographs.push(draft.term);
+          else alreadyStudying += 1;
+          continue;
+        }
+        await putEntry(draft);
+        written.push(draft);
+      }
+      if (written.length === 0) return { created: [], alreadyStudying, homographs };
+      setEntries((list) => {
+        const next = list.slice();
+        for (const row of written) {
+          const i = next.findIndex((e) => e.term === row.term && e.term_lang === row.term_lang);
+          if (i === -1) next.push(row);
+          else next[i] = row;
+        }
+        return next;
+      });
+      scheduleSync();
+      return { created: written, alreadyStudying, homographs };
+    },
+    [userId, scheduleSync],
+  );
+
   /** "Đã quên" — relapse a learned word back into the review queue. */
   const markForgottenEntry = useCallback(
     async (entry: VocabEntry, undoable = false) => {
@@ -589,6 +646,7 @@ export function useAppStore(userId: string, onSessionExpired?: () => void, isPre
     markKnownEntry,
     markKnownByTerm,
     markKnownMany,
+    addWordsetEntries,
     markForgottenEntry,
     setEntryLabels,
     setManyEntryLabels,
