@@ -78,6 +78,23 @@ export interface VocabEntry {
    */
   learned_source?: "sieve";
 
+  /**
+   * `id` của bộ từ đã sinh ra thẻ này (store `wordsets`). Vắng nghĩa là thẻ đến
+   * từ tra cứu — đường vào cũ và vẫn là đường chính.
+   *
+   * Có cờ này để **Bản đồ từ** lọc chúng ra: bản đồ là bức tranh những từ mình
+   * đã phải tra, tức những từ mình đang quên. Đổ 1.852 từ của một bộ JLPT vào
+   * đó là xoá sạch ý nghĩa của nó. Tiến độ học thì vẫn dùng CHUNG một vốn từ,
+   * chỉ khác chỗ quản lý.
+   *
+   * Cờ bị **xoá khi từ đó được tra** (`registerLookup`): lúc ấy tín hiệu quên đã
+   * xảy ra thật, từ thuộc về bản đồ như mọi từ khác.
+   *
+   * Optional & không có index → thêm vào record KHÔNG cần bump DB_VERSION, và
+   * đồng bộ theo payload JSON như các field khác.
+   */
+  from_wordset?: string;
+
   // --- SM-2 card fields ---
   card_state: CardState | null; // null until a card is created (gating, SPEC 4.4)
   learning_step: number; // index into learning/relearning steps

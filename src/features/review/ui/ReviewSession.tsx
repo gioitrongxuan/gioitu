@@ -5,7 +5,7 @@
 // điển" — tải nghĩa từ các từ điển (kiểu DetailPanel) và render bằng `Definitions`
 // ngay trong thẻ, không rời phiên ôn. Lazy: chỉ tải khi bấm, cache cho thẻ hiện tại.
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { VocabEntry, ReviewGrade } from "@/shared/types";
 import { gradeCard, isLeech } from "../domain/srs";
 import { DAY } from "../domain/constants";
@@ -21,7 +21,7 @@ import {
 } from "../domain/session";
 import { isReadingMatch } from "../domain/readingPractice";
 import { loadTypeReadingEnabled, saveTypeReadingEnabled } from "../domain/readingPracticeSettings";
-import { cardFront } from "../domain/reverseMode";
+import { cardFront, FrontMode, highlightTerm } from "../domain/reverseMode";
 import { loadReverseModeEnabled, saveReverseModeEnabled } from "../domain/reverseModeSettings";
 import { evaluateSwipe } from "../domain/swipe";
 import "./reverse.css";
@@ -47,6 +47,18 @@ interface Props {
   /** Tải định nghĩa từ điển cho một entry (dùng trong mặt sau thẻ ôn). Tìm dưới
    *  cặp ngôn ngữ của chính entry, không mở DetailPanel, không tính là lookup. */
   onLookupDetails?: (entry: VocabEntry) => Promise<TermResult[]>;
+  /**
+   * Ép chế độ mặt trước cho cả phiên, bỏ qua tuỳ chọn đảo chiều đã lưu. Phiên ôn
+   * một bộ Tango dùng `"sentence"`; phiên thường không truyền và giữ nguyên nếp cũ.
+   */
+  front?: FrontMode;
+  /**
+   * Nội dung thêm ở mặt sau — ảnh minh hoạ, nút phát âm… do nơi gọi bơm vào.
+   *
+   * Là prop chứ không phải import: `review/` KHÔNG được biết `vocabstudy/` tồn
+   * tại (media của bộ từ nằm bên ấy). Chiều phụ thuộc một chiều, App là chỗ nối.
+   */
+  renderBackExtras?: (entry: VocabEntry) => ReactNode;
 }
 
 // Nhãn Việt hoá + phím tắt 1–4 (DESIGN §3.1 · §4): thứ tự khớp cột grade-buttons
@@ -100,7 +112,15 @@ function upsertByKey(list: VocabEntry[], entry: VocabEntry): VocabEntry[] {
   return [...list.filter((e) => entryKey(e) !== entryKey(entry)), entry];
 }
 
-export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails }: Props) {
+export function ReviewSession({
+  queue,
+  onGrade,
+  onUndo,
+  onClose,
+  onLookupDetails,
+  front: frontMode,
+  renderBackExtras,
+}: Props) {
   // Chụp hàng đợi một lần lúc mở phiên và tự quản con trỏ ở `session` — xem
   // `domain/session.ts` (nếu bám `dueEntries` sống, chấm 1 thẻ làm mảng co lại
   // và con trỏ nhảy cóc qua thẻ kế). `queue` chỉ đọc lúc khởi tạo.
@@ -396,8 +416,9 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
   const showReadingInput = typeReadingEnabled && card.term_lang === "ja" && !!card.reading;
   const readingAttempt = typedReading.trim();
 
-  // Mặt trước theo chế độ (thẻ không có nghĩa đọc được thì rơi về mặt từ — xem domain).
-  const front = cardFront(reverseEnabled, card);
+  // Mặt trước theo chế độ (thiếu nguyên liệu thì rơi về mặt từ — xem domain).
+  // Phiên ép chế độ (bộ Tango) thắng tuỳ chọn đảo chiều đã lưu.
+  const front = cardFront(frontMode ?? (reverseEnabled ? "meaning" : "term"), card);
 
   function toggleTypeReading(enabled: boolean) {
     setTypeReadingEnabled(enabled);
@@ -495,6 +516,18 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
         >
           {front.kind === "term" ? (
             <div className="front">{front.text}</div>
+          ) : front.kind === "sentence" ? (
+            <div className="front front-sentence" lang={card.term_lang === "ja" ? "ja" : undefined}>
+              {highlightTerm(front.sentence, front.term).map((part, i) =>
+                part.isTerm ? (
+                  <b key={i} className="front-sentence-term">
+                    {part.text}
+                  </b>
+                ) : (
+                  <span key={i}>{part.text}</span>
+                ),
+              )}
+            </div>
           ) : (
             <div className="front front-meaning">
               {front.lines.length === 1 ? (
@@ -526,6 +559,11 @@ export function ReviewSession({ queue, onGrade, onUndo, onClose, onLookupDetails
                 example={card.example}
                 analysis={card.sentence_analysis}
               />
+
+              {/* Ảnh minh hoạ và phát âm do nơi gọi bơm vào (bộ từ nhập từ gói
+                  Anki). Đặt ngay sau nghĩa: đó là phần trả lời, còn định nghĩa
+                  từ điển bên dưới mới là phần tra thêm. */}
+              {renderBackExtras?.(card)}
 
               {/* Định nghĩa từ các từ điển — lazy, chỉ tải khi bấm. Không truyền
                   onLookup để link nội bộ trong nghĩa render thành chữ thường,

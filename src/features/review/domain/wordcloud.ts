@@ -34,6 +34,25 @@ export function isVisibleOnCloud(
   return entry.status === "LEARNING" || entry.status === "RELAPSED";
 }
 
+/**
+ * Từ có thuộc về **Bản đồ từ** không.
+ *
+ * Chặt hơn `isVisibleOnCloud` đúng một điều: bỏ thẻ sinh ra từ một bộ từ nhập
+ * ngoài (`from_wordset`). Bản đồ là bức tranh những từ mình đã phải tra — tức
+ * những từ mình đang quên; đổ 1.852 từ của một bộ JLPT vào đó là xoá sạch ý
+ * nghĩa của nó. Tra chính từ ấy một lần thì cờ được gỡ (`registerLookup`) và nó
+ * lên bản đồ như mọi từ khác.
+ *
+ * Cố ý KHÔNG nhét luật này vào `isVisibleOnCloud`: chế độ Nghe và chế độ Ảnh
+ * cũng dùng vị từ đó, mà chúng là chuyện của cả vốn từ chứ không phải của bản
+ * đồ — lọc ở đấy là lặng lẽ rút hết chất liệu của hai chế độ ấy.
+ */
+export function isOnWordMap(
+  entry: Pick<VocabEntry, "status"> & Partial<Pick<VocabEntry, "deleted_at" | "from_wordset">>,
+): boolean {
+  return isVisibleOnCloud(entry) && entry.from_wordset == null;
+}
+
 export interface ShadeOptions {
   /** Enable time-decay of lookup weight (SPEC 4.3, default OFF in v1). */
   timeDecay?: boolean;
@@ -218,7 +237,7 @@ export function buildCloud(entries: VocabEntry[], opts: BuildCloudOptions = {}):
   const now = opts.now ?? Date.now();
   const visible = filterByAddedWithin(
     filterByLabel(
-      filterByLang(entries.filter(isVisibleOnCloud), opts.lang ?? "all"),
+      filterByLang(entries.filter(isOnWordMap), opts.lang ?? "all"),
       opts.label ?? "all",
     ),
     opts.addedWindow ?? "all",

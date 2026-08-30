@@ -3,3 +3,14 @@
    quen mắt, một dòng thì giữ căn giữa sẵn có của .front. */
 .flashcard .front.front-meaning { font-size: 18px; font-weight: 500; }
 .front-meaning ol { margin: 0; padding-left: 1.5em; text-align: left; display: grid; gap: 6px; }
+
+/* Mặt trước kiểu câu (bộ Tango): câu ví dụ có tô đậm từ cần nhận ra. Câu dài
+   hơn một từ nhiều nên chữ nhỏ hơn nữa và căn trái — căn giữa một câu ba dòng
+   là mắt phải nhảy tìm đầu dòng mỗi lần. */
+.flashcard .front.front-sentence {
+  font-size: var(--text-lg); font-weight: 500;
+  text-align: left; line-height: 2;
+}
+/* Từ cần nhận ra: tô bằng màu tương tác, KHÔNG bằng nền — nền che mất chữ Hán
+   nhỏ, mà đây đúng là chỗ người học phải nhìn rõ nhất. */
+.front-sentence-term { color: var(--accent); font-weight: 700; }

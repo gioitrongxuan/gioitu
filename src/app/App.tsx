@@ -90,6 +90,11 @@ import { MeScreen, MeSection } from "./MeScreen";
 // Mỗi module export theo tên (không có default) nên bọc lại thành { default }.
 const KanjiStats = lazy(() => import("@/features/kanjistats/ui").then((m) => ({ default: m.KanjiStats })));
 const VocabStudy = lazy(() => import("@/features/vocabstudy/ui").then((m) => ({ default: m.VocabStudy })));
+// Ảnh + phát âm gắn vào mặt sau thẻ khi ôn một bộ nhập từ gói Anki. Lazy như
+// VocabStudy: ai không dùng bộ từ thì không phải tải.
+const WordsetBackExtras = lazy(() =>
+  import("@/features/vocabstudy/ui").then((m) => ({ default: m.WordsetBackExtras })),
+);
 const DictionaryManager = lazy(() =>
   import("@/features/dictionary/ui/DictionaryManager").then((m) => ({ default: m.DictionaryManager })),
 );
@@ -368,6 +373,39 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   // null = không ôn; mảng = hàng đợi phiên ôn (toàn bộ due, hoặc chỉ một tầng
   // trí nhớ khi bấm "Ôn N từ này" trên Word Cloud — BACKLOG #159).
   const [reviewQueue, setReviewQueue] = useState<VocabEntry[] | null>(null);
+  // Phiên đang ôn có phải của một bộ từ không. Quyết định mặt trước (câu ví dụ,
+  // kiểu thẻ Tango) và việc có gắn ảnh/phát âm vào mặt sau hay không.
+  const [wordsetSession, setWordsetSession] = useState(false);
+
+  /**
+   * Mở phiên ôn cho một bộ từ: ghi các thẻ mới rồi ôn chúng cùng thẻ đến hạn.
+   *
+   * Ghi TRƯỚC khi mở phiên: mở rồi mới ghi thì đóng tab giữa chừng là mất sạch
+   * mẻ vừa chọn mà người dùng tưởng đã bắt đầu học.
+   */
+  const studyWordset = useCallback(
+    async (_setId: string, due: VocabEntry[], drafts: VocabEntry[]) => {
+      const added = drafts.length > 0 ? await store.addWordsetEntries(drafts) : null;
+      const queue = [...due, ...(added?.created ?? [])];
+      if (queue.length === 0) {
+        store.pushToast("Không có thẻ nào để ôn", "info");
+        return;
+      }
+      // Nói rõ vì sao mẻ nhận được ít hơn số đã xin — im lặng thì người dùng cứ
+      // tưởng mình đã đưa đủ 20 từ vào học.
+      if (added && added.homographs.length > 0) {
+        store.pushToast(
+          `${added.homographs.join(", ")}: đã có một từ viết giống hệt trong vốn từ, chưa học song song được`,
+          "warn",
+        );
+      } else if (added && added.alreadyStudying > 0) {
+        store.pushToast(`${added.alreadyStudying} từ đã có thẻ từ trước — giữ nguyên tiến độ cũ`, "info");
+      }
+      setWordsetSession(true);
+      setReviewQueue(queue);
+    },
+    [store],
+  );
   // Chế độ nghe (không SRS, không ghi gì) — chỉ là bật/tắt lớp phủ phát tiếng.
   const [listening, setListening] = useState(false);
   // Chế độ hình ảnh (#263) — cũng không SRS, không ghi gì; lớp phủ trình chiếu ảnh.
@@ -884,6 +922,8 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
                       )
                     }
                     onRequestLogin={onRequestLogin}
+                    userId={store.userId}
+                    onStudyWordset={studyWordset}
                   />
                 </Suspense>
               ) : (
@@ -916,7 +956,25 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           onGrade={store.gradeReview}
           onUndo={store.undoReview}
           onLookupDetails={lookupDetails}
-          onClose={() => setReviewQueue(null)}
+          onClose={() => {
+            setReviewQueue(null);
+            setWordsetSession(false);
+          }}
+          // Phiên của bộ từ: mặt trước là câu ví dụ (lối thẻ Tango), mặt sau gắn
+          // thêm ảnh và phát âm nếu máy này đã nhập gói .apkg.
+          {...(wordsetSession
+            ? {
+                front: "sentence" as const,
+                // Bọc Suspense: component nạp lười, thiếu bọc là lật thẻ đầu
+                // tiên đã ném lỗi. Fallback rỗng — ảnh và phát âm là phần thêm,
+                // chờ chúng bằng một khoảng trống nhấp nháy thì tệ hơn.
+                renderBackExtras: (e: VocabEntry) => (
+                  <Suspense fallback={null}>
+                    <WordsetBackExtras entry={e} />
+                  </Suspense>
+                ),
+              }
+            : {})}
         />
       )}
 

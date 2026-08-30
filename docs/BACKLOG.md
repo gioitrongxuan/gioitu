@@ -20,6 +20,10 @@
    thụ động** (không tạo thẻ) để Word Cloud là bản đồ quên thật và relapse
    tự động sống lại. Chốt xong phải sửa docs đồng bộ (README §triết lý,
    LOGIC §1/§3, FEATURES).
+   *Cập nhật*: từ FEATURES §9.23 đã có **cửa vào chủ đích thứ hai** — "đưa mẻ từ
+   của bộ từ vào học". Nó KHÔNG đổi câu hỏi gating (người dùng vẫn tự chọn từng
+   mẻ, không có thẻ nào tự chui vào hàng đợi), nhưng phương án chốt phải tính cả
+   nguồn này: thẻ sinh từ bộ từ mang `from_wordset` và cố ý không lên Word Cloud.
 2. **"Tự khai đã thuộc"** — 3 UI nhảy thẳng LEARNED (✓ DetailPanel,
    quick-mark KanjiStats, double-click VocabStudy) mâu thuẫn ràng buộc SPEC #7
    "tốt nghiệp bằng ngưỡng, không bằng nút". Đề xuất: nâng thành khái niệm

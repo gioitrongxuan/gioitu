@@ -14,7 +14,7 @@ import {
   buildCloud,
   groupByPeriod,
   groupBySrsTier,
-  isVisibleOnCloud,
+  isOnWordMap,
   isAddedPreset,
   narrowsAdded,
   ADDED_WINDOW_LABEL,
@@ -109,10 +109,10 @@ export function FilterBar({
   const { theme } = useTheme();
   // Vẽ + toBlob() là bất đồng bộ — chặn double-click, không phải vì việc chậm.
   const [exporting, setExporting] = useState(false);
-  const hasCloudTags = useMemo(() => entries.some(isVisibleOnCloud), [entries]);
+  const hasCloudTags = useMemo(() => entries.some(isOnWordMap), [entries]);
   // Chỉ những từ đang hiện trên bản đồ mới cấp nhãn cho bộ lọc — nhãn của từ đã
   // thuộc mà lọt vào đây thì chọn xong chỉ ra bản đồ trống.
-  const labels = useMemo(() => labelCounts(entries.filter(isVisibleOnCloud)), [entries]);
+  const labels = useMemo(() => labelCounts(entries.filter(isOnWordMap)), [entries]);
 
   // Con số trên nút "Bộ lọc" chỉ đếm những bộ lọc LÀM MẤT từ khỏi bản đồ (ngôn
   // ngữ, nhãn, cửa sổ thêm). "Nhóm theo"/"Sắp xếp" đổi cách bày chứ không giấu
