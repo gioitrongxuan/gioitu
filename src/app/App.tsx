@@ -90,6 +90,7 @@ import { MeScreen, MeSection } from "./MeScreen";
 // Mỗi module export theo tên (không có default) nên bọc lại thành { default }.
 const KanjiStats = lazy(() => import("@/features/kanjistats/ui").then((m) => ({ default: m.KanjiStats })));
 const VocabStudy = lazy(() => import("@/features/vocabstudy/ui").then((m) => ({ default: m.VocabStudy })));
+const Scenes = lazy(() => import("@/features/scenes/ui").then((m) => ({ default: m.Scenes })));
 // Ảnh + phát âm gắn vào mặt sau thẻ khi ôn một bộ nhập từ gói Anki. Lazy như
 // VocabStudy: ai không dùng bộ từ thì không phải tải.
 const WordsetBackExtras = lazy(() =>
@@ -690,6 +691,7 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
           { page: "learned", label: `Đã thuộc (${store.learnedEntries.length})` },
           { page: "kanji", label: "Kanji" },
           { page: "vocabstudy", label: "Học từ vựng" },
+          { page: "scenes", label: "Quanh ta" },
         ] as const
       ).map((tab) => (
         <button
@@ -885,7 +887,13 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
             )
           ) : (
             <section className="cloud-area" {...behindSheet}>
-              {!store.loaded ? (
+              {page === "scenes" ? (
+                <Suspense fallback={<Skeleton lines={3} className="empty" />}>
+                  {/* Từ vựng của màn này là hằng số trong feature — không nhận
+                      gì từ store, chỉ cần đường mở nghĩa chỉ-đọc. */}
+                  <Scenes onSelect={openWord} />
+                </Suspense>
+              ) : !store.loaded ? (
                 <StoreLoading error={store.loadError} />
               ) : page === "learned" ? (
                 <LearnedCloud

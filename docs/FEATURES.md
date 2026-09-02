@@ -18,8 +18,9 @@ lặp gốc của app là *tra → "+" → thấy từ trên bản đồ* nên t
 
 - **Kho từ** (`/` — **trang chủ**, mở app là thấy bản đồ) — tab con: Bản đồ
   từ (Word Cloud + Filter Bar) · Đã thuộc (`/words/learned`) · Kanji
-  (`/words/kanji`) · Học từ vựng (`/words/study`); kèm hàng hành động Thêm
-  nhanh · Từ điển cá nhân · Thống kê ôn tập. Path cũ `/learned` `/kanji`
+  (`/words/kanji`) · Học từ vựng (`/words/study`) · Quanh ta
+  (`/words/scenes`, §9.23); kèm hàng hành động Thêm nhanh · Từ điển cá nhân ·
+  Thống kê ôn tập. Path cũ `/learned` `/kanji`
   `/vocabstudy` `/words` vẫn mở đúng trang.
 - **Hôm nay** (`/today`) — hero "N từ đến hạn · ~X phút" → vào phiên ôn; chuỗi
   ngày ôn + dải hoạt động 7 ngày (từ `review_log`, tính lại khi phiên ôn đóng);
@@ -1176,6 +1177,38 @@ thẻ ôn. (`vocabstudy/domain/wordsetSrs.ts`, `ui/WordsetStudyBar.tsx`,
 - **Giới hạn đã biết**: khoá thẻ là `(user_id, term, term_lang)`, **không có cách
   đọc**, nên hai từ đồng tự khác âm (分別 ぶんべつ / ふんべつ) chưa học song song
   được. Gặp thì báo thẳng tên từ bị chặn, không im lặng bỏ qua.
+
+### 9.23 Quanh ta — từ vựng theo khung cảnh (#294)
+
+Học tên **những thứ quanh mình** bằng tranh chứ bằng danh sách: chọn một cảnh,
+tranh nét hiện lên với các **ghim số** đặt đúng chỗ vật đó nằm — 冷蔵庫 ở góc
+bếp, 階段 giữa nhà, 心臓 giữa hai lá phổi. Năm cảnh: **Cơ thể (bên ngoài)** ·
+**Cơ thể (bên trong)** · **Trong nhà** · **Nhà bếp** · **Trong công ty**
+(`scenes/domain/scenes.ts`, `scenes/ui/SceneArt.tsx`, `ui/Scenes.tsx`).
+
+- **Tranh vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không tải ảnh: chạy
+  offline, đổi theme là đổi màu theo token (nét `currentColor`, khối tô bằng
+  `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng nét, và **không
+  thêm một byte asset nào** vào bundle ảnh. Mọi cảnh dùng chung khung toạ độ
+  `ART_W × ART_H` (160×120) nên ghim và hình luôn khớp.
+- **Hai lối đặt ghim**, do dữ liệu quyết định: phòng ốc thì chấm số nằm thẳng
+  trên vật; hai cảnh cơ thể có cả chục bộ phận chen trong vùng nhỏ (mắt, mũi,
+  miệng, tai) nên chấm xếp **hai cột ở lề** và nối vào thân bằng **đường dẫn**
+  (`ax`/`ay` của `ScenePin`) — lối chú giải của hình giải phẫu; đường dẫn của
+  ghim đang chọn đổi sang màu `--accent`.
+- **Công tắc**: *Hiện chữ Nhật trên tranh* (mặc định tắt cho tranh sạch; khung
+  hẹp <760px chỉ hiện nhãn của ghim đang chọn) và *Che nghĩa để tự kiểm tra*
+  (nghĩa tiếng Việt ẩn, mở lần lượt từng từ — tự dò trước khi xem).
+- **Mỗi từ**: mặt chữ có furigana (`shared/ui/Furigana`), nút phát âm dùng lại
+  `PronounceButton` của từ điển, và "Xem trong từ điển" mở Detail Panel qua
+  đường **chỉ-đọc** `openWord`. Danh sách đầy đủ nằm dưới tranh — cũng là lối
+  dùng được bằng bàn phím/máy đọc màn hình (mũi tên đi giữa các ghim).
+- **Không đụng dữ liệu học**: từ vựng là hằng số trong feature, màn này không
+  đọc store và không ghi gì (không đếm lượt tra, không tạo entry SRS) nên hiện
+  trước cả khi IndexedDB mở xong. Cảnh đang xem nhớ ở `localStorage`
+  (`gioitu.scene.v1`).
+- **Thêm cảnh mới** = thêm một mục vào `SCENES` + một hàm vẽ trong `ARTS`;
+  không phải sửa gì ở `App.tsx`.
 
 ## 10. Bản đồ chức năng → tài liệu
 

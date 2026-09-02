@@ -57,6 +57,8 @@ src/
     review/    Word Cloud + SRS (state/store.ts, domain/srs.ts, domain/wordcloud.ts)
     vocabstudy/ Trang học từ vựng dạng lưới (nguồn: study list / custom dict)
     kanjistats/ Thống kê độ phủ kanji theo JLPT/lớp + đánh dấu nhanh
+    scenes/    "Quanh ta": từ vựng theo khung cảnh (cơ thể trong/ngoài, trong
+               nhà, nhà bếp, công ty) — tranh SVG vẽ trong code + ghim số
     studylist/ Danh sách từ trên server (cần đăng nhập) — đang nửa vời, xem BACKLOG
     contribute/ Đề xuất thêm từ / sửa nghĩa + màn duyệt (admin)
     premium/   Mã kích hoạt; mở khoá sync từ điển cá nhân

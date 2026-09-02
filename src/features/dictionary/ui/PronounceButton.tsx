@@ -17,6 +17,7 @@ import {
 } from "@/shared/speech";
 import { pushToast } from "@/shared/ui/Toasts";
 import { SpeakerIcon } from "@/shared/ui/icons";
+import "./pronounce.css";
 
 /** Mỗi lượt chỉ đọc một từ, nên đọc chậm hơn chế độ nghe một chút để bắt kịp âm. */
 const PRONOUNCE_RATE = 0.9;

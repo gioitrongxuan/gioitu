@@ -5,7 +5,7 @@ import { createBackStack, khuOf, Page, parsePath, Route, routeToPath } from "@/a
 
 describe("routeToPath / parsePath", () => {
   it("mỗi trang một path riêng, round-trip được", () => {
-    const pages: Page[] = ["today", "search", "cloud", "learned", "kanji", "vocabstudy", "me"];
+    const pages: Page[] = ["today", "search", "cloud", "learned", "kanji", "vocabstudy", "scenes", "me"];
     for (const page of pages) {
       const r: Route = { kind: "page", page };
       expect(parsePath(routeToPath(r))).toEqual(r);
@@ -26,7 +26,7 @@ describe("routeToPath / parsePath", () => {
     expect(khuOf("today")).toBe("today");
     expect(khuOf("search")).toBe("search");
     expect(khuOf("me")).toBe("me");
-    for (const page of ["cloud", "learned", "kanji", "vocabstudy"] as const) {
+    for (const page of ["cloud", "learned", "kanji", "vocabstudy", "scenes"] as const) {
       expect(khuOf(page)).toBe("words");
     }
   });
