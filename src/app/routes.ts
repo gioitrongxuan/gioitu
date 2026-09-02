@@ -8,7 +8,7 @@ import { pairId } from "@/shared/languages";
 // IA 4 khu (#149, DESIGN.md §4): Hôm nay / Tra cứu / Kho từ / Tôi. Khu "Kho
 // từ" có các trang con (bản đồ từ, đã thuộc, kanji, học từ vựng) — mỗi trang
 // vẫn là một Page phẳng để App switch đơn giản; khuOf() gom về khu cho tab bar.
-export type Page = "today" | "search" | "cloud" | "learned" | "kanji" | "vocabstudy" | "me";
+export type Page = "today" | "search" | "cloud" | "learned" | "kanji" | "vocabstudy" | "scenes" | "me";
 
 export type Khu = "today" | "search" | "words" | "me";
 
@@ -26,6 +26,7 @@ const PAGE_PATHS: Record<Page, string> = {
   learned: "/words/learned",
   kanji: "/words/kanji",
   vocabstudy: "/words/study",
+  scenes: "/words/scenes",
   me: "/me",
 };
 

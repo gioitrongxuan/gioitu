@@ -1,0 +1,12 @@
+/* CSS của nút phát âm — đi theo component (DESIGN §3.10) chứ không nằm trong
+   detail.css: nút này còn dùng ở màn "Quanh ta", nơi panel chi tiết chưa nạp. */
+
+/* Nút phát âm cạnh mặt chữ (#246): mờ như chú thích lúc nghỉ, ăn màu tương tác
+   khi đang đọc — đủ để biết tiếng đang phát ra từ thẻ nào giữa nhiều kết quả. */
+.pronounce-btn { align-self: center; display: inline-flex; align-items: center; justify-content: center; padding: var(--space-1); border: none; border-radius: var(--radius-xs); background: none; color: var(--muted); cursor: pointer; line-height: 1; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.pronounce-btn:hover { color: var(--fg); background: var(--surface-2); }
+.pronounce-btn.speaking { color: var(--accent); }
+
+@media (pointer: coarse) {
+  .pronounce-btn { min-width: 44px; min-height: 44px; }
+}
