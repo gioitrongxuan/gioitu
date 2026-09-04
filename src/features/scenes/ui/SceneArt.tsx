@@ -1,87 +1,99 @@
-// Tranh nét cho từng cảnh — vẽ bằng SVG ngay trong code (không tải ảnh): chạy
-// offline, đổi theme là đổi màu theo token, và phóng to bao nhiêu cũng nét.
+// Tranh cho từng cảnh.
 //
-// Lối vẽ theo DESIGN.md §1 (washi/sumi): nét mực `currentColor`, khối tô bằng
-// color-mix rất nhạt (class ở scenes.css), không đổ bóng, không gradient. Mọi
-// hình dùng chung khung ART_W × ART_H của domain/scenes.ts để ghim đặt đúng chỗ.
+// Phòng ốc: tranh nét vẽ bằng SVG ngay trong code — chạy offline, đổi theme là
+// đổi màu theo token (DESIGN.md §1: nét mực `currentColor`, khối tô bằng
+// color-mix, không bóng, không gradient), phóng to bao nhiêu cũng nét.
+//
+// Hai cảnh cơ thể: dùng hình giải phẫu thật ở `domain/anatomy.ts` (trích từ bộ
+// anatomogram của EBI, Apache-2.0) thay vì hình vẽ tay — đường viền cơ thể cho
+// cả hai cảnh, cộng thêm từng nội tạng cho cảnh "bên trong". Ô chú giải ở lề
+// phóng to đúng bộ phận đó, nên nhìn ô là đoán được từ. Hình vẫn là path SVG
+// nên vẫn ăn token màu như phần vẽ tay.
 
-import { ART_H, ART_W, SceneId } from "../domain/scenes";
+import { BODY_OUTLINE, ORGANS, OrganKey } from "../domain/anatomy";
+import { BODY_FIGURE, calloutEdge, calloutFit, CALLOUT_H, CALLOUT_W, hasCallout, pinAnchor, Scene, SceneId } from "../domain/scenes";
 
 /**
- * Bóng người nhìn chính diện — cảnh "bên ngoài" vẽ đậm, cảnh "bên trong" vẽ mờ
- * làm khung cho nội tạng, nên tách ra dùng lại.
+ * Hình người: đường viền, và với cảnh "bên trong" là các nội tạng có trong
+ * danh sách từ của cảnh. Thứ tự vẽ đi từ khối lớn nằm sau ra khối nhỏ nằm
+ * trước, để cái nào cũng còn thấy được viền.
  */
-function BodySilhouette({ faint }: { faint?: boolean }) {
+const ORGAN_DEPTH: OrganKey[] = [
+  "diaphragm",
+  "lung",
+  "liver",
+  "colon",
+  "smallIntestine",
+  "kidney",
+  "stomach",
+  "spleen",
+  "pancreas",
+  "esophagus",
+  "aorta",
+  "heart",
+  "bladder",
+  "throat",
+  "brain",
+  "tongue",
+  "bone",
+  "muscle",
+];
+
+/**
+ * Tóc: hình gốc của anatomogram trọc đầu, mà 髪 lại là từ phải có. Đây là phần
+ * SỬA ĐỔI của ta, không nằm trong file sinh tự động.
+ *
+ * Vẽ thành sợi chứ không phải một mảng đặc — mảng đặc đọc ra thành mũ. Khối
+ * tóc chỉ tô rất nhạt để có chỗ đứng, còn cái nhìn ra là tóc là chùm sợi tỏa
+ * từ đường ngôi (lệch trái, ~50.8/2.2 trong hệ ANATOMY_VIEW) vòng theo hộp sọ
+ * xuống chân tóc. Chân tóc dừng trên vành tai để 耳 vẫn còn chỗ trỏ.
+ */
+const HAIR_MASS =
+  // Đỉnh vống lên hẳn so với hộp sọ (đỉnh sọ ~y1.5) — sát quá thì hai nét viền
+  // chạy song song, nhìn thành cái băng đô. Hai bên vẫn dừng ở thái dương.
+  "M44.8 12.6C44.5 7 47.5 0 52.6 0C57.7 0 60.7 7 60.4 12.6L59.5 12.6" +
+  "C59.1 9.4 56.8 8.5 54.4 8.7C53.4 8.8 53 9.5 52.6 9.5C52.2 9.5 51.8 8.8 50.8 8.7" +
+  "C48.4 8.5 46.1 9.4 45.7 12.6Z";
+
+/** Sợi tỏa từ đường ngôi, vòng theo hộp sọ xuống chân tóc. */
+const HAIR_STRANDS = [
+  "M50.6 1.4C47 1.8 44.9 6.6 45.4 12.5",
+  "M50.6 1.4C47.3 2.2 45.3 6.2 45.9 10.8",
+  "M50.6 1.4C47.8 2.6 46 6 46.9 9.8",
+  "M50.6 1.4C48.3 3 46.9 6 47.9 9.2",
+  "M50.6 1.4C48.9 3.6 48.2 6 49.3 8.7",
+  "M50.6 1.4C49.7 4.2 50.1 6.2 50.9 8.6",
+  "M50.6 1.4C51.9 2.2 53.4 5.6 54.3 8.8",
+  "M50.6 1.4C52.7 1.8 55 5.4 55.9 9.1",
+  "M50.6 1.4C53.9 1.5 56.7 5.4 57.4 9.7",
+  "M50.6 1.4C55.3 1.2 58 6 58.6 11",
+  "M50.6 1.4C56.9 1.1 59.1 7.2 59.4 12.5",
+];
+
+function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKey | null }) {
   return (
-    <g className={faint ? "art-faint" : undefined}>
-      {/* tóc: một vòm phủ đỉnh đầu */}
-      <path className="art-fill-ink" d="M68 22a12 12 0 0 1 24 0c-4-4-8-5-12-5s-8 1-12 5z" />
-      <circle className="art-fill-soft" cx="80" cy="24" r="12" />
-      <ellipse className="art-fill-soft" cx="67.5" cy="25" rx="2" ry="3" />
-      <ellipse className="art-fill-soft" cx="92.5" cy="25" rx="2" ry="3" />
-      <path className="art-fill-soft" d="M75.5 34h9v7h-9z" />
-      {/* thân: vai đổ xuống, thuôn ở hông */}
-      <path className="art-fill-soft" d="M61 44q19-6 38 0l-2 17-3 25H66l-3-25z" />
-      {/* hai tay: dải thuôn dần, không phải que */}
-      <path className="art-fill-soft" d="M62 44 48 66l-3 22h6l3-21 12-19z" />
-      <path className="art-fill-soft" d="M98 44l14 22 3 22h-6l-3-21-12-19z" />
-      <ellipse className="art-fill-soft" cx="45.5" cy="94" rx="4" ry="6" />
-      <ellipse className="art-fill-soft" cx="114.5" cy="94" rx="4" ry="6" />
-      {/* hai chân và bàn chân */}
-      <path className="art-fill-soft" d="M67 86h11l-2 26h-8z" />
-      <path className="art-fill-soft" d="M82 86h11l-1 26h-8z" />
-      <ellipse className="art-fill-soft" cx="72" cy="114" rx="6" ry="3" />
-      <ellipse className="art-fill-soft" cx="88" cy="114" rx="6" ry="3" />
+    <g
+      transform={`translate(${BODY_FIGURE.x} ${BODY_FIGURE.y}) scale(${BODY_FIGURE.scale})`}
+      strokeWidth={0.3}
+    >
+      <path className="art-body" d={BODY_OUTLINE} />
+      <path className="art-hair" d={HAIR_MASS} />
+      <g className="art-hair-strand" strokeWidth={0.22}>
+        {HAIR_STRANDS.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
+      {/* Cái đang chọn vẽ sau cùng, kẻo bị mấy khối nằm trước che mất. */}
+      {ORGAN_DEPTH.filter((k) => organs.has(k) && k !== active)
+        .concat(active && organs.has(active) ? [active] : [])
+        .map((key) => (
+          <g key={key} className={`art-organ${key === active ? " active" : ""}`}>
+            {ORGANS[key].d.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+        ))}
     </g>
-  );
-}
-
-function BodyArt() {
-  return (
-    <>
-      <BodySilhouette />
-      {/* nét mặt: mắt, mũi, miệng — đủ để ghim 目/鼻/口 có chỗ trỏ tới */}
-      <circle className="art-fill-ink" cx="75" cy="22" r="1.2" />
-      <circle className="art-fill-ink" cx="85" cy="22" r="1.2" />
-      <path d="M80 23v4" />
-      <path d="M76.5 30q3.5 2.5 7 0" />
-      {/* đường vai gợi khớp, đường hông gợi thắt lưng */}
-      <path className="art-faint" d="M64 47q6-3 8 1" />
-      <path className="art-faint" d="M96 47q-6-3-8 1" />
-      <path className="art-faint" d="M67 80h26" />
-      <path className="art-faint" d="M69 97h8M83 97h8" />
-    </>
-  );
-}
-
-function OrgansArt() {
-  return (
-    <>
-      <BodySilhouette faint />
-      {/* não */}
-      <ellipse className="art-fill-accent" cx="80" cy="19" rx="8.5" ry="6.5" />
-      <path d="M74 18q3-4 6 0t6 0M74 22q3-4 6 0t6 0" />
-      {/* miệng - lưỡi */}
-      <path className="art-fill-seal" d="M85 30q4 1 4 3h-5z" />
-      {/* khí quản xuống hai phổi */}
-      <path d="M80 34v14" />
-      <ellipse className="art-fill-accent" cx="70" cy="55" rx="7" ry="11" />
-      <ellipse className="art-fill-accent" cx="90" cy="55" rx="7" ry="11" />
-      <path d="M80 48q-6 2-8 6M80 48q6 2 8 6" />
-      {/* tim nằm hơi lệch, giữa hai phổi */}
-      <path className="art-fill-seal" d="M80 47q5-4 8 1t-8 10q-8-5-8-10t8-1z" />
-      {/* gan, dạ dày, hai thận, ruột */}
-      <path className="art-fill-accent" d="M84 59h12l-1 8h-11z" />
-      <path className="art-fill-accent" d="M70 61q8-3 8 4t-6 6-6-4z" />
-      <ellipse className="art-fill-accent" cx="70" cy="72" rx="3" ry="4.5" />
-      <ellipse className="art-fill-accent" cx="90" cy="72" rx="3" ry="4.5" />
-      <rect className="art-fill-accent" x="70" y="74" width="20" height="10" rx="3" />
-      <path d="M72 77q4-3 8 0t8 0M72 81q4-3 8 0t8 0" />
-      {/* xương tay, bắp tay, mạch máu, dây thần kinh chân */}
-      <path className="art-faint" d="M99 46l12 21 3 20" />
-      <path d="M53 55q6 4 4 10" />
-      <path className="art-faint" d="M87 88l1 24" />
-    </>
   );
 }
 
@@ -221,21 +233,69 @@ function OfficeArt() {
   );
 }
 
-const ARTS: Record<SceneId, () => JSX.Element> = {
-  body: BodyArt,
-  organs: OrgansArt,
+/** Tranh nét của các cảnh phòng ốc; hai cảnh cơ thể đi đường `BodyFigure`. */
+const ROOM_ARTS: Partial<Record<SceneId, () => JSX.Element>> = {
   house: HouseArt,
   kitchen: KitchenArt,
   office: OfficeArt,
 };
 
-/** Tranh của một cảnh. `aria-hidden`: mọi từ đã có mặt ở ghim và ở danh sách. */
-export function SceneArt({ scene }: { scene: SceneId }) {
-  const Art = ARTS[scene];
+/**
+ * Lớp chú giải kiểu hình giải phẫu: ô ở lề chứa chính bộ phận đó phóng to, nối
+ * vào hình bằng một đường dẫn. Ghim có neo mà không có bộ phận (cảnh "bên
+ * ngoài") thì chỉ có đường dẫn, vì bộ phận ấy không tách ra thành hình riêng.
+ */
+function Callouts({ scene, active }: { scene: Scene; active: number | null }) {
   return (
-    <svg className="scene-art" viewBox={`0 0 ${ART_W} ${ART_H}`} aria-hidden focusable="false">
+    <>
+      {scene.pins.map((pin, i) => {
+        const anchor = pinAnchor(pin);
+        if (!anchor) return null;
+        const boxed = hasCallout(pin);
+        const edge = boxed ? calloutEdge(scene, pin) : pin;
+        const fit = calloutFit(pin);
+        return (
+          <g key={pin.term} className={`callout${i === active ? " active" : ""}`}>
+            <line className="callout-lead" x1={edge.x} y1={edge.y} x2={anchor.x} y2={anchor.y} />
+            <circle className="callout-target" cx={anchor.x} cy={anchor.y} r="1.8" />
+            {boxed && fit ? (
+              <>
+                <rect
+                  className="callout-box"
+                  x={pin.x - CALLOUT_W / 2}
+                  y={pin.y - CALLOUT_H / 2}
+                  width={CALLOUT_W}
+                  height={CALLOUT_H}
+                  rx="3"
+                />
+                <g
+                  className="callout-shape"
+                  transform={`translate(${fit.x} ${fit.y}) scale(${fit.scale})`}
+                  strokeWidth={0.5 / fit.scale}
+                >
+                  {ORGANS[pin.organ!].d.map((d, k) => (
+                    <path key={k} d={d} />
+                  ))}
+                </g>
+              </>
+            ) : null}
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+/** Tranh của một cảnh. `aria-hidden`: mọi từ đã có mặt ở ghim và ở danh sách. */
+export function SceneArt({ scene, active }: { scene: Scene; active: number | null }) {
+  const Room = ROOM_ARTS[scene.id];
+  const organs = new Set(scene.pins.map((p) => p.organ).filter((k): k is OrganKey => k != null));
+  const activeOrgan = active == null ? null : (scene.pins[active]?.organ ?? null);
+  return (
+    <svg className="scene-art" viewBox={`0 0 ${scene.art.w} ${scene.art.h}`} aria-hidden focusable="false">
       <g fill="none" stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round">
-        <Art />
+        {Room ? <Room /> : <BodyFigure organs={organs} active={activeOrgan} />}
+        <Callouts scene={scene} active={active} />
       </g>
     </svg>
   );

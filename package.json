@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
+    "gen:anatomy": "node scripts/gen-anatomy.mjs",
     "server": "tsx server/src/index.ts",
     "server:dev": "tsx watch server/src/index.ts",
     "import:jmdict": "tsx server/src/features/dictionary/importCli.ts jmdict",

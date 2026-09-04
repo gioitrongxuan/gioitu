@@ -1,7 +1,8 @@
 // "Quanh ta" (#294): học từ vựng theo khung cảnh — chọn một cảnh (cơ thể, trong
 // nhà, nhà bếp, công ty), tranh nét hiện lên với các ghim đặt đúng chỗ vật đó
-// nằm. Bấm một ghim là thấy mặt chữ + cách đọc + nghĩa, nghe phát âm được, và
-// mở được nghĩa từ điển.
+// nằm — cảnh cơ thể vẽ theo lối hình giải phẫu: ô chú giải ở lề có hình nhỏ của
+// chính bộ phận đó. Bấm một ghim là thấy mặt chữ + cách đọc + nghĩa, nghe phát
+// âm được, và mở được nghĩa từ điển.
 //
 // Màn này CỐ Ý không đụng gì vào dữ liệu học: dữ liệu từ vựng là hằng số trong
 // `domain/scenes.ts`, còn "xem nghĩa" đi qua đường chỉ-đọc `openWord` (không
@@ -10,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Furigana } from "@/shared/ui/Furigana";
 import { PronounceButton } from "@/features/dictionary/ui/PronounceButton";
-import { ART_H, ART_W, pinSide, pinStyle, SCENES, sceneById, SceneId, ScenePin } from "../domain/scenes";
+import { hasCallout, pinSide, pinStyle, SCENES, sceneById, SceneId, ScenePin } from "../domain/scenes";
 import { SceneArt } from "./SceneArt";
 import "./scenes.css";
 
@@ -117,20 +118,10 @@ export function Scenes({ onSelect }: Props) {
       </div>
 
       <div className="scene-stage">
-        <div className="scene-frame">
-          <SceneArt scene={scene.id} />
-          {/* Đường dẫn từ chấm số ở lề vào đúng chỗ trên thân (chỉ những ghim
-              có neo) — vẽ trong SVG riêng để dùng chung hệ toạ độ với tranh. */}
-          <svg className="scene-leaders" viewBox={`0 0 ${ART_W} ${ART_H}`} aria-hidden focusable="false">
-            {scene.pins.map((pin, i) =>
-              pin.ax == null || pin.ay == null ? null : (
-                <g key={pin.term} className={i === active ? "active" : undefined}>
-                  <line x1={pin.x} y1={pin.y} x2={pin.ax} y2={pin.ay} />
-                  <circle cx={pin.ax} cy={pin.ay} r="1.4" />
-                </g>
-              ),
-            )}
-          </svg>
+        {/* Tỉ lệ khung đi theo cảnh: phòng ốc nằm ngang, cơ thể dựng đứng để
+            có lề cho hai cột chú giải. */}
+        <div className="scene-frame" style={{ aspectRatio: `${scene.art.w} / ${scene.art.h}` }}>
+          <SceneArt scene={scene} active={active} />
           <div
             ref={pinsRef}
             className={`scene-pins${showLabels ? " labelled" : ""}`}
@@ -142,8 +133,10 @@ export function Scenes({ onSelect }: Props) {
               <button
                 key={pin.term}
                 type="button"
-                className={`scene-pin side-${pinSide(pin)}${i === active ? " active" : ""}`}
-                style={pinStyle(pin)}
+                className={`scene-pin side-${pinSide(scene, pin)}${hasCallout(pin) ? " boxed" : ""}${
+                  i === active ? " active" : ""
+                }`}
+                style={pinStyle(scene, pin)}
                 aria-pressed={i === active}
                 onClick={() => {
                   setActive(i);
@@ -212,7 +205,7 @@ function PinCard({
   if (!pin || index == null)
     return (
       <div className="scene-card empty">
-        <p className="muted">Bấm một số trên tranh để xem từ.</p>
+        <p className="muted">Bấm vào tranh để xem từ.</p>
       </div>
     );
 
