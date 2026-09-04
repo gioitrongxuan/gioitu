@@ -1197,7 +1197,10 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
   `domain/LICENSE.anatomogram.txt`). Vẫn là path SVG nên vẫn ăn token màu và
   vẫn offline; nặng ~40KB, nằm trong chunk `React.lazy` của màn này. Không lấy
   `trachea`/`nerve` của bộ gốc vì hai cái đó riêng chúng đã nặng gấp đôi phần
-  còn lại mà ở cỡ ô chú giải chỉ còn là mảng nét đen đặc.
+  còn lại mà ở cỡ ô chú giải chỉ còn là mảng nét đen đặc. **Sửa đổi duy nhất
+  của ta trên hình**: hằng `HAIR` trong `SceneArt.tsx` — hình gốc trọc đầu mà
+  髪 là từ phải có, nên vẽ thêm mảng tóc ôm đúng hộp sọ, chân tóc dừng trên
+  vành tai để 耳 vẫn thấy được.
 - **Khung `BODY_ART` (200×260) dựng đứng**: hình người canh giữa (`BODY_FIGURE`
   tính từ `ANATOMY_VIEW`, đổi cỡ hình không phải đặt lại ghim), hai cột chú
   giải ở lề. Cảnh **bên trong** cho mỗi từ một **ô chú giải** `CALLOUT_W ×

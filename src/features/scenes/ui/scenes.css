@@ -50,6 +50,11 @@
   fill: color-mix(in oklab, var(--fg) 4%, var(--surface));
   stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
 }
+/* Tóc vẽ thêm (hình gốc trọc đầu): đậm hơn da để đọc ra là tóc, không phải mũ. */
+.scene-art .art-hair {
+  fill: color-mix(in oklab, var(--fg) 24%, var(--surface));
+  stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
+}
 .scene-art .art-organ path {
   fill: color-mix(in oklab, var(--accent) 12%, var(--surface));
   stroke: color-mix(in oklab, var(--accent) 40%, var(--surface));

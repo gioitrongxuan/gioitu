@@ -39,6 +39,17 @@ const ORGAN_DEPTH: OrganKey[] = [
   "muscle",
 ];
 
+/**
+ * Tóc: hình gốc của anatomogram trọc đầu, mà 髪 lại là từ phải có. Vẽ thêm một
+ * mảng tóc ôm đúng hộp sọ — cung ngoài bám vòng đầu (tâm ~52.6,12.5 trong hệ
+ * ANATOMY_VIEW), đường chân tóc lượn xuống hai bên thái dương. Đây là phần
+ * SỬA ĐỔI của ta, không nằm trong file sinh tự động.
+ */
+const HAIR =
+  "M44.8 12.6A7.9 12 0 0 1 60.4 12.6L59.5 12.6" +
+  "C59.1 9.4 56.8 8.5 54.4 8.7C53.4 8.8 53 9.5 52.6 9.5C52.2 9.5 51.8 8.8 50.8 8.7" +
+  "C48.4 8.5 46.1 9.4 45.7 12.6Z";
+
 function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKey | null }) {
   return (
     <g
@@ -46,6 +57,7 @@ function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKe
       strokeWidth={0.3}
     >
       <path className="art-body" d={BODY_OUTLINE} />
+      <path className="art-hair" d={HAIR} />
       {/* Cái đang chọn vẽ sau cùng, kẻo bị mấy khối nằm trước che mất. */}
       {ORGAN_DEPTH.filter((k) => organs.has(k) && k !== active)
         .concat(active && organs.has(active) ? [active] : [])
