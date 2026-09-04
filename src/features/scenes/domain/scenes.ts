@@ -289,3 +289,22 @@ export function pinStyle(scene: Scene, pin: ScenePin): Record<string, string> {
 export function pinSide(scene: Scene, pin: ScenePin): "left" | "right" {
   return pin.x > scene.art.w * 0.62 ? "left" : "right";
 }
+
+/** Lề chừa quanh hình người trong ảnh thu nhỏ (đơn vị khung cảnh). */
+const THUMB_PAD = 6;
+
+/**
+ * Khung nhìn của ảnh thu nhỏ ở danh sách chọn cảnh. Phòng ốc lấy trọn khung;
+ * cảnh cơ thể cắt sát hình người, vì hai cột ô chú giải chiếm gần nửa bề ngang
+ * — giữ nguyên khung thì ảnh nhỏ phần lớn là lề trống.
+ */
+export function thumbBox(scene: Scene): { x: number; y: number; w: number; h: number } {
+  if (scene.art !== BODY_ART) return { x: 0, y: 0, w: scene.art.w, h: scene.art.h };
+  const figureH = ANATOMY_VIEW.h * BODY_FIGURE.scale;
+  return {
+    x: BODY_FIGURE.x - THUMB_PAD,
+    y: BODY_FIGURE.y - THUMB_PAD,
+    w: FIGURE_W + THUMB_PAD * 2,
+    h: figureH + THUMB_PAD * 2,
+  };
+}

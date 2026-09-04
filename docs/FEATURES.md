@@ -1215,6 +1215,19 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
   là vùng bấm. Bất biến hình học (ô trong khung, hai ô cùng cột không chồng
   nhau, hình không đè lên cột ô, bộ phận co vừa ô) có guard ở
   `test/scenes.test.ts`.
+- **Chọn cảnh bằng tranh, không phải bằng chip chữ**: mỗi cảnh là một thẻ có
+  **ảnh thu nhỏ của chính bức tranh cảnh đó** (`SceneThumb`), kèm nhãn tiếng
+  Việt, tên tiếng Nhật và số từ — nhìn hình là biết mình sắp bước vào đâu.
+  `thumbBox` cắt khung nhìn cho ảnh nhỏ: phòng ốc lấy trọn khung, cảnh cơ thể
+  cắt sát hình người (bỏ hai cột lề chú giải, kẻo ảnh nhỏ toàn lề trống). Ảnh
+  nhỏ bỏ hết ghim/chú giải và tô đậm hơn bản lớn (`non-scaling-stroke`, khối tô
+  dày hơn) vì ở cỡ 5:3 trong thẻ, sắc độ của tranh lớn tan hết. Thẻ hiện dần
+  theo thứ tự, tranh phóng nhẹ khi rê/chọn; ghim và dòng trong danh sách cũng
+  hiện dần theo thứ tự đọc của cảnh, ghim vừa chọn có một vòng loang — tất cả
+  chỉ animate `transform`/`opacity` và tắt hẳn dưới `prefers-reduced-motion`.
+  Mũi tên chuyển cảnh (đúng lối `role="tablist"`); khung hẹp <760px thì lưới
+  thẻ thành **dải vuốt ngang** có scroll-snap để không đẩy tranh xuống dưới nếp
+  gấp.
 - **Công tắc**: *Hiện chữ Nhật trên tranh* (mặc định tắt cho tranh sạch; khung
   hẹp <760px chỉ hiện nhãn của ghim đang chọn) và *Che nghĩa để tự kiểm tra*
   (nghĩa tiếng Việt ẩn, mở lần lượt từng từ — tự dò trước khi xem).

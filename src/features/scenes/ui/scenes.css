@@ -2,19 +2,74 @@
 
 .scenes { display: flex; flex-direction: column; gap: var(--space-4); }
 
-/* ---- Chọn cảnh ---- */
-.scene-picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.scene-pick {
-  border: 1px solid var(--line); border-radius: var(--radius-full);
-  background: var(--surface); color: var(--muted); cursor: pointer;
-  font: inherit; font-size: var(--text-sm); padding: var(--space-2) var(--space-4);
-  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+/* ---- Chọn cảnh: thẻ có tranh, không phải chip chữ ---- */
+/* Năm cái nhãn chữ xếp cạnh nhau trông như nhau hết; thẻ mang chính bức tranh
+   thu nhỏ của cảnh nên mắt nhận ra cảnh trước khi kịp đọc. */
+.scene-picker {
+  display: grid; gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
-.scene-pick:hover { color: var(--fg); }
+.scene-pick {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--muted); cursor: pointer;
+  font: inherit; text-align: left; padding: var(--space-2);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  animation: scene-pick-in var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.scene-pick:hover { color: var(--fg); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .scene-pick.active {
-  color: var(--accent); border-color: var(--accent);
+  color: var(--fg); border-color: var(--accent);
   background: color-mix(in oklab, var(--accent) 10%, var(--surface));
 }
+
+/* Ô tranh: nền nhạt để nét tranh có chỗ tựa, và tranh phóng nhẹ khi rê/chọn —
+   đủ để thẻ có sức sống mà không thành hoạt hình. */
+.scene-pick-art {
+  display: grid; place-items: center; aspect-ratio: 5 / 3;
+  border-radius: var(--radius-md); overflow: hidden;
+  background: color-mix(in oklab, var(--fg) 4%, var(--surface));
+  color: var(--muted);
+}
+/* `.scene-art` tự đặt màu nét; trong thẻ thì nét phải theo màu của ô tranh. */
+.scene-pick .scene-thumb {
+  color: inherit; padding: var(--space-1);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.scene-pick:hover .scene-thumb { transform: scale(1.06); }
+.scene-pick.active .scene-pick-art {
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+}
+.scene-pick.active .scene-thumb { transform: scale(1.04); }
+
+/* Thu nhỏ mười lần thì mọi sắc độ của tranh lớn tan hết: nét mảnh biến mất,
+   khối tô 4% thành nền trơn. Bản thu nhỏ phải đậm hơn hẳn mới còn đọc ra hình —
+   `non-scaling-stroke` giữ nét đúng một pixel dù hình co bao nhiêu. */
+.scene-art.scene-thumb path,
+.scene-art.scene-thumb circle,
+.scene-art.scene-thumb ellipse { vector-effect: non-scaling-stroke; stroke-width: 1; }
+.scene-art.scene-thumb .art-hair-strand path { stroke-width: 0.5; }
+.scene-art.scene-thumb .art-body {
+  fill: color-mix(in oklab, currentColor 12%, transparent); stroke: currentColor;
+}
+.scene-art.scene-thumb .art-hair { fill: color-mix(in oklab, currentColor 22%, transparent); stroke: currentColor; }
+.scene-art.scene-thumb .art-organ path {
+  fill: color-mix(in oklab, var(--accent) 32%, var(--surface));
+  stroke: color-mix(in oklab, var(--accent) 65%, var(--fg));
+}
+
+.scene-pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.scene-pick-label { font-size: var(--text-sm); line-height: var(--leading-heading); }
+.scene-pick-meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  font-size: var(--text-xs); color: var(--muted);
+}
+.scene-pick-count { font-variant-numeric: tabular-nums; }
+
+@keyframes scene-pick-in { from { opacity: 0; transform: translateY(6px); } }
 
 .scene-head { display: flex; flex-direction: column; gap: var(--space-2); }
 .scene-head h2 { margin: 0; font-size: var(--text-xl); line-height: var(--leading-heading); }
@@ -34,7 +89,9 @@
   position: relative; flex: 1 1 420px; min-width: 280px;
   border: 1px solid var(--line); border-radius: var(--radius-lg);
   background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden;
+  animation: scene-frame-in var(--dur-slow) var(--ease-out);
 }
+@keyframes scene-frame-in { from { opacity: 0; transform: scale(0.985); } }
 /* Nét mực lấy màu chữ; các khối tô đi qua color-mix nên tự đổi theo theme. */
 .scene-art { display: block; width: 100%; height: 100%; color: var(--fg); }
 .scene-art .art-fill-soft { fill: color-mix(in oklab, var(--fg) 5%, var(--surface)); }
@@ -47,16 +104,16 @@
 /* Đường viền cơ thể lùi về sau: đây là khung cho nội tạng, không phải nhân vật
    chính. Nội tạng tô nhạt bằng --accent, cái đang chọn mới lên màu đậm. */
 .scene-art .art-body {
-  fill: color-mix(in oklab, var(--fg) 4%, var(--surface));
-  stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
+  fill: color-mix(in oklab, var(--fg) 6%, var(--surface));
+  stroke: color-mix(in oklab, var(--fg) 70%, var(--surface));
 }
 /* Tóc vẽ thêm (hình gốc trọc đầu). Khối chỉ tô nhạt lấy chỗ đứng; cái đọc ra
    là tóc nằm ở chùm sợi vẽ đè lên. */
 .scene-art .art-hair {
-  fill: color-mix(in oklab, var(--fg) 11%, var(--surface));
-  stroke: color-mix(in oklab, var(--fg) 45%, var(--surface));
+  fill: color-mix(in oklab, var(--fg) 14%, var(--surface));
+  stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
 }
-.scene-art .art-hair-strand path { stroke: color-mix(in oklab, var(--fg) 62%, var(--surface)); }
+.scene-art .art-hair-strand path { stroke: color-mix(in oklab, var(--fg) 72%, var(--surface)); }
 .scene-art .art-organ path {
   fill: color-mix(in oklab, var(--accent) 12%, var(--surface));
   stroke: color-mix(in oklab, var(--accent) 40%, var(--surface));
@@ -70,7 +127,7 @@
 /* Hairline không dày lên theo tỉ lệ khung (vector-effect) — nét chú giải phải
    mảnh hơn nét tranh để không tranh chỗ với hình. */
 .scene-art .callout-lead {
-  stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.45;
+  stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.6;
 }
 .scene-art .callout-target { fill: var(--muted); stroke: none; opacity: 0.6; }
 .scene-art .callout-box {
@@ -92,11 +149,17 @@
 }
 
 .scene-pins { position: absolute; inset: 0; }
+/* Ghim hiện dần theo thứ tự đọc của cảnh — mắt được dẫn đi một vòng quanh
+   tranh thay vì bị dội cả chục cái chấm cùng lúc. Chỉ mờ dần ở đây: `transform`
+   của ghim đang giữ chỗ đặt (translate -50%), không mượn để animate được. */
 .scene-pin {
   position: absolute; transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: var(--space-1);
   border: none; background: none; padding: 0; cursor: pointer; font: inherit;
+  animation: scene-pin-in var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
 }
+@keyframes scene-pin-in { from { opacity: 0; } }
 .scene-pin.side-left { flex-direction: row-reverse; }
 /* Ghim có ô chú giải: nút trùm đúng ô (vùng bấm = cả hình nhỏ), số nép vào góc
    ngoài trong lòng ô để không che hình. */
@@ -111,14 +174,28 @@
 }
 .scene-pin.boxed:hover { background: color-mix(in oklab, var(--accent) 7%, transparent); }
 .scene-pin-dot {
+  position: relative;
   display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--accent) 16%, var(--surface));
   border: 1px solid var(--accent); color: var(--accent);
   font-size: var(--text-xs); font-variant-numeric: tabular-nums; line-height: 1;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  animation: scene-dot-in var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
 }
+@keyframes scene-dot-in { from { transform: scale(0.4); } }
 .scene-pin:hover .scene-pin-dot { transform: scale(1.12); }
 .scene-pin.active .scene-pin-dot { background: var(--accent); color: var(--surface); }
+/* Một vòng loang khi bấm: ghim vừa chọn nằm lẫn giữa hàng chục ghim khác, cần
+   một cái vẫy tay để mắt bắt được nó. */
+.scene-pin.active .scene-pin-dot::after {
+  content: ""; position: absolute; inset: -3px; border-radius: var(--radius-full);
+  border: 1px solid var(--accent); animation: scene-pin-ping var(--dur-slow) var(--ease-out);
+}
+@keyframes scene-pin-ping {
+  from { opacity: 0.7; transform: scale(0.7); }
+  to { opacity: 0; transform: scale(1.6); }
+}
 /* Nhãn chữ Nhật cạnh ghim: mặc định ẩn (tranh đỡ rối), hiện khi bật công tắc
    hoặc khi chính ghim đó đang chọn/rê. */
 .scene-pin-label {
@@ -156,7 +233,13 @@
   list-style: none; margin: 0; padding: 0;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-1);
 }
-.scene-row { display: flex; align-items: center; gap: var(--space-1); border-radius: var(--radius-sm); }
+.scene-row {
+  display: flex; align-items: center; gap: var(--space-1); border-radius: var(--radius-sm);
+  animation: scene-row-in var(--dur-base) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 20ms);
+}
+@keyframes scene-row-in { from { opacity: 0; transform: translateY(4px); } }
+.scene-row:hover { background: color-mix(in oklab, var(--fg) 4%, transparent); }
 .scene-row.active { background: color-mix(in oklab, var(--accent) 8%, transparent); }
 .scene-row-main {
   flex: 1; display: flex; align-items: baseline; gap: var(--space-2); min-width: 0;
@@ -176,6 +259,14 @@
      Ghim có ô thì nhãn nằm gọn trong lòng ô nên vẫn giữ được. */
   .scene-pins.labelled .scene-pin:not(.boxed) .scene-pin-label { max-width: 0; opacity: 0; padding: 0; }
   .scene-card { flex: 1 1 100%; }
+  /* Lưới thẻ tranh xếp thành ba hàng thì đẩy chính bức tranh xuống dưới nếp
+     gấp. Trên máy hẹp cho nó thành một dải vuốt ngang: vẫn thấy tranh của từng
+     cảnh, mà chỉ tốn một hàng. */
+  .scene-picker {
+    display: flex; overflow-x: auto; scroll-snap-type: x proximity;
+    scroll-padding-left: var(--space-1); padding-bottom: var(--space-1);
+  }
+  .scene-pick { flex: 0 0 140px; scroll-snap-align: start; }
 }
 @media (pointer: coarse) {
   /* Target ≥ 44px (DESIGN §3.6): vùng bấm nới ra quanh chấm bằng padding. Ô
@@ -183,5 +274,14 @@
      giữa ghim (transform) nên không lệch khỏi hình. */
   .scene-pin:not(.boxed) { padding: 11px; }
   .scene-pin.boxed { min-height: 44px; }
-  .scene-pick { padding: var(--space-3) var(--space-4); }
+  /* Thẻ chọn cảnh đã cao hơn 44px nhờ ô tranh 52px — không phải nới thêm. */
+}
+
+/* Mọi animation ở đây là trang trí: tắt hẳn khi người dùng xin ít chuyển động
+   (DESIGN §3.8). Trạng thái cuối vẫn đúng vì các keyframe chỉ đặt `from`. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-pick, .scene-frame, .scene-pin, .scene-pin-dot, .scene-row,
+  .scene-pin.active .scene-pin-dot::after { animation: none; }
+  .scene-pick:hover { transform: none; }
+  .scene-pick:hover .scene-thumb, .scene-pick.active .scene-thumb { transform: none; }
 }

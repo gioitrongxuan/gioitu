@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { Furigana } from "@/shared/ui/Furigana";
 import { PronounceButton } from "@/features/dictionary/ui/PronounceButton";
 import { hasCallout, pinSide, pinStyle, SCENES, sceneById, SceneId, ScenePin } from "../domain/scenes";
-import { SceneArt } from "./SceneArt";
+import { SceneArt, SceneThumb } from "./SceneArt";
 import "./scenes.css";
 
 /** Cảnh đang xem sống qua lần mở app sau — người học hay quay lại cùng một cảnh. */
@@ -40,6 +40,7 @@ export function Scenes({ onSelect }: Props) {
   const [masked, setMasked] = useState(false);
   const [revealed, setRevealed] = useState<number[]>([]);
   const pinsRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const scene = sceneById(sceneId);
 
@@ -57,10 +58,17 @@ export function Scenes({ onSelect }: Props) {
     setRevealed([]);
   }
 
+  /** Bước đi của phím mũi tên; 0 nghĩa là phím không phải của điều hướng. */
+  function arrowStep(key: string): number {
+    if (key === "ArrowRight" || key === "ArrowDown") return 1;
+    if (key === "ArrowLeft" || key === "ArrowUp") return -1;
+    return 0;
+  }
+
   // Mũi tên đi giữa các ghim trên tranh (DESIGN §3.3) — thứ tự theo dữ liệu, tức
   // theo thứ tự đọc của cảnh (trên xuống dưới).
   function onPinKeyDown(event: React.KeyboardEvent) {
-    const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+    const step = arrowStep(event.key);
     if (step === 0) return;
     event.preventDefault();
     const count = scene.pins.length;
@@ -70,22 +78,53 @@ export function Scenes({ onSelect }: Props) {
     buttons?.[next]?.focus();
   }
 
+  // `role="tablist"` hứa với máy đọc màn hình là mũi tên chuyển tab được — và
+  // đổi tab ở đây đổi luôn cảnh, đúng lối tab tự-kích-hoạt.
+  function onPickerKeyDown(event: React.KeyboardEvent) {
+    const step = arrowStep(event.key);
+    if (step === 0) return;
+    event.preventDefault();
+    const at = SCENES.findIndex((s) => s.id === sceneId);
+    const next = (at + step + SCENES.length) % SCENES.length;
+    chooseScene(SCENES[next].id);
+    pickerRef.current?.querySelectorAll<HTMLButtonElement>(".scene-pick")[next]?.focus();
+  }
+
   const isRevealed = (i: number) => !masked || revealed.includes(i);
   const reveal = (i: number) => setRevealed((prev) => (prev.includes(i) ? prev : [...prev, i]));
 
   return (
     <div className="scenes">
-      <div className="scene-picker" role="tablist" aria-label="Khung cảnh">
-        {SCENES.map((s) => (
+      {/* Chọn cảnh bằng chính bức tranh của cảnh đó: nhìn hình là biết mình sắp
+          bước vào đâu, nhanh hơn đọc năm cái nhãn chữ giống hệt nhau. */}
+      <div
+        ref={pickerRef}
+        className="scene-picker"
+        role="tablist"
+        aria-label="Khung cảnh"
+        onKeyDown={onPickerKeyDown}
+      >
+        {SCENES.map((s, i) => (
           <button
             key={s.id}
             type="button"
             role="tab"
             aria-selected={s.id === sceneId}
+            tabIndex={s.id === sceneId ? 0 : -1}
             className={`scene-pick${s.id === sceneId ? " active" : ""}`}
+            style={{ "--i": i } as React.CSSProperties}
             onClick={() => chooseScene(s.id)}
           >
-            {s.label}
+            <span className="scene-pick-art">
+              <SceneThumb scene={s} />
+            </span>
+            <span className="scene-pick-text">
+              <span className="scene-pick-label">{s.label}</span>
+              <span className="scene-pick-meta">
+                <span lang="ja">{s.ja}</span>
+                <span className="scene-pick-count">{s.pins.length} từ</span>
+              </span>
+            </span>
           </button>
         ))}
       </div>
@@ -120,7 +159,9 @@ export function Scenes({ onSelect }: Props) {
       <div className="scene-stage">
         {/* Tỉ lệ khung đi theo cảnh: phòng ốc nằm ngang, cơ thể dựng đứng để
             có lề cho hai cột chú giải. */}
-        <div className="scene-frame" style={{ aspectRatio: `${scene.art.w} / ${scene.art.h}` }}>
+        {/* `key`: đổi cảnh là dựng lại khung, để tranh và các ghim chạy lại
+            animation vào — chuyển cảnh có nhịp, không nhảy phắt. */}
+        <div key={scene.id} className="scene-frame" style={{ aspectRatio: `${scene.art.w} / ${scene.art.h}` }}>
           <SceneArt scene={scene} active={active} />
           <div
             ref={pinsRef}
@@ -136,7 +177,7 @@ export function Scenes({ onSelect }: Props) {
                 className={`scene-pin side-${pinSide(scene, pin)}${hasCallout(pin) ? " boxed" : ""}${
                   i === active ? " active" : ""
                 }`}
-                style={pinStyle(scene, pin)}
+                style={{ ...pinStyle(scene, pin), "--i": i } as React.CSSProperties}
                 aria-pressed={i === active}
                 onClick={() => {
                   setActive(i);
@@ -161,9 +202,13 @@ export function Scenes({ onSelect }: Props) {
         />
       </div>
 
-      <ol className="scene-list">
+      <ol key={scene.id} className="scene-list">
         {scene.pins.map((pin, i) => (
-          <li key={pin.term} className={`scene-row${i === active ? " active" : ""}`}>
+          <li
+            key={pin.term}
+            className={`scene-row${i === active ? " active" : ""}`}
+            style={{ "--i": i } as React.CSSProperties}
+          >
             <button
               type="button"
               className="scene-row-main"

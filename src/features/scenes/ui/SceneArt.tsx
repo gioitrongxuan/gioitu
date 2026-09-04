@@ -11,7 +11,18 @@
 // nên vẫn ăn token màu như phần vẽ tay.
 
 import { BODY_OUTLINE, ORGANS, OrganKey } from "../domain/anatomy";
-import { BODY_FIGURE, calloutEdge, calloutFit, CALLOUT_H, CALLOUT_W, hasCallout, pinAnchor, Scene, SceneId } from "../domain/scenes";
+import {
+  BODY_FIGURE,
+  calloutEdge,
+  calloutFit,
+  CALLOUT_H,
+  CALLOUT_W,
+  hasCallout,
+  pinAnchor,
+  Scene,
+  SceneId,
+  thumbBox,
+} from "../domain/scenes";
 
 /**
  * Hình người: đường viền, và với cảnh "bên trong" là các nội tạng có trong
@@ -70,15 +81,18 @@ const HAIR_STRANDS = [
   "M50.6 1.4C56.9 1.1 59.1 7.2 59.4 12.5",
 ];
 
+// Nét ở đây dày theo hệ toạ độ của hình giải phẫu, mà hệ đó lại bị `scale` thu
+// nhỏ hơn một nửa — nên con số phải lớn hơn nét tranh phòng ốc mới ra cùng độ
+// dày trên màn.
 function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKey | null }) {
   return (
     <g
       transform={`translate(${BODY_FIGURE.x} ${BODY_FIGURE.y}) scale(${BODY_FIGURE.scale})`}
-      strokeWidth={0.3}
+      strokeWidth={0.55}
     >
       <path className="art-body" d={BODY_OUTLINE} />
       <path className="art-hair" d={HAIR_MASS} />
-      <g className="art-hair-strand" strokeWidth={0.22}>
+      <g className="art-hair-strand" strokeWidth={0.4}>
         {HAIR_STRANDS.map((d) => (
           <path key={d} d={d} />
         ))}
@@ -286,16 +300,43 @@ function Callouts({ scene, active }: { scene: Scene; active: number | null }) {
   );
 }
 
+/** Nội tạng cần vẽ cho một cảnh — cảnh phòng ốc trả về tập rỗng. */
+function sceneOrgans(scene: Scene): Set<OrganKey> {
+  return new Set(scene.pins.map((p) => p.organ).filter((k): k is OrganKey => k != null));
+}
+
 /** Tranh của một cảnh. `aria-hidden`: mọi từ đã có mặt ở ghim và ở danh sách. */
 export function SceneArt({ scene, active }: { scene: Scene; active: number | null }) {
   const Room = ROOM_ARTS[scene.id];
-  const organs = new Set(scene.pins.map((p) => p.organ).filter((k): k is OrganKey => k != null));
   const activeOrgan = active == null ? null : (scene.pins[active]?.organ ?? null);
   return (
     <svg className="scene-art" viewBox={`0 0 ${scene.art.w} ${scene.art.h}`} aria-hidden focusable="false">
       <g fill="none" stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round">
-        {Room ? <Room /> : <BodyFigure organs={organs} active={activeOrgan} />}
+        {Room ? <Room /> : <BodyFigure organs={sceneOrgans(scene)} active={activeOrgan} />}
         <Callouts scene={scene} active={active} />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Ảnh thu nhỏ của cảnh, dùng cho danh sách chọn cảnh: cùng tranh nhưng bỏ hết
+ * ghim và ô chú giải — ở cỡ này chúng chỉ còn là nhiễu. Khung nhìn cắt theo
+ * `thumbBox` nên hình chiếm trọn ô.
+ */
+export function SceneThumb({ scene }: { scene: Scene }) {
+  const Room = ROOM_ARTS[scene.id];
+  const box = thumbBox(scene);
+  return (
+    <svg
+      className="scene-art scene-thumb"
+      viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="none" stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round">
+        {Room ? <Room /> : <BodyFigure organs={sceneOrgans(scene)} active={null} />}
       </g>
     </svg>
   );
