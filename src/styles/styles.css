@@ -194,11 +194,16 @@ summary:focus-visible,
 .menu-backdrop { position: fixed; inset: 0; z-index: 29; }
 
 /* Content layout */
-.content { display: grid; grid-template-columns: 1fr; gap: 16px; }
+/* minmax(0, 1fr) chứ không phải 1fr: cột `1fr` trơn không co xuống dưới bề
+   ngang tối thiểu của nội dung, nên chỉ cần một dải cuộn ngang hay một bảng
+   rộng bên trong là cả trang phình ra và cuộn ngang được — trên máy hẹp đó là
+   lỗi nhìn thấy ngay. Cho cột phép co về 0 thì phần rộng tự cuộn trong chính
+   nó. */
+.content { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 760px) {
   /* align-items: start để cloud không bị kéo căng theo chiều cao panel khi panel
      nội dung dài; mỗi cột giữ chiều cao theo nội dung riêng. */
-  .content:has(.detail-panel) { grid-template-columns: 1fr 320px; align-items: start; }
+  .content:has(.detail-panel) { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
 }
 
 .empty, .muted { color: var(--muted); font-size: 14px; }

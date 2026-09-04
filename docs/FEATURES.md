@@ -1187,9 +1187,24 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
 (`scenes/domain/scenes.ts`, `scenes/ui/SceneArt.tsx`, `ui/Scenes.tsx`).
 
 - **Phòng ốc: tranh nét vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không
-  tải ảnh: chạy offline, đổi theme là đổi màu theo token (nét `currentColor`,
-  khối tô bằng `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng
-  nét. Khung `ROOM_ART` (160×120) nằm ngang, ghim đặt thẳng lên vật.
+  tải ảnh: chạy offline, phóng to bao nhiêu cũng nét. Khung `ROOM_ART` (160×120)
+  nằm ngang, ghim đặt thẳng lên vật.
+- **Tranh có màu, tô phẳng kiểu cel** (bảng `--art-*` đầu `scenes.css`, xem
+  DESIGN §3.4): mỗi cảnh có nền riêng (trời + sân, tường + sàn gỗ, tường + thảm,
+  mảng bảng giải phẫu) và mỗi vật mang class **chất liệu** — `art-wood`,
+  `art-metal`, `art-porcelain`, `art-tatami`, `art-water`, `art-fire`,
+  `art-leaf`, `art-skin`, `art-vermilion`… Class chỉ đặt `--c`, còn `.art` lo
+  tô phẳng + viền (= chính màu đó kéo về `--fg`, lối viền của tranh cel). Nội
+  tạng lấy **màu tiêu bản** (gan nâu đỏ, phổi hồng, xương ngà) qua class
+  `organ-<key>`; cơ quan đang chọn **dày viền** chứ không đổi màu, kẻo mất đúng
+  tín hiệu màu vừa dựng. Nền pha nhạt (~35% + `--surface`) còn đồ vật pha đậm
+  (~80%) nên theme tối ra cảnh đêm chứ không phải tấm bảng chói.
+- **Hình người tô da**: `BODY_OUTLINE` của anatomogram là *dải viền rỗng ruột*
+  (viền trong + viền ngoài trong cùng một path), tô vào chỉ ăn đúng dải viền —
+  thân người vẫn trắng. `BODY_FILL` (SceneArt.tsx, phần sửa đổi của ta như
+  `HAIR_MASS`) lấp phần ruột bằng vài khối vẽ theo trục chi, số đo lấy từ chính
+  hình gốc và thụt vào ~0.7 đơn vị để dải viền phủ lên mép. Cảnh "bên trong"
+  hạ khối da xuống 30% (`see-through`) để còn nhìn thấy nội tạng.
 - **Hai cảnh cơ thể: hình giải phẫu thật**, không phải hình vẽ tay — đường viền
   cơ thể và 18 nội tạng trích từ bộ *anatomogram* của EBI Expression Atlas
   (Apache-2.0) thành `domain/anatomy.ts` bằng `scripts/gen-anatomy.mjs`
@@ -1215,6 +1230,19 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
   là vùng bấm. Bất biến hình học (ô trong khung, hai ô cùng cột không chồng
   nhau, hình không đè lên cột ô, bộ phận co vừa ô) có guard ở
   `test/scenes.test.ts`.
+- **Chọn cảnh bằng tranh, không phải bằng chip chữ**: mỗi cảnh là một thẻ có
+  **ảnh thu nhỏ của chính bức tranh cảnh đó** (`SceneThumb`), kèm nhãn tiếng
+  Việt, tên tiếng Nhật và số từ — nhìn hình là biết mình sắp bước vào đâu.
+  `thumbBox` cắt khung nhìn cho ảnh nhỏ: phòng ốc lấy trọn khung, cảnh cơ thể
+  cắt sát hình người (bỏ hai cột lề chú giải, kẻo ảnh nhỏ toàn lề trống). Ảnh
+  nhỏ bỏ hết ghim/chú giải và tô đậm hơn bản lớn (`non-scaling-stroke`, khối tô
+  dày hơn) vì ở cỡ 5:3 trong thẻ, sắc độ của tranh lớn tan hết. Thẻ hiện dần
+  theo thứ tự, tranh phóng nhẹ khi rê/chọn; ghim và dòng trong danh sách cũng
+  hiện dần theo thứ tự đọc của cảnh, ghim vừa chọn có một vòng loang — tất cả
+  chỉ animate `transform`/`opacity` và tắt hẳn dưới `prefers-reduced-motion`.
+  Mũi tên chuyển cảnh (đúng lối `role="tablist"`); khung hẹp <760px thì lưới
+  thẻ thành **dải vuốt ngang** có scroll-snap để không đẩy tranh xuống dưới nếp
+  gấp.
 - **Công tắc**: *Hiện chữ Nhật trên tranh* (mặc định tắt cho tranh sạch; khung
   hẹp <760px chỉ hiện nhãn của ghim đang chọn) và *Che nghĩa để tự kiểm tra*
   (nghĩa tiếng Việt ẩn, mở lần lượt từng từ — tự dò trước khi xem).

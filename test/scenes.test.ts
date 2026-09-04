@@ -18,6 +18,7 @@ import {
   pinStyle,
   SCENES,
   sceneById,
+  thumbBox,
 } from "@/features/scenes/domain/scenes";
 
 const bodyScenes = SCENES.filter((s) => s.pins.some((p) => p.ax != null || p.organ != null));
@@ -154,6 +155,26 @@ describe("scenes", () => {
     const body = sceneById("body");
     expect(pinSide(body, body.pins.find((p) => p.term === "頭")!)).toBe("right");
     expect(pinSide(body, body.pins.find((p) => p.term === "耳")!)).toBe("left");
+  });
+
+  it("khung ảnh thu nhỏ ôm trọn hình người, bỏ lề chú giải", () => {
+    for (const scene of bodyScenes) {
+      const box = thumbBox(scene);
+      const topLeft = figurePoint(0, 0);
+      const bottomRight = figurePoint(ANATOMY_VIEW.w, ANATOMY_VIEW.h);
+      // Ôm trọn: không cắt mất đầu hay bàn chân.
+      expect(box.x, scene.id).toBeLessThanOrEqual(topLeft.x);
+      expect(box.y, scene.id).toBeLessThanOrEqual(topLeft.y);
+      expect(box.x + box.w, scene.id).toBeGreaterThanOrEqual(bottomRight.x);
+      expect(box.y + box.h, scene.id).toBeGreaterThanOrEqual(bottomRight.y);
+      // Và hẹp hơn hẳn khung cảnh — đó mới là lý do phải cắt.
+      expect(box.w, scene.id).toBeLessThan(scene.art.w);
+    }
+  });
+
+  it("cảnh phòng ốc lấy trọn khung làm ảnh thu nhỏ", () => {
+    const kitchen = sceneById("kitchen");
+    expect(thumbBox(kitchen)).toEqual({ x: 0, y: 0, w: kitchen.art.w, h: kitchen.art.h });
   });
 
   it("hình đặt đúng tỉ lệ gốc (không bóp méo)", () => {
