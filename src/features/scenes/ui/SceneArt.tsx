@@ -40,15 +40,35 @@ const ORGAN_DEPTH: OrganKey[] = [
 ];
 
 /**
- * Tóc: hình gốc của anatomogram trọc đầu, mà 髪 lại là từ phải có. Vẽ thêm một
- * mảng tóc ôm đúng hộp sọ — cung ngoài bám vòng đầu (tâm ~52.6,12.5 trong hệ
- * ANATOMY_VIEW), đường chân tóc lượn xuống hai bên thái dương. Đây là phần
+ * Tóc: hình gốc của anatomogram trọc đầu, mà 髪 lại là từ phải có. Đây là phần
  * SỬA ĐỔI của ta, không nằm trong file sinh tự động.
+ *
+ * Vẽ thành sợi chứ không phải một mảng đặc — mảng đặc đọc ra thành mũ. Khối
+ * tóc chỉ tô rất nhạt để có chỗ đứng, còn cái nhìn ra là tóc là chùm sợi tỏa
+ * từ đường ngôi (lệch trái, ~50.8/2.2 trong hệ ANATOMY_VIEW) vòng theo hộp sọ
+ * xuống chân tóc. Chân tóc dừng trên vành tai để 耳 vẫn còn chỗ trỏ.
  */
-const HAIR =
-  "M44.8 12.6A7.9 12 0 0 1 60.4 12.6L59.5 12.6" +
+const HAIR_MASS =
+  // Đỉnh vống lên hẳn so với hộp sọ (đỉnh sọ ~y1.5) — sát quá thì hai nét viền
+  // chạy song song, nhìn thành cái băng đô. Hai bên vẫn dừng ở thái dương.
+  "M44.8 12.6C44.5 7 47.5 0 52.6 0C57.7 0 60.7 7 60.4 12.6L59.5 12.6" +
   "C59.1 9.4 56.8 8.5 54.4 8.7C53.4 8.8 53 9.5 52.6 9.5C52.2 9.5 51.8 8.8 50.8 8.7" +
   "C48.4 8.5 46.1 9.4 45.7 12.6Z";
+
+/** Sợi tỏa từ đường ngôi, vòng theo hộp sọ xuống chân tóc. */
+const HAIR_STRANDS = [
+  "M50.6 1.4C47 1.8 44.9 6.6 45.4 12.5",
+  "M50.6 1.4C47.3 2.2 45.3 6.2 45.9 10.8",
+  "M50.6 1.4C47.8 2.6 46 6 46.9 9.8",
+  "M50.6 1.4C48.3 3 46.9 6 47.9 9.2",
+  "M50.6 1.4C48.9 3.6 48.2 6 49.3 8.7",
+  "M50.6 1.4C49.7 4.2 50.1 6.2 50.9 8.6",
+  "M50.6 1.4C51.9 2.2 53.4 5.6 54.3 8.8",
+  "M50.6 1.4C52.7 1.8 55 5.4 55.9 9.1",
+  "M50.6 1.4C53.9 1.5 56.7 5.4 57.4 9.7",
+  "M50.6 1.4C55.3 1.2 58 6 58.6 11",
+  "M50.6 1.4C56.9 1.1 59.1 7.2 59.4 12.5",
+];
 
 function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKey | null }) {
   return (
@@ -57,7 +77,12 @@ function BodyFigure({ organs, active }: { organs: Set<OrganKey>; active: OrganKe
       strokeWidth={0.3}
     >
       <path className="art-body" d={BODY_OUTLINE} />
-      <path className="art-hair" d={HAIR} />
+      <path className="art-hair" d={HAIR_MASS} />
+      <g className="art-hair-strand" strokeWidth={0.22}>
+        {HAIR_STRANDS.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
       {/* Cái đang chọn vẽ sau cùng, kẻo bị mấy khối nằm trước che mất. */}
       {ORGAN_DEPTH.filter((k) => organs.has(k) && k !== active)
         .concat(active && organs.has(active) ? [active] : [])
