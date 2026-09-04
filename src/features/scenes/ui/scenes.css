@@ -29,9 +29,10 @@
 /* ---- Tranh + ghim ---- */
 .scene-stage { display: flex; gap: var(--space-4); align-items: flex-start; flex-wrap: wrap; }
 
+/* aspect-ratio đặt inline theo khung vẽ của cảnh (ROOM_ART / BODY_ART). */
 .scene-frame {
   position: relative; flex: 1 1 420px; min-width: 280px;
-  aspect-ratio: 4 / 3; border: 1px solid var(--line); border-radius: var(--radius-lg);
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
   background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden;
 }
 /* Nét mực lấy màu chữ; các khối tô đi qua color-mix nên tự đổi theo theme. */
@@ -40,15 +41,25 @@
 .scene-art .art-fill-accent { fill: color-mix(in oklab, var(--accent) 13%, var(--surface)); }
 .scene-art .art-fill-seal { fill: color-mix(in oklab, var(--seal) 16%, var(--surface)); }
 .scene-art .art-fill-ink { fill: color-mix(in oklab, var(--fg) 16%, var(--surface)); }
+.scene-art .art-stroke-seal { stroke: color-mix(in oklab, var(--seal) 65%, var(--fg)); }
 .scene-art .art-faint { opacity: 0.4; }
 
-.scene-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* ---- Ô chú giải ở lề (lối hình giải phẫu) ---- */
 /* Hairline không dày lên theo tỉ lệ khung (vector-effect) — nét chú giải phải
    mảnh hơn nét tranh để không tranh chỗ với hình. */
-.scene-leaders line { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.45; }
-.scene-leaders circle { fill: var(--muted); opacity: 0.6; }
-.scene-leaders .active line { stroke: var(--accent); opacity: 1; }
-.scene-leaders .active circle { fill: var(--accent); opacity: 1; }
+.scene-art .callout-lead {
+  stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.45;
+}
+.scene-art .callout-target { fill: var(--muted); stroke: none; opacity: 0.6; }
+.scene-art .callout-box {
+  fill: color-mix(in oklab, var(--fg) 3%, var(--surface));
+  stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke;
+}
+.scene-art .callout.active .callout-lead { stroke: var(--accent); opacity: 1; }
+.scene-art .callout.active .callout-target { fill: var(--accent); opacity: 1; }
+.scene-art .callout.active .callout-box {
+  fill: color-mix(in oklab, var(--accent) 9%, var(--surface)); stroke: var(--accent);
+}
 
 .scene-pins { position: absolute; inset: 0; }
 .scene-pin {
@@ -57,6 +68,18 @@
   border: none; background: none; padding: 0; cursor: pointer; font: inherit;
 }
 .scene-pin.side-left { flex-direction: row-reverse; }
+/* Ghim có ô chú giải: nút trùm đúng ô (vùng bấm = cả hình nhỏ), số nép vào góc
+   ngoài trong lòng ô để không che hình. */
+.scene-pin.boxed { display: block; border-radius: var(--radius-sm); }
+.scene-pin.boxed .scene-pin-dot {
+  position: absolute; top: 2px; width: 15px; height: 15px;
+}
+.scene-pin.boxed.side-right .scene-pin-dot { left: 2px; }
+.scene-pin.boxed.side-left .scene-pin-dot { right: 2px; }
+.scene-pin.boxed .scene-pin-label {
+  position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%);
+}
+.scene-pin.boxed:hover { background: color-mix(in oklab, var(--accent) 7%, transparent); }
 .scene-pin-dot {
   display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--accent) 16%, var(--surface));
@@ -119,12 +142,16 @@
 .scene-masked { font-style: italic; }
 
 @media (max-width: 760px) {
-  /* Trên khung hẹp nhãn chữ chen nhau — chỉ còn số, chữ đọc ở danh sách dưới. */
-  .scene-pins.labelled .scene-pin-label { max-width: 0; opacity: 0; padding: 0; }
+  /* Trên khung hẹp nhãn chữ chen nhau — chỉ còn số, chữ đọc ở danh sách dưới.
+     Ghim có ô thì nhãn nằm gọn trong lòng ô nên vẫn giữ được. */
+  .scene-pins.labelled .scene-pin:not(.boxed) .scene-pin-label { max-width: 0; opacity: 0; padding: 0; }
   .scene-card { flex: 1 1 100%; }
 }
 @media (pointer: coarse) {
-  /* Target ≥ 44px (DESIGN §3.6): vùng bấm nới ra quanh chấm bằng padding. */
-  .scene-pin { padding: 11px; }
+  /* Target ≥ 44px (DESIGN §3.6): vùng bấm nới ra quanh chấm bằng padding. Ô
+     chú giải đã gần chạm ngưỡng — trên máy hẹp thì kéo cho đủ, nút vẫn căn
+     giữa ghim (transform) nên không lệch khỏi hình. */
+  .scene-pin:not(.boxed) { padding: 11px; }
+  .scene-pin.boxed { min-height: 44px; }
   .scene-pick { padding: var(--space-3) var(--space-4); }
 }

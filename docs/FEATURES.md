@@ -1181,21 +1181,27 @@ thẻ ôn. (`vocabstudy/domain/wordsetSrs.ts`, `ui/WordsetStudyBar.tsx`,
 ### 9.23 Quanh ta — từ vựng theo khung cảnh (#294)
 
 Học tên **những thứ quanh mình** bằng tranh chứ bằng danh sách: chọn một cảnh,
-tranh nét hiện lên với các **ghim số** đặt đúng chỗ vật đó nằm — 冷蔵庫 ở góc
-bếp, 階段 giữa nhà, 心臓 giữa hai lá phổi. Năm cảnh: **Cơ thể (bên ngoài)** ·
+tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm — 冷蔵庫 ở góc bếp,
+階段 giữa nhà, 心臓 giữa hai lá phổi. Năm cảnh: **Cơ thể (bên ngoài)** ·
 **Cơ thể (bên trong)** · **Trong nhà** · **Nhà bếp** · **Trong công ty**
 (`scenes/domain/scenes.ts`, `scenes/ui/SceneArt.tsx`, `ui/Scenes.tsx`).
 
 - **Tranh vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không tải ảnh: chạy
   offline, đổi theme là đổi màu theo token (nét `currentColor`, khối tô bằng
   `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng nét, và **không
-  thêm một byte asset nào** vào bundle ảnh. Mọi cảnh dùng chung khung toạ độ
-  `ART_W × ART_H` (160×120) nên ghim và hình luôn khớp.
+  thêm một byte asset nào** vào bundle ảnh. Khung toạ độ đi theo cảnh: phòng ốc
+  nằm ngang `ROOM_ART` (160×120), hai cảnh cơ thể dựng đứng `BODY_ART`
+  (160×210) để có lề cho hai cột chú giải; tỉ lệ khung tranh trên màn lấy thẳng
+  từ đó.
 - **Hai lối đặt ghim**, do dữ liệu quyết định: phòng ốc thì chấm số nằm thẳng
-  trên vật; hai cảnh cơ thể có cả chục bộ phận chen trong vùng nhỏ (mắt, mũi,
-  miệng, tai) nên chấm xếp **hai cột ở lề** và nối vào thân bằng **đường dẫn**
-  (`ax`/`ay` của `ScenePin`) — lối chú giải của hình giải phẫu; đường dẫn của
-  ghim đang chọn đổi sang màu `--accent`.
+  trên vật; hai cảnh cơ thể dựng theo **lối hình giải phẫu** — thân người ở
+  giữa, hai cột **ô chú giải** ở lề (`CALLOUT_W × CALLOUT_H`), mỗi ô là **hình
+  nhỏ của chính bộ phận đó** (bảng `GLYPHS` trong `SceneArt.tsx`, khoá là mặt
+  chữ Nhật) kèm số thứ tự ở góc, nối vào thân bằng **đường dẫn** từ mép trong
+  của ô tới điểm neo (`ax`/`ay` của `ScenePin`). Nhìn ô là đoán được từ, không
+  phải dò số. Ô và đường dẫn của ghim đang chọn đổi sang màu `--accent`; cả ô
+  cũng chính là vùng bấm. Bất biến hình học (ô nằm trong khung, hai ô cùng cột
+  không chồng nhau) có guard ở `test/scenes.test.ts`.
 - **Công tắc**: *Hiện chữ Nhật trên tranh* (mặc định tắt cho tranh sạch; khung
   hẹp <760px chỉ hiện nhãn của ghim đang chọn) và *Che nghĩa để tự kiểm tra*
   (nghĩa tiếng Việt ẩn, mở lần lượt từng từ — tự dò trước khi xem).
@@ -1208,7 +1214,8 @@ bếp, 階段 giữa nhà, 心臓 giữa hai lá phổi. Năm cảnh: **Cơ th�
   trước cả khi IndexedDB mở xong. Cảnh đang xem nhớ ở `localStorage`
   (`gioitu.scene.v1`).
 - **Thêm cảnh mới** = thêm một mục vào `SCENES` + một hàm vẽ trong `ARTS`;
-  không phải sửa gì ở `App.tsx`.
+  cảnh dùng ô chú giải thì thêm hình nhỏ vào `GLYPHS` (thiếu hình thì ô chỉ còn
+  con số, không vỡ gì). Không phải sửa gì ở `App.tsx`.
 
 ## 10. Bản đồ chức năng → tài liệu
 
