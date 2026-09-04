@@ -1186,22 +1186,30 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
 **Cơ thể (bên trong)** · **Trong nhà** · **Nhà bếp** · **Trong công ty**
 (`scenes/domain/scenes.ts`, `scenes/ui/SceneArt.tsx`, `ui/Scenes.tsx`).
 
-- **Tranh vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không tải ảnh: chạy
-  offline, đổi theme là đổi màu theo token (nét `currentColor`, khối tô bằng
-  `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng nét, và **không
-  thêm một byte asset nào** vào bundle ảnh. Khung toạ độ đi theo cảnh: phòng ốc
-  nằm ngang `ROOM_ART` (160×120), hai cảnh cơ thể dựng đứng `BODY_ART`
-  (160×210) để có lề cho hai cột chú giải; tỉ lệ khung tranh trên màn lấy thẳng
-  từ đó.
-- **Hai lối đặt ghim**, do dữ liệu quyết định: phòng ốc thì chấm số nằm thẳng
-  trên vật; hai cảnh cơ thể dựng theo **lối hình giải phẫu** — thân người ở
-  giữa, hai cột **ô chú giải** ở lề (`CALLOUT_W × CALLOUT_H`), mỗi ô là **hình
-  nhỏ của chính bộ phận đó** (bảng `GLYPHS` trong `SceneArt.tsx`, khoá là mặt
-  chữ Nhật) kèm số thứ tự ở góc, nối vào thân bằng **đường dẫn** từ mép trong
-  của ô tới điểm neo (`ax`/`ay` của `ScenePin`). Nhìn ô là đoán được từ, không
-  phải dò số. Ô và đường dẫn của ghim đang chọn đổi sang màu `--accent`; cả ô
-  cũng chính là vùng bấm. Bất biến hình học (ô nằm trong khung, hai ô cùng cột
-  không chồng nhau) có guard ở `test/scenes.test.ts`.
+- **Phòng ốc: tranh nét vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không
+  tải ảnh: chạy offline, đổi theme là đổi màu theo token (nét `currentColor`,
+  khối tô bằng `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng
+  nét. Khung `ROOM_ART` (160×120) nằm ngang, ghim đặt thẳng lên vật.
+- **Hai cảnh cơ thể: hình giải phẫu thật**, không phải hình vẽ tay — đường viền
+  cơ thể và 18 nội tạng trích từ bộ *anatomogram* của EBI Expression Atlas
+  (Apache-2.0) thành `domain/anatomy.ts` bằng `scripts/gen-anatomy.mjs`
+  (`npm run gen:anatomy <đường-dẫn-svg>`; ghi công + toàn văn giấy phép ở
+  `domain/LICENSE.anatomogram.txt`). Vẫn là path SVG nên vẫn ăn token màu và
+  vẫn offline; nặng ~40KB, nằm trong chunk `React.lazy` của màn này. Không lấy
+  `trachea`/`nerve` của bộ gốc vì hai cái đó riêng chúng đã nặng gấp đôi phần
+  còn lại mà ở cỡ ô chú giải chỉ còn là mảng nét đen đặc.
+- **Khung `BODY_ART` (200×260) dựng đứng**: hình người canh giữa (`BODY_FIGURE`
+  tính từ `ANATOMY_VIEW`, đổi cỡ hình không phải đặt lại ghim), hai cột chú
+  giải ở lề. Cảnh **bên trong** cho mỗi từ một **ô chú giải** `CALLOUT_W ×
+  CALLOUT_H` chứa **chính bộ phận đó phóng to** (`calloutFit` co vừa ô), nối
+  vào chỗ nó nằm bằng **đường dẫn** từ mép trong của ô tới neo — neo lấy tâm
+  hộp bao của bộ phận (`pinAnchor`) nên không lệch khi hình đổi. Bộ phận đang
+  chọn tô đậm `--accent` và vẽ sau cùng để không bị khối khác che. Cảnh **bên
+  ngoài** chỉ có chấm số + đường dẫn: những phần như vai, lưng, đầu gối không
+  tách ra thành hình riêng nên chẳng có gì để phóng to. Ô chú giải cũng chính
+  là vùng bấm. Bất biến hình học (ô trong khung, hai ô cùng cột không chồng
+  nhau, hình không đè lên cột ô, bộ phận co vừa ô) có guard ở
+  `test/scenes.test.ts`.
 - **Công tắc**: *Hiện chữ Nhật trên tranh* (mặc định tắt cho tranh sạch; khung
   hẹp <760px chỉ hiện nhãn của ghim đang chọn) và *Che nghĩa để tự kiểm tra*
   (nghĩa tiếng Việt ẩn, mở lần lượt từng từ — tự dò trước khi xem).
@@ -1213,9 +1221,9 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
   đọc store và không ghi gì (không đếm lượt tra, không tạo entry SRS) nên hiện
   trước cả khi IndexedDB mở xong. Cảnh đang xem nhớ ở `localStorage`
   (`gioitu.scene.v1`).
-- **Thêm cảnh mới** = thêm một mục vào `SCENES` + một hàm vẽ trong `ARTS`;
-  cảnh dùng ô chú giải thì thêm hình nhỏ vào `GLYPHS` (thiếu hình thì ô chỉ còn
-  con số, không vỡ gì). Không phải sửa gì ở `App.tsx`.
+- **Thêm cảnh mới** = thêm một mục vào `SCENES` + một hàm vẽ trong `ROOM_ARTS`;
+  cảnh cơ thể thì thêm bộ phận vào `WANTED` của `scripts/gen-anatomy.mjs` rồi
+  sinh lại. Không phải sửa gì ở `App.tsx`.
 
 ## 10. Bản đồ chức năng → tài liệu
 

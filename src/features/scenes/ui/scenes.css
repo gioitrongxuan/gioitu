@@ -41,8 +41,23 @@
 .scene-art .art-fill-accent { fill: color-mix(in oklab, var(--accent) 13%, var(--surface)); }
 .scene-art .art-fill-seal { fill: color-mix(in oklab, var(--seal) 16%, var(--surface)); }
 .scene-art .art-fill-ink { fill: color-mix(in oklab, var(--fg) 16%, var(--surface)); }
-.scene-art .art-stroke-seal { stroke: color-mix(in oklab, var(--seal) 65%, var(--fg)); }
 .scene-art .art-faint { opacity: 0.4; }
+
+/* ---- Hình giải phẫu (hai cảnh cơ thể) ---- */
+/* Đường viền cơ thể lùi về sau: đây là khung cho nội tạng, không phải nhân vật
+   chính. Nội tạng tô nhạt bằng --accent, cái đang chọn mới lên màu đậm. */
+.scene-art .art-body {
+  fill: color-mix(in oklab, var(--fg) 4%, var(--surface));
+  stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
+}
+.scene-art .art-organ path {
+  fill: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  stroke: color-mix(in oklab, var(--accent) 40%, var(--surface));
+}
+.scene-art .art-organ.active path {
+  fill: color-mix(in oklab, var(--accent) 52%, var(--surface));
+  stroke: var(--accent);
+}
 
 /* ---- Ô chú giải ở lề (lối hình giải phẫu) ---- */
 /* Hairline không dày lên theo tỉ lệ khung (vector-effect) — nét chú giải phải
@@ -59,6 +74,14 @@
 .scene-art .callout.active .callout-target { fill: var(--accent); opacity: 1; }
 .scene-art .callout.active .callout-box {
   fill: color-mix(in oklab, var(--accent) 9%, var(--surface)); stroke: var(--accent);
+}
+/* Hình trong ô luôn tô đậm — ô nào cũng phải đọc được ngay, không đợi bấm. */
+.scene-art .callout-shape path {
+  fill: color-mix(in oklab, var(--accent) 34%, var(--surface));
+  stroke: color-mix(in oklab, var(--accent) 70%, var(--fg));
+}
+.scene-art .callout.active .callout-shape path {
+  fill: color-mix(in oklab, var(--accent) 60%, var(--surface)); stroke: var(--accent);
 }
 
 .scene-pins { position: absolute; inset: 0; }

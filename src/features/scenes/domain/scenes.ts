@@ -1,9 +1,14 @@
-// Từ vựng theo khung cảnh (#294): mỗi cảnh là một bức tranh nét (SVG) kèm các
-// "ghim" đặt đúng chỗ vật đó nằm trong tranh — học 冷蔵庫 bằng cách thấy nó
-// đứng ở đâu trong bếp, thay vì đọc một danh sách phẳng.
+// Từ vựng theo khung cảnh (#294): mỗi cảnh là một bức tranh kèm các "ghim" đặt
+// đúng chỗ vật đó nằm — học 冷蔵庫 bằng cách thấy nó đứng ở đâu trong bếp, thay
+// vì đọc một danh sách phẳng.
 //
-// Phần này THUẦN dữ liệu + toạ độ: tranh vẽ ở `ui/SceneArt.tsx` đọc cùng hệ
-// toạ độ này nên ghim và hình luôn khớp nhau. Không phụ thuộc React/DOM.
+// Phần này THUẦN dữ liệu + toạ độ. Phòng ốc dùng tranh nét vẽ trong
+// `ui/SceneArt.tsx`; hai cảnh cơ thể dùng hình giải phẫu có sẵn ở
+// `domain/anatomy.ts` (nguồn EBI, Apache-2.0) nên toạ độ neo của chúng viết
+// theo hệ của hình đó rồi mới đổi sang khung cảnh — sửa cỡ hình chỉ phải sửa
+// `BODY_FIGURE`, không phải đặt lại từng ghim.
+
+import { ANATOMY_VIEW, ORGANS, OrganKey } from "./anatomy";
 
 /** Khung vẽ của một cảnh (đơn vị SVG) — mọi toạ độ ghim tính theo hệ này. */
 export interface ArtBox {
@@ -15,39 +20,57 @@ export interface ArtBox {
 export const ROOM_ART: ArtBox = { w: 160, h: 120 };
 
 /**
- * Cảnh cơ thể nhìn chính diện: khung dọc. Hai cột chú giải ở lề, mỗi ô cao
- * CALLOUT_H và cột dài nhất có 9 ô — 120 đơn vị chiều cao không đủ chỗ.
+ * Cảnh cơ thể: khung dọc, hình người ở giữa và hai cột chú giải ở lề — lối
+ * dựng của hình giải phẫu.
  */
-export const BODY_ART: ArtBox = { w: 160, h: 210 };
+export const BODY_ART: ArtBox = { w: 200, h: 260 };
+
+/** Bề ngang dành cho hình người; phần còn lại của khung là lề cho hai cột ô. */
+const FIGURE_W = 122;
+
+/** Chỗ đặt hình giải phẫu trong khung cảnh: canh giữa cả hai chiều. */
+export const BODY_FIGURE = {
+  scale: FIGURE_W / ANATOMY_VIEW.w,
+  x: (BODY_ART.w - FIGURE_W) / 2,
+  y: (BODY_ART.h - (ANATOMY_VIEW.h * FIGURE_W) / ANATOMY_VIEW.w) / 2,
+} as const;
+
+/** Đổi một điểm trên hình giải phẫu sang toạ độ khung cảnh. */
+export function figurePoint(x: number, y: number): { x: number; y: number } {
+  return { x: BODY_FIGURE.x + x * BODY_FIGURE.scale, y: BODY_FIGURE.y + y * BODY_FIGURE.scale };
+}
 
 /**
- * Ô chú giải ở lề (lối vẽ của hình giải phẫu): trong ô là hình nhỏ của chính
- * bộ phận đó, một đường dẫn nối mép trong của ô vào điểm neo trên thân. Ô đủ
- * rộng để làm luôn vùng bấm; hình nhỏ vẽ ở `ui/SceneArt.tsx`.
+ * Ô chú giải ở lề: bên trong là chính bộ phận đó phóng to, nối vào hình bằng
+ * một đường dẫn. Ô đủ rộng để làm luôn vùng bấm.
  */
-export const CALLOUT_W = 30;
-export const CALLOUT_H = 20;
+export const CALLOUT_W = 34;
+export const CALLOUT_H = 24;
 
 export type SceneId = "body" | "organs" | "house" | "kitchen" | "office";
 
 export interface ScenePin {
-  /** Mặt chữ Nhật. Cũng là khoá tra hình nhỏ trong ô chú giải (GLYPHS). */
+  /** Mặt chữ Nhật. */
   term: string;
   /** Cách đọc (kana) — dùng cho furigana và cho giọng đọc. */
   reading: string;
   /** Nghĩa tiếng Việt. */
   meaning: string;
-  /** Vị trí ghim trong khung của cảnh; với ghim có neo đây là tâm ô chú giải. */
+  /** Vị trí ghim trong khung của cảnh; với ghim có ô chú giải đây là tâm ô. */
   x: number;
   y: number;
   /**
-   * Điểm mà ghim trỏ tới trên thân. Cảnh cơ thể có cả chục bộ phận chen trong
-   * một vùng nhỏ (mắt, mũi, miệng, tai) nên chú giải xếp thành hai cột ở lề và
-   * nối vào thân bằng đường dẫn. Cảnh phòng ốc thì vật đủ rộng, ghim đặt thẳng
-   * lên vật nên không có neo — và cũng không có ô chú giải.
+   * Điểm mà ghim trỏ tới, theo hệ toạ độ của hình giải phẫu (ANATOMY_VIEW) —
+   * chỉ hai cảnh cơ thể dùng. Cảnh phòng ốc thì vật đủ rộng, ghim đặt thẳng
+   * lên vật nên không có neo.
    */
   ax?: number;
   ay?: number;
+  /**
+   * Bộ phận trong `ORGANS`: vẽ lên hình người và làm hình nhỏ trong ô chú
+   * giải. Có `organ` thì neo tự lấy tâm hộp bao, khỏi đặt tay.
+   */
+  organ?: OrganKey;
 }
 
 export interface Scene {
@@ -77,24 +100,24 @@ export const SCENES: Scene[] = [
     note: "Những bộ phận nhìn thấy được — đi khám, đi tiệm, tả người đều cần.",
     art: BODY_ART,
     pins: [
-      { term: "頭", reading: "あたま", meaning: "đầu", x: 19, y: 14, ax: 80, ay: 13 },
-      { term: "髪", reading: "かみ", meaning: "tóc", x: 19, y: 37, ax: 69, ay: 17 },
-      { term: "目", reading: "め", meaning: "mắt", x: 19, y: 60, ax: 75, ay: 25 },
-      { term: "顔", reading: "かお", meaning: "mặt", x: 19, y: 83, ax: 71, ay: 33 },
-      { term: "肩", reading: "かた", meaning: "vai", x: 19, y: 106, ax: 59, ay: 50 },
-      { term: "腕", reading: "うで", meaning: "cánh tay", x: 19, y: 129, ax: 50, ay: 86 },
-      { term: "手", reading: "て", meaning: "bàn tay", x: 19, y: 152, ax: 46, ay: 124 },
-      { term: "指", reading: "ゆび", meaning: "ngón tay", x: 19, y: 175, ax: 44, ay: 131 },
-      { term: "足", reading: "あし", meaning: "chân", x: 19, y: 198, ax: 70, ay: 193 },
-      { term: "耳", reading: "みみ", meaning: "tai", x: 141, y: 14, ax: 92, ay: 27 },
-      { term: "鼻", reading: "はな", meaning: "mũi", x: 141, y: 37, ax: 80, ay: 29 },
-      { term: "口", reading: "くち", meaning: "miệng", x: 141, y: 60, ax: 80, ay: 35 },
-      { term: "首", reading: "くび", meaning: "cổ", x: 141, y: 83, ax: 80, ay: 44 },
-      { term: "胸", reading: "むね", meaning: "ngực", x: 141, y: 106, ax: 80, ay: 62 },
-      { term: "背中", reading: "せなか", meaning: "lưng", x: 141, y: 129, ax: 101, ay: 66 },
-      { term: "お腹", reading: "おなか", meaning: "bụng", x: 141, y: 152, ax: 80, ay: 90 },
-      { term: "腰", reading: "こし", meaning: "hông, thắt lưng", x: 141, y: 175, ax: 80, ay: 110 },
-      { term: "膝", reading: "ひざ", meaning: "đầu gối", x: 141, y: 198, ax: 89, ay: 155 },
+      { term: "頭", reading: "あたま", meaning: "đầu", x: 19, y: 22, ax: 53, ay: 4 },
+      { term: "髪", reading: "かみ", meaning: "tóc", x: 19, y: 49, ax: 48, ay: 6 },
+      { term: "目", reading: "め", meaning: "mắt", x: 19, y: 76, ax: 49, ay: 13 },
+      { term: "顔", reading: "かお", meaning: "mặt", x: 19, y: 103, ax: 49, ay: 19 },
+      { term: "肩", reading: "かた", meaning: "vai", x: 19, y: 130, ax: 38, ay: 33 },
+      { term: "腕", reading: "うで", meaning: "cánh tay", x: 19, y: 157, ax: 24, ay: 63 },
+      { term: "手", reading: "て", meaning: "bàn tay", x: 19, y: 184, ax: 16, ay: 98 },
+      { term: "指", reading: "ゆび", meaning: "ngón tay", x: 19, y: 211, ax: 10, ay: 105 },
+      { term: "足", reading: "あし", meaning: "chân", x: 19, y: 238, ax: 39, ay: 190 },
+      { term: "耳", reading: "みみ", meaning: "tai", x: 181, y: 22, ax: 61, ay: 16 },
+      { term: "鼻", reading: "はな", meaning: "mũi", x: 181, y: 49, ax: 53, ay: 17 },
+      { term: "口", reading: "くち", meaning: "miệng", x: 181, y: 76, ax: 53, ay: 21 },
+      { term: "首", reading: "くび", meaning: "cổ", x: 181, y: 103, ax: 53, ay: 27 },
+      { term: "背中", reading: "せなか", meaning: "lưng", x: 181, y: 130, ax: 67, ay: 40 },
+      { term: "胸", reading: "むね", meaning: "ngực", x: 181, y: 157, ax: 58, ay: 45 },
+      { term: "お腹", reading: "おなか", meaning: "bụng", x: 181, y: 184, ax: 53, ay: 73 },
+      { term: "腰", reading: "こし", meaning: "hông, thắt lưng", x: 181, y: 211, ax: 53, ay: 85 },
+      { term: "膝", reading: "ひざ", meaning: "đầu gối", x: 181, y: 238, ax: 66, ay: 132 },
     ],
   },
   {
@@ -105,20 +128,24 @@ export const SCENES: Scene[] = [
     note: "Nội tạng và các bộ phận bên trong — vốn từ để nói với bác sĩ.",
     art: BODY_ART,
     pins: [
-      { term: "脳", reading: "のう", meaning: "não", x: 19, y: 20, ax: 80, ay: 20 },
-      { term: "舌", reading: "した", meaning: "lưỡi", x: 19, y: 48, ax: 80, ay: 34 },
-      { term: "喉", reading: "のど", meaning: "họng, cổ họng", x: 19, y: 76, ax: 80, ay: 45 },
-      { term: "肺", reading: "はい", meaning: "phổi", x: 19, y: 104, ax: 70, ay: 66 },
-      { term: "筋肉", reading: "きんにく", meaning: "cơ, bắp thịt", x: 19, y: 132, ax: 53, ay: 72 },
-      { term: "肝臓", reading: "かんぞう", meaning: "gan", x: 19, y: 160, ax: 70, ay: 84 },
-      { term: "血", reading: "ち", meaning: "máu", x: 19, y: 188, ax: 48, ay: 108 },
-      { term: "心臓", reading: "しんぞう", meaning: "tim", x: 141, y: 20, ax: 84, ay: 60 },
-      { term: "骨", reading: "ほね", meaning: "xương", x: 141, y: 48, ax: 109, ay: 74 },
-      { term: "胃", reading: "い", meaning: "dạ dày", x: 141, y: 76, ax: 88, ay: 84 },
-      { term: "腎臓", reading: "じんぞう", meaning: "thận", x: 141, y: 104, ax: 92, ay: 95 },
-      { term: "腸", reading: "ちょう", meaning: "ruột", x: 141, y: 132, ax: 82, ay: 111 },
-      { term: "血管", reading: "けっかん", meaning: "mạch máu", x: 141, y: 160, ax: 114, ay: 116 },
-      { term: "神経", reading: "しんけい", meaning: "dây thần kinh", x: 141, y: 188, ax: 88, ay: 158 },
+      { term: "脳", reading: "のう", meaning: "não", x: 19, y: 22, organ: "brain" },
+      { term: "喉", reading: "のど", meaning: "họng, cổ họng", x: 19, y: 49, organ: "throat" },
+      { term: "食道", reading: "しょくどう", meaning: "thực quản", x: 19, y: 76, organ: "esophagus" },
+      { term: "肺", reading: "はい", meaning: "phổi", x: 19, y: 103, organ: "lung" },
+      { term: "横隔膜", reading: "おうかくまく", meaning: "cơ hoành", x: 19, y: 130, organ: "diaphragm" },
+      { term: "腎臓", reading: "じんぞう", meaning: "thận", x: 19, y: 157, organ: "kidney" },
+      { term: "肝臓", reading: "かんぞう", meaning: "gan", x: 19, y: 184, organ: "liver" },
+      { term: "大腸", reading: "だいちょう", meaning: "ruột già", x: 19, y: 211, organ: "colon" },
+      { term: "筋肉", reading: "きんにく", meaning: "cơ, bắp thịt", x: 19, y: 238, organ: "muscle" },
+      { term: "舌", reading: "した", meaning: "lưỡi", x: 181, y: 22, organ: "tongue" },
+      { term: "心臓", reading: "しんぞう", meaning: "tim", x: 181, y: 49, organ: "heart" },
+      { term: "血管", reading: "けっかん", meaning: "mạch máu (động mạch chủ)", x: 181, y: 76, organ: "aorta" },
+      { term: "脾臓", reading: "ひぞう", meaning: "lá lách", x: 181, y: 103, organ: "spleen" },
+      { term: "胃", reading: "い", meaning: "dạ dày", x: 181, y: 130, organ: "stomach" },
+      { term: "膵臓", reading: "すいぞう", meaning: "tuyến tụy", x: 181, y: 157, organ: "pancreas" },
+      { term: "小腸", reading: "しょうちょう", meaning: "ruột non", x: 181, y: 184, organ: "smallIntestine" },
+      { term: "膀胱", reading: "ぼうこう", meaning: "bàng quang", x: 181, y: 211, organ: "bladder" },
+      { term: "骨", reading: "ほね", meaning: "xương", x: 181, y: 238, organ: "bone" },
     ],
   },
   {
@@ -203,18 +230,40 @@ export function sceneById(id: string): Scene {
   return SCENES.find((s) => s.id === id) ?? SCENES[0];
 }
 
-/** Ghim có neo thì hiện thành ô chú giải ở lề; không neo thì chỉ là chấm số. */
+/** Ghim có bộ phận thì hiện thành ô chú giải ở lề; không thì chỉ là chấm số. */
 export function hasCallout(pin: ScenePin): boolean {
-  return pin.ax != null && pin.ay != null;
+  return pin.organ != null;
 }
 
 /**
- * Chỗ đường dẫn rời ô chú giải: mép trong của ô (phía quay về thân), chứ không
- * phải tâm ô — kẻo nét chui qua chính hình nhỏ vừa vẽ.
+ * Điểm mà đường dẫn trỏ tới, theo toạ độ khung cảnh. Ghim gắn bộ phận thì lấy
+ * tâm hộp bao của chính bộ phận đó — hình đổi thì neo đổi theo, không lệch.
+ */
+export function pinAnchor(pin: ScenePin): { x: number; y: number } | null {
+  if (pin.ax != null && pin.ay != null) return figurePoint(pin.ax, pin.ay);
+  if (!pin.organ) return null;
+  const [x, y, w, h] = ORGANS[pin.organ].box;
+  return figurePoint(x + w / 2, y + h / 2);
+}
+
+/**
+ * Chỗ đường dẫn rời ô chú giải: mép trong của ô (phía quay về hình), chứ không
+ * phải tâm ô — kẻo nét chui qua chính hình nhỏ trong ô.
  */
 export function calloutEdge(scene: Scene, pin: ScenePin): { x: number; y: number } {
   const half = CALLOUT_W / 2;
   return { x: pin.x < scene.art.w / 2 ? pin.x + half : pin.x - half, y: pin.y };
+}
+
+/**
+ * Phép biến hình đưa một bộ phận vào giữa ô chú giải của nó: co cho vừa ô
+ * (chừa lề `pad`) rồi dời tâm hộp bao về tâm ô.
+ */
+export function calloutFit(pin: ScenePin, pad = 3): { x: number; y: number; scale: number } | null {
+  if (!pin.organ) return null;
+  const [x, y, w, h] = ORGANS[pin.organ].box;
+  const scale = Math.min((CALLOUT_W - pad * 2) / w, (CALLOUT_H - pad * 2) / h);
+  return { x: pin.x - (x + w / 2) * scale, y: pin.y - (y + h / 2) * scale, scale };
 }
 
 /**
