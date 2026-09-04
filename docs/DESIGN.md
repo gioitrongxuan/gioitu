@@ -89,6 +89,13 @@ Color-picker tự do → mục "Nâng cao" thu gọn.
    focus, `aria-modal`); list/dropdown điều hướng được bằng mũi tên.
 4. **Contrast ≥ 4.5:1** cho chữ thường (WCAG AA). Màu ngữ nghĩa không hardcode
    hex rời — chip nhạt: nền `color-mix(... 12-14%, var(--surface))` + chữ đậm.
+   *Ngoại lệ duy nhất*: **màu của tranh minh hoạ** (bảng `--art-*` ở đầu
+   `scenes/ui/scenes.css`). Tủ lạnh phải trắng thép, chiếu tatami phải xanh cỏ —
+   thứ đó là nội dung, không phải màu giao diện, nên không nhét vừa 7 token ở §1.
+   Luật cho nó: khai thành token đặt tên theo **chất liệu** (không rải hex tại
+   chỗ dùng), mỗi token pha với `var(--surface)` để tự ăn theo theme đang chạy
+   (mảng nền lớn pha nhạt ~35%, đồ vật pha đậm ~80% — nền mà đậm thì theme tối
+   thành tấm bảng chói), sống trong khung tranh và KHÔNG đụng 9 biến theme.
 5. **Icon = SVG inline** `stroke: currentColor`, cỡ 16/20px. **Không emoji
    trong UI** — không làm icon chức năng, cũng không làm trang trí trong câu
    chữ (🎉 chúc mừng, ✨ AI, 📖, ➕, 👍…): chữ tiếng Việt tự nói đủ, emoji rải

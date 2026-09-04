@@ -1187,9 +1187,24 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
 (`scenes/domain/scenes.ts`, `scenes/ui/SceneArt.tsx`, `ui/Scenes.tsx`).
 
 - **Phòng ốc: tranh nét vẽ bằng SVG ngay trong code** (`SceneArt.tsx`), không
-  tải ảnh: chạy offline, đổi theme là đổi màu theo token (nét `currentColor`,
-  khối tô bằng `color-mix` từ `--accent`/`--seal`), phóng to bao nhiêu cũng
-  nét. Khung `ROOM_ART` (160×120) nằm ngang, ghim đặt thẳng lên vật.
+  tải ảnh: chạy offline, phóng to bao nhiêu cũng nét. Khung `ROOM_ART` (160×120)
+  nằm ngang, ghim đặt thẳng lên vật.
+- **Tranh có màu, tô phẳng kiểu cel** (bảng `--art-*` đầu `scenes.css`, xem
+  DESIGN §3.4): mỗi cảnh có nền riêng (trời + sân, tường + sàn gỗ, tường + thảm,
+  mảng bảng giải phẫu) và mỗi vật mang class **chất liệu** — `art-wood`,
+  `art-metal`, `art-porcelain`, `art-tatami`, `art-water`, `art-fire`,
+  `art-leaf`, `art-skin`, `art-vermilion`… Class chỉ đặt `--c`, còn `.art` lo
+  tô phẳng + viền (= chính màu đó kéo về `--fg`, lối viền của tranh cel). Nội
+  tạng lấy **màu tiêu bản** (gan nâu đỏ, phổi hồng, xương ngà) qua class
+  `organ-<key>`; cơ quan đang chọn **dày viền** chứ không đổi màu, kẻo mất đúng
+  tín hiệu màu vừa dựng. Nền pha nhạt (~35% + `--surface`) còn đồ vật pha đậm
+  (~80%) nên theme tối ra cảnh đêm chứ không phải tấm bảng chói.
+- **Hình người tô da**: `BODY_OUTLINE` của anatomogram là *dải viền rỗng ruột*
+  (viền trong + viền ngoài trong cùng một path), tô vào chỉ ăn đúng dải viền —
+  thân người vẫn trắng. `BODY_FILL` (SceneArt.tsx, phần sửa đổi của ta như
+  `HAIR_MASS`) lấp phần ruột bằng vài khối vẽ theo trục chi, số đo lấy từ chính
+  hình gốc và thụt vào ~0.7 đơn vị để dải viền phủ lên mép. Cảnh "bên trong"
+  hạ khối da xuống 30% (`see-through`) để còn nhìn thấy nội tạng.
 - **Hai cảnh cơ thể: hình giải phẫu thật**, không phải hình vẽ tay — đường viền
   cơ thể và 18 nội tạng trích từ bộ *anatomogram* của EBI Expression Atlas
   (Apache-2.0) thành `domain/anatomy.ts` bằng `scripts/gen-anatomy.mjs`

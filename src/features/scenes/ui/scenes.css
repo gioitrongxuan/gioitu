@@ -1,6 +1,80 @@
-/* Quanh ta — từ vựng theo khung cảnh (#294). Chỉ dùng token của DESIGN §2. */
+/* Quanh ta — từ vựng theo khung cảnh (#294). Chỉ dùng token của DESIGN §2, trừ
+   bảng màu minh hoạ khai ngay dưới đây. */
 
-.scenes { display: flex; flex-direction: column; gap: var(--space-4); }
+/* ── Bảng màu minh hoạ ────────────────────────────────────────────────────────
+   Tranh vẽ trước đây chỉ có mực + một sắc chàm `--accent`: đúng tinh thần
+   washi/sumi nhưng cả năm cảnh ra cùng một màu xanh, nhìn như hình minh hoạ
+   sách giáo khoa. Học tên đồ vật mà đồ vật nào cũng cùng màu thì màu chẳng giúp
+   nhớ được gì — quả táo phải đỏ, tủ lạnh phải trắng thép, chiếu tatami phải
+   xanh cỏ.
+   Nên tranh có bảng màu riêng, tô phẳng kiểu cel của tranh anime: mỗi chất liệu
+   một token, viền là chính màu đó kéo về phía màu chữ. Đây KHÔNG phải màu giao
+   diện: nó chỉ sống trong khung tranh, không đụng vào 9 biến theme (VAR_MAP)
+   nên preset/skin và bộ chọn màu vẫn nguyên. Từng token pha với `--surface`
+   theo lối `--hanviet-fg` sẵn có, nhờ vậy sáng/tối tự ăn theo theme đang chạy —
+   kể cả khi người dùng tự chọn tối trong khi máy đang sáng (theme ghi đè bằng
+   inline style, `@media (prefers-color-scheme)` không bắt được). */
+.scenes {
+  /* Nền và vỏ nhà. Mảng nền pha NHẠT hẳn so với đồ vật (35-45% thay vì 80%):
+     tỉ lệ càng thấp thì `--surface` càng lấn, nên cùng một dòng khai báo mà nền
+     ra be nhạt trên theme sáng và ra xám ấm trên theme tối — mảng lớn không
+     biến thành tấm bảng chói giữa giao diện tối. Đồ vật thì nhỏ, cứ để rực. */
+  --art-sky: color-mix(in oklab, #6fbfe0 38%, var(--surface));
+  --art-wall: color-mix(in oklab, #e0cba6 32%, var(--surface));
+  --art-wall-2: color-mix(in oklab, #c8ab7c 38%, var(--surface));
+  --art-roof: color-mix(in oklab, #4a6d85 52%, var(--surface));
+  --art-ground: color-mix(in oklab, #8fbd63 40%, var(--surface));
+  --art-floor: color-mix(in oklab, #a9743c 42%, var(--surface));
+  --art-tile: color-mix(in oklab, #cfe0e6 36%, var(--surface));
+  /* Nền của hai cảnh cơ thể — lối bảng giải phẫu treo tường: hình đứng trên một
+     mảng phẳng, ô chú giải nền trắng nổi lên trên. */
+  --art-poster: color-mix(in oklab, #bcd6e4 26%, var(--surface));
+  /* Chất liệu trong nhà */
+  --art-wood: color-mix(in oklab, #c48a4c 80%, var(--surface));
+  --art-wood-2: color-mix(in oklab, #96633a 80%, var(--surface));
+  --art-tatami: color-mix(in oklab, #c3c67a 80%, var(--surface));
+  --art-metal: color-mix(in oklab, #c2cdd6 80%, var(--surface));
+  --art-porcelain: color-mix(in oklab, #eef2f5 80%, var(--surface));
+  --art-glass: color-mix(in oklab, #bfe0ea 68%, var(--surface));
+  --art-water: color-mix(in oklab, #7cc3e3 80%, var(--surface));
+  --art-fire: color-mix(in oklab, #e8863a 80%, var(--surface));
+  --art-paper: color-mix(in oklab, #faf4e6 80%, var(--surface));
+  /* Vải vóc & cây cỏ — hai sắc để hai vật cạnh nhau không dính vào nhau */
+  --art-fabric: color-mix(in oklab, #7b98da 80%, var(--surface));
+  --art-fabric-2: color-mix(in oklab, #dd8467 80%, var(--surface));
+  --art-leaf: color-mix(in oklab, #5fa768 80%, var(--surface));
+  /* Người */
+  --art-skin: color-mix(in oklab, #f0c7a4 80%, var(--surface));
+  --art-hair: color-mix(in oklab, #4a352c 80%, var(--surface));
+  --art-shirt: color-mix(in oklab, #5f7fae 80%, var(--surface));
+  /* Son hanko — con dấu Nhật mực đỏ. Tách khỏi `--seal` vì DESIGN §1 giữ
+     `--seal` riêng cho thành tựu, không tiêu vào việc khác. */
+  --art-vermilion: color-mix(in oklab, #cf4635 80%, var(--surface));
+
+  /* Nội tạng: lấy màu tiêu bản giải phẫu chứ không bịa — gan nâu đỏ, phổi hồng,
+     xương ngà, mật/bàng quang ngả vàng. Đây là chỗ "giống thật" đáng tiền nhất:
+     nhìn màu là đoán được cơ quan trước cả khi đọc chữ. */
+  --art-brain: color-mix(in oklab, #e3aeb2 80%, var(--surface));
+  --art-throat: color-mix(in oklab, #dd8878 80%, var(--surface));
+  --art-esophagus: color-mix(in oklab, #d79b91 80%, var(--surface));
+  --art-lung: color-mix(in oklab, #ee9aa4 80%, var(--surface));
+  --art-diaphragm: color-mix(in oklab, #d4826f 80%, var(--surface));
+  --art-kidney: color-mix(in oklab, #a5563f 80%, var(--surface));
+  --art-liver: color-mix(in oklab, #944436 80%, var(--surface));
+  --art-colon: color-mix(in oklab, #dda271 80%, var(--surface));
+  --art-small-intestine: color-mix(in oklab, #e6ab82 80%, var(--surface));
+  --art-muscle: color-mix(in oklab, #bd4139 80%, var(--surface));
+  --art-tongue: color-mix(in oklab, #e5848c 80%, var(--surface));
+  --art-heart: color-mix(in oklab, #c22f2f 80%, var(--surface));
+  --art-aorta: color-mix(in oklab, #b03a3a 80%, var(--surface));
+  --art-spleen: color-mix(in oklab, #7c4053 80%, var(--surface));
+  --art-stomach: color-mix(in oklab, #dd9c55 80%, var(--surface));
+  --art-pancreas: color-mix(in oklab, #d6ac67 80%, var(--surface));
+  --art-bladder: color-mix(in oklab, #e2c163 80%, var(--surface));
+  --art-bone: color-mix(in oklab, #e9e0c9 80%, var(--surface));
+
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
 
 /* ---- Chọn cảnh: thẻ có tranh, không phải chip chữ ---- */
 /* Năm cái nhãn chữ xếp cạnh nhau trông như nhau hết; thẻ mang chính bức tranh
@@ -31,35 +105,20 @@
   display: grid; place-items: center; aspect-ratio: 5 / 3;
   border-radius: var(--radius-md); overflow: hidden;
   background: color-mix(in oklab, var(--fg) 4%, var(--surface));
-  color: var(--muted);
 }
-/* `.scene-art` tự đặt màu nét; trong thẻ thì nét phải theo màu của ô tranh. */
-.scene-pick .scene-thumb {
-  color: inherit; padding: var(--space-1);
-  transition: transform var(--dur-base) var(--ease-out);
-}
+.scene-pick .scene-thumb { transition: transform var(--dur-base) var(--ease-out); }
 .scene-pick:hover .scene-thumb { transform: scale(1.06); }
-.scene-pick.active .scene-pick-art {
-  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
-  color: var(--accent);
-}
 .scene-pick.active .scene-thumb { transform: scale(1.04); }
 
-/* Thu nhỏ mười lần thì mọi sắc độ của tranh lớn tan hết: nét mảnh biến mất,
-   khối tô 4% thành nền trơn. Bản thu nhỏ phải đậm hơn hẳn mới còn đọc ra hình —
-   `non-scaling-stroke` giữ nét đúng một pixel dù hình co bao nhiêu. */
+/* Thu nhỏ mười lần thì nét mảnh của tranh lớn biến mất — `non-scaling-stroke`
+   giữ nét đúng một pixel dù hình co bao nhiêu. Màu thì giữ nguyên bảng của
+   tranh lớn: cái đọc ra ở cỡ này chính là màu (bếp ra bếp, người ra người). */
 .scene-art.scene-thumb path,
 .scene-art.scene-thumb circle,
-.scene-art.scene-thumb ellipse { vector-effect: non-scaling-stroke; stroke-width: 1; }
+.scene-art.scene-thumb ellipse,
+.scene-art.scene-thumb rect { vector-effect: non-scaling-stroke; stroke-width: 1; }
 .scene-art.scene-thumb .art-hair-strand path { stroke-width: 0.5; }
-.scene-art.scene-thumb .art-body {
-  fill: color-mix(in oklab, currentColor 12%, transparent); stroke: currentColor;
-}
-.scene-art.scene-thumb .art-hair { fill: color-mix(in oklab, currentColor 22%, transparent); stroke: currentColor; }
-.scene-art.scene-thumb .art-organ path {
-  fill: color-mix(in oklab, var(--accent) 32%, var(--surface));
-  stroke: color-mix(in oklab, var(--accent) 65%, var(--fg));
-}
+.scene-art.scene-thumb .art-bg { stroke-width: 0; }
 
 .scene-pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .scene-pick-label { font-size: var(--text-sm); line-height: var(--leading-heading); }
@@ -94,34 +153,83 @@
 @keyframes scene-frame-in { from { opacity: 0; transform: scale(0.985); } }
 /* Nét mực lấy màu chữ; các khối tô đi qua color-mix nên tự đổi theo theme. */
 .scene-art { display: block; width: 100%; height: 100%; color: var(--fg); }
-.scene-art .art-fill-soft { fill: color-mix(in oklab, var(--fg) 5%, var(--surface)); }
-.scene-art .art-fill-accent { fill: color-mix(in oklab, var(--accent) 13%, var(--surface)); }
-.scene-art .art-fill-seal { fill: color-mix(in oklab, var(--seal) 16%, var(--surface)); }
-.scene-art .art-fill-ink { fill: color-mix(in oklab, var(--fg) 16%, var(--surface)); }
-.scene-art .art-faint { opacity: 0.4; }
+
+/* Một lối tô duy nhất cho mọi khối: class chất liệu chỉ đặt `--c`, rule này lo
+   phần còn lại. Viền = chính màu đó kéo về phía `--fg` (lối vẽ cel: nét viền là
+   bản đậm của màu khối, không phải một màu đen chung) nên nét luôn ăn với nền
+   dù theme sáng hay tối. */
+.scene-art .art { fill: var(--c); stroke: color-mix(in oklab, var(--c) 50%, var(--fg)); }
+/* Vật chỉ có nét, không có ruột (đũa, vòi nước, tay nắm): vẫn ăn màu chất liệu
+   qua chính công thức viền ở trên. */
+.scene-art .art-s { fill: none; stroke: color-mix(in oklab, var(--c) 50%, var(--fg)); }
+/* Nền phòng không có viền — nó là không khí, không phải một vật. */
+.scene-art .art-bg { stroke: none; }
+
+.scene-art .art-sky { --c: var(--art-sky); }
+.scene-art .art-wall { --c: var(--art-wall); }
+.scene-art .art-wall-2 { --c: var(--art-wall-2); }
+.scene-art .art-roof { --c: var(--art-roof); }
+.scene-art .art-ground { --c: var(--art-ground); }
+.scene-art .art-floor { --c: var(--art-floor); }
+.scene-art .art-tile { --c: var(--art-tile); }
+.scene-art .art-poster { --c: var(--art-poster); }
+.scene-art .art-wood { --c: var(--art-wood); }
+.scene-art .art-wood-2 { --c: var(--art-wood-2); }
+.scene-art .art-tatami { --c: var(--art-tatami); }
+.scene-art .art-metal { --c: var(--art-metal); }
+.scene-art .art-porcelain { --c: var(--art-porcelain); }
+.scene-art .art-glass { --c: var(--art-glass); }
+.scene-art .art-water { --c: var(--art-water); }
+.scene-art .art-fire { --c: var(--art-fire); }
+.scene-art .art-paper { --c: var(--art-paper); }
+.scene-art .art-fabric { --c: var(--art-fabric); }
+.scene-art .art-fabric-2 { --c: var(--art-fabric-2); }
+.scene-art .art-leaf { --c: var(--art-leaf); }
+.scene-art .art-skin { --c: var(--art-skin); }
+.scene-art .art-shirt { --c: var(--art-shirt); }
+.scene-art .art-vermilion { --c: var(--art-vermilion); }
 
 /* ---- Hình giải phẫu (hai cảnh cơ thể) ---- */
-/* Đường viền cơ thể lùi về sau: đây là khung cho nội tạng, không phải nhân vật
-   chính. Nội tạng tô nhạt bằng --accent, cái đang chọn mới lên màu đậm. */
-.scene-art .art-body {
-  fill: color-mix(in oklab, var(--fg) 6%, var(--surface));
-  stroke: color-mix(in oklab, var(--fg) 70%, var(--surface));
+/* Cảnh "bên ngoài" hình người là nhân vật chính nên tô da thật; cảnh "bên
+   trong" cùng hình đó lùi xuống làm khung kính cho nội tạng (`see-through`),
+   kẻo da che mất thứ đang muốn xem. */
+.scene-art .art-body,
+.scene-art .art-body-fill { --c: var(--art-skin); }
+.scene-art .art-body-fill path { fill: var(--c); }
+.scene-art .art-body.see-through,
+.scene-art .art-body-fill.see-through path {
+  fill: color-mix(in oklab, var(--art-skin) 30%, var(--surface));
 }
-/* Tóc vẽ thêm (hình gốc trọc đầu). Khối chỉ tô nhạt lấy chỗ đứng; cái đọc ra
-   là tóc nằm ở chùm sợi vẽ đè lên. */
-.scene-art .art-hair {
-  fill: color-mix(in oklab, var(--fg) 14%, var(--surface));
-  stroke: color-mix(in oklab, var(--fg) 55%, var(--surface));
-}
-.scene-art .art-hair-strand path { stroke: color-mix(in oklab, var(--fg) 72%, var(--surface)); }
-.scene-art .art-organ path {
-  fill: color-mix(in oklab, var(--accent) 12%, var(--surface));
-  stroke: color-mix(in oklab, var(--accent) 40%, var(--surface));
-}
+/* Tóc vẽ thêm (hình gốc trọc đầu). Khối tô màu tóc; cái đọc ra là tóc nằm ở
+   chùm sợi vẽ đè lên, đậm hơn một bậc. */
+.scene-art .art-hair { --c: var(--art-hair); }
+.scene-art .art-hair-strand path { stroke: color-mix(in oklab, var(--art-hair) 72%, var(--fg)); }
+
+/* Nội tạng: mỗi cơ quan một màu tiêu bản, đủ đậm để đọc ngay chứ không đợi bấm;
+   cái đang chọn dày viền lên (`active`) chứ không phải đổi màu — đổi màu là mất
+   đúng cái tín hiệu vừa dựng lên. */
+.scene-art .art-organ path { fill: var(--c); stroke: color-mix(in oklab, var(--c) 45%, var(--fg)); }
 .scene-art .art-organ.active path {
-  fill: color-mix(in oklab, var(--accent) 52%, var(--surface));
-  stroke: var(--accent);
+  stroke: var(--fg); stroke-width: 0.9; paint-order: stroke fill;
 }
+.scene-art .organ-brain { --c: var(--art-brain); }
+.scene-art .organ-throat { --c: var(--art-throat); }
+.scene-art .organ-esophagus { --c: var(--art-esophagus); }
+.scene-art .organ-lung { --c: var(--art-lung); }
+.scene-art .organ-diaphragm { --c: var(--art-diaphragm); }
+.scene-art .organ-kidney { --c: var(--art-kidney); }
+.scene-art .organ-liver { --c: var(--art-liver); }
+.scene-art .organ-colon { --c: var(--art-colon); }
+.scene-art .organ-smallIntestine { --c: var(--art-small-intestine); }
+.scene-art .organ-muscle { --c: var(--art-muscle); }
+.scene-art .organ-tongue { --c: var(--art-tongue); }
+.scene-art .organ-heart { --c: var(--art-heart); }
+.scene-art .organ-aorta { --c: var(--art-aorta); }
+.scene-art .organ-spleen { --c: var(--art-spleen); }
+.scene-art .organ-stomach { --c: var(--art-stomach); }
+.scene-art .organ-pancreas { --c: var(--art-pancreas); }
+.scene-art .organ-bladder { --c: var(--art-bladder); }
+.scene-art .organ-bone { --c: var(--art-bone); }
 
 /* ---- Ô chú giải ở lề (lối hình giải phẫu) ---- */
 /* Hairline không dày lên theo tỉ lệ khung (vector-effect) — nét chú giải phải
@@ -130,8 +238,10 @@
   stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.6;
 }
 .scene-art .callout-target { fill: var(--muted); stroke: none; opacity: 0.6; }
+/* Ô tô đặc màu nền (không phải nền mờ): hình trong ô giờ có màu riêng, ô mà
+   trong suốt thì màu ô trộn với màu cơ quan, đọc sai cả hai. */
 .scene-art .callout-box {
-  fill: color-mix(in oklab, var(--fg) 3%, var(--surface));
+  fill: var(--surface);
   stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke;
 }
 .scene-art .callout.active .callout-lead { stroke: var(--accent); opacity: 1; }
@@ -139,13 +249,10 @@
 .scene-art .callout.active .callout-box {
   fill: color-mix(in oklab, var(--accent) 9%, var(--surface)); stroke: var(--accent);
 }
-/* Hình trong ô luôn tô đậm — ô nào cũng phải đọc được ngay, không đợi bấm. */
+/* Hình trong ô mang đúng màu cơ quan như trên hình người: ô chú giải là để nhận
+   ra cơ quan, mà màu chính là dấu hiệu nhận ra nhanh nhất. */
 .scene-art .callout-shape path {
-  fill: color-mix(in oklab, var(--accent) 34%, var(--surface));
-  stroke: color-mix(in oklab, var(--accent) 70%, var(--fg));
-}
-.scene-art .callout.active .callout-shape path {
-  fill: color-mix(in oklab, var(--accent) 60%, var(--surface)); stroke: var(--accent);
+  fill: var(--c); stroke: color-mix(in oklab, var(--c) 45%, var(--fg));
 }
 
 .scene-pins { position: absolute; inset: 0; }
@@ -173,10 +280,12 @@
   position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%);
 }
 .scene-pin.boxed:hover { background: color-mix(in oklab, var(--accent) 7%, transparent); }
+/* Nền đặc, không phải nền pha: chấm số giờ nằm trên tranh có màu — nền mờ là
+   chỗ nào cũng đọc ra một màu khác, có chỗ mất hẳn số. */
 .scene-pin-dot {
   position: relative;
   display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-full);
-  background: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  background: var(--surface);
   border: 1px solid var(--accent); color: var(--accent);
   font-size: var(--text-xs); font-variant-numeric: tabular-nums; line-height: 1;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
