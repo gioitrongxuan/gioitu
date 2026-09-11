@@ -1258,6 +1258,43 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
   cảnh cơ thể thì thêm bộ phận vào `WANTED` của `scripts/gen-anatomy.mjs` rồi
   sinh lại. Không phải sửa gì ở `App.tsx`.
 
+### 9.24 Chiết tự chữ Hán khi lướt web (extension riêng)
+
+Bôi đen chữ Hán ở trang bất kỳ → thẻ nhỏ nói chữ ấy được **dựng nên thế nào**:
+lục thư (**tượng hình 象形** · **chỉ sự 指事** · **hội ý 会意** · **hình thanh
+形声** · quốc tự · tân tự thể · chuyển chú · giả tá), kèm Hán-Việt, nghĩa, âm
+On/Kun, số nét và các bộ phận cấu thành. Chữ hình thanh tách riêng **phần nghĩa**
+và **phần âm** — thứ giúp đoán cách đọc của cả họ chữ.
+
+Extension **riêng**, cài riêng với extension "Thêm nhanh từ" (§9.14):
+`extension-chiettu/` — chuột phải / `Ctrl/⌘+Shift+K` / nút toolbar. Nó không ghi
+gì vào dữ liệu học (không đếm lượt tra, không tạo thẻ SRS).
+
+**App tra hộ** (`?kanji=<phần bôi đen>`): cùng lý do và cùng khuôn với `?lookup=`
+— extension ở origin khác nên không gọi được `/api/kanji`. Cửa sổ tí hon
+`?kanji=…&kanji_pair=<cặp>&kanji_origin=<origin trang>` chỉ vẽ một dòng trạng
+thái (`.qa-proxy`), hỏi server rồi
+`postMessage({kind:"gioitu-kanji", text, chars, kanji, error?})` về
+`window.opener` đúng `kanji_origin` và tự đóng. Logic thuần ở
+`domain/kanjiProxy.ts` (rút chữ Hán, diễn giải lục thư sang tiếng Việt, dựng
+payload), phần gọi mạng ở `data/kanjiProxy.ts`.
+
+- **Một nguồn duy nhất**: bảng `kanji` trên server. Khác luồng tra nghĩa, dữ liệu
+  cấu tạo chữ chưa từng nằm trong từ điển tải về IndexedDB nên không có nhánh
+  "trên máy trước" — chiết tự cần mạng, và cần server đã nhập KANJIDIC.
+- Tối đa **8 chữ** mỗi lượt (`MAX_PROXY_KANJI`), bỏ chữ lặp, thẻ sắp theo thứ tự
+  chữ trong phần bôi đen chứ không theo thứ tự hàng trả về.
+- Ba trạng thái nói khác nhau: có thẻ (kèm danh sách chữ server chưa có dữ liệu),
+  "phần bôi đen không có chữ Hán", và "không chiết tự được" (cờ `error` —
+  `fetchKanjiBreakdownResult` giữ lại lỗi mạng thay vì nuốt thành mảng rỗng, đúng
+  tinh thần `lookupError.ts`). "Chưa có dữ liệu lối cấu tạo" (thiếu
+  `structuralCategory`) cũng khác "chưa rõ lối cấu tạo" (nguồn xếp `unknown`).
+- **Vì sao phải bấm nút "Chiết tự"** thay vì tự chạy khi thẻ hiện ra: y hệt §9.14
+  — overlay chèn theo cử chỉ ở UI trình duyệt, lúc ấy trang không có user
+  activation nên `window.open` bị popup blocker chặn.
+- Mở thẳng URL này bằng tay (không có `window.opener`) thì app bỏ chế độ proxy và
+  mở bình thường. Trang cấm chèn script → rơi về mở `/word/ja-vi/<từ>` trong app.
+
 ## 10. Bản đồ chức năng → tài liệu
 
 | Nhóm chức năng | Quy tắc nghiệp vụ | Lưu trữ |

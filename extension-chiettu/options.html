@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gioitu — Chiết tự chữ Hán · Tuỳ chọn</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        /* Không mở đầu bằng `system-ui`: trên máy locale tiếng Nhật nó là Yu
+           Gothic UI / Hiragino, các font thiếu glyph tiếng Việt dựng sẵn nên dấu
+           bị văng ra khỏi chữ (#267). Cùng thứ tự với --font-ui của webapp. */
+        font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+        max-width: 34rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.6;
+      }
+      h1 { font-size: 1.25rem; }
+      h2 { font-size: 1.05rem; margin-top: 2rem; }
+      label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+      input[type="url"] {
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        font-size: 1rem;
+        border: 1px solid #8888;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+      .hint { color: #8a8a8a; font-size: 0.9rem; }
+      .row { display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
+      button {
+        padding: 0.5rem 0.9rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #8888;
+        background: #2b4c7e;
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary { background: transparent; color: inherit; }
+      #status { color: #2e7d32; min-height: 1.25rem; }
+      dl { margin: 0.5rem 0 0; }
+      dt { font-weight: 600; }
+      dd { margin: 0 0 0.5rem; color: #8a8a8a; }
+    </style>
+  </head>
+  <body>
+    <h1>Gioitu — Chiết tự chữ Hán</h1>
+
+    <p>
+      Địa chỉ web Gioitu của bạn — extension nhờ chính app tra hộ qua
+      <code>&lt;địa chỉ&gt;/?kanji=&lt;phần bôi đen&gt;</code>, nên phải trỏ đúng
+      chỗ app đang chạy.
+    </p>
+
+    <label for="baseUrl">Địa chỉ Gioitu</label>
+    <input id="baseUrl" type="url" placeholder="https://tudien-cua-ban.example" inputmode="url" />
+    <p class="hint">Ví dụ: <code>http://localhost:5173</code> (khi chạy dev) hoặc domain đã deploy.</p>
+
+    <div class="row">
+      <button id="save">Lưu</button>
+      <button id="shortcuts" class="secondary">Đổi phím tắt…</button>
+      <span id="status"></span>
+    </div>
+
+    <p class="hint">
+      Cách dùng: bôi đen chữ Hán ở trang bất kỳ → chuột phải chọn <b>“Chiết tự …”</b>,
+      hoặc bấm phím tắt (mặc định <b>Ctrl/⌘ + Shift + K</b>), hoặc bấm biểu tượng extension.
+      Thẻ hiện ra có nút <b>Chiết tự</b> — phải bấm thì trình duyệt mới cho mở cửa sổ hỏi app.
+    </p>
+
+    <h2>Thẻ chiết tự nói gì</h2>
+
+    <dl>
+      <dt>Tượng hình (象形)</dt>
+      <dd>Vẽ lại hình dáng vật thật.</dd>
+      <dt>Chỉ sự (指事)</dt>
+      <dd>Dấu hiệu quy ước chỉ vào một ý trừu tượng.</dd>
+      <dt>Hội ý (会意)</dt>
+      <dd>Ghép nghĩa các phần thành nghĩa mới.</dd>
+      <dt>Hình thanh (形声)</dt>
+      <dd>Một phần chỉ nghĩa, một phần chỉ âm — thẻ tô riêng hai phần đó.</dd>
+    </dl>
+
+    <p class="hint">
+      Dữ liệu cấu tạo chữ nằm ở máy chủ Gioitu (bảng kanji), không có bản sao trong
+      extension — nên chiết tự cần mạng, và cần máy chủ đã nhập dữ liệu kanji.
+    </p>
+
+    <script src="options.js"></script>
+  </body>
+</html>

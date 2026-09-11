@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Gioitu — Chiết tự chữ Hán",
+  "version": "1.0.0",
+  "description": "Bôi đen chữ Hán ở bất kỳ trang nào để xem chữ ấy được dựng nên thế nào: tượng hình, hội ý, hay hình thanh (phần nghĩa + phần âm).",
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
+  "background": { "service_worker": "background.js" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": {
+    "default_title": "Chiết tự chữ Hán đang bôi đen",
+    "default_icon": { "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "commands": {
+    "chiet-tu": {
+      "suggested_key": { "default": "Ctrl+Shift+K", "mac": "Command+Shift+K" },
+      "description": "Chiết tự chữ Hán đang bôi đen"
+    }
+  }
+}
