@@ -8,6 +8,10 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
+    // Test của extension (extension-chiettu/*.js) là JS thuần — extension không
+    // có bước build nên không viết bằng TS được, nhưng logic dựng thẻ vẫn phải
+    // có test. checkJs vẫn tắt: chỉ cho phép import, không typecheck file JS.
+    "allowJs": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",

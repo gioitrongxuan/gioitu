@@ -45,12 +45,6 @@ import {
   parseLookupParams,
 } from "@/features/dictionary/domain/lookupProxy";
 import { runProxyLookup } from "@/features/dictionary/data/lookupProxy";
-import {
-  failedKanjiReply,
-  KANJI_PARAM_KEYS,
-  parseKanjiParams,
-} from "@/features/dictionary/domain/kanjiProxy";
-import { runProxyKanji } from "@/features/dictionary/data/kanjiProxy";
 import { isDraftFilled } from "@/features/dictionary/domain/customEntry";
 import { saveQuickAdd } from "@/features/dictionary/data/inbox";
 import { aiFillDraft } from "@/features/dictionary/data/aiGenerate";
@@ -440,8 +434,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
   const [aiProxy, setAiProxy] = useState(false);
   // Cửa sổ proxy tra cứu (?lookup=…) — mặt chữ đang tra hộ, null = không phải proxy.
   const [lookupProxy, setLookupProxy] = useState<string | null>(null);
-  // Cửa sổ proxy chiết tự (?kanji=…) — phần bôi đen đang chiết hộ, null = không phải proxy.
-  const [kanjiProxy, setKanjiProxy] = useState<string | null>(null);
   const { view, onResult, lookup, lookupKanji, onSaveCustom, onSelectTag, openWord, addResult, closeView, lookupDetails } = useLookup(store, pair, dictSource, userId);
   // Chuỗi ngày + dải hoạt động màn Hôm nay (#150). Buộc identity vào "đang ôn
   // hay không" để TodayScreen (vẫn mount sau lớp phủ phiên ôn) đọc lại nhật ký
@@ -576,26 +568,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     const targetOrigin = req.openerOrigin ?? "/";
     runProxyLookup(req.term, req.pair)
       .catch(() => failedLookupReply(req.term))
-      .then((reply) => opener.postMessage(reply, targetOrigin))
-      .then(() => window.close());
-  }, []);
-
-  // Extension "Chiết tự chữ Hán" (`?kanji=<phần bôi đen>`): cùng khuôn ?lookup=
-  // ở effect trên, chỉ đổi việc phải làm — app hỏi `/api/kanji` hộ rồi trả về
-  // thẻ chiết tự của từng chữ (lục thư, phần nghĩa/phần âm, bộ phận cấu thành).
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const req = parseKanjiParams(params);
-    if (!req) return;
-    for (const key of KANJI_PARAM_KEYS) params.delete(key);
-    const qs = params.toString();
-    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
-    const opener = window.opener as Window | null;
-    if (!opener) return;
-    setKanjiProxy(req.text);
-    const targetOrigin = req.openerOrigin ?? "/";
-    runProxyKanji(req.text, req.pair)
-      .catch(() => failedKanjiReply(req.text))
       .then((reply) => opener.postMessage(reply, targetOrigin))
       .then(() => window.close());
   }, []);
@@ -756,14 +728,6 @@ function MainApp({ userId, email, isAdmin, isPremium, onPremiumActivated, onLogo
     return (
       <div className="qa-proxy" aria-busy="true">
         Đang tra “{lookupProxy}”…
-      </div>
-    );
-  }
-
-  if (kanjiProxy != null) {
-    return (
-      <div className="qa-proxy" aria-busy="true">
-        Đang chiết tự “{kanjiProxy}”…
       </div>
     );
   }
