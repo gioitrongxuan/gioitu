@@ -16,14 +16,12 @@ interface Part {
 interface Structure {
   type: string;
   label: string;
-  hint: string;
   semantic?: Part;
   phonetic?: Part;
 }
 interface Family {
   phonetic: Part;
   label: string;
-  hint: string;
   members: Part[];
 }
 interface Card {
@@ -108,11 +106,9 @@ describe("describeStructure", () => {
     expect(view.semantic).toEqual({ literal: "氵", hanViet: "", meaning: "", onyomi: "" });
   });
 
-  it("các lối còn lại chỉ có nhãn + một câu giải thích", () => {
+  it("các lối còn lại chỉ có nhãn — không kèm câu giảng giải nào", () => {
     const view = describeStructure({ type: "shoukei" })!;
-    expect(view.label).toContain("Tượng hình");
-    expect(view.hint).not.toHaveLength(0);
-    expect(view.semantic).toBeUndefined();
+    expect(view).toEqual({ type: "shoukei", label: "Tượng hình (象形)" });
   });
 
   it("không có dữ liệu cấu tạo → null, KHÁC với 'unknown' (nguồn nói không rõ)", () => {
@@ -123,9 +119,7 @@ describe("describeStructure", () => {
   it.each(["shoukei", "shiji", "kaii", "kokuji", "shinjitai", "derivative", "rebus", "unknown"])(
     "lối %s có nhãn tiếng Việt",
     (type) => {
-      const view = describeStructure({ type })!;
-      expect(view.label).toBeTruthy();
-      expect(view.hint).toBeTruthy();
+      expect(describeStructure({ type })!.label).toBeTruthy();
     },
   );
 });
@@ -214,6 +208,7 @@ describe("thẻ có họ chữ", () => {
       map,
     );
     expect(card.family!.label).toBe("Chữ cùng phần âm 可");
+    expect("hint" in card.family!).toBe(false);
     expect(card.family!.phonetic).toMatchObject({ literal: "可", hanViet: "KHẢ" });
     expect(card.family!.members[0]).toEqual({ literal: "何", hanViet: "HÀ", meaning: "cái gì", onyomi: "カ" });
   });

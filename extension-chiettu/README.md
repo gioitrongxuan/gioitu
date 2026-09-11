@@ -1,9 +1,10 @@
 # Gioitu — extension "Chiết tự chữ Hán" (Chrome / Edge)
 
 **Rê chuột vào một chữ Hán** ở bất kỳ trang web nào (lối Yomitan) là thấy ngay
-chữ ấy được dựng nên thế nào: **tượng hình** (vẽ lại vật), **chỉ sự** (dấu hiệu
-quy ước), **hội ý** (ghép nghĩa), hay **hình thanh** (một phần chỉ nghĩa, một
-phần chỉ âm) — kèm Hán-Việt, nghĩa, âm On/Kun, số nét.
+chữ ấy được dựng nên thế nào — tượng hình · chỉ sự · hội ý · hình thanh… — kèm
+Hán-Việt, nghĩa, âm On/Kun, số nét. Thẻ chỉ nêu **nhãn**, không giảng giải: chữ
+con ngay bên dưới đã nói đủ, và phân loại của nguồn cũng không phải lúc nào cũng
+chắc.
 
 Mỗi **chữ con** (bộ phận, phần nghĩa, phần âm) hiện kèm **Hán-Việt + nghĩa + âm
 On của chính nó** — 河 = 氵 THUỶ·nước + 可 KHẢ·có thể — chứ không bắt bạn đi tra

@@ -158,10 +158,7 @@
       const label = document.createElement("div");
       label.className = "k-label";
       label.textContent = k.structure.label;
-      const hint = document.createElement("div");
-      hint.className = "k-hint";
-      hint.textContent = k.structure.hint;
-      struct.append(label, hint);
+      struct.appendChild(label);
       // Chữ hình thanh: tách hẳn phần nghĩa với phần âm — đây chính là thứ người
       // học muốn thấy (nhìn phần âm là đoán được cách đọc của cả họ chữ).
       if (k.structure.semantic || k.structure.phonetic) {
@@ -188,10 +185,7 @@
       const label = document.createElement("div");
       label.className = "k-label";
       label.textContent = k.family.label;
-      const hint = document.createElement("div");
-      hint.className = "k-hint";
-      hint.textContent = k.family.hint;
-      fam.append(label, hint);
+      fam.appendChild(label);
       const list = document.createElement("div");
       list.className = "parts";
       for (const m of k.family.members) list.appendChild(partRow(m, "pho"));

@@ -33,43 +33,19 @@ export function hanCharsOf(text, limit = MAX_KANJI) {
   return [...seen];
 }
 
+// Chỉ cái nhãn: chữ đứng trước mắt cùng phần nghĩa/phần âm bên dưới đã nói đủ,
+// mà phân loại lục thư của nguồn cũng không phải lúc nào cũng chắc — thêm một
+// câu giảng giải chỉ làm thẻ dài ra và nghe chắc hơn dữ liệu thật.
 const STRUCTURES = {
-  shoukei: {
-    label: "Tượng hình (象形)",
-    hint: "Vẽ lại hình dáng vật thật — nhìn ra vật thì nhớ được chữ.",
-  },
-  shiji: {
-    label: "Chỉ sự (指事)",
-    hint: "Dấu hiệu quy ước chỉ thẳng vào một ý trừu tượng (trên, dưới, một, hai).",
-  },
-  kaii: {
-    label: "Hội ý (会意)",
-    hint: "Ghép nghĩa của các phần thành nghĩa mới; không phần nào chỉ âm.",
-  },
-  keisei: {
-    label: "Hình thanh (形声)",
-    hint: "Một phần chỉ nghĩa, một phần chỉ âm — lối dựng của phần lớn chữ Hán.",
-  },
-  kokuji: {
-    label: "Quốc tự (国字)",
-    hint: "Chữ người Nhật tự đặt, thường theo lối hội ý nên hay không có âm On.",
-  },
-  shinjitai: {
-    label: "Tân tự thể (新字体)",
-    hint: "Dạng giản lược thời nay của một chữ cũ — lối cấu tạo phải xem ở chữ gốc.",
-  },
-  derivative: {
-    label: "Chuyển chú (転注)",
-    hint: "Dùng một chữ sẵn có cho nghĩa phái sinh của chính nó.",
-  },
-  rebus: {
-    label: "Giả tá (仮借)",
-    hint: "Mượn chữ đồng âm để ghi một từ khác nghĩa, không liên quan nghĩa gốc.",
-  },
-  unknown: {
-    label: "Chưa rõ lối cấu tạo",
-    hint: "Nguồn dữ liệu không xếp chữ này vào lối nào trong lục thư.",
-  },
+  shoukei: "Tượng hình (象形)",
+  shiji: "Chỉ sự (指事)",
+  kaii: "Hội ý (会意)",
+  keisei: "Hình thanh (形声)",
+  kokuji: "Quốc tự (国字)",
+  shinjitai: "Tân tự thể (新字体)",
+  derivative: "Chuyển chú (転注)",
+  rebus: "Giả tá (仮借)",
+  unknown: "Chưa rõ lối cấu tạo",
 };
 
 /**
@@ -95,8 +71,7 @@ export function toPart(literal, byLiteral) {
  */
 export function describeStructure(sc, byLiteral = new Map()) {
   if (!sc) return null;
-  const { label, hint } = STRUCTURES[sc.type] ?? STRUCTURES.unknown;
-  const view = { type: sc.type, label, hint };
+  const view = { type: sc.type, label: STRUCTURES[sc.type] ?? STRUCTURES.unknown };
   if (sc.type === "keisei") {
     view.semantic = toPart(sc.semantic, byLiteral);
     view.phonetic = toPart(sc.phonetic, byLiteral);
@@ -206,7 +181,6 @@ export function toCard(entry, byLiteral = new Map()) {
             fam.phonetic === entry.literal
               ? `Những chữ dùng ${entry.literal} làm phần âm`
               : `Chữ cùng phần âm ${fam.phonetic}`,
-          hint: "Cùng phần âm thì âm On thường giống nhau — thuộc một chữ là đoán được cả họ.",
           members: rankFamily(fam.members, byLiteral).map((c) => toPart(c, byLiteral)),
         }
       : null,

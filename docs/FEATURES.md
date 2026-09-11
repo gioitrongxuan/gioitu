@@ -1269,6 +1269,10 @@ Extension **riêng**, cài riêng với extension "Thêm nhanh từ" (§9.14):
 `extension-chiettu/`. Nó không ghi gì vào dữ liệu học (không đếm lượt tra, không
 tạo thẻ SRS).
 
+- **Thẻ chỉ nói cái không tự thấy được**: nhãn lục thư đứng một mình, không kèm
+  câu giảng giải "hình thanh là gì" — chữ cùng phần nghĩa/phần âm ngay bên dưới
+  đã nói đủ, mà phân loại của nguồn cũng không phải lúc nào cũng chắc, thêm một
+  câu định nghĩa chỉ khiến thẻ nghe chắc hơn dữ liệu thật.
 - **Rê chuột kiểu Yomitan** (`content.js`): dò ký tự ngay dưới con trỏ bằng
   `caretRangeFromPoint`, và chỉ nhận khi ô chữ nhật của ký tự thật sự chứa con
   trỏ — bằng không thì con trỏ đang ở lề/khoảng trắng, đoán bừa sẽ hiện thẻ cho
