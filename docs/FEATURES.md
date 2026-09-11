@@ -1284,12 +1284,15 @@ tạo thẻ SRS).
   trong bảng kanji thì chỉ còn mặt chữ — im lặng, không bịa. Chữ hình thanh
   KHÔNG lặp lại phần nghĩa/phần âm ở mục "bộ phận" (`extraComponents`), chỉ giữ
   phần sâu hơn (thành phần của chính phần âm).
-- **Họ chữ cùng phần âm** (`familyOf`): 可 kéo theo 何 河 荷 歌 — cùng phần âm thì
-  âm On thường giống nhau, nên học một chữ là đoán được cả họ. Hai chiều: chữ
-  hình thanh → anh em cùng phần âm của nó; chữ tự làm phần âm → những chữ dựng
-  trên nó. Danh sách nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm (cột
-  `structural`), xếp theo độ phổ biến (`score`) rồi cắt còn `MAX_FAMILY` = 10.
-  Cố ý KHÔNG làm "cùng phần nghĩa": bộ nghĩa như 氵 có hàng trăm chữ.
+- **Họ chữ, hai chiều** (`familiesOf`): **cùng phần âm** — 可 kéo theo 何 河 荷 歌,
+  đều đọc カ; và **cùng bộ** — 水 kéo theo 河 海 池 湖, đều chuyện nước nôi. Mỗi
+  chiều đi được hai đường: chữ hình thanh → anh em cùng phần âm / cùng bộ của
+  nó; chữ tự đứng làm phần âm hay làm bộ cho chữ khác (可, 水…) → những chữ dựng
+  trên nó ("Những chữ dùng 水 làm bộ"). Danh sách nằm sẵn ở `keiseiPhonetic` /
+  `keiseiSemantic` của chữ đứng đầu họ (cột `structural`), xếp theo độ phổ biến
+  (`score`) rồi cắt còn `MAX_FAMILY` = 10 mỗi họ — đó là cách trị chuyện họ theo
+  bộ có cả trăm chữ. Chip tô cùng màu với phần âm (cam) / phần nghĩa (xanh) ở
+  khối lục thư để nhìn là biết đang theo chiều nào.
 
 **Dữ liệu: gọi thẳng `/api/kanji`, KHÔNG nhờ app tra hộ.** Đây là chỗ khác hẳn
 §9.14: luồng "Tra nghĩa" phải mượn app vì từ điển nằm trong IndexedDB của origin
@@ -1315,7 +1318,8 @@ xin ngay trên trang Tuỳ chọn, tắt rê chuột là trả lại quyền và
   không nhấp nháy khi lướt dọc một dòng chữ Hán.
 
 **Ba lượt hỏi** vì lượt sau chỉ biết phải hỏi gì sau khi có kết quả lượt trước:
-chữ được hỏi → chữ con (`partCharsOf`) → họ chữ (`familyCharsOf`, trần 40 chữ),
+chữ được hỏi → chữ con (`partCharsOf`) → họ chữ (`familyCharsOf`, trần 120 chữ —
+rộng hơn số hiện ra vì phải biết độ phổ biến của cả họ mới xếp đúng top 10),
 mỗi lượt một request gộp và chỉ hỏi phần chưa có trong cache. Lượt 1 hỏng là
 hỏng cả (báo "không tra được", không báo nhầm "chưa có dữ liệu"); hai lượt sau
 chỉ làm dày chú thích nên nuốt lỗi — thẻ vẫn đúng, chỉ là chữ con trơ mặt chữ.

@@ -16,7 +16,7 @@ interface Part {
 interface Card {
   literal: string;
   structure: { phonetic?: Part } | null;
-  family: { members: Part[] } | null;
+  families: { kind: string; label: string; members: Part[] }[];
 }
 interface Pair {
   src: string;
@@ -49,6 +49,7 @@ interface Entry {
   components?: string[];
   structuralCategory?: { type: string; semantic?: string; phonetic?: string };
   keiseiPhonetic?: string[];
+  keiseiSemantic?: string[];
   hanViet?: string[];
 }
 
@@ -72,8 +73,10 @@ const ROWS: Entry[] = [
     structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" },
   },
   { literal: "可", hanViet: ["KHẢ"], keiseiPhonetic: ["何", "河", "荷"] },
+  { literal: "氵", hanViet: ["THUỶ"], keiseiSemantic: ["河", "海"] },
   { literal: "何", hanViet: ["HÀ"] },
   { literal: "荷", hanViet: ["HÀ"] },
+  { literal: "海", hanViet: ["HẢI"] },
 ];
 
 describe("createKanjiApi.cards", () => {
@@ -84,12 +87,13 @@ describe("createKanjiApi.cards", () => {
     const { cards, error } = await api.cards(BASE, PAIR, ["河"], (c) => quick.push(c));
 
     expect(error).toBeNull();
-    expect(calls).toEqual(["河", "氵可", "何荷"]);
+    expect(calls).toEqual(["河", "氵可", "何荷海"]);
     // Thẻ "quick" hiện ra trước khi chữ con kịp về — đó là điểm mấu chốt về tốc độ.
     expect(quick).toHaveLength(1);
     expect(quick[0]).toHaveLength(1);
     expect(cards[0].structure!.phonetic).toMatchObject({ literal: "可", hanViet: "KHẢ" });
-    expect(cards[0].family!.members.map((m) => m.literal)).toEqual(["何", "荷"]);
+    expect(cards[0].families.map((f) => f.label)).toEqual(["Chữ cùng phần âm 可", "Chữ cùng bộ 氵"]);
+    expect(cards[0].families[0].members.map((m) => m.literal)).toEqual(["何", "荷"]);
   });
 
   it("chữ đã tra → KHÔNG hỏi lại lần nào nữa (rê chuột qua lại phải tức thì)", async () => {

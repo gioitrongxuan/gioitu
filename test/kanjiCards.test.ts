@@ -20,7 +20,7 @@ interface Structure {
   phonetic?: Part;
 }
 interface Family {
-  phonetic: Part;
+  kind: "phonetic" | "semantic";
   label: string;
   members: Part[];
 }
@@ -33,7 +33,7 @@ interface Card {
   strokeCount: number;
   components: Part[];
   structure: Structure | null;
-  family: Family | null;
+  families: Family[];
 }
 
 type Map_ = Map<string, unknown>;
@@ -43,7 +43,10 @@ const describeStructure = cards.describeStructure as (sc: unknown, map?: Map_) =
 const toPart = cards.toPart as (literal: string, map: Map_) => Part;
 const toCard = cards.toCard as (entry: unknown, map?: Map_) => Card;
 const extraComponents = cards.extraComponents as (entry: unknown) => string[];
-const familyOf = cards.familyOf as (entry: unknown, map: Map_) => { phonetic: string; members: string[] } | null;
+const familiesOf = cards.familiesOf as (
+  entry: unknown,
+  map: Map_,
+) => { kind: string; head: string; label: string; members: string[] }[];
 const partCharsOf = cards.partCharsOf as (entries: unknown[]) => string[];
 const familyCharsOf = cards.familyCharsOf as (entries: unknown[], map: Map_, limit?: number) => string[];
 const buildCards = cards.buildCards as (chars: string[], entries: unknown) => Card[];
@@ -58,6 +61,7 @@ interface Entry {
   kunyomi?: { text: string }[];
   structuralCategory?: { type: string; semantic?: string; phonetic?: string };
   keiseiPhonetic?: string[];
+  keiseiSemantic?: string[];
   score?: number;
 }
 
@@ -173,49 +177,66 @@ describe("extraComponents", () => {
   });
 });
 
-// Họ chữ cùng phần âm là thứ trả công cho việc học chiết tự: 可 kéo theo
-// 何 河 荷, tất cả đọc カ.
-describe("familyOf", () => {
-  const head = kanji("可", { keiseiPhonetic: ["何", "河", "荷"] });
+// Họ chữ là thứ trả công cho việc học chiết tự, theo hai chiều: cùng phần âm
+// (可 → 何 荷 歌, đều đọc カ) và cùng bộ (水 → 河 海 池, đều chuyện nước nôi).
+describe("familiesOf", () => {
+  const phoneticHead = kanji("可", { keiseiPhonetic: ["何", "河", "荷"] });
+  const semanticHead = kanji("水", { keiseiSemantic: ["河", "海", "池"] });
+  const keisei = kanji("河", { structuralCategory: { type: "keisei", semantic: "水", phonetic: "可" } });
 
-  it("chữ hình thanh → anh em cùng phần âm (bỏ chính nó)", () => {
-    const entry = kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } });
-    expect(familyOf(entry, byLiteral([head]))).toEqual({ phonetic: "可", members: ["何", "荷"] });
+  it("chữ hình thanh → anh em cùng phần âm VÀ anh em cùng bộ (bỏ chính nó)", () => {
+    expect(familiesOf(keisei, byLiteral([phoneticHead, semanticHead]))).toEqual([
+      { kind: "phonetic", head: "可", label: "Chữ cùng phần âm 可", members: ["何", "荷"] },
+      { kind: "semantic", head: "水", label: "Chữ cùng bộ 水", members: ["海", "池"] },
+    ]);
   });
 
-  it("chữ tự làm phần âm → những chữ dựng trên nó", () => {
-    expect(familyOf(head, new Map())).toEqual({ phonetic: "可", members: ["何", "河", "荷"] });
+  it("chữ tự làm phần âm / làm bộ → những chữ dựng trên nó, câu dẫn đổi chiều", () => {
+    expect(familiesOf(phoneticHead, new Map())).toEqual([
+      { kind: "phonetic", head: "可", label: "Những chữ dùng 可 làm phần âm", members: ["何", "河", "荷"] },
+    ]);
+    expect(familiesOf(semanticHead, new Map())).toEqual([
+      { kind: "semantic", head: "水", label: "Những chữ dùng 水 làm bộ", members: ["河", "海", "池"] },
+    ]);
   });
 
-  it("chưa tra được chữ làm phần âm → không bịa ra họ", () => {
-    const entry = kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } });
-    expect(familyOf(entry, new Map())).toBeNull();
+  it("một chữ vừa làm phần âm vừa làm bộ cho chữ khác → cả hai họ", () => {
+    const both = kanji("青", { keiseiPhonetic: ["清", "晴"], keiseiSemantic: ["静"] });
+    expect(familiesOf(both, new Map()).map((f) => f.kind)).toEqual(["phonetic", "semantic"]);
+  });
+
+  it("chưa tra được chữ đứng đầu họ → không bịa ra họ nào", () => {
+    expect(familiesOf(keisei, new Map())).toEqual([]);
   });
 
   it("chữ không dính gì tới hình thanh → không có họ", () => {
-    expect(familyOf(kanji("山", { structuralCategory: { type: "shoukei" } }), new Map())).toBeNull();
+    expect(familiesOf(kanji("山", { structuralCategory: { type: "shoukei" } }), new Map())).toEqual([]);
   });
 });
 
 describe("thẻ có họ chữ", () => {
-  it("nêu phần âm, câu dẫn theo chiều tra, và chú thích từng chữ trong họ", () => {
+  it("chú thích từng chữ trong họ, và giữ nguyên chiều của câu dẫn", () => {
     const map = byLiteral([
       kanji("可", { hanViet: ["KHẢ"], keiseiPhonetic: ["何", "河"] }),
       kanji("何", { hanViet: ["HÀ"], meanings: ["cái gì"], onyomi: [{ text: "カ" }] }),
     ]);
     const card = toCard(
-      kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } }),
+      kanji("河", { structuralCategory: { type: "keisei", semantic: "水", phonetic: "可" } }),
       map,
     );
-    expect(card.family!.label).toBe("Chữ cùng phần âm 可");
-    expect("hint" in card.family!).toBe(false);
-    expect(card.family!.phonetic).toMatchObject({ literal: "可", hanViet: "KHẢ" });
-    expect(card.family!.members[0]).toEqual({ literal: "何", hanViet: "HÀ", meaning: "cái gì", onyomi: "カ" });
+    expect(card.families).toHaveLength(1);
+    expect(card.families[0].label).toBe("Chữ cùng phần âm 可");
+    expect(card.families[0].members[0]).toEqual({
+      literal: "何",
+      hanViet: "HÀ",
+      meaning: "cái gì",
+      onyomi: "カ",
+    });
   });
 
-  it("tra chính chữ làm phần âm → câu dẫn đổi chiều", () => {
-    const head = kanji("可", { keiseiPhonetic: ["何", "河"] });
-    expect(toCard(head, byLiteral([head])).family!.label).toBe("Những chữ dùng 可 làm phần âm");
+  it("họ theo bộ mang nhãn 'semantic' để thẻ tô đúng màu phần nghĩa", () => {
+    const head = kanji("水", { keiseiSemantic: ["河", "海"] });
+    expect(toCard(head, byLiteral([head])).families[0].kind).toBe("semantic");
   });
 
   it("chữ hay gặp đứng trước, và cắt ở MAX_FAMILY", () => {
@@ -223,7 +244,7 @@ describe("thẻ có họ chữ", () => {
     const head = kanji("可", { keiseiPhonetic: members });
     // Chữ cuối danh sách nhưng phổ biến nhất → phải nhảy lên đầu.
     const map = byLiteral([head, kanji(members[members.length - 1], { score: 99 })]);
-    const family = toCard(head, map).family!;
+    const family = toCard(head, map).families[0];
     expect(family.members).toHaveLength(MAX_FAMILY);
     expect(family.members[0].literal).toBe(members[members.length - 1]);
   });
@@ -239,10 +260,15 @@ describe("chữ cần hỏi thêm ở lượt 2 và 3", () => {
     expect(partCharsOf([entry]).sort()).toEqual(["可", "氵"]);
   });
 
-  it("lượt 3 = thành viên các họ, trừ chữ đã có, cắt ở trần", () => {
-    const map = byLiteral([entry, kanji("可", { keiseiPhonetic: ["何", "河", "荷"] })]);
-    // 河 đã tra ở lượt 1 nên không hỏi lại; 何/荷 thì cần để có Hán-Việt + âm On.
-    expect(familyCharsOf([entry], map)).toEqual(["何", "荷"]);
+  it("lượt 3 = thành viên CẢ HAI họ, trừ chữ đã có, cắt ở trần", () => {
+    const map = byLiteral([
+      entry,
+      kanji("可", { keiseiPhonetic: ["何", "河", "荷"] }),
+      kanji("氵", { keiseiSemantic: ["河", "海"] }),
+    ]);
+    // 河 đã tra ở lượt 1 nên không hỏi lại; 何/荷 (cùng phần âm) và 海 (cùng bộ)
+    // thì cần để có Hán-Việt + âm On.
+    expect(familyCharsOf([entry], map)).toEqual(["何", "荷", "海"]);
     expect(familyCharsOf([entry], map, 1)).toEqual(["何"]);
   });
 

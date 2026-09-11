@@ -20,8 +20,12 @@ export const MAX_KANJI = 8;
 /** Số chữ cùng họ hiện trên một thẻ — đủ thấy quy luật, chưa thành bức tường chữ. */
 export const MAX_FAMILY = 10;
 
-/** Trần số chữ hỏi thêm ở lượt "họ chữ": một request, không phải cả từ điển. */
-export const MAX_FAMILY_FETCH = 40;
+/**
+ * Trần số chữ hỏi thêm ở lượt "họ chữ" — vẫn một request. Rộng tay hơn số chữ
+ * hiện ra (MAX_FAMILY) vì phải biết độ phổ biến của cả họ thì mới xếp đúng chữ
+ * nào đáng lên đầu; họ theo bộ (水, 木…) dễ có cả trăm chữ.
+ */
+export const MAX_FAMILY_FETCH = 120;
 
 /** Chữ Hán trong một chuỗi, giữ thứ tự xuất hiện và bỏ trùng. */
 export function hanCharsOf(text, limit = MAX_KANJI) {
@@ -80,24 +84,51 @@ export function describeStructure(sc, byLiteral = new Map()) {
 }
 
 /**
- * Họ chữ cùng phần âm — thứ trả công cho việc học chiết tự: 可 (KHẢ) kéo theo
- * 何 河 荷 歌, tất cả đều đọc カ. Hai chiều:
- *   • chữ hình thanh → họ của PHẦN ÂM của nó (các anh em cùng phần âm);
- *   • chữ tự đứng làm phần âm (可, 青…) → những chữ dựng trên nó.
- * Danh sách ấy nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm.
+ * Hai chiều "họ chữ" — thứ trả công cho việc học chiết tự:
+ *   • **phần âm**: 可 (KHẢ) kéo theo 何 河 荷 歌, tất cả đọc カ;
+ *   • **bộ (phần nghĩa)**: 水 kéo theo 河 海 池 湖, đều là chuyện nước nôi.
+ * Mỗi chiều lại đi được hai đường: chữ hình thanh → họ của phần âm / phần nghĩa
+ * của nó; chữ tự đứng làm phần ấy cho chữ khác (可, 水…) → những chữ dựng trên
+ * nó. Cả hai danh sách nằm sẵn ở `keiseiPhonetic` / `keiseiSemantic` của chữ
+ * làm phần âm / làm bộ.
  */
-export function familyOf(entry, byLiteral) {
-  const sc = entry.structuralCategory;
-  if (sc?.type === "keisei") {
-    const head = byLiteral.get(sc.phonetic);
-    const members = (head?.keiseiPhonetic ?? []).filter((c) => c !== entry.literal);
-    if (members.length > 0) return { phonetic: sc.phonetic, members };
+const FAMILY_KINDS = [
+  {
+    kind: "phonetic",
+    usage: "keiseiPhonetic",
+    head: (sc) => sc.phonetic,
+    shared: (head) => `Chữ cùng phần âm ${head}`,
+    own: (literal) => `Những chữ dùng ${literal} làm phần âm`,
+  },
+  {
+    kind: "semantic",
+    usage: "keiseiSemantic",
+    head: (sc) => sc.semantic,
+    shared: (head) => `Chữ cùng bộ ${head}`,
+    own: (literal) => `Những chữ dùng ${literal} làm bộ`,
+  },
+];
+
+export function familiesOf(entry, byLiteral) {
+  const out = [];
+  for (const spec of FAMILY_KINDS) {
+    const sc = entry.structuralCategory;
+    if (sc?.type === "keisei") {
+      const head = spec.head(sc);
+      const members = (byLiteral.get(head)?.[spec.usage] ?? []).filter((c) => c !== entry.literal);
+      if (members.length > 0) {
+        out.push({ kind: spec.kind, head, label: spec.shared(head), members });
+        continue;
+      }
+    }
+    // Không phải hình thanh (hoặc chưa tra được chữ đứng đầu họ): chính nó có
+    // thể đang làm phần âm / làm bộ cho chữ khác.
+    const own = (entry[spec.usage] ?? []).filter((c) => c !== entry.literal);
+    if (own.length > 0) {
+      out.push({ kind: spec.kind, head: entry.literal, label: spec.own(entry.literal), members: own });
+    }
   }
-  // Không phải hình thanh (hoặc chưa tra được chữ làm phần âm): chính nó có thể
-  // đang làm phần âm cho chữ khác.
-  const own = (entry.keiseiPhonetic ?? []).filter((c) => c !== entry.literal);
-  if (own.length > 0) return { phonetic: entry.literal, members: own };
-  return null;
+  return out;
 }
 
 /**
@@ -143,11 +174,11 @@ export function partCharsOf(entries) {
 export function familyCharsOf(entries, byLiteral, limit = MAX_FAMILY_FETCH) {
   const out = new Set();
   for (const e of entries) {
-    const fam = familyOf(e, byLiteral);
-    if (!fam) continue;
-    for (const m of fam.members) {
-      if (out.size >= limit) break;
-      if (!byLiteral.has(m)) out.add(m);
+    for (const fam of familiesOf(e, byLiteral)) {
+      for (const m of fam.members) {
+        if (out.size >= limit) break;
+        if (!byLiteral.has(m)) out.add(m);
+      }
     }
   }
   return [...out];
@@ -164,7 +195,6 @@ function rankFamily(members, byLiteral) {
 
 /** Một thẻ chiết tự đã diễn giải sẵn; `byLiteral` là mọi chữ đã tra được. */
 export function toCard(entry, byLiteral = new Map()) {
-  const fam = familyOf(entry, byLiteral);
   return {
     literal: entry.literal,
     hanViet: (entry.hanViet ?? []).join(", "),
@@ -174,16 +204,11 @@ export function toCard(entry, byLiteral = new Map()) {
     strokeCount: entry.strokeCount ?? 0,
     components: extraComponents(entry).map((c) => toPart(c, byLiteral)),
     structure: describeStructure(entry.structuralCategory, byLiteral),
-    family: fam
-      ? {
-          phonetic: toPart(fam.phonetic, byLiteral),
-          label:
-            fam.phonetic === entry.literal
-              ? `Những chữ dùng ${entry.literal} làm phần âm`
-              : `Chữ cùng phần âm ${fam.phonetic}`,
-          members: rankFamily(fam.members, byLiteral).map((c) => toPart(c, byLiteral)),
-        }
-      : null,
+    families: familiesOf(entry, byLiteral).map((fam) => ({
+      kind: fam.kind,
+      label: fam.label,
+      members: rankFamily(fam.members, byLiteral).map((c) => toPart(c, byLiteral)),
+    })),
   };
 }
 

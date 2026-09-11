@@ -178,19 +178,21 @@
 
     partList(box, "Bộ phận cấu thành", k.components);
 
-    // Họ chữ cùng phần âm: chỗ một lần chiết tự trả công cho cả chục chữ khác.
-    if (k.family) {
-      const fam = document.createElement("div");
-      fam.className = "k-family";
+    // Họ chữ: cùng phần âm (đọc giống nhau) và cùng bộ (nghĩa cùng trường) —
+    // chỗ một lần chiết tự trả công cho cả chục chữ khác. Chip tô cùng màu với
+    // phần âm / phần nghĩa ở khối trên để nhìn là biết đang theo chiều nào.
+    for (const fam of k.families ?? []) {
+      const box2 = document.createElement("div");
+      box2.className = "k-family";
       const label = document.createElement("div");
       label.className = "k-label";
-      label.textContent = k.family.label;
-      fam.appendChild(label);
+      label.textContent = fam.label;
+      box2.appendChild(label);
       const list = document.createElement("div");
       list.className = "parts";
-      for (const m of k.family.members) list.appendChild(partRow(m, "pho"));
-      fam.appendChild(list);
-      box.appendChild(fam);
+      for (const m of fam.members) list.appendChild(partRow(m, fam.kind === "semantic" ? "sem" : "pho"));
+      box2.appendChild(list);
+      box.appendChild(box2);
     }
 
     return box;

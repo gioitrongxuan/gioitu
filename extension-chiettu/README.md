@@ -8,8 +8,10 @@ chắc.
 
 Mỗi **chữ con** (bộ phận, phần nghĩa, phần âm) hiện kèm **Hán-Việt + nghĩa + âm
 On của chính nó** — 河 = 氵 THUỶ·nước + 可 KHẢ·có thể — chứ không bắt bạn đi tra
-tiếp. Dưới cùng là **họ chữ cùng phần âm**: 可 kéo theo 何 荷 歌, tất cả đọc カ —
-học một chữ đoán được cả họ.
+tiếp. Dưới cùng là **họ chữ, hai chiều**: *cùng phần âm* (可 → 何 荷 歌, đều đọc カ) và
+*cùng bộ* (水 → 海 池 湖, đều chuyện nước nôi) — học một chữ đoán được cả họ. Tra
+đúng chữ đứng đầu họ thì danh sách đổi chiều thành "Những chữ dùng 水 làm bộ".
+Mỗi họ 10 chữ hay gặp nhất.
 
 Không muốn bật rê chuột thì vẫn dùng được bằng cử chỉ, trên phần **bôi đen**:
 
