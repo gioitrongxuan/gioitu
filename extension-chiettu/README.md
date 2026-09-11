@@ -1,87 +1,91 @@
 # Gioitu — extension "Chiết tự chữ Hán" (Chrome / Edge)
 
-Bôi đen chữ Hán ở **bất kỳ trang web nào** để xem chữ ấy được dựng nên thế nào:
-**tượng hình** (vẽ lại vật), **chỉ sự** (dấu hiệu quy ước), **hội ý** (ghép
-nghĩa), hay **hình thanh** (một phần chỉ nghĩa, một phần chỉ âm) — kèm Hán-Việt,
-âm On/Kun, số nét và các bộ phận cấu thành.
-
-Ba cách gọi (đều hiện **thẻ nhỏ ngay cạnh vùng bôi đen**):
-
-- **Chuột phải** trên vùng bôi đen → *"Chiết tự …"*.
-- **Phím tắt** — mặc định `Ctrl/⌘ + Shift + K` (đổi được).
-- **Bấm biểu tượng extension** trên thanh công cụ.
-
-Thẻ liệt kê sẵn các chữ Hán rút được (tối đa 8 chữ, bỏ chữ lặp) và có nút
-**Chiết tự**. Phải **bấm** nút ấy: lúc thẻ vừa hiện ra, trang chưa có "user
-activation" nên trình duyệt chặn mọi `window.open` — một cú bấm mới mở được cửa
-sổ hỏi app. Bấm xong, mỗi chữ thành một thẻ; chữ hình thanh tô riêng **phần
-nghĩa** (viền xanh) và **phần âm** (viền cam).
+**Rê chuột vào một chữ Hán** ở bất kỳ trang web nào (lối Yomitan) là thấy ngay
+chữ ấy được dựng nên thế nào — tượng hình · chỉ sự · hội ý · hình thanh… — kèm
+Hán-Việt, nghĩa, âm On/Kun, số nét. Thẻ chỉ nêu **nhãn**, không giảng giải: chữ
+con ngay bên dưới đã nói đủ, và phân loại của nguồn cũng không phải lúc nào cũng
+chắc.
 
 Mỗi **chữ con** (bộ phận, phần nghĩa, phần âm) hiện kèm **Hán-Việt + nghĩa + âm
 On của chính nó** — 河 = 氵 THUỶ·nước + 可 KHẢ·có thể — chứ không bắt bạn đi tra
-tiếp. Bộ thủ không có dòng riêng trong bảng kanji (氵, 亻) thì chỉ còn mặt chữ.
+tiếp. Dưới cùng là **họ chữ cùng phần âm**: 可 kéo theo 何 荷 歌, tất cả đọc カ —
+học một chữ đoán được cả họ.
 
-Dưới cùng là **họ chữ cùng phần âm**: 可 kéo theo 何 荷 歌, tất cả đọc カ — học
-một chữ đoán được cả họ. Chữ hay gặp xếp trước, tối đa 10 chữ. Tra đúng chữ làm
-phần âm (可) thì danh sách đổi chiều thành "những chữ dùng 可 làm phần âm".
+Không muốn bật rê chuột thì vẫn dùng được bằng cử chỉ, trên phần **bôi đen**:
 
-## Dữ liệu lấy từ đâu
+- **Chuột phải** → *"Chiết tự …"*
+- **Phím tắt** — mặc định `Ctrl/⌘ + Shift + K` (đổi được)
+- **Bấm biểu tượng extension** trên thanh công cụ
 
-Extension **không giữ bản sao dữ liệu và không gọi API nào**: nó chạy ở origin
-khác nên không đọc được dữ liệu của app. Nó mở một cửa sổ tí hon
-`<địa chỉ Gioitu>/?kanji=<phần bôi đen>`; chính app hỏi `/api/kanji` (ba lượt:
-chữ được chọn → chữ con → họ chữ, mỗi lượt một request gộp), dựng thẻ
-rồi `postMessage` về trang đang đọc và tự đóng (đúng khuôn `?lookup=` mà
-extension "Thêm nhanh từ" đã dùng — quyết định #251). Overlay chỉ nhận message
-từ đúng origin app, đúng `kind`, đúng phần bôi đen đang hỏi.
+## Quyền — hai thứ, xin riêng
 
-Hệ quả: **chiết tự cần mạng** và cần máy chủ Gioitu đã nhập dữ liệu kanji
-(`npm run import:kanjidic`). Dữ liệu cấu tạo chữ chưa bao giờ nằm trong từ điển
-tải về IndexedDB nên không có đường chạy offline — thẻ nói thẳng "không chiết tự
-được" khi mất mạng, chứ không báo nhầm thành "chữ này chưa có dữ liệu".
+Extension không nhét quyền nào vào manifest; tất cả là `optional_host_permissions`
+xin ngay trên trang **Tuỳ chọn**:
 
-Extension không đọc trang ngoài phần bạn chủ động bôi đen — nên chỉ xin quyền
-tối thiểu (`contextMenus`, `activeTab`, `scripting`, `storage`), không cần quyền
-truy cập mọi trang. Trang cấm chèn script (chrome://, cửa hàng tiện ích, trình
-xem PDF nội bộ…) thì rơi về mở thẳng trang từ trong app (`/word/ja-vi/<từ>`) —
-ở đó có phần "Chữ Hán" của Detail Panel, ít hơn thẻ chiết tự nhưng còn hơn không.
+1. **Địa chỉ Gioitu** (bắt buộc): để gọi `<địa chỉ>/api/kanji`.
+2. **Mọi trang** (chỉ khi bật rê chuột): content script phải nằm sẵn trên trang
+   thì mới dò được chữ dưới con trỏ. Tắt rê chuột là extension **trả lại quyền**
+   và gỡ content script khỏi mọi trang (`chrome.scripting.unregisterContentScripts`).
+
+Extension chỉ dò ký tự ngay dưới con trỏ (hoặc phần bạn bôi đen), không đọc gì
+khác của trang, không gửi gì đi đâu ngoài chữ cần tra.
+
+## Dữ liệu và tốc độ
+
+Dữ liệu cấu tạo chữ nằm ở **bảng kanji trên máy chủ Gioitu** — extension không
+giữ bản sao. Khác extension "Thêm nhanh từ" (phải mượn app tra hộ vì từ điển nằm
+trong IndexedDB của origin app), ở đây `/api/kanji` là route **công khai
+chỉ-đọc** nên extension gọi thẳng: rê chuột mà mỗi lần lại mở một cửa sổ app thì
+không thể dùng được.
+
+Tốc độ đến từ ba chỗ:
+
+- **Cache vô thời hạn** (dữ liệu kanji tĩnh), nhớ cả "máy chủ không có chữ này"
+  nên chữ trống không bị hỏi lại; có bản sao xuống đĩa để service worker ngủ dậy
+  vẫn trả lời ngay. Lỗi mạng thì **không** nhớ — lần sau vẫn hỏi lại.
+- **Hai nhịp**: thẻ hiện ngay sau lượt hỏi đầu, phần chữ con + họ chữ dày thêm sau.
+- **Hỏi trước chữ liền kề**: tra xong một chữ thì hỏi luôn dải chữ Hán quanh nó,
+  rê sang chữ bên cạnh là hiện liền.
+
+Cần máy chủ đã nhập dữ liệu kanji (`npm run import:kanjidic`). Máy chủ vắng hoặc
+mất mạng thì thẻ nói thẳng "không tra được", không báo nhầm thành "chữ này chưa
+có dữ liệu".
 
 ## Cài để thử (chưa lên store)
 
 1. Mở `chrome://extensions` (hoặc `edge://extensions`), bật **Developer mode**.
 2. **Load unpacked** → chọn thư mục `extension-chiettu/` này.
-3. Trang **Tuỳ chọn** tự mở lúc mới cài → đặt **Địa chỉ Gioitu** (vd
-   `http://localhost:5173` khi dev, hoặc domain đã deploy). Mặc định là
-   `http://localhost:5173`.
-4. (Tuỳ chọn) đổi phím tắt tại `chrome://extensions/shortcuts`.
+3. Trang **Tuỳ chọn** tự mở lúc mới cài → nhập **Địa chỉ Gioitu** (vd
+   `http://localhost:5173` khi dev), bấm **Lưu**, rồi **Cấp quyền truy cập địa
+   chỉ này**.
+4. Muốn rê chuột thì bật **"Rê chuột vào chữ là hiện thẻ"** và đồng ý khi trình
+   duyệt hỏi quyền đọc trang.
+5. (Tuỳ chọn) đổi phím tắt tại `chrome://extensions/shortcuts`.
 
-## Cấu hình
-
-- **Địa chỉ Gioitu**: sửa ở trang Tuỳ chọn (lưu trong `chrome.storage.sync`).
-  Khi phát hành cho người dùng, sửa hằng `DEFAULT_BASE_URL` ở đầu `background.js`
-  thành domain thật để "cài xong dùng luôn" mà không cần bước 3.
-- **Phím tắt**: `chrome://extensions/shortcuts` (Chrome không cho extension tự gán).
-
-## Quan hệ với extension "Thêm nhanh từ"
-
-Hai extension **độc lập**, cài riêng, mỗi cái một việc: `extension/` lượm từ vào
-hàng ôn SRS, `extension-chiettu/` chỉ giải thích cấu tạo chữ (không ghi gì vào
-dữ liệu học). Chúng dùng chung lối "nhờ app làm hộ qua cửa sổ tí hon" nên sửa
-khuôn ấy ở bên nào thì soi bên kia.
+Khi phát hành cho người dùng, sửa hằng `DEFAULT_BASE_URL` ở đầu `background.js`
+thành domain thật để bước 3 chỉ còn một cú bấm cấp quyền.
 
 ## Cấu trúc
 
 ```
 extension-chiettu/
-  manifest.json   # MV3: permissions, context menu, command (hotkey), action
-  background.js   # service worker: 3 đường gọi → inject overlay; fallback mở app
-  overlay.js      # thẻ chiết tự Shadow DOM chèn vào trang (inject theo cử chỉ)
-  options.html    # đặt địa chỉ Gioitu + mở màn phím tắt
-  options.js
-  icons/          # icon48/128 (mượn từ public/icons)
+  manifest.json    # MV3: quyền tối thiểu + optional_host_permissions
+  background.js    # service worker (module): gọi API, cache, quyền, đăng ký
+                   # content script động, context menu / phím tắt / nút toolbar
+  kanji-api.js     # gọi /api/kanji + cache (JS thuần — test/kanjiApi.test.ts)
+  kanji-cards.js   # dựng thẻ: lục thư, chữ con, họ chữ (test/kanjiCards.test.ts)
+  content.js       # dò chữ dưới con trỏ, vòng đời thẻ trên trang
+  card.js          # vẽ thẻ (Shadow DOM)
+  options.html/js  # địa chỉ Gioitu, cấp quyền, bật/tắt rê chuột, phím & độ trễ
+  icons/           # icon48/128 (mượn từ public/icons)
 ```
 
-Phía app: `dictionary/domain/kanjiProxy.ts` (logic thuần — đọc param, rút chữ
-Hán, diễn giải lục thư sang tiếng Việt, dựng payload),
-`dictionary/data/kanjiProxy.ts` (gọi `/api/kanji`), và effect `?kanji=` trong
-`app/App.tsx`. Xem FEATURES §9.24.
+`kanji-api.js` và `kanji-cards.js` cố ý không chạm `chrome.*` lẫn DOM để chạy
+được dưới vitest — extension không có bước build nên chúng là JS thuần, nhưng
+vẫn được test như mọi logic khác của dự án. Xem FEATURES §9.24.
+
+## Quan hệ với extension "Thêm nhanh từ"
+
+Hai extension **độc lập**, cài riêng, mỗi cái một việc: `extension/` lượm từ vào
+hàng ôn SRS, `extension-chiettu/` chỉ giải thích cấu tạo chữ. Chúng KHÔNG dùng
+chung đường dữ liệu (một bên mượn app, một bên gọi API) — lý do ở ngay trên.

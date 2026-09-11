@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Gioitu — Chiết tự chữ Hán",
-  "version": "1.0.0",
-  "description": "Bôi đen chữ Hán ở bất kỳ trang nào để xem chữ ấy được dựng nên thế nào: tượng hình, hội ý, hay hình thanh (phần nghĩa + phần âm).",
+  "version": "2.0.0",
+  "description": "Rê chuột (hoặc bôi đen) vào chữ Hán ở bất kỳ trang nào để xem chữ ấy được dựng nên thế nào: tượng hình, hội ý, hay hình thanh (phần nghĩa + phần âm).",
   "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
-  "background": { "service_worker": "background.js" },
+  "optional_host_permissions": ["*://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
   "options_ui": { "page": "options.html", "open_in_tab": true },
   "action": {
     "default_title": "Chiết tự chữ Hán đang bôi đen",

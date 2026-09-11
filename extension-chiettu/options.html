@@ -43,15 +43,21 @@
       dl { margin: 0.5rem 0 0; }
       dt { font-weight: 600; }
       dd { margin: 0 0 0.5rem; color: #8a8a8a; }
+      label.inline { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 400; margin: 0; }
+      select, input[type="number"] { padding: 0.35rem 0.4rem; font-size: 1rem; border-radius: 8px;
+        border: 1px solid #8888; background: transparent; color: inherit; }
+      input[type="number"] { width: 5.5rem; }
+      #permState.ok { color: #2e7d32; }
+      #permState.warn { color: #b26a00; }
     </style>
   </head>
   <body>
     <h1>Gioitu — Chiết tự chữ Hán</h1>
 
     <p>
-      Địa chỉ web Gioitu của bạn — extension nhờ chính app tra hộ qua
-      <code>&lt;địa chỉ&gt;/?kanji=&lt;phần bôi đen&gt;</code>, nên phải trỏ đúng
-      chỗ app đang chạy.
+      Địa chỉ web Gioitu của bạn — extension hỏi thẳng
+      <code>&lt;địa chỉ&gt;/api/kanji</code> (route công khai chỉ-đọc) nên phải trỏ
+      đúng chỗ app đang chạy, và phải được cấp quyền truy cập địa chỉ đó.
     </p>
 
     <label for="baseUrl">Địa chỉ Gioitu</label>
@@ -60,15 +66,48 @@
 
     <div class="row">
       <button id="save">Lưu</button>
-      <button id="shortcuts" class="secondary">Đổi phím tắt…</button>
+      <button id="grant" class="secondary">Cấp quyền truy cập địa chỉ này</button>
       <span id="status"></span>
     </div>
+    <p class="hint" id="permState"></p>
+
+    <h2>Rê chuột (kiểu Yomitan)</h2>
+
+    <p>
+      Bật thì chỉ cần <b>đưa chuột vào một chữ Hán</b> ở trang bất kỳ là thẻ hiện ra —
+      không cần bôi đen, không cần bấm gì. Cần quyền <b>đọc dữ liệu trên mọi trang</b>
+      (trình duyệt sẽ hỏi khi bạn bật); tắt lại là extension tự gỡ khỏi các trang.
+    </p>
+
+    <div class="row">
+      <label class="inline"><input type="checkbox" id="hover" /> Rê chuột vào chữ là hiện thẻ</label>
+    </div>
+
+    <div class="row">
+      <label class="inline" for="modifier">Chỉ khi giữ phím</label>
+      <select id="modifier">
+        <option value="none">Không cần phím nào</option>
+        <option value="shift">Shift</option>
+        <option value="ctrl">Ctrl / ⌘</option>
+        <option value="alt">Alt / ⌥</option>
+      </select>
+      <label class="inline" for="delay">Dừng chuột</label>
+      <input type="number" id="delay" min="0" max="2000" step="20" />
+      <span class="hint">ms rồi mới tra</span>
+    </div>
+
+    <h2>Gọi bằng cử chỉ</h2>
 
     <p class="hint">
-      Cách dùng: bôi đen chữ Hán ở trang bất kỳ → chuột phải chọn <b>“Chiết tự …”</b>,
-      hoặc bấm phím tắt (mặc định <b>Ctrl/⌘ + Shift + K</b>), hoặc bấm biểu tượng extension.
-      Thẻ hiện ra có nút <b>Chiết tự</b> — phải bấm thì trình duyệt mới cho mở cửa sổ hỏi app.
+      Không bật rê chuột thì vẫn dùng được: bôi đen chữ Hán → chuột phải chọn
+      <b>“Chiết tự …”</b>, hoặc bấm phím tắt (mặc định <b>Ctrl/⌘ + Shift + K</b>),
+      hoặc bấm biểu tượng extension. Ba lối này chỉ cần quyền cho <em>địa chỉ Gioitu</em>,
+      không cần quyền mọi trang.
     </p>
+
+    <div class="row">
+      <button id="shortcuts" class="secondary">Đổi phím tắt…</button>
+    </div>
 
     <h2>Thẻ chiết tự nói gì</h2>
 
@@ -85,7 +124,9 @@
 
     <p class="hint">
       Dữ liệu cấu tạo chữ nằm ở máy chủ Gioitu (bảng kanji), không có bản sao trong
-      extension — nên chiết tự cần mạng, và cần máy chủ đã nhập dữ liệu kanji.
+      extension — nên lần tra đầu cần mạng, và cần máy chủ đã nhập dữ liệu kanji.
+      Chữ đã tra được nhớ lại trong máy (dữ liệu kanji không đổi), nên rê chuột
+      vào chữ cũ là hiện ra ngay, không hỏi lại máy chủ.
     </p>
 
     <script src="options.js"></script>

@@ -1260,59 +1260,70 @@ tranh nét hiện lên với các **ghim** đặt đúng chỗ vật đó nằm 
 
 ### 9.24 Chiết tự chữ Hán khi lướt web (extension riêng)
 
-Bôi đen chữ Hán ở trang bất kỳ → thẻ nhỏ nói chữ ấy được **dựng nên thế nào**:
-lục thư (**tượng hình 象形** · **chỉ sự 指事** · **hội ý 会意** · **hình thanh
-形声** · quốc tự · tân tự thể · chuyển chú · giả tá), kèm Hán-Việt, nghĩa, âm
-On/Kun, số nét và các bộ phận cấu thành. Chữ hình thanh tách riêng **phần nghĩa**
-và **phần âm** — thứ giúp đoán cách đọc của cả họ chữ.
+Rê chuột (hoặc bôi đen) vào chữ Hán ở trang bất kỳ → thẻ nhỏ nói chữ ấy được
+**dựng nên thế nào**: lục thư (**tượng hình 象形** · **chỉ sự 指事** · **hội ý
+会意** · **hình thanh 形声** · quốc tự · tân tự thể · chuyển chú · giả tá), kèm
+Hán-Việt, nghĩa, âm On/Kun, số nét.
 
 Extension **riêng**, cài riêng với extension "Thêm nhanh từ" (§9.14):
-`extension-chiettu/` — chuột phải / `Ctrl/⌘+Shift+K` / nút toolbar. Nó không ghi
-gì vào dữ liệu học (không đếm lượt tra, không tạo thẻ SRS).
+`extension-chiettu/`. Nó không ghi gì vào dữ liệu học (không đếm lượt tra, không
+tạo thẻ SRS).
 
-**Chữ con có nghĩa và Hán-Việt của chính nó**: mỗi bộ phận / phần nghĩa / phần
-âm hiện kèm Hán-Việt + một nghĩa + âm On (河 = 氵 THUỶ·nước + 可 KHẢ·có thể), chứ
-không trơ mặt chữ bắt người học đi tra tiếp. Bộ thủ không có dòng riêng trong
-bảng kanji (氵, 亻) thì chỉ còn mặt chữ — im lặng, không bịa. Chữ hình thanh
-KHÔNG lặp lại phần nghĩa/phần âm ở mục "bộ phận" (`extraComponents`), chỉ giữ
-phần sâu hơn (thành phần của chính phần âm).
+- **Thẻ chỉ nói cái không tự thấy được**: nhãn lục thư đứng một mình, không kèm
+  câu giảng giải "hình thanh là gì" — chữ cùng phần nghĩa/phần âm ngay bên dưới
+  đã nói đủ, mà phân loại của nguồn cũng không phải lúc nào cũng chắc, thêm một
+  câu định nghĩa chỉ khiến thẻ nghe chắc hơn dữ liệu thật.
+- **Rê chuột kiểu Yomitan** (`content.js`): dò ký tự ngay dưới con trỏ bằng
+  `caretRangeFromPoint`, và chỉ nhận khi ô chữ nhật của ký tự thật sự chứa con
+  trỏ — bằng không thì con trỏ đang ở lề/khoảng trắng, đoán bừa sẽ hiện thẻ cho
+  chữ người ta không trỏ vào. Bật/tắt ở trang Tuỳ chọn, chọn được phím giữ
+  (không / Shift / Ctrl / Alt) và thời gian dừng chuột (mặc định 180ms).
+- **Chữ con có nghĩa và Hán-Việt của chính nó**: mỗi bộ phận / phần nghĩa / phần
+  âm hiện kèm Hán-Việt + một nghĩa + âm On (河 = 氵 THUỶ·nước + 可 KHẢ·có thể),
+  chứ không trơ mặt chữ bắt người học đi tra tiếp. Bộ thủ không có dòng riêng
+  trong bảng kanji thì chỉ còn mặt chữ — im lặng, không bịa. Chữ hình thanh
+  KHÔNG lặp lại phần nghĩa/phần âm ở mục "bộ phận" (`extraComponents`), chỉ giữ
+  phần sâu hơn (thành phần của chính phần âm).
+- **Họ chữ cùng phần âm** (`familyOf`): 可 kéo theo 何 河 荷 歌 — cùng phần âm thì
+  âm On thường giống nhau, nên học một chữ là đoán được cả họ. Hai chiều: chữ
+  hình thanh → anh em cùng phần âm của nó; chữ tự làm phần âm → những chữ dựng
+  trên nó. Danh sách nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm (cột
+  `structural`), xếp theo độ phổ biến (`score`) rồi cắt còn `MAX_FAMILY` = 10.
+  Cố ý KHÔNG làm "cùng phần nghĩa": bộ nghĩa như 氵 có hàng trăm chữ.
 
-**Họ chữ cùng phần âm** (`familyOf`): 可 kéo theo 何 河 荷 歌 — cùng phần âm thì
-âm On thường giống nhau, nên học một chữ là đoán được cả họ. Hai chiều: chữ hình
-thanh → anh em cùng phần âm của nó; chữ tự làm phần âm → những chữ dựng trên nó.
-Danh sách nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm (cột `structural`), xếp
-theo độ phổ biến (`score`) rồi cắt còn `MAX_FAMILY` = 10. Cố ý KHÔNG làm "cùng
-phần nghĩa": bộ nghĩa như 氵 có hàng trăm chữ, hiện ra chỉ thành bức tường.
+**Dữ liệu: gọi thẳng `/api/kanji`, KHÔNG nhờ app tra hộ.** Đây là chỗ khác hẳn
+§9.14: luồng "Tra nghĩa" phải mượn app vì từ điển nằm trong IndexedDB của origin
+app, còn dữ liệu cấu tạo chữ nằm ở **bảng kanji trên server**, route công khai
+chỉ-đọc — không có lý do gì phải mở một cửa sổ app cho mỗi lượt, và rê chuột thì
+càng không thể. Đổi lại, extension phải xin **quyền truy cập địa chỉ Gioitu**
+(và quyền đọc mọi trang nếu bật rê chuột); cả hai đều là `optional_host_permissions`,
+xin ngay trên trang Tuỳ chọn, tắt rê chuột là trả lại quyền và gỡ content script
+(`chrome.scripting.registerContentScripts` đăng ký động, không nằm trong manifest).
 
-**App tra hộ** (`?kanji=<phần bôi đen>`): cùng lý do và cùng khuôn với `?lookup=`
-— extension ở origin khác nên không gọi được `/api/kanji`. Cửa sổ tí hon
-`?kanji=…&kanji_pair=<cặp>&kanji_origin=<origin trang>` chỉ vẽ một dòng trạng
-thái (`.qa-proxy`), hỏi server rồi
-`postMessage({kind:"gioitu-kanji", text, chars, kanji, error?})` về
-`window.opener` đúng `kanji_origin` và tự đóng. Logic thuần ở
-`domain/kanjiProxy.ts` (rút chữ Hán, diễn giải lục thư sang tiếng Việt, dựng
-payload), phần gọi mạng ở `data/kanjiProxy.ts`.
+**Tốc độ** — điều kiện sống còn của chế độ rê chuột (`kanji-api.js`):
 
-- **Ba lượt hỏi, mỗi lượt một request gộp** (`data/kanjiProxy.ts`), vì lượt sau
-  chỉ biết phải hỏi gì sau khi có kết quả lượt trước: (1) chữ được bôi đen →
-  (2) chữ con của chúng (`partCharsOf`) → (3) họ chữ (`familyCharsOf`, trần 40
-  chữ). Lượt 1 hỏng là hỏng cả; hai lượt sau chỉ làm dày chú thích nên hỏng thì
-  nuốt lỗi — thẻ vẫn đúng, chỉ là chữ con trơ mặt chữ.
-- **Một nguồn duy nhất**: bảng `kanji` trên server. Khác luồng tra nghĩa, dữ liệu
-  cấu tạo chữ chưa từng nằm trong từ điển tải về IndexedDB nên không có nhánh
-  "trên máy trước" — chiết tự cần mạng, và cần server đã nhập KANJIDIC.
-- Tối đa **8 chữ** mỗi lượt (`MAX_PROXY_KANJI`), bỏ chữ lặp, thẻ sắp theo thứ tự
-  chữ trong phần bôi đen chứ không theo thứ tự hàng trả về.
-- Ba trạng thái nói khác nhau: có thẻ (kèm danh sách chữ server chưa có dữ liệu),
-  "phần bôi đen không có chữ Hán", và "không chiết tự được" (cờ `error` —
-  `fetchKanjiBreakdownResult` giữ lại lỗi mạng thay vì nuốt thành mảng rỗng, đúng
-  tinh thần `lookupError.ts`). "Chưa có dữ liệu lối cấu tạo" (thiếu
-  `structuralCategory`) cũng khác "chưa rõ lối cấu tạo" (nguồn xếp `unknown`).
-- **Vì sao phải bấm nút "Chiết tự"** thay vì tự chạy khi thẻ hiện ra: y hệt §9.14
-  — overlay chèn theo cử chỉ ở UI trình duyệt, lúc ấy trang không có user
-  activation nên `window.open` bị popup blocker chặn.
-- Mở thẳng URL này bằng tay (không có `window.opener`) thì app bỏ chế độ proxy và
-  mở bình thường. Trang cấm chèn script → rơi về mở `/word/ja-vi/<từ>` trong app.
+- **Cache vô thời hạn** cho mỗi cặp ngôn ngữ, nhớ cả "bảng không có chữ này"
+  (`null`) để chữ trống không bị hỏi lại mỗi lần rê qua. Dữ liệu cấu tạo chữ
+  tĩnh nên chỉ bỏ khi đổi địa chỉ Gioitu. Có bản sao xuống `chrome.storage.local`
+  (ghi gộp sau 2 giây) để service worker ngủ dậy vẫn trả lời tức thì.
+  **Lỗi mạng KHÔNG được nhớ** thành "không có chữ" — lần sau vẫn hỏi lại.
+- **Hai nhịp trả lời**: thẻ hiện ngay sau lượt hỏi đầu (`quick`), chữ con và họ
+  chữ dày thêm sau (`full`) — không bắt người dùng chờ ba lượt.
+- **Hỏi trước chữ liền kề**: tra xong một chữ thì hỏi luôn dải chữ Hán quanh nó
+  (tối đa 6) — rê sang chữ bên cạnh là hiện liền, không chờ mạng.
+- Chữ mới thì thẻ cũ vẫn đứng yên, chỉ thay bằng "đang tra…" nếu quá 120ms —
+  không nhấp nháy khi lướt dọc một dòng chữ Hán.
+
+**Ba lượt hỏi** vì lượt sau chỉ biết phải hỏi gì sau khi có kết quả lượt trước:
+chữ được hỏi → chữ con (`partCharsOf`) → họ chữ (`familyCharsOf`, trần 40 chữ),
+mỗi lượt một request gộp và chỉ hỏi phần chưa có trong cache. Lượt 1 hỏng là
+hỏng cả (báo "không tra được", không báo nhầm "chưa có dữ liệu"); hai lượt sau
+chỉ làm dày chú thích nên nuốt lỗi — thẻ vẫn đúng, chỉ là chữ con trơ mặt chữ.
+
+Logic dựng thẻ (`kanji-cards.js`) và lớp gọi API + cache (`kanji-api.js`) là JS
+thuần, không chạm `chrome.*` lẫn DOM — nên có test vitest như mọi domain khác
+(`test/kanjiCards.test.ts`, `test/kanjiApi.test.ts`; `allowJs` trong tsconfig là
+để chỗ này). Phần vẽ thẻ tách riêng ở `card.js`.
 
 ## 10. Bản đồ chức năng → tài liệu
 
