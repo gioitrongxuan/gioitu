@@ -69,6 +69,30 @@ export function kanjiPairFor(pair: LangPair): LangPair {
   return pairById(pairId("ja", pair.target === "ja" ? "vi" : pair.target));
 }
 
+/**
+ * Một "chữ con" (bộ phận cấu thành, phần nghĩa, phần âm, hay một chữ cùng họ)
+ * kèm nghĩa + Hán-Việt của chính nó: nhìn 河 = 氵(THUỶ, nước) + 可(KHẢ) mới là
+ * chiết tự, chứ hiện trần hai cái glyph thì người học vẫn phải đi tra tiếp.
+ * Trường rỗng = bảng kanji không có chữ ấy (bộ thủ như 氵, 亻 thường vậy).
+ */
+export interface ProxyPart {
+  literal: string;
+  hanViet: string;
+  /** Một nghĩa thôi — thẻ hẹp, và đây chỉ là chú thích cho chữ con. */
+  meaning: string;
+  onyomi: string;
+}
+
+export function toProxyPart(literal: string, byLiteral: ReadonlyMap<string, KanjiEntry>): ProxyPart {
+  const entry = byLiteral.get(literal);
+  return {
+    literal,
+    hanViet: (entry?.hanViet ?? []).join(", "),
+    meaning: entry?.meanings[0] ?? "",
+    onyomi: (entry?.onyomi ?? []).map((r) => r.text).join("、"),
+  };
+}
+
 /** Lục thư của một chữ, đã diễn giải sẵn sang tiếng Việt cho overlay hiển thị. */
 export interface StructureView {
   /** Mã gốc (KANJIDIC/keisei) — overlay dùng để tô nhãn, không để hiển thị. */
@@ -78,8 +102,8 @@ export interface StructureView {
   /** Một câu giải thích lối cấu tạo ấy nghĩa là gì. */
   hint: string;
   /** Chỉ chữ hình thanh: phần chỉ nghĩa và phần chỉ âm. */
-  semantic?: string;
-  phonetic?: string;
+  semantic?: ProxyPart;
+  phonetic?: ProxyPart;
 }
 
 const STRUCTURES: Record<StructuralCategory["type"], { label: string; hint: string }> = {
@@ -126,21 +150,110 @@ const STRUCTURES: Record<StructuralCategory["type"], { label: string; hint: stri
  * `unknown` (nguồn có nói tới chữ này nhưng không xếp được lối): overlay nói
  * "chưa có dữ liệu" thay vì khẳng định là không rõ.
  */
-export function describeStructure(sc: StructuralCategory | undefined): StructureView | null {
+export function describeStructure(
+  sc: StructuralCategory | undefined,
+  byLiteral: ReadonlyMap<string, KanjiEntry> = new Map(),
+): StructureView | null {
   if (!sc) return null;
   const { label, hint } = STRUCTURES[sc.type] ?? STRUCTURES.unknown;
   const view: StructureView = { type: sc.type, label, hint };
   if (sc.type === "keisei") {
-    view.semantic = sc.semantic;
-    view.phonetic = sc.phonetic;
+    view.semantic = toProxyPart(sc.semantic, byLiteral);
+    view.phonetic = toProxyPart(sc.phonetic, byLiteral);
   }
   return view;
 }
 
+/** Số chữ cùng họ hiện trên một thẻ — đủ thấy quy luật, chưa thành bức tường chữ. */
+export const MAX_FAMILY = 10;
+
+/** Trần số chữ hỏi thêm ở lượt "họ chữ": một request, không phải cả từ điển. */
+export const MAX_FAMILY_FETCH = 40;
+
 /**
- * Một thẻ chiết tự cho overlay. Các trường đã gộp sẵn thành chuỗi (overlay chỉ
- * có chỗ hiện một dòng mỗi mục, và nó nằm ngoài bundle nên càng ít logic càng
- * tốt) — đúng tinh thần ProxyHit của luồng tra nghĩa.
+ * Họ chữ cùng phần âm — thứ trả công cho việc học chiết tự: 可 (KHẢ) kéo theo
+ * 何 河 荷 歌, tất cả đều đọc カ. Hai chiều:
+ *   • chữ hình thanh → họ của PHẦN ÂM của nó (các anh em cùng phần âm);
+ *   • chữ tự đứng làm phần âm (可, 青…) → những chữ dựng trên nó.
+ * Danh sách ấy nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm.
+ */
+export interface KanjiFamily {
+  /** Chữ làm phần âm chung. */
+  phonetic: string;
+  /** Chưa cắt bớt — nơi gọi tự xếp theo độ phổ biến rồi cắt (xem toProxyKanji). */
+  members: string[];
+}
+
+export function familyOf(
+  entry: KanjiEntry,
+  byLiteral: ReadonlyMap<string, KanjiEntry>,
+): KanjiFamily | null {
+  const sc = entry.structuralCategory;
+  if (sc?.type === "keisei") {
+    const head = byLiteral.get(sc.phonetic);
+    const members = (head?.keiseiPhonetic ?? []).filter((c) => c !== entry.literal);
+    if (members.length > 0) return { phonetic: sc.phonetic, members };
+  }
+  // Không phải hình thanh (hoặc chưa tra được chữ làm phần âm): chính nó có thể
+  // đang làm phần âm cho chữ khác.
+  const own = (entry.keiseiPhonetic ?? []).filter((c) => c !== entry.literal);
+  if (own.length > 0) return { phonetic: entry.literal, members: own };
+  return null;
+}
+
+/** Họ chữ đã diễn giải sẵn cho overlay. */
+export interface ProxyFamily {
+  phonetic: ProxyPart;
+  /** Câu dẫn — khác nhau tuỳ chữ đang xét là "anh em" hay chính là phần âm. */
+  label: string;
+  hint: string;
+  members: ProxyPart[];
+}
+
+/**
+ * Chữ cần hỏi thêm để "chữ con" có nghĩa và Hán-Việt: bộ phận cấu thành, phần
+ * nghĩa và phần âm của mọi chữ vừa tra. Bỏ chính các chữ đã tra (đã có dữ liệu).
+ */
+export function partCharsOf(entries: readonly KanjiEntry[]): string[] {
+  const out = new Set<string>();
+  for (const e of entries) {
+    for (const c of e.components) out.add(c);
+    const sc = e.structuralCategory;
+    if (sc?.type === "keisei") {
+      out.add(sc.semantic);
+      out.add(sc.phonetic);
+    }
+  }
+  for (const e of entries) out.delete(e.literal);
+  return [...out];
+}
+
+/**
+ * Chữ cần hỏi ở lượt cuối: thành viên các họ chữ, để chúng cũng có Hán-Việt và
+ * âm On (nhìn cả họ cùng đọc カ mới ra quy luật). Cắt ở `limit` cho một request
+ * gọn; chữ rơi ra ngoài vẫn hiện được mặt chữ, chỉ thiếu chú thích.
+ */
+export function familyCharsOf(
+  entries: readonly KanjiEntry[],
+  byLiteral: ReadonlyMap<string, KanjiEntry>,
+  limit = MAX_FAMILY_FETCH,
+): string[] {
+  const out = new Set<string>();
+  for (const e of entries) {
+    const fam = familyOf(e, byLiteral);
+    if (!fam) continue;
+    for (const m of fam.members) {
+      if (out.size >= limit) break;
+      if (!byLiteral.has(m)) out.add(m);
+    }
+  }
+  return [...out];
+}
+
+/**
+ * Một thẻ chiết tự cho overlay. Các trường của chính chữ ấy đã gộp sẵn thành
+ * chuỗi (overlay nằm ngoài bundle, càng ít logic càng tốt); chữ con thì giữ
+ * dạng ProxyPart vì mỗi cái còn phải hiện Hán-Việt + nghĩa riêng.
  */
 export interface ProxyKanji {
   literal: string;
@@ -150,12 +263,40 @@ export interface ProxyKanji {
   kunyomi: string;
   strokeCount: number;
   /** Bộ phận cấu thành; đã bỏ chính chữ đang xét nếu nguồn kể cả nó. */
-  components: string[];
+  components: ProxyPart[];
   structure: StructureView | null;
+  family: ProxyFamily | null;
 }
 
-/** Rút một KanjiEntry thành thẻ chiết tự. */
-export function toProxyKanji(entry: KanjiEntry): ProxyKanji {
+/**
+ * Bộ phận còn lại sau khi đã kể riêng ở khối lục thư. `components` của nguồn kể
+ * cả chính chữ đang xét (xem attachStructure ở server) — thừa; còn với chữ hình
+ * thanh thì phần nghĩa/phần âm đã đứng ngay trên với chú thích đầy đủ, nhắc lại
+ * y nguyên ở "bộ phận" chỉ khiến thẻ dài ra mà không thêm gì. Phần sâu hơn
+ * (thành phần của chính phần âm) thì vẫn giữ — đó mới là cái chưa nói.
+ */
+export function extraComponents(entry: KanjiEntry): string[] {
+  const shown = new Set<string>([entry.literal]);
+  const sc = entry.structuralCategory;
+  if (sc?.type === "keisei") {
+    shown.add(sc.semantic);
+    shown.add(sc.phonetic);
+  }
+  return entry.components.filter((c) => !shown.has(c));
+}
+
+/** Xếp họ chữ theo độ phổ biến (chữ hay gặp trước) rồi cắt; hoà thì giữ thứ tự nguồn. */
+function rankFamily(members: readonly string[], byLiteral: ReadonlyMap<string, KanjiEntry>): string[] {
+  return members
+    .map((c, i) => ({ c, i, score: byLiteral.get(c)?.score ?? 0 }))
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .slice(0, MAX_FAMILY)
+    .map((m) => m.c);
+}
+
+/** Rút một KanjiEntry thành thẻ chiết tự; `byLiteral` là mọi chữ đã tra được. */
+export function toProxyKanji(entry: KanjiEntry, byLiteral: ReadonlyMap<string, KanjiEntry> = new Map()): ProxyKanji {
+  const fam = familyOf(entry, byLiteral);
   return {
     literal: entry.literal,
     hanViet: (entry.hanViet ?? []).join(", "),
@@ -163,10 +304,19 @@ export function toProxyKanji(entry: KanjiEntry): ProxyKanji {
     onyomi: entry.onyomi.map((r) => r.text).join("、"),
     kunyomi: entry.kunyomi.map((r) => r.text).join("、"),
     strokeCount: entry.strokeCount,
-    // `components` của nguồn gồm cả chính chữ đang xét (xem attachStructure ở
-    // server): liệt kê nó trong "bộ phận" là thừa và gây hoang mang.
-    components: entry.components.filter((c) => c !== entry.literal),
-    structure: describeStructure(entry.structuralCategory),
+    components: extraComponents(entry).map((c) => toProxyPart(c, byLiteral)),
+    structure: describeStructure(entry.structuralCategory, byLiteral),
+    family: fam
+      ? {
+          phonetic: toProxyPart(fam.phonetic, byLiteral),
+          label:
+            fam.phonetic === entry.literal
+              ? `Những chữ dùng ${entry.literal} làm phần âm`
+              : `Chữ cùng phần âm ${fam.phonetic}`,
+          hint: "Cùng phần âm thì âm On thường giống nhau — thuộc một chữ là đoán được cả họ.",
+          members: rankFamily(fam.members, byLiteral).map((c) => toProxyPart(c, byLiteral)),
+        }
+      : null,
   };
 }
 
@@ -194,6 +344,8 @@ export interface KanjiProxyReply {
  * Gói kết quả tra. Sắp theo thứ tự chữ trong phần bôi đen chứ không theo thứ tự
  * hàng trả về (bảng kanji không hứa thứ tự), để thẻ đọc xuôi như chữ trên trang;
  * chữ nào bảng không có thì vắng thẻ — overlay tự nói ra phần chênh lệch.
+ * `entries` là MỌI chữ đã tra được (chữ được chọn + chữ con + họ chữ): thẻ chỉ
+ * dựng cho `chars`, phần còn lại là nguồn chú thích cho chữ con.
  */
 export function buildKanjiReply(
   text: string,
@@ -204,7 +356,7 @@ export function buildKanjiReply(
   const byLiteral = new Map(entries.map((e) => [e.literal, e]));
   const kanji = chars.flatMap((c) => {
     const entry = byLiteral.get(c);
-    return entry ? [toProxyKanji(entry)] : [];
+    return entry ? [toProxyKanji(entry, byLiteral)] : [];
   });
   const reply: KanjiProxyReply = { kind: KANJI_REPLY_KIND, text, chars: [...chars], kanji };
   if (error) reply.error = error;

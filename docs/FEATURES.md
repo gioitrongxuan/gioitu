@@ -1270,6 +1270,20 @@ Extension **riêng**, cài riêng với extension "Thêm nhanh từ" (§9.14):
 `extension-chiettu/` — chuột phải / `Ctrl/⌘+Shift+K` / nút toolbar. Nó không ghi
 gì vào dữ liệu học (không đếm lượt tra, không tạo thẻ SRS).
 
+**Chữ con có nghĩa và Hán-Việt của chính nó**: mỗi bộ phận / phần nghĩa / phần
+âm hiện kèm Hán-Việt + một nghĩa + âm On (河 = 氵 THUỶ·nước + 可 KHẢ·có thể), chứ
+không trơ mặt chữ bắt người học đi tra tiếp. Bộ thủ không có dòng riêng trong
+bảng kanji (氵, 亻) thì chỉ còn mặt chữ — im lặng, không bịa. Chữ hình thanh
+KHÔNG lặp lại phần nghĩa/phần âm ở mục "bộ phận" (`extraComponents`), chỉ giữ
+phần sâu hơn (thành phần của chính phần âm).
+
+**Họ chữ cùng phần âm** (`familyOf`): 可 kéo theo 何 河 荷 歌 — cùng phần âm thì
+âm On thường giống nhau, nên học một chữ là đoán được cả họ. Hai chiều: chữ hình
+thanh → anh em cùng phần âm của nó; chữ tự làm phần âm → những chữ dựng trên nó.
+Danh sách nằm sẵn ở `keiseiPhonetic` của chữ làm phần âm (cột `structural`), xếp
+theo độ phổ biến (`score`) rồi cắt còn `MAX_FAMILY` = 10. Cố ý KHÔNG làm "cùng
+phần nghĩa": bộ nghĩa như 氵 có hàng trăm chữ, hiện ra chỉ thành bức tường.
+
 **App tra hộ** (`?kanji=<phần bôi đen>`): cùng lý do và cùng khuôn với `?lookup=`
 — extension ở origin khác nên không gọi được `/api/kanji`. Cửa sổ tí hon
 `?kanji=…&kanji_pair=<cặp>&kanji_origin=<origin trang>` chỉ vẽ một dòng trạng
@@ -1279,6 +1293,11 @@ thái (`.qa-proxy`), hỏi server rồi
 `domain/kanjiProxy.ts` (rút chữ Hán, diễn giải lục thư sang tiếng Việt, dựng
 payload), phần gọi mạng ở `data/kanjiProxy.ts`.
 
+- **Ba lượt hỏi, mỗi lượt một request gộp** (`data/kanjiProxy.ts`), vì lượt sau
+  chỉ biết phải hỏi gì sau khi có kết quả lượt trước: (1) chữ được bôi đen →
+  (2) chữ con của chúng (`partCharsOf`) → (3) họ chữ (`familyCharsOf`, trần 40
+  chữ). Lượt 1 hỏng là hỏng cả; hai lượt sau chỉ làm dày chú thích nên hỏng thì
+  nuốt lỗi — thẻ vẫn đúng, chỉ là chữ con trơ mặt chữ.
 - **Một nguồn duy nhất**: bảng `kanji` trên server. Khác luồng tra nghĩa, dữ liệu
   cấu tạo chữ chưa từng nằm trong từ điển tải về IndexedDB nên không có nhánh
   "trên máy trước" — chiết tự cần mạng, và cần server đã nhập KANJIDIC.

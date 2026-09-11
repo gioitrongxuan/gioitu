@@ -5,12 +5,17 @@ import {
   buildKanjiReply,
   describeStructure,
   failedKanjiReply,
+  familyCharsOf,
+  familyOf,
   hanCharsOf,
   KANJI_REPLY_KIND,
+  MAX_FAMILY,
+  partCharsOf,
   kanjiPairFor,
   MAX_PROXY_KANJI,
   parseKanjiParams,
   toProxyKanji,
+  toProxyPart,
 } from "@/features/dictionary/domain/kanjiProxy";
 import { runProxyKanji } from "@/features/dictionary/data/kanjiProxy";
 
@@ -25,6 +30,8 @@ function kanji(literal: string, over: Partial<KanjiEntry> = {}): KanjiEntry {
     ...over,
   };
 }
+
+const byLiteral = (entries: KanjiEntry[]) => new Map(entries.map((e) => [e.literal, e]));
 
 describe("hanCharsOf", () => {
   it("rút chữ Hán theo thứ tự xuất hiện, bỏ kana và chữ Latin", () => {
@@ -95,10 +102,15 @@ describe("kanjiPairFor", () => {
 });
 
 describe("describeStructure", () => {
-  it("chữ hình thanh kèm phần nghĩa và phần âm", () => {
-    const view = describeStructure({ type: "keisei", semantic: "氵", phonetic: "可" });
-    expect(view).toMatchObject({ type: "keisei", semantic: "氵", phonetic: "可" });
+  it("chữ hình thanh kèm phần nghĩa và phần âm, mỗi phần có nghĩa + Hán-Việt của chính nó", () => {
+    const parts = byLiteral([
+      kanji("可", { hanViet: ["KHẢ"], meanings: ["có thể", "khá"], onyomi: [{ text: "カ" }] }),
+    ]);
+    const view = describeStructure({ type: "keisei", semantic: "氵", phonetic: "可" }, parts);
     expect(view?.label).toContain("Hình thanh");
+    expect(view?.phonetic).toEqual({ literal: "可", hanViet: "KHẢ", meaning: "có thể", onyomi: "カ" });
+    // Bộ thủ thường không có dòng riêng trong bảng kanji → chỉ còn mặt chữ.
+    expect(view?.semantic).toEqual({ literal: "氵", hanViet: "", meaning: "", onyomi: "" });
   });
 
   it("các lối còn lại chỉ có nhãn + một câu giải thích", () => {
@@ -133,12 +145,113 @@ describe("toProxyKanji", () => {
       onyomi: "カ",
       kunyomi: "かわ",
       strokeCount: 8,
-      components: ["氵", "可"],
     });
+    expect(card.components.map((c) => c.literal)).toEqual(["氵", "可"]);
   });
 
   it("bỏ chính chữ đang xét khỏi danh sách bộ phận (nguồn kể cả nó)", () => {
-    expect(toProxyKanji(kanji("河", { components: ["河", "氵", "可"] })).components).toEqual(["氵", "可"]);
+    const card = toProxyKanji(kanji("河", { components: ["河", "氵", "可"] }));
+    expect(card.components.map((c) => c.literal)).toEqual(["氵", "可"]);
+  });
+
+  it("chữ hình thanh: bộ phận không nhắc lại phần nghĩa/phần âm đã kể ở trên", () => {
+    const card = toProxyKanji(
+      kanji("河", {
+        components: ["氵", "可", "口"],
+        structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" },
+      }),
+    );
+    // 口 là thành phần của chính phần âm 可 — cái đó chưa nói ở đâu nên giữ lại.
+    expect(card.components.map((c) => c.literal)).toEqual(["口"]);
+  });
+
+  it("chữ con mang theo nghĩa + Hán-Việt của chính nó", () => {
+    const parts = byLiteral([kanji("可", { hanViet: ["KHẢ"], meanings: ["có thể"] })]);
+    const card = toProxyKanji(kanji("河", { components: ["氵", "可"] }), parts);
+    expect(card.components[1]).toMatchObject({ literal: "可", hanViet: "KHẢ", meaning: "có thể" });
+  });
+});
+
+describe("toProxyPart", () => {
+  it("chữ bảng kanji không có → chỉ còn mặt chữ, các trường khác rỗng", () => {
+    expect(toProxyPart("氵", new Map())).toEqual({ literal: "氵", hanViet: "", meaning: "", onyomi: "" });
+  });
+});
+
+// Họ chữ cùng phần âm là thứ trả công cho việc học chiết tự: 可 kéo theo
+// 何 河 荷, tất cả đọc カ.
+describe("familyOf", () => {
+  const head = kanji("可", { keiseiPhonetic: ["何", "河", "荷"] });
+
+  it("chữ hình thanh → anh em cùng phần âm (bỏ chính nó)", () => {
+    const entry = kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } });
+    expect(familyOf(entry, byLiteral([head]))).toEqual({ phonetic: "可", members: ["何", "荷"] });
+  });
+
+  it("chữ tự làm phần âm → những chữ dựng trên nó", () => {
+    expect(familyOf(head, new Map())).toEqual({ phonetic: "可", members: ["何", "河", "荷"] });
+  });
+
+  it("chưa tra được chữ làm phần âm → rơi về họ của chính nó, không bịa", () => {
+    const entry = kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } });
+    expect(familyOf(entry, new Map())).toBeNull();
+  });
+
+  it("chữ không dính gì tới hình thanh → không có họ", () => {
+    expect(familyOf(kanji("山", { structuralCategory: { type: "shoukei" } }), new Map())).toBeNull();
+  });
+});
+
+describe("thẻ chiết tự có họ chữ", () => {
+  it("nêu phần âm, câu dẫn theo chiều tra, và chú thích từng chữ trong họ", () => {
+    const map = byLiteral([
+      kanji("可", { hanViet: ["KHẢ"], keiseiPhonetic: ["何", "河"] }),
+      kanji("何", { hanViet: ["HÀ"], meanings: ["cái gì"], onyomi: [{ text: "カ" }] }),
+    ]);
+    const card = toProxyKanji(
+      kanji("河", { structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" } }),
+      map,
+    );
+    expect(card.family?.label).toBe("Chữ cùng phần âm 可");
+    expect(card.family?.phonetic).toMatchObject({ literal: "可", hanViet: "KHẢ" });
+    expect(card.family?.members[0]).toEqual({ literal: "何", hanViet: "HÀ", meaning: "cái gì", onyomi: "カ" });
+  });
+
+  it("tra chính chữ làm phần âm → câu dẫn đổi chiều", () => {
+    const head = kanji("可", { keiseiPhonetic: ["何", "河"] });
+    expect(toProxyKanji(head, byLiteral([head])).family?.label).toBe("Những chữ dùng 可 làm phần âm");
+  });
+
+  it("chữ hay gặp đứng trước, và cắt ở MAX_FAMILY", () => {
+    const members = Array.from({ length: MAX_FAMILY + 5 }, (_, i) => String.fromCodePoint(0x4e00 + i));
+    const head = kanji("可", { keiseiPhonetic: members });
+    // Chữ cuối danh sách nhưng phổ biến nhất → phải nhảy lên đầu.
+    const map = byLiteral([head, kanji(members[members.length - 1], { score: 99 })]);
+    const family = toProxyKanji(head, map).family;
+    expect(family?.members).toHaveLength(MAX_FAMILY);
+    expect(family?.members[0].literal).toBe(members[members.length - 1]);
+  });
+});
+
+describe("chữ cần hỏi thêm ở lượt 2 và 3", () => {
+  const entry = kanji("河", {
+    components: ["河", "氵", "可"],
+    structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" },
+  });
+
+  it("lượt 2 = bộ phận + phần nghĩa + phần âm, trừ chữ đã tra", () => {
+    expect(partCharsOf([entry]).sort()).toEqual(["可", "氵"]);
+  });
+
+  it("lượt 3 = thành viên các họ, trừ chữ đã có, cắt ở trần", () => {
+    const map = byLiteral([entry, kanji("可", { keiseiPhonetic: ["何", "河", "荷"] })]);
+    // 河 đã tra ở lượt 1 nên không hỏi lại; 何/荷 thì cần để có Hán-Việt + âm On.
+    expect(familyCharsOf([entry], map)).toEqual(["何", "荷"]);
+    expect(familyCharsOf([entry], map, 1)).toEqual(["何"]);
+  });
+
+  it("không chữ nào có họ → không có lượt 3", () => {
+    expect(familyCharsOf([kanji("山")], new Map())).toEqual([]);
   });
 });
 
@@ -210,6 +323,48 @@ describe("runProxyKanji", () => {
     expect(decodeURIComponent(urls[0])).toContain("chars=勉強");
     expect(decodeURIComponent(urls[0])).toContain("src=ja&tgt=vi");
     expect(reply.kanji.map((k) => k.literal)).toEqual(["勉", "強"]);
+  });
+
+  it("hỏi tiếp chữ con rồi họ chữ — ba lượt, mỗi lượt một request gộp", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      urls.push(decodeURIComponent(url));
+      const chars = decodeURIComponent(url).match(/chars=([^&]*)/)?.[1] ?? "";
+      const rows: KanjiEntry[] = [];
+      if (chars.includes("河"))
+        rows.push(
+          kanji("河", {
+            components: ["氵", "可"],
+            structuralCategory: { type: "keisei", semantic: "氵", phonetic: "可" },
+          }),
+        );
+      if (chars.includes("可")) rows.push(kanji("可", { hanViet: ["KHẢ"], keiseiPhonetic: ["何", "河"] }));
+      if (chars.includes("何")) rows.push(kanji("何", { hanViet: ["HÀ"], meanings: ["cái gì"] }));
+      return new Response(JSON.stringify(rows), { status: 200 });
+    });
+
+    const reply = await runProxyKanji("河", pairById("ja-vi"));
+    expect(urls).toHaveLength(3);
+    const card = reply.kanji[0];
+    expect(card.structure?.phonetic).toMatchObject({ literal: "可", hanViet: "KHẢ" });
+    // 氵/可 đã kể ở khối lục thư nên không lặp lại ở "bộ phận".
+    expect(card.components).toEqual([]);
+    expect(card.family?.members).toEqual([{ literal: "何", hanViet: "HÀ", meaning: "cái gì", onyomi: "" }]);
+  });
+
+  it("lượt phụ hỏng thì thẻ vẫn còn, chỉ chữ con trơ mặt chữ", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", async () => {
+      call += 1;
+      if (call === 1) return new Response(JSON.stringify([kanji("河", { components: ["氵", "可"] })]), { status: 200 });
+      throw new TypeError("Failed to fetch");
+    });
+    const reply = await runProxyKanji("河", pairById("ja-vi"));
+    expect(reply.error).toBeUndefined();
+    expect(reply.kanji[0].components).toEqual([
+      { literal: "氵", hanViet: "", meaning: "", onyomi: "" },
+      { literal: "可", hanViet: "", meaning: "", onyomi: "" },
+    ]);
   });
 
   it("không có chữ Hán → KHÔNG gọi mạng", async () => {

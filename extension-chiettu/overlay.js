@@ -66,20 +66,28 @@
     .k-struct { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(28, 33, 48, 0.16); }
     .k-label { font-weight: 700; }
     .k-hint { opacity: 0.72; font-size: 12.5px; }
-    .k-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
-    .part { border: 1px solid rgba(28, 33, 48, 0.14); border-radius: 7px; padding: 1px 7px; font-size: 15px; }
-    .part.sem { border-color: #3aa76d; }
-    .part.pho { border-color: #d58a2b; }
+    .parts { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .p { display: flex; gap: 8px; align-items: baseline; }
+    .p-lit { font-size: 19px; line-height: 1.2; min-width: 1.4em; text-align: center;
+      border: 1px solid rgba(28, 33, 48, 0.14); border-radius: 7px; padding: 0 4px; }
+    .p.sem .p-lit { border-color: #3aa76d; }
+    .p.pho .p-lit { border-color: #d58a2b; }
+    .p-text { flex: 1 1 auto; min-width: 0; font-size: 12.5px; }
+    .p-hv { font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+    .p-mean { opacity: 0.72; }
+    .k-family { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(28, 33, 48, 0.16); }
     .tag { font-size: 12px; opacity: 0.66; }
+    .tag.sec { display: block; margin-top: 8px; }
+    .role { font-size: 12px; opacity: 0.66; align-self: center; }
     @media (prefers-color-scheme: dark) {
       .card { background: #232837; color: #e8ebf4; border-color: rgba(255, 255, 255, 0.09); }
-      .chip, .k, .part { border-color: rgba(255, 255, 255, 0.14); }
+      .chip, .k, .p-lit { border-color: rgba(255, 255, 255, 0.14); }
       .link { color: #8ba7ff; }
       .status { color: rgba(232, 235, 244, 0.65); }
       .status.err { color: #ff8087; }
-      .k-struct { border-top-color: rgba(255, 255, 255, 0.16); }
-      .part.sem { border-color: #57c98c; }
-      .part.pho { border-color: #e6a74e; }
+      .k-struct, .k-family { border-top-color: rgba(255, 255, 255, 0.16); }
+      .p.sem .p-lit { border-color: #57c98c; }
+      .p.pho .p-lit { border-color: #e6a74e; }
     }
   `;
 
@@ -102,12 +110,54 @@
     parent.appendChild(el);
   }
 
-  function partChip(char, kind) {
-    const el = document.createElement("span");
-    el.className = kind ? `part ${kind}` : "part";
-    el.lang = "ja";
-    el.textContent = char;
-    return el;
+  /**
+   * Một chữ con (bộ phận / phần nghĩa / phần âm / chữ cùng họ): mặt chữ + Hán-Việt
+   * + nghĩa của CHÍNH NÓ — chiết tự mà chỉ hiện glyph thì người học vẫn phải đi
+   * tra tiếp. Bảng kanji không có chữ ấy (bộ thủ như 氵) thì chỉ còn mặt chữ.
+   */
+  function partRow(part, kind, role) {
+    const row = document.createElement("div");
+    row.className = kind ? `p ${kind}` : "p";
+    const lit = document.createElement("span");
+    lit.className = "p-lit";
+    lit.lang = "ja";
+    lit.textContent = part.literal;
+    row.appendChild(lit);
+    const text = document.createElement("span");
+    text.className = "p-text";
+    if (part.hanViet) {
+      const hv = document.createElement("span");
+      hv.className = "p-hv";
+      hv.textContent = part.hanViet;
+      text.appendChild(hv);
+    }
+    const note = [part.meaning, part.onyomi].filter(Boolean).join(" · ");
+    if (note) {
+      const mean = document.createElement("span");
+      mean.className = "p-mean";
+      mean.textContent = part.hanViet ? ` · ${note}` : note;
+      text.appendChild(mean);
+    }
+    row.appendChild(text);
+    if (role) {
+      const tag = document.createElement("span");
+      tag.className = "role";
+      tag.textContent = role;
+      row.appendChild(tag);
+    }
+    return row;
+  }
+
+  /** Khối nhiều chữ con dưới một tiêu đề nhỏ. */
+  function partList(parent, label, parts, kind) {
+    if (parts.length === 0) return;
+    const tag = document.createElement("div");
+    tag.className = "tag sec";
+    tag.textContent = label;
+    const list = document.createElement("div");
+    list.className = "parts";
+    for (const p of parts) list.appendChild(partRow(p, kind));
+    parent.append(tag, list);
   }
 
   /** Một thẻ chiết tự. Dữ liệu từ app nên dựng bằng DOM, không nhét vào innerHTML. */
@@ -158,19 +208,9 @@
       // học muốn thấy (nhìn phần âm là đoán được cách đọc của cả họ chữ).
       if (k.structure.semantic || k.structure.phonetic) {
         const parts = document.createElement("div");
-        parts.className = "k-parts";
-        if (k.structure.semantic) {
-          const tag = document.createElement("span");
-          tag.className = "tag";
-          tag.textContent = "nghĩa";
-          parts.append(partChip(k.structure.semantic, "sem"), tag);
-        }
-        if (k.structure.phonetic) {
-          const tag = document.createElement("span");
-          tag.className = "tag";
-          tag.textContent = "âm";
-          parts.append(partChip(k.structure.phonetic, "pho"), tag);
-        }
+        parts.className = "parts";
+        if (k.structure.semantic) parts.appendChild(partRow(k.structure.semantic, "sem", "phần nghĩa"));
+        if (k.structure.phonetic) parts.appendChild(partRow(k.structure.phonetic, "pho", "phần âm"));
         struct.appendChild(parts);
       }
     } else {
@@ -181,15 +221,24 @@
     }
     box.appendChild(struct);
 
-    if (k.components.length > 0) {
-      const parts = document.createElement("div");
-      parts.className = "k-parts";
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = "Bộ phận:";
-      parts.appendChild(tag);
-      for (const c of k.components) parts.appendChild(partChip(c));
-      box.appendChild(parts);
+    partList(box, "Bộ phận cấu thành", k.components);
+
+    // Họ chữ cùng phần âm: chỗ một lần chiết tự trả công cho cả chục chữ khác.
+    if (k.family) {
+      const fam = document.createElement("div");
+      fam.className = "k-family";
+      const label = document.createElement("div");
+      label.className = "k-label";
+      label.textContent = k.family.label;
+      const hint = document.createElement("div");
+      hint.className = "k-hint";
+      hint.textContent = k.family.hint;
+      fam.append(label, hint);
+      const list = document.createElement("div");
+      list.className = "parts";
+      for (const m of k.family.members) list.appendChild(partRow(m, "pho"));
+      fam.appendChild(list);
+      box.appendChild(fam);
     }
 
     return box;

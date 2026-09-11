@@ -15,14 +15,22 @@ Thẻ liệt kê sẵn các chữ Hán rút được (tối đa 8 chữ, bỏ ch
 **Chiết tự**. Phải **bấm** nút ấy: lúc thẻ vừa hiện ra, trang chưa có "user
 activation" nên trình duyệt chặn mọi `window.open` — một cú bấm mới mở được cửa
 sổ hỏi app. Bấm xong, mỗi chữ thành một thẻ; chữ hình thanh tô riêng **phần
-nghĩa** (viền xanh) và **phần âm** (viền cam) — nhìn phần âm là đoán được cách
-đọc của cả họ chữ.
+nghĩa** (viền xanh) và **phần âm** (viền cam).
+
+Mỗi **chữ con** (bộ phận, phần nghĩa, phần âm) hiện kèm **Hán-Việt + nghĩa + âm
+On của chính nó** — 河 = 氵 THUỶ·nước + 可 KHẢ·có thể — chứ không bắt bạn đi tra
+tiếp. Bộ thủ không có dòng riêng trong bảng kanji (氵, 亻) thì chỉ còn mặt chữ.
+
+Dưới cùng là **họ chữ cùng phần âm**: 可 kéo theo 何 荷 歌, tất cả đọc カ — học
+một chữ đoán được cả họ. Chữ hay gặp xếp trước, tối đa 10 chữ. Tra đúng chữ làm
+phần âm (可) thì danh sách đổi chiều thành "những chữ dùng 可 làm phần âm".
 
 ## Dữ liệu lấy từ đâu
 
 Extension **không giữ bản sao dữ liệu và không gọi API nào**: nó chạy ở origin
 khác nên không đọc được dữ liệu của app. Nó mở một cửa sổ tí hon
-`<địa chỉ Gioitu>/?kanji=<phần bôi đen>`; chính app hỏi `/api/kanji`, dựng thẻ
+`<địa chỉ Gioitu>/?kanji=<phần bôi đen>`; chính app hỏi `/api/kanji` (ba lượt:
+chữ được chọn → chữ con → họ chữ, mỗi lượt một request gộp), dựng thẻ
 rồi `postMessage` về trang đang đọc và tự đóng (đúng khuôn `?lookup=` mà
 extension "Thêm nhanh từ" đã dùng — quyết định #251). Overlay chỉ nhận message
 từ đúng origin app, đúng `kind`, đúng phần bôi đen đang hỏi.
